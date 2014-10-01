@@ -95,8 +95,10 @@ def process(node_info):
                         'database for another node - skipping',
                         {'mac': mac, 'node': node.uuid})
 
-    LOG.info('Node %s was updated with data from discovery process',
-             node.uuid)
+    LOG.info('Node %s was updated with data from discovery process, forcing '
+             'power off', node.uuid)
+
+    ironic.node.set_power_state(node.uuid, 'off')
 
 
 def _get_node_by_ipmi_address(ironic, address):
