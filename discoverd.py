@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import threading
+import time
 
 from flask import Flask, request
 from ironicclient import client, exceptions
@@ -196,7 +197,19 @@ def post_start():
     return "{}", 202, {"content-type": "application/json"}
 
 
+def periodic_update(event, ironic):
+    while not event.is_set():
+        LOG.info('Running periodic update of filters')
+        update_filters(ironic)
+        time.sleep(30)
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    client.get_client(1, **OS_ARGS)
-    app.run(debug=True, host='0.0.0.0', port=5050)
+    ironic = client.get_client(1, **OS_ARGS)
+    event = threading.Event()
+    threading.Thread(target=periodic_update, args=(event, ironic)).start()
+    try:
+        app.run(debug=True, host='0.0.0.0', port=5050)
+    finally:
+        LOG.info('Waiting for background thread to shutdown')
+        event.set()
