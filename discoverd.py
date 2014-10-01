@@ -127,11 +127,42 @@ def _get_node_by_macs(ironic, macs):
             return None
 
 
-@app.route('/', methods=['POST'])
-def post():
+def start(uuids):
+    ironic = client.get_client(1, **OS_ARGS)
+    LOG.debug('Validating nodes %s', uuids)
+    nodes = []
+    for uuid in uuids:
+        try:
+            node = ironic.node.get(uuid)
+        except exceptions.HTTPClientError:
+            LOG.exception('Failed validation of node %s', uuid)
+            continue
+
+        if not node.maintenance:
+            LOG.error('Node %s not in maintenance - skipping', uuid)
+            continue
+
+        nodes.append(node)
+
+    LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
+
+    for node in nodes:
+        ironic.node.set_power_state(node.uuid, 'on')
+
+
+@app.route('/continue', methods=['POST'])
+def post_continue():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
     threading.Thread(target=process, args=(data,)).start()
+    return "{}", 202, {"content-type": "application/json"}
+
+
+@app.route('/start', methods=['POST'])
+def post_start():
+    data = request.get_json(force=True)
+    LOG.debug("Got JSON %s, going into processing thread", data)
+    threading.Thread(target=start, args=(data,)).start()
     return "{}", 202, {"content-type": "application/json"}
 
 
