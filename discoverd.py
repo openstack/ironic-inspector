@@ -127,6 +127,20 @@ def _get_node_by_macs(ironic, macs):
             return None
 
 
+LOCK = threading.RLock()
+MACS_DISCOVERY = set()
+MACS_ACTIVE = set()
+
+
+def update_filters(ironic):
+    global MACS_ACTIVE
+
+    with LOCK:
+        MACS_ACTIVE = set(p.address for p in ironic.port.list(limit=0))
+        to_blacklist = MACS_ACTIVE - MACS_DISCOVERY
+        # TODO(dtantsur): change iptables configuration
+
+
 def start(uuids):
     ironic = client.get_client(1, **OS_ARGS)
     LOG.debug('Validating nodes %s', uuids)
@@ -145,6 +159,22 @@ def start(uuids):
         nodes.append(node)
 
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
+
+    to_exclude = set()
+    for node in nodes:
+        if not node.driver.endswith('ssh'):
+            continue
+
+        LOG.warn('Driver for %s is %s, requires white-listing MAC',
+                 node.uuid, node.driver)
+
+        # TODO(dtantsur): pagination
+        ports = ironic.node.list_ports(node.uuid, limit=0)
+        to_exclude.update(p.address for p in ports)
+
+    if to_exclude:
+        MACS_DISCOVERY.update(to_exclude)
+        update_filters(ironic)
 
     for node in nodes:
         ironic.node.set_power_state(node.uuid, 'on')
