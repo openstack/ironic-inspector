@@ -24,6 +24,7 @@ def is_valid_mac(address):
 
 
 def process(node_info):
+    """Process data from discovery ramdisk."""
     if node_info.get('error'):
         LOG.error('Error happened during discovery: %s',
                   node_info['error'])
@@ -55,8 +56,15 @@ def process(node_info):
     ironic = client.get_client(1, **OS_ARGS)
     bmc_known = bool(node_info.get('ipmi_address'))
     if bmc_known:
-        node = _get_node_by_ipmi_address(ironic, node_info['ipmi_address'])
-        if node is None:
+        # TODO(dtantsur): bulk loading
+        nodes = ironic.node.list(maintenance=True, limit=0,
+                                 sort_key='created_at',
+                                 sort_dir='desc', detail=True)
+        address = node_info['ipmi_address']
+        for node in nodes:
+            if node.driver_info.get('ipmi_address') == address:
+                break
+        else:
             LOG.error('Unable to find node with ipmi_address %s',
                       node_info['ipmi_address'])
             return
@@ -64,8 +72,22 @@ def process(node_info):
         # In case of testing with vms and pxe_ssh driver
         LOG.warn('No BMC address provided, trying to use MAC '
                  'addresses for finding node')
-        node = _get_node_by_macs(ironic, valid_macs)
-        if node is None:
+        port = None
+        for mac in valid_macs:
+            try:
+                port = ironic.port.get_by_address(mac)
+            except exceptions.NotFound:
+                continue
+            else:
+                break
+
+        if port is not None:
+            try:
+                node = ironic.node.get(port.node_uuid)
+            except exceptions.NotFound:
+                node = None
+
+        if port is None or node is None:
             LOG.error('Unable to find node with macs %s',
                       valid_macs)
             return
@@ -102,47 +124,20 @@ def process(node_info):
     ironic.node.set_power_state(node.uuid, 'off')
 
 
-def _get_node_by_ipmi_address(ironic, address):
-    # TODO(dtantsur): bulk loading
-    nodes = ironic.node.list(maintenance=True, limit=0, sort_key='created_at',
-                             sort_dir='desc', detail=True)
-    for node in nodes:
-        if node.driver_info.get('ipmi_address') == address:
-            return node
-
-
-def _get_node_by_macs(ironic, macs):
-    port = None
-    for mac in macs:
-        try:
-            port = ironic.port.get_by_address(mac)
-        except exceptions.NotFound:
-            continue
-        else:
-            break
-
-    if port is not None:
-        try:
-            return ironic.node.get(port.node_uuid)
-        except exceptions.NotFound:
-            return None
-
-
 LOCK = threading.RLock()
 MACS_DISCOVERY = set()
-MACS_ACTIVE = set()
 
 
 def update_filters(ironic):
-    global MACS_ACTIVE
-
+    """Update firewall rules for TFTP server."""
     with LOCK:
-        MACS_ACTIVE = set(p.address for p in ironic.port.list(limit=0))
-        to_blacklist = MACS_ACTIVE - MACS_DISCOVERY
+        macs_active = set(p.address for p in ironic.port.list(limit=0))
+        to_blacklist = macs_active - MACS_DISCOVERY
         # TODO(dtantsur): change iptables configuration
 
 
 def start(uuids):
+    """Initiate discovery for given node uuids."""
     ironic = client.get_client(1, **OS_ARGS)
     LOG.debug('Validating nodes %s', uuids)
     nodes = []
