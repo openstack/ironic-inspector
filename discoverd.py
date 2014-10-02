@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+from subprocess import call, check_call
 import threading
 import time
 
@@ -123,17 +124,72 @@ def process(node_info):
 
     ironic.node.set_power_state(node.uuid, 'off')
 
-
-LOCK = threading.RLock()
-MACS_DISCOVERY = set()
+    Firewall.unwhitelist_macs(valid_macs)
 
 
-def update_filters(ironic):
-    """Update firewall rules for TFTP server."""
-    with LOCK:
-        macs_active = set(p.address for p in ironic.port.list(limit=0))
-        to_blacklist = macs_active - MACS_DISCOVERY
-        # TODO(dtantsur): change iptables configuration
+class Firewall(object):
+    LOCK = threading.RLock()
+    MACS_DISCOVERY = set()
+    NEW_CHAIN = 'discovery_temp'
+    CHAIN = 'discovery'
+    INTERFACE = 'br-ctlplane'
+
+    @staticmethod
+    def _iptables(*args, **kwargs):
+        cmd = ('iptables',) + args
+        LOG.debug('Running iptables %s', cmd)
+        if kwargs.pop('ignore', False):
+            if call(cmd, **kwargs):
+                LOG.warn('iptables failed: %s', args)
+                return False
+            else:
+                return True
+        else:
+            return check_call(cmd, **kwargs)
+
+    @classmethod
+    def init(cls):
+        cls._iptables('-F', cls.NEW_CHAIN, ignore=True)
+        cls._iptables('-X', cls.NEW_CHAIN, ignore=True)
+        cls._iptables('-F', cls.CHAIN, ignore=True)
+        cls._iptables('-X', cls.CHAIN, ignore=True)
+        # Code expects it to exist
+        cls._iptables('-N', cls.CHAIN)
+
+    @classmethod
+    def whitelist_macs(cls, macs):
+        with cls.LOCK:
+            cls.MACS_DISCOVERY.update(macs)
+
+    @classmethod
+    def unwhitelist_macs(cls, macs):
+        with cls.LOCK:
+            cls.MACS_DISCOVERY.difference_update(macs)
+
+    @classmethod
+    def update_filters(cls, ironic):
+        with cls.LOCK:
+            macs_active = set(p.address for p in ironic.port.list(limit=0))
+            to_blacklist = macs_active - cls.MACS_DISCOVERY
+
+            # Operate on temporary chain
+            cls._iptables('-N', cls.NEW_CHAIN)
+            # - Blacklist active macs, so that nova can boot them
+            for mac in to_blacklist:
+                cls._iptables('-A', cls.NEW_CHAIN, '-m', 'mac',
+                              '--mac-source', mac, '-j', 'DROP')
+            # - Whitelist everything else
+            cls._iptables('-A', cls.NEW_CHAIN, '-j', 'ACCEPT')
+
+            # Swap chains
+            cls._iptables('-I', 'input', '-i', cls.INTERFACE, '-p' 'udp',
+                          '--dport', '67', '-j', cls.NEW_CHAIN)
+            cls._iptables('-D', 'input', '-i', cls.INTERFACE, '-p' 'udp',
+                          '--dport', '67', '-j', cls.CHAIN,
+                          ignore=True)  # may be missing on first run
+            cls._iptables('-F', cls.CHAIN)
+            cls._iptables('-X', cls.CHAIN)
+            cls._iptables('-E', cls.NEW_CHAIN, cls.CHAIN)
 
 
 def start(uuids):
@@ -169,8 +225,8 @@ def start(uuids):
         to_exclude.update(p.address for p in ports)
 
     if to_exclude:
-        MACS_DISCOVERY.update(to_exclude)
-        update_filters(ironic)
+        Firewall.whitelist_macs(to_exclude)
+        Firewall.update_filters(ironic)
 
     for node in nodes:
         ironic.node.set_power_state(node.uuid, 'on')
@@ -195,12 +251,13 @@ def post_start():
 def periodic_update(event, ironic):
     while not event.is_set():
         LOG.info('Running periodic update of filters')
-        update_filters(ironic)
+        Firewall.update_filters(ironic)
         time.sleep(30)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     ironic = client.get_client(1, **OS_ARGS)
+    Firewall.init()
     event = threading.Event()
     threading.Thread(target=periodic_update, args=(event, ironic)).start()
     try:
