@@ -137,7 +137,7 @@ class Firewall(object):
     @staticmethod
     def _iptables(*args, **kwargs):
         cmd = ('iptables',) + args
-        LOG.debug('Running iptables %s', cmd)
+        LOG.debug('Running iptables %s', args)
         if kwargs.pop('ignore', False):
             if call(cmd, **kwargs):
                 LOG.warn('iptables failed: %s', args)
@@ -145,7 +145,11 @@ class Firewall(object):
             else:
                 return True
         else:
-            return check_call(cmd, **kwargs)
+            try:
+                return check_call(cmd, **kwargs)
+            except Exception:
+                LOG.error('iptables failed: %s', args)
+                raise
 
     @classmethod
     def init(cls):
@@ -182,9 +186,9 @@ class Firewall(object):
             cls._iptables('-A', cls.NEW_CHAIN, '-j', 'ACCEPT')
 
             # Swap chains
-            cls._iptables('-I', 'input', '-i', cls.INTERFACE, '-p' 'udp',
+            cls._iptables('-I', 'input', '-i', cls.INTERFACE, '-p', 'udp',
                           '--dport', '67', '-j', cls.NEW_CHAIN)
-            cls._iptables('-D', 'input', '-i', cls.INTERFACE, '-p' 'udp',
+            cls._iptables('-D', 'input', '-i', cls.INTERFACE, '-p', 'udp',
                           '--dport', '67', '-j', cls.CHAIN,
                           ignore=True)  # may be missing on first run
             cls._iptables('-F', cls.CHAIN)
