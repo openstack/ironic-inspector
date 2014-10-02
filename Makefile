@@ -1,5 +1,6 @@
 run:
-	.env/bin/python discoverd.py
+	.env/bin/python setup.py install
+	.env/bin/python -m ironic_discoverd
 
 env:
 	rm -rf .env
