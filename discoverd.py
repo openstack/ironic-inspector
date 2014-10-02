@@ -157,8 +157,8 @@ class Firewall(object):
         cls._iptables('-F', cls.NEW_CHAIN, ignore=True)
         cls._iptables('-X', cls.NEW_CHAIN, ignore=True)
         cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
-	              '--dport', '67', '-j', cls.CHAIN,
-	              ignore=True)  # may be missing on first run
+                      '--dport', '67', '-j', cls.CHAIN,
+                      ignore=True)  # may be missing on first run
         cls._iptables('-F', cls.CHAIN, ignore=True)
         cls._iptables('-X', cls.CHAIN, ignore=True)
         # Code expects it to exist
