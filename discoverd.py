@@ -122,9 +122,10 @@ def process(node_info):
     LOG.info('Node %s was updated with data from discovery process, forcing '
              'power off', node.uuid)
 
-    ironic.node.set_power_state(node.uuid, 'off')
-
     Firewall.unwhitelist_macs(valid_macs)
+    Firewall.update_filters(ironic)
+
+    ironic.node.set_power_state(node.uuid, 'off')
 
 
 class Firewall(object):
@@ -257,9 +258,12 @@ def post_start():
 
 def periodic_update(event, ironic):
     while not event.is_set():
-        LOG.info('Running periodic update of filters')
+        LOG.debug('Running periodic update of filters')
         Firewall.update_filters(ironic)
-        time.sleep(30)
+        for _ in range(15):
+            if event.is_set():
+                return
+            time.sleep(1)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
