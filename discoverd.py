@@ -155,6 +155,9 @@ class Firewall(object):
     def init(cls):
         cls._iptables('-F', cls.NEW_CHAIN, ignore=True)
         cls._iptables('-X', cls.NEW_CHAIN, ignore=True)
+        cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
+	              '--dport', '67', '-j', cls.CHAIN,
+	              ignore=True)  # may be missing on first run
         cls._iptables('-F', cls.CHAIN, ignore=True)
         cls._iptables('-X', cls.CHAIN, ignore=True)
         # Code expects it to exist
@@ -186,9 +189,9 @@ class Firewall(object):
             cls._iptables('-A', cls.NEW_CHAIN, '-j', 'ACCEPT')
 
             # Swap chains
-            cls._iptables('-I', 'input', '-i', cls.INTERFACE, '-p', 'udp',
+            cls._iptables('-I', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
                           '--dport', '67', '-j', cls.NEW_CHAIN)
-            cls._iptables('-D', 'input', '-i', cls.INTERFACE, '-p', 'udp',
+            cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
                           '--dport', '67', '-j', cls.CHAIN,
                           ignore=True)  # may be missing on first run
             cls._iptables('-F', cls.CHAIN)
