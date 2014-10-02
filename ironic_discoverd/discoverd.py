@@ -3,19 +3,19 @@ import os
 import re
 from subprocess import call, check_call
 import threading
-import time
 
-from flask import Flask, request
 from ironicclient import client, exceptions
 
-
-app = Flask(__name__)
 
 LOG = logging.getLogger("discoverd")
 OS_ARGS = dict((k.lower(), v)
                for (k, v) in os.environ.items()
                if k.startswith('OS_'))
 ALLOW_SEARCH_BY_MAC = True
+
+
+def get_client():
+    return client.get_client(1, **OS_ARGS)
 
 
 def is_valid_mac(address):
@@ -54,7 +54,7 @@ def process(node_info):
              dict((key, node_info.get(key))
                   for key in keys + ('ipmi_address',)))
 
-    ironic = client.get_client(1, **OS_ARGS)
+    ironic = get_client()
     bmc_known = bool(node_info.get('ipmi_address'))
     if bmc_known:
         # TODO(dtantsur): bulk loading
@@ -202,7 +202,7 @@ class Firewall(object):
 
 def start(uuids):
     """Initiate discovery for given node uuids."""
-    ironic = client.get_client(1, **OS_ARGS)
+    ironic = get_client()
     LOG.debug('Validating nodes %s', uuids)
     nodes = []
     for uuid in uuids:
@@ -238,41 +238,3 @@ def start(uuids):
 
     for node in nodes:
         ironic.node.set_power_state(node.uuid, 'on')
-
-
-@app.route('/continue', methods=['POST'])
-def post_continue():
-    data = request.get_json(force=True)
-    LOG.debug("Got JSON %s, going into processing thread", data)
-    threading.Thread(target=process, args=(data,)).start()
-    return "{}", 202, {"content-type": "application/json"}
-
-
-@app.route('/start', methods=['POST'])
-def post_start():
-    data = request.get_json(force=True)
-    LOG.debug("Got JSON %s, going into processing thread", data)
-    threading.Thread(target=start, args=(data,)).start()
-    return "{}", 202, {"content-type": "application/json"}
-
-
-def periodic_update(event, ironic):
-    while not event.is_set():
-        LOG.debug('Running periodic update of filters')
-        Firewall.update_filters(ironic)
-        for _ in range(15):
-            if event.is_set():
-                return
-            time.sleep(1)
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    ironic = client.get_client(1, **OS_ARGS)
-    Firewall.init()
-    event = threading.Event()
-    threading.Thread(target=periodic_update, args=(event, ironic)).start()
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5050)
-    finally:
-        LOG.info('Waiting for background thread to shutdown')
-        event.set()
