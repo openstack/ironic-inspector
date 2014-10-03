@@ -1,0 +1,3 @@
+#!/usr/bin/env python2
+
+import ironic_discoverd.__main__
