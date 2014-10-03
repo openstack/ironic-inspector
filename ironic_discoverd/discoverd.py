@@ -1,5 +1,5 @@
+import ConfigParser
 import logging
-import os
 import re
 from subprocess import call, check_call
 import threading
@@ -8,14 +8,14 @@ from ironicclient import client, exceptions
 
 
 LOG = logging.getLogger("discoverd")
-OS_ARGS = dict((k.lower(), v)
-               for (k, v) in os.environ.items()
-               if k.startswith('OS_'))
 ALLOW_SEARCH_BY_MAC = True
+CONF = ConfigParser.ConfigParser(defaults={'debug': 'false'})
+OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
 def get_client():
-    return client.get_client(1, **OS_ARGS)
+    args = dict((k, CONF.get('discoverd', k)) for k in OS_ARGS)
+    return client.get_client(1, **args)
 
 
 def is_valid_mac(address):

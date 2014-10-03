@@ -1,10 +1,11 @@
 import logging
+import sys
 import threading
 import time
 
 from flask import Flask, request
 
-from ironic_discoverd.discoverd import (LOG, process, start,
+from ironic_discoverd.discoverd import (CONF, LOG, process, start,
                                         Firewall, get_client)
 
 
@@ -37,13 +38,19 @@ def periodic_update(event, ironic):
             time.sleep(1)
 
 
-logging.basicConfig(level=logging.INFO)
+if len(sys.argv) < 2:
+    sys.exit("Usage: %s config-file" % sys.argv[0])
+
+CONF.read(sys.argv[1])
+debug = CONF.getboolean('discoverd', 'debug')
+
+logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
 ironic = get_client()
 Firewall.init()
 event = threading.Event()
 threading.Thread(target=periodic_update, args=(event, ironic)).start()
 try:
-    app.run(debug=True, host='0.0.0.0', port=5050)
+    app.run(debug=debug, host='0.0.0.0', port=5050)
 finally:
     LOG.info('Waiting for background thread to shutdown')
     event.set()
