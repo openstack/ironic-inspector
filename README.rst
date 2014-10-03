@@ -14,6 +14,10 @@ We're available on PyPI::
 
 Or you can test locally::
 
-    make env  # only the first time
+    make test_env  # only the first time
     make test  # run tests
-    make  # run
+    .env/bin/python setup.py develop
+    .env/bin/ironic-discoverd example.conf
+
+Of course you may want to modify *example.conf* to match your OpenStack
+environment.
