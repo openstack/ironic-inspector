@@ -30,7 +30,8 @@ def post_discover():
     return "{}", 202, {"content-type": "application/json"}
 
 
-def periodic_update(ironic):
+def periodic_update():
+    ironic = get_client()
     while True:
         LOG.debug('Running periodic update of filters')
         Firewall.update_filters(ironic)
@@ -44,12 +45,8 @@ CONF.read(sys.argv[1])
 debug = CONF.getboolean('discoverd', 'debug')
 
 logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
-ironic = get_client()
 Firewall.init()
-eventlet.greenthread.spawn_n(periodic_update, ironic)
+eventlet.greenthread.spawn_n(periodic_update)
 
-try:
-    app.run(debug=debug, host=CONF.get('discoverd', 'listen_address'),
-            port=CONF.getint('discoverd', 'listen_port'))
-finally:
-    LOG.info('Waiting for background thread to shutdown')
+app.run(debug=debug, host=CONF.get('discoverd', 'listen_address'),
+        port=CONF.getint('discoverd', 'listen_port'))

@@ -2,7 +2,6 @@ import ConfigParser
 import logging
 import re
 from subprocess import call, check_call
-import threading
 
 from ironicclient import client, exceptions
 
@@ -131,7 +130,6 @@ def process(node_info):
 
 
 class Firewall(object):
-    LOCK = threading.RLock()
     MACS_DISCOVERY = set()
     NEW_CHAIN = 'discovery_temp'
     CHAIN = 'discovery'
@@ -168,38 +166,35 @@ class Firewall(object):
 
     @classmethod
     def whitelist_macs(cls, macs):
-        with cls.LOCK:
-            cls.MACS_DISCOVERY.update(macs)
+        cls.MACS_DISCOVERY.update(macs)
 
     @classmethod
     def unwhitelist_macs(cls, macs):
-        with cls.LOCK:
-            cls.MACS_DISCOVERY.difference_update(macs)
+        cls.MACS_DISCOVERY.difference_update(macs)
 
     @classmethod
     def update_filters(cls, ironic):
-        with cls.LOCK:
-            macs_active = set(p.address for p in ironic.port.list(limit=0))
-            to_blacklist = macs_active - cls.MACS_DISCOVERY
+        macs_active = set(p.address for p in ironic.port.list(limit=0))
+        to_blacklist = macs_active - cls.MACS_DISCOVERY
 
-            # Operate on temporary chain
-            cls._iptables('-N', cls.NEW_CHAIN)
-            # - Blacklist active macs, so that nova can boot them
-            for mac in to_blacklist:
-                cls._iptables('-A', cls.NEW_CHAIN, '-m', 'mac',
-                              '--mac-source', mac, '-j', 'DROP')
-            # - Whitelist everything else
-            cls._iptables('-A', cls.NEW_CHAIN, '-j', 'ACCEPT')
+        # Operate on temporary chain
+        cls._iptables('-N', cls.NEW_CHAIN)
+        # - Blacklist active macs, so that nova can boot them
+        for mac in to_blacklist:
+            cls._iptables('-A', cls.NEW_CHAIN, '-m', 'mac',
+                          '--mac-source', mac, '-j', 'DROP')
+        # - Whitelist everything else
+        cls._iptables('-A', cls.NEW_CHAIN, '-j', 'ACCEPT')
 
-            # Swap chains
-            cls._iptables('-I', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
-                          '--dport', '67', '-j', cls.NEW_CHAIN)
-            cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
-                          '--dport', '67', '-j', cls.CHAIN,
-                          ignore=True)  # may be missing on first run
-            cls._iptables('-F', cls.CHAIN)
-            cls._iptables('-X', cls.CHAIN)
-            cls._iptables('-E', cls.NEW_CHAIN, cls.CHAIN)
+        # Swap chains
+        cls._iptables('-I', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
+                      '--dport', '67', '-j', cls.NEW_CHAIN)
+        cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
+                      '--dport', '67', '-j', cls.CHAIN,
+                      ignore=True)  # may be missing on first run
+        cls._iptables('-F', cls.CHAIN)
+        cls._iptables('-X', cls.CHAIN)
+        cls._iptables('-E', cls.NEW_CHAIN, cls.CHAIN)
 
 
 def discover(uuids):
