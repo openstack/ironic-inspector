@@ -5,7 +5,7 @@ import time
 
 from flask import Flask, request
 
-from ironic_discoverd.discoverd import (CONF, LOG, process, start,
+from ironic_discoverd.discoverd import (CONF, LOG, process, discover,
                                         Firewall, get_client)
 
 
@@ -24,7 +24,7 @@ def post_continue():
 def post_discover():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
-    threading.Thread(target=start, args=(data,)).start()
+    threading.Thread(target=discover, args=(data,)).start()
     return "{}", 202, {"content-type": "application/json"}
 
 
@@ -50,7 +50,8 @@ Firewall.init()
 event = threading.Event()
 threading.Thread(target=periodic_update, args=(event, ironic)).start()
 try:
-    app.run(debug=debug, host='0.0.0.0', port=5050)
+    app.run(debug=debug, host=CONF.get('discoverd', 'listen_address'),
+            port=CONF.getint('discoverd', 'listen_port'))
 finally:
     LOG.info('Waiting for background thread to shutdown')
     event.set()

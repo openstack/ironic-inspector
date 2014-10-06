@@ -9,7 +9,10 @@ from ironicclient import client, exceptions
 
 LOG = logging.getLogger("discoverd")
 ALLOW_SEARCH_BY_MAC = True
-CONF = ConfigParser.ConfigParser(defaults={'debug': 'false'})
+CONF = ConfigParser.ConfigParser(
+    defaults={'debug': 'false',
+              'listen_address': '0.0.0.0',
+              'listen_port': '5050'})
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
