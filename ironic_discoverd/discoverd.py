@@ -97,9 +97,8 @@ def process(node_info):
                   'allowed')
         return
 
-    if not node.maintenance:
-        LOG.error('Refusing to apply discovered data to node %s '
-                  'which is not in maintenance state', node.uuid)
+    if not node.extra.get('on_discovery'):
+        LOG.error('Node is not on discovery, cannot proceed')
         return
 
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'}]
@@ -200,11 +199,12 @@ class Firewall(object):
             cls._iptables('-E', cls.NEW_CHAIN, cls.CHAIN)
 
 
-def start(uuids):
+def discover(uuids):
     """Initiate discovery for given node uuids."""
     ironic = get_client()
     LOG.debug('Validating nodes %s', uuids)
     nodes = []
+    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
     for uuid in uuids:
         try:
             node = ironic.node.get(uuid)
@@ -212,9 +212,7 @@ def start(uuids):
             LOG.exception('Failed validation of node %s', uuid)
             continue
 
-        if not node.maintenance:
-            LOG.error('Node %s not in maintenance - skipping', uuid)
-            continue
+        ironic.node.update(uuid, patch)
 
         nodes.append(node)
 

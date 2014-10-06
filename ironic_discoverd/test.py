@@ -12,9 +12,9 @@ from ironic_discoverd import discoverd
 class TestProcess(unittest.TestCase):
     def setUp(self):
         self.node = Mock(driver_info={},
-                         maintenance=True,
                          properties={'cpu_arch': 'i386', 'local_gb': 40},
-                         uuid='uuid')
+                         uuid='uuid',
+                         extra={'on_discovery': 'true'})
         self.patch = [
             {'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
             {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
@@ -83,13 +83,11 @@ class TestProcess(unittest.TestCase):
 
 @patch.object(discoverd.Firewall, 'update_filters')
 @patch.object(discoverd, 'get_client')
-class TestStart(unittest.TestCase):
+class TestDiscover(unittest.TestCase):
     def setUp(self):
         self.node1 = Mock(driver='pxe_ssh',
-                          maintenance=True,
                           uuid='uuid1')
         self.node2 = Mock(driver='pxe_ipmitool',
-                          maintenance=True,
                           uuid='uuid2')
         discoverd.Firewall.MACS_DISCOVERY = set()
 
@@ -98,18 +96,21 @@ class TestStart(unittest.TestCase):
         cli.node.get.side_effect = [
             exceptions.NotFound(),
             self.node1,
-            Mock(maintenance=False),
             exceptions.Conflict(),
             self.node2,
         ]
         cli.node.list_ports.return_value = [Mock(address='1'),
                                             Mock(address='2')]
 
-        discoverd.start(['uuid%d' % i for i in range(5)])
+        discoverd.discover(['uuid%d' % i for i in range(4)])
 
-        self.assertEqual(5, cli.node.get.call_count)
+        self.assertEqual(4, cli.node.get.call_count)
         cli.node.list_ports.assert_called_once_with('uuid1', limit=0)
         filters_mock.assert_called_once_with(cli)
         self.assertEqual(set(['1', '2']), discoverd.Firewall.MACS_DISCOVERY)
         self.assertEqual(2, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'on')
+        patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
+        cli.node.update.assert_any_call('uuid1', patch)
+        cli.node.update.assert_any_call('uuid3', patch)
+        self.assertEqual(2, cli.node.update.call_count)

@@ -12,7 +12,7 @@ from ironic_discoverd.discoverd import (CONF, LOG, process, start,
 app = Flask(__name__)
 
 
-@app.route('/continue', methods=['POST'])
+@app.route('/v1/continue', methods=['POST'])
 def post_continue():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
@@ -20,8 +20,8 @@ def post_continue():
     return "{}", 202, {"content-type": "application/json"}
 
 
-@app.route('/start', methods=['POST'])
-def post_start():
+@app.route('/v1/discover', methods=['POST'])
+def post_discover():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
     threading.Thread(target=start, args=(data,)).start()
