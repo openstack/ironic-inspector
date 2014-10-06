@@ -10,7 +10,7 @@ Running
 We're available on PyPI::
 
     pip install ironic-discoverd
-    ironic-discoverd
+    ironic-discoverd /path/to/conf
 
 Or you can test locally::
 
