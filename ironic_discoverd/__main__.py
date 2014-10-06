@@ -1,13 +1,15 @@
 import logging
 import sys
-import threading
-import time
 
+import eventlet
 from flask import Flask, request
+
 
 from ironic_discoverd.discoverd import (CONF, LOG, process, discover,
                                         Firewall, get_client)
 
+
+eventlet.monkey_patch()
 
 app = Flask(__name__)
 
@@ -16,7 +18,7 @@ app = Flask(__name__)
 def post_continue():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
-    threading.Thread(target=process, args=(data,)).start()
+    eventlet.greenthread.spawn_n(process, data)
     return "{}", 202, {"content-type": "application/json"}
 
 
@@ -24,18 +26,15 @@ def post_continue():
 def post_discover():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
-    threading.Thread(target=discover, args=(data,)).start()
+    eventlet.greenthread.spawn_n(discover, data)
     return "{}", 202, {"content-type": "application/json"}
 
 
-def periodic_update(event, ironic):
-    while not event.is_set():
+def periodic_update(ironic):
+    while True:
         LOG.debug('Running periodic update of filters')
         Firewall.update_filters(ironic)
-        for _ in range(15):
-            if event.is_set():
-                return
-            time.sleep(1)
+        eventlet.greenthread.sleep(15)
 
 
 if len(sys.argv) < 2:
@@ -47,11 +46,10 @@ debug = CONF.getboolean('discoverd', 'debug')
 logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
 ironic = get_client()
 Firewall.init()
-event = threading.Event()
-threading.Thread(target=periodic_update, args=(event, ironic)).start()
+eventlet.greenthread.spawn_n(periodic_update, ironic)
+
 try:
     app.run(debug=debug, host=CONF.get('discoverd', 'listen_address'),
             port=CONF.getint('discoverd', 'listen_port'))
 finally:
     LOG.info('Waiting for background thread to shutdown')
-    event.set()
