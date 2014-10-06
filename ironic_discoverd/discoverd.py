@@ -1,7 +1,7 @@
 import ConfigParser
 import logging
-import os
 import re
+from subprocess import call, check_call
 import threading
 
 from ironicclient import client, exceptions
@@ -139,15 +139,20 @@ class Firewall(object):
 
     @staticmethod
     def _iptables(*args, **kwargs):
-        cmd = ' '.join(('iptables',) + args)
+        cmd = ('iptables',) + args
         LOG.debug('Running iptables %s', args)
-        # Would use subprocess if it was thread-safe
-        if os.system(cmd):
-            if not kwargs.pop('ignore', False):
-                raise RuntimeError('Failed to execute iptables %s' %
-                                   list(args))
-            else:
+        if kwargs.pop('ignore', False):
+            if call(cmd, **kwargs):
                 LOG.warn('iptables failed: %s', args)
+                return False
+            else:
+                return True
+        else:
+            try:
+                return check_call(cmd, **kwargs)
+            except Exception:
+                LOG.error('iptables failed: %s', args)
+                raise
 
     @classmethod
     def init(cls):
