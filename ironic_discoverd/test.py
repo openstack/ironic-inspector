@@ -17,6 +17,7 @@ class TestProcess(unittest.TestCase):
                          extra={'on_discovery': 'true'})
         self.patch = [
             {'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
+            {'op': 'remove', 'path': '/extra/on_discovery'},
             {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
         ]

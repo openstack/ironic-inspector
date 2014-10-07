@@ -103,7 +103,8 @@ def process(node_info):
         LOG.error('Node is not on discovery, cannot proceed')
         return
 
-    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'}]
+    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
+             {'op': 'remove', 'path': '/extra/on_discovery'}]
     existing = node.properties
     for key in ('cpus', 'cpu_arch', 'memory_mb', 'local_gb'):
         if not existing.get(key):
