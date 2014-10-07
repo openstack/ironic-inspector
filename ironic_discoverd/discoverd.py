@@ -118,7 +118,7 @@ def process(node_info):
         except exceptions.Conflict:
             LOG.warning('MAC %(mac)s appeared in discovery data for '
                         'node %(node)s, but already exists in '
-                        'database for another node - skipping',
+                        'database - skipping',
                         {'mac': mac, 'node': node.uuid})
 
     LOG.info('Node %s was updated with data from discovery process, forcing '
