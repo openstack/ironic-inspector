@@ -11,7 +11,8 @@ ALLOW_SEARCH_BY_MAC = True
 CONF = ConfigParser.ConfigParser(
     defaults={'debug': 'false',
               'listen_address': '0.0.0.0',
-              'listen_port': '5050'})
+              'listen_port': '5050',
+              'dnsmasq_interface': 'br-ctlplane'})
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
@@ -134,7 +135,7 @@ class Firewall(object):
     MACS_DISCOVERY = set()
     NEW_CHAIN = 'discovery_temp'
     CHAIN = 'discovery'
-    INTERFACE = 'br-ctlplane'
+    INTERFACE = None
 
     @staticmethod
     def _iptables(*args, **kwargs):
@@ -155,6 +156,7 @@ class Firewall(object):
 
     @classmethod
     def init(cls):
+        cls.INTERFACE = CONF.get('discoverd', 'dnsmasq_interface')
         cls._iptables('-F', cls.NEW_CHAIN, ignore=True)
         cls._iptables('-X', cls.NEW_CHAIN, ignore=True)
         cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
