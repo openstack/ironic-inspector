@@ -10,3 +10,5 @@ env:
 
 test_env: env
 	.env/bin/pip install flake8 mock
+
+.PHONY: test env test_env
