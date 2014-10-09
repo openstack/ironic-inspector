@@ -4,6 +4,7 @@ import sys
 import eventlet
 from flask import Flask, request
 
+from keystoneclient import exceptions
 
 from ironic_discoverd import discoverd
 
@@ -24,6 +25,17 @@ def post_continue():
 
 @app.route('/v1/discover', methods=['POST'])
 def post_discover():
+    if discoverd.CONF.getboolean('discoverd', 'authenticate'):
+        if not request.headers.get('X-Auth-Token'):
+            LOG.debug("No X-Auth-Token header, rejecting")
+            return 'Authentication required', 401
+        try:
+            discoverd.get_keystone(token=request.headers['X-Auth-Token'])
+        except exceptions.Unauthorized:
+            LOG.debug("Keystone denied access, rejecting")
+            return 'Access denied', 403
+        # TODO(dtanstur): check for admin role
+
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
     eventlet.greenthread.spawn_n(discoverd.discover, data)

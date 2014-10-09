@@ -9,6 +9,7 @@ setup(
     author_email = "dtansur@redhat.com",
     url = "https://github.com/Divius/ironic-discoverd/",
     packages=['ironic_discoverd'],
-    install_requires = ['Flask', 'python-ironicclient', 'eventlet'],
+    install_requires = ['Flask', 'python-ironicclient', 'eventlet',
+                        'python-keystoneclient'],
     scripts = ['bin/ironic-discoverd'],
 )

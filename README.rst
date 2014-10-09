@@ -40,11 +40,12 @@ HTTP API consist of 2 endpoints:
 
 * ``/v1/discover`` initiate hardware discovery. Request body: JSON - list of
   UUID's of nodes to discover. All power management configuration for these nodes
-  needs to be done prior to calling the endpoint.
+  needs to be done prior to calling the endpoint. Requires X-Auth-Token header
+  with Keystone token for authentication.
 
   .. note::
-      Right now this endpoint is not authenticated. It will switch to
-      OpenStack authentication in the near future.
+      Before version 0.2.0 this endpoint was not authenticated.
+      Now it is, but check for admin role is not implemented yet.
 
 * ``/v1/continue`` internal endpoint for the discovery ramdisk to post back
   discovered data. Should not be used for anything other than implementing

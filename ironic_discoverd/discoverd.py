@@ -4,6 +4,7 @@ import re
 from subprocess import call, check_call
 
 from ironicclient import client, exceptions
+from keystoneclient.v2_0 import client as keystone
 
 
 LOG = logging.getLogger("discoverd")
@@ -12,13 +13,19 @@ CONF = ConfigParser.ConfigParser(
     defaults={'debug': 'false',
               'listen_address': '0.0.0.0',
               'listen_port': '5050',
-              'dnsmasq_interface': 'br-ctlplane'})
+              'dnsmasq_interface': 'br-ctlplane',
+              'authenticate': 'true'})
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
 def get_client():
     args = dict((k, CONF.get('discoverd', k)) for k in OS_ARGS)
     return client.get_client(1, **args)
+
+
+def get_keystone(token):
+    return keystone.Client(token=token, auth_url=CONF.get('discoverd',
+                                                          'os_auth_url'))
 
 
 def is_valid_mac(address):
