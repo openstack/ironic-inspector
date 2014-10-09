@@ -8,8 +8,8 @@ setup(
     author = "Dmitry Tantsur",
     author_email = "dtansur@redhat.com",
     url = "https://github.com/Divius/ironic-discoverd/",
-    packages=['ironic_discoverd'],
+    packages = ['ironic_discoverd'],
     install_requires = ['Flask', 'python-ironicclient', 'eventlet',
                         'python-keystoneclient'],
-    scripts = ['bin/ironic-discoverd'],
+    entry_points = {'console_scripts': ["ironic-discoverd = ironic_discoverd.main:main"]},
 )

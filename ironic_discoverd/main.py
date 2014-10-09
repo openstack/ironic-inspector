@@ -50,15 +50,17 @@ def periodic_update():
         eventlet.greenthread.sleep(15)
 
 
-if len(sys.argv) < 2:
-    sys.exit("Usage: %s config-file" % sys.argv[0])
+def main():
+    if len(sys.argv) < 2:
+        sys.exit("Usage: %s config-file" % sys.argv[0])
 
-discoverd.CONF.read(sys.argv[1])
-debug = discoverd.CONF.getboolean('discoverd', 'debug')
+    discoverd.CONF.read(sys.argv[1])
+    debug = discoverd.CONF.getboolean('discoverd', 'debug')
 
-logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
-discoverd.Firewall.init()
-eventlet.greenthread.spawn_n(periodic_update)
+    logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
+    discoverd.Firewall.init()
+    eventlet.greenthread.spawn_n(periodic_update)
 
-app.run(debug=debug, host=discoverd.CONF.get('discoverd', 'listen_address'),
-        port=discoverd.CONF.getint('discoverd', 'listen_port'))
+    app.run(debug=debug,
+            host=discoverd.CONF.get('discoverd', 'listen_address'),
+            port=discoverd.CONF.getint('discoverd', 'listen_port'))
