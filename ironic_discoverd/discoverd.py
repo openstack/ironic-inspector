@@ -1,7 +1,9 @@
-import ConfigParser
 import logging
 import re
 from subprocess import call, check_call
+
+import six
+from six.moves import configparser
 
 from ironicclient import client, exceptions
 from keystoneclient.v2_0 import client as keystone
@@ -9,7 +11,7 @@ from keystoneclient.v2_0 import client as keystone
 
 LOG = logging.getLogger("discoverd")
 ALLOW_SEARCH_BY_MAC = True
-CONF = ConfigParser.ConfigParser(
+CONF = configparser.ConfigParser(
     defaults={'debug': 'false',
               'listen_address': '0.0.0.0',
               'listen_port': '5050',
@@ -30,7 +32,7 @@ def get_keystone(token):
 
 def is_valid_mac(address):
     m = "[0-9a-f]{2}(:[0-9a-f]{2}){5}$"
-    return (isinstance(address, (str, unicode))
+    return (isinstance(address, six.string_types)
             and re.match(m, address.lower()))
 
 
