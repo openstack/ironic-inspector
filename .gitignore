@@ -1,5 +1,5 @@
 .*.swp
-.env
+.tox
 *.pyc
 build/
 dist/

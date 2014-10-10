@@ -75,20 +75,27 @@ Run as ``root``::
 Developing
 ~~~~~~~~~~
 
-Checkout and create an environment::
+First of all, install *tox* utility. It's likely to be in your distribution
+repositories under name of ``python-tox``. Alternatively, you can install it
+from PyPI.
+
+Next checkout and create environments::
 
     git clone https://github.com/Divius/ironic-discoverd.git
     cd ironic-discoverd
-    make test_env
+    tox
 
-Run test suite::
+Repeat *tox* command each time you need to run tests. If you don't have Python
+interpreter of one of supported versions (currently 2.6, 2.7 and 3.3), use
+``-e`` flag to select only some environments, e.g.
 
-    make test
+::
+
+    tox -e py27
 
 Install and run::
 
-    source .env/bin/activate
-    python setup.py develop
+    source .tox/py27/bin/activate
     ironic-discoverd example.conf
 
 Of course you may have to modify ``example.conf`` to match your OpenStack

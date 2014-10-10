@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import unittest
 
 from ironicclient import exceptions
@@ -115,3 +117,7 @@ class TestDiscover(unittest.TestCase):
         cli.node.update.assert_any_call('uuid1', patch)
         cli.node.update.assert_any_call('uuid3', patch)
         self.assertEqual(2, cli.node.update.call_count)
+
+
+if __name__ == '__main__':
+    unittest.main()
