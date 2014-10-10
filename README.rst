@@ -93,10 +93,9 @@ interpreter of one of supported versions (currently 2.6, 2.7 and 3.3), use
 
     tox -e py27
 
-Install and run::
+Run like::
 
-    source .tox/py27/bin/activate
-    ironic-discoverd example.conf
+    .tox/py27/bin/ironic-discoverd example.conf
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
@@ -140,6 +139,8 @@ v0.2.0
 
 * Authentication via Keystone.
 * Switch to setuptools entry points.
+* Switch to tox.
+* Supported on Python 2.6, 2.7, 3.3.
 * Enhanced documentation.
 
 v0.1.1
