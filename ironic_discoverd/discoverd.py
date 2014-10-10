@@ -1,6 +1,6 @@
 import logging
 import re
-from subprocess import call, check_call
+import subprocess
 
 import six
 from six.moves import configparser
@@ -149,18 +149,17 @@ class Firewall(object):
     @staticmethod
     def _iptables(*args, **kwargs):
         cmd = ('iptables',) + args
+        ignore = kwargs.pop('ignore', False)
         LOG.debug('Running iptables %s', args)
-        if kwargs.pop('ignore', False):
-            if call(cmd, **kwargs):
-                LOG.warn('iptables failed: %s', args)
-                return False
+        kwargs['stderr'] = subprocess.STDOUT
+        try:
+            subprocess.check_output(cmd, **kwargs)
+        except subprocess.CalledProcessError as exc:
+            if ignore:
+                LOG.debug('iptables %s failed (ignoring):\n%s', args,
+                          exc.output)
             else:
-                return True
-        else:
-            try:
-                return check_call(cmd, **kwargs)
-            except Exception:
-                LOG.error('iptables failed: %s', args)
+                LOG.error('iptables %s failed:\n%s', args, exc.output)
                 raise
 
     @classmethod
