@@ -73,9 +73,9 @@ Run as ``root``::
     ironic-discoverd /etc/ironic-discoverd/discoverd.conf
 
 *ironic-discoverd* has a simple client library bundled within it.
-It provides function *ironic_discoverd.client.discover*, accepting list
-of UUID's, ``base_url`` -- optional *ironic-discoverd* service URL and
-``auth_token`` -- optional Keystone token.
+It provides function ``ironic_discoverd.client.discover``, accepting list
+of UUID's, ``base_url`` --- optional *ironic-discoverd* service URL and
+``auth_token`` --- optional Keystone token.
 
 You can also use it from CLI::
 

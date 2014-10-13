@@ -5,7 +5,7 @@ import requests
 import six
 
 
-_DEFAULT_URL = 'http://127.0.0.1:5000/v1'
+_DEFAULT_URL = 'http://127.0.0.1:5050/v1'
 
 
 def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
@@ -13,7 +13,7 @@ def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
 
     :param uuids: list of UUID's.
     :param base_url: *ironic-discoverd* URL in form: http://host:port[/ver],
-                     defaults to ``http://127.0.0.1:5000/v1``.
+                     defaults to ``http://127.0.0.1:5050/v1``.
     :param auth_token: Keystone authentication token.
     :raises: *requests* library HTTP errors.
     """
