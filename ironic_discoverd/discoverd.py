@@ -17,7 +17,8 @@ CONF = configparser.ConfigParser(
               'listen_address': '0.0.0.0',
               'listen_port': '5050',
               'dnsmasq_interface': 'br-ctlplane',
-              'authenticate': 'true'})
+              'authenticate': 'true',
+              'firewall_update_period': '15'})
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 

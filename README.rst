@@ -150,6 +150,7 @@ v0.2.0
 * Simple client in ``ironic_discoverd.client``.
 * Switch to setuptools entry points.
 * Switch to tox.
+* Periodic firewall update is now configurable.
 * Supported on Python 2.6, 2.7, 3.3.
 * Enhanced documentation.
 

@@ -42,14 +42,14 @@ def post_discover():
     return "{}", 202, {"content-type": "application/json"}
 
 
-def periodic_update():
+def periodic_update(period):
     while True:
         LOG.debug('Running periodic update of filters')
         try:
             discoverd.Firewall.update_filters()
         except Exception:
             LOG.exception('Periodic update failed')
-        eventlet.greenthread.sleep(15)
+        eventlet.greenthread.sleep(period)
 
 
 def main():
@@ -63,8 +63,10 @@ def main():
     logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
     logging.getLogger('requests.packages.urllib3.connectionpool') \
         .setLevel(logging.WARNING)
+
     discoverd.Firewall.init()
-    eventlet.greenthread.spawn_n(periodic_update)
+    period = discoverd.CONF.getint('discoverd', 'firewall_update_period')
+    eventlet.greenthread.spawn_n(periodic_update, period)
 
     app.run(debug=debug,
             host=discoverd.CONF.get('discoverd', 'listen_address'),
