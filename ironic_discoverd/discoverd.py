@@ -159,6 +159,10 @@ def discover(uuids):
 
         nodes.append(node)
 
+    if not nodes:
+        LOG.error('No nodes to discover')
+        return
+
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
 
     to_exclude = set()
