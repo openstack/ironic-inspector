@@ -60,6 +60,9 @@ def main():
     debug = discoverd.CONF.getboolean('discoverd', 'debug')
 
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+    logging.getLogger('requests.packages.urllib3.connectionpool') \
+        .setLevel(logging.WARNING)
     discoverd.Firewall.init()
     eventlet.greenthread.spawn_n(periodic_update)
 
