@@ -43,11 +43,10 @@ def post_discover():
 
 
 def periodic_update():
-    ironic = discoverd.get_client()
     while True:
         LOG.debug('Running periodic update of filters')
         try:
-            discoverd.Firewall.update_filters(ironic)
+            discoverd.Firewall.update_filters()
         except Exception:
             LOG.exception('Periodic update failed')
         eventlet.greenthread.sleep(15)
