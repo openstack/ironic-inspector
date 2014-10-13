@@ -189,8 +189,8 @@ class Firewall(object):
             cls.MACS_DISCOVERY.difference_update(macs)
 
     @classmethod
-    def update_filters(cls):
-        ironic = get_client()
+    def update_filters(cls, ironic=None):
+        ironic = get_client() if ironic is None else ironic
 
         with cls.LOCK:
             macs_active = set(p.address for p in ironic.port.list(limit=0))
