@@ -5,6 +5,7 @@ import unittest
 from ironicclient import exceptions
 from mock import patch, Mock, ANY
 
+from ironic_discoverd import client
 from ironic_discoverd import discoverd
 
 
@@ -117,6 +118,39 @@ class TestDiscover(unittest.TestCase):
         cli.node.update.assert_any_call('uuid1', patch)
         cli.node.update.assert_any_call('uuid3', patch)
         self.assertEqual(2, cli.node.update.call_count)
+
+
+@patch.object(client.requests, 'post')
+class TestClient(unittest.TestCase):
+    def test_client(self, mock_post):
+        client.discover(['uuid1', 'uuid2'], base_url="http://host:port",
+                        auth_token="token")
+        mock_post.assert_called_once_with(
+            "http://host:port/v1/discover",
+            data='["uuid1", "uuid2"]',
+            headers={'Content-Type': 'application/json',
+                     'X-Auth-Token': 'token'}
+        )
+
+    def test_client_full_url(self, mock_post):
+        client.discover(['uuid1', 'uuid2'], base_url="http://host:port/v1/",
+                        auth_token="token")
+        mock_post.assert_called_once_with(
+            "http://host:port/v1/discover",
+            data='["uuid1", "uuid2"]',
+            headers={'Content-Type': 'application/json',
+                     'X-Auth-Token': 'token'}
+        )
+
+    def test_client_default_url(self, mock_post):
+        client.discover(['uuid1', 'uuid2'],
+                        auth_token="token")
+        mock_post.assert_called_once_with(
+            "http://127.0.0.1:5000/v1/discover",
+            data='["uuid1", "uuid2"]',
+            headers={'Content-Type': 'application/json',
+                     'X-Auth-Token': 'token'}
+        )
 
 
 if __name__ == '__main__':

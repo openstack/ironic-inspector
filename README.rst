@@ -72,6 +72,15 @@ Run as ``root``::
 
     ironic-discoverd /etc/ironic-discoverd/discoverd.conf
 
+*ironic-discoverd* has a simple client library bundled within it.
+It provides function *ironic_discoverd.client.discover*, accepting list
+of UUID's, ``base_url`` -- optional *ironic-discoverd* service URL and
+``auth_token`` -- optional Keystone token.
+
+You can also use it from CLI::
+
+    python -m ironic_discoverd.client --auth-token TOKEN UUID1 UUID2
+
 Developing
 ~~~~~~~~~~
 
@@ -138,6 +147,7 @@ v0.2.0
 ~~~~~~
 
 * Authentication via Keystone.
+* Simple client in ``ironic_discoverd.client``.
 * Switch to setuptools entry points.
 * Switch to tox.
 * Supported on Python 2.6, 2.7, 3.3.
