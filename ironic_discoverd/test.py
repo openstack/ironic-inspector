@@ -93,6 +93,8 @@ class TestDiscover(unittest.TestCase):
         self.node2 = Mock(driver='pxe_ipmitool',
                           uuid='uuid2')
         firewall.MACS_DISCOVERY = set()
+        if not discoverd.CONF.has_section('discoverd'):
+            discoverd.CONF.add_section('discoverd')
 
     def test(self, client_mock, filters_mock):
         cli = client_mock.return_value

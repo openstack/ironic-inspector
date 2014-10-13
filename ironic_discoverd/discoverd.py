@@ -18,7 +18,8 @@ CONF = configparser.ConfigParser(
               'listen_port': '5050',
               'dnsmasq_interface': 'br-ctlplane',
               'authenticate': 'true',
-              'firewall_update_period': '15'})
+              'firewall_update_period': '15',
+              'ssh_driver_regex': '^.*_ssh$'})
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
@@ -164,10 +165,11 @@ def discover(uuids):
         return
 
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
+    ssh_regex = re.compile(CONF.get('discoverd', 'ssh_driver_regex'))
 
     to_exclude = set()
     for node in nodes:
-        if not node.driver.endswith('ssh'):
+        if not ssh_regex.match(node.driver):
             continue
 
         LOG.warn('Driver for %s is %s, requires white-listing MAC',
