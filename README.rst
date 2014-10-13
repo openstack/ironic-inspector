@@ -95,7 +95,7 @@ Next checkout and create environments::
     tox
 
 Repeat *tox* command each time you need to run tests. If you don't have Python
-interpreter of one of supported versions (currently 2.6, 2.7 and 3.3), use
+interpreter of one of supported versions (currently 2.7 and 3.3), use
 ``-e`` flag to select only some environments, e.g.
 
 ::

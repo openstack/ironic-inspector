@@ -146,7 +146,7 @@ class TestClient(unittest.TestCase):
         client.discover(['uuid1', 'uuid2'],
                         auth_token="token")
         mock_post.assert_called_once_with(
-            "http://127.0.0.1:5000/v1/discover",
+            "http://127.0.0.1:5050/v1/discover",
             data='["uuid1", "uuid2"]',
             headers={'Content-Type': 'application/json',
                      'X-Auth-Token': 'token'}
