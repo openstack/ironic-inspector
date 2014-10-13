@@ -182,4 +182,8 @@ def discover(uuids):
         firewall.update_filters(ironic)
 
     for node in nodes:
-        ironic.node.set_power_state(node.uuid, 'on')
+        try:
+            ironic.node.set_power_state(node.uuid, 'on')
+        except Exception:
+            LOG.exception('Failed to power on node %s, check it\'s power '
+                          'management configuration', node.uuid)
