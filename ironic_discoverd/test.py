@@ -7,11 +7,12 @@ from mock import patch, Mock, ANY
 
 from ironic_discoverd import client
 from ironic_discoverd import discoverd
+from ironic_discoverd import firewall
 
 
 # FIXME(dtantsur): this test suite is far from being complete
-@patch.object(discoverd.Firewall, 'update_filters')
-@patch.object(discoverd, 'get_client')
+@patch.object(firewall, 'update_filters', autospec=True)
+@patch.object(discoverd, 'get_client', autospec=True)
 class TestProcess(unittest.TestCase):
     def setUp(self):
         self.node = Mock(driver_info={},
@@ -31,8 +32,8 @@ class TestProcess(unittest.TestCase):
             'local_gb': 20,
             'macs': ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11'],
         }
-        discoverd.Firewall.MACS_DISCOVERY = set(['11:22:33:44:55:66',
-                                                 '66:55:44:33:22:11'])
+        firewall.MACS_DISCOVERY = set(['11:22:33:44:55:66',
+                                       '66:55:44:33:22:11'])
 
     def test_bmc(self, client_mock, filters_mock):
         self.node.driver_info['ipmi_address'] = '1.2.3.4'
@@ -57,7 +58,7 @@ class TestProcess(unittest.TestCase):
                                         address='66:55:44:33:22:11')
         self.assertEqual(2, cli.port.create.call_count)
         filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(), discoverd.Firewall.MACS_DISCOVERY)
+        self.assertEqual(set(), firewall.MACS_DISCOVERY)
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
 
     def test_macs(self, client_mock, filters_mock):
@@ -81,19 +82,19 @@ class TestProcess(unittest.TestCase):
                                         address='66:55:44:33:22:11')
         self.assertEqual(2, cli.port.create.call_count)
         filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(), discoverd.Firewall.MACS_DISCOVERY)
+        self.assertEqual(set(), firewall.MACS_DISCOVERY)
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
 
 
-@patch.object(discoverd.Firewall, 'update_filters')
-@patch.object(discoverd, 'get_client')
+@patch.object(firewall, 'update_filters', autospec=True)
+@patch.object(discoverd, 'get_client', autospec=True)
 class TestDiscover(unittest.TestCase):
     def setUp(self):
         self.node1 = Mock(driver='pxe_ssh',
                           uuid='uuid1')
         self.node2 = Mock(driver='pxe_ipmitool',
                           uuid='uuid2')
-        discoverd.Firewall.MACS_DISCOVERY = set()
+        firewall.MACS_DISCOVERY = set()
 
     def test(self, client_mock, filters_mock):
         cli = client_mock.return_value
@@ -111,7 +112,7 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(4, cli.node.get.call_count)
         cli.node.list_ports.assert_called_once_with('uuid1', limit=0)
         filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(['1', '2']), discoverd.Firewall.MACS_DISCOVERY)
+        self.assertEqual(set(['1', '2']), firewall.MACS_DISCOVERY)
         self.assertEqual(2, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'on')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
@@ -120,7 +121,7 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(2, cli.node.update.call_count)
 
 
-@patch.object(client.requests, 'post')
+@patch.object(client.requests, 'post', autospec=True)
 class TestClient(unittest.TestCase):
     def test_client(self, mock_post):
         client.discover(['uuid1', 'uuid2'], base_url="http://host:port",

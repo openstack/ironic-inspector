@@ -1,13 +1,13 @@
 import logging
 import re
-import subprocess
 
-from eventlet import semaphore
 import six
 from six.moves import configparser
 
 from ironicclient import client, exceptions
 from keystoneclient.v2_0 import client as keystone
+
+from ironic_discoverd import firewall
 
 
 LOG = logging.getLogger("discoverd")
@@ -136,84 +136,10 @@ def process(node_info):
     LOG.info('Node %s was updated with data from discovery process, forcing '
              'power off', node.uuid)
 
-    Firewall.unwhitelist_macs(valid_macs)
-    Firewall.update_filters(ironic)
+    firewall.unwhitelist_macs(valid_macs)
+    firewall.update_filters(ironic)
 
     ironic.node.set_power_state(node.uuid, 'off')
-
-
-class Firewall(object):
-    MACS_DISCOVERY = set()
-    NEW_CHAIN = 'discovery_temp'
-    CHAIN = 'discovery'
-    INTERFACE = None
-    LOCK = semaphore.BoundedSemaphore()
-
-    @staticmethod
-    def _iptables(*args, **kwargs):
-        cmd = ('iptables',) + args
-        ignore = kwargs.pop('ignore', False)
-        LOG.debug('Running iptables %s', args)
-        kwargs['stderr'] = subprocess.STDOUT
-        try:
-            subprocess.check_output(cmd, **kwargs)
-        except subprocess.CalledProcessError as exc:
-            if ignore:
-                LOG.debug('iptables %s failed (ignoring):\n%s', args,
-                          exc.output)
-            else:
-                LOG.error('iptables %s failed:\n%s', args, exc.output)
-                raise
-
-    @classmethod
-    def init(cls):
-        cls.INTERFACE = CONF.get('discoverd', 'dnsmasq_interface')
-        cls._iptables('-F', cls.NEW_CHAIN, ignore=True)
-        cls._iptables('-X', cls.NEW_CHAIN, ignore=True)
-        cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
-                      '--dport', '67', '-j', cls.CHAIN,
-                      ignore=True)  # may be missing on first run
-        cls._iptables('-F', cls.CHAIN, ignore=True)
-        cls._iptables('-X', cls.CHAIN, ignore=True)
-        # Code expects it to exist
-        cls._iptables('-N', cls.CHAIN)
-
-    @classmethod
-    def whitelist_macs(cls, macs):
-        with cls.LOCK:
-            cls.MACS_DISCOVERY.update(macs)
-
-    @classmethod
-    def unwhitelist_macs(cls, macs):
-        with cls.LOCK:
-            cls.MACS_DISCOVERY.difference_update(macs)
-
-    @classmethod
-    def update_filters(cls, ironic=None):
-        ironic = get_client() if ironic is None else ironic
-
-        with cls.LOCK:
-            macs_active = set(p.address for p in ironic.port.list(limit=0))
-            to_blacklist = macs_active - cls.MACS_DISCOVERY
-
-            # Operate on temporary chain
-            cls._iptables('-N', cls.NEW_CHAIN)
-            # - Blacklist active macs, so that nova can boot them
-            for mac in to_blacklist:
-                cls._iptables('-A', cls.NEW_CHAIN, '-m', 'mac',
-                              '--mac-source', mac, '-j', 'DROP')
-            # - Whitelist everything else
-            cls._iptables('-A', cls.NEW_CHAIN, '-j', 'ACCEPT')
-
-            # Swap chains
-            cls._iptables('-I', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
-                          '--dport', '67', '-j', cls.NEW_CHAIN)
-            cls._iptables('-D', 'INPUT', '-i', cls.INTERFACE, '-p', 'udp',
-                          '--dport', '67', '-j', cls.CHAIN,
-                          ignore=True)  # may be missing on first run
-            cls._iptables('-F', cls.CHAIN)
-            cls._iptables('-X', cls.CHAIN)
-            cls._iptables('-E', cls.NEW_CHAIN, cls.CHAIN)
 
 
 def discover(uuids):
@@ -248,8 +174,8 @@ def discover(uuids):
         to_exclude.update(p.address for p in ports)
 
     if to_exclude:
-        Firewall.whitelist_macs(to_exclude)
-        Firewall.update_filters(ironic)
+        firewall.whitelist_macs(to_exclude)
+        firewall.update_filters(ironic)
 
     for node in nodes:
         ironic.node.set_power_state(node.uuid, 'on')

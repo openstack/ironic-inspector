@@ -7,6 +7,7 @@ from flask import Flask, request
 from keystoneclient import exceptions
 
 from ironic_discoverd import discoverd
+from ironic_discoverd import firewall
 
 
 eventlet.monkey_patch()
@@ -46,7 +47,7 @@ def periodic_update(period):
     while True:
         LOG.debug('Running periodic update of filters')
         try:
-            discoverd.Firewall.update_filters()
+            firewall.update_filters(discoverd.get_client())
         except Exception:
             LOG.exception('Periodic update failed')
         eventlet.greenthread.sleep(period)
@@ -64,7 +65,8 @@ def main():
     logging.getLogger('requests.packages.urllib3.connectionpool') \
         .setLevel(logging.WARNING)
 
-    discoverd.Firewall.init()
+    interface = discoverd.CONF.get('discoverd', 'dnsmasq_interface')
+    firewall.init(interface)
     period = discoverd.CONF.getint('discoverd', 'firewall_update_period')
     eventlet.greenthread.spawn_n(periodic_update, period)
 
