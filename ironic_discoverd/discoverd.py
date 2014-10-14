@@ -140,7 +140,11 @@ def process(node_info):
     firewall.unwhitelist_macs(valid_macs)
     firewall.update_filters(ironic)
 
-    ironic.node.set_power_state(node.uuid, 'off')
+    try:
+        ironic.node.set_power_state(node.uuid, 'off')
+    except Exception as exc:
+        LOG.error('Failed to power on node %s, check it\'s power '
+                  'management configuration:\n%s', node.uuid, exc)
 
 
 def discover(uuids):
@@ -186,6 +190,6 @@ def discover(uuids):
     for node in nodes:
         try:
             ironic.node.set_power_state(node.uuid, 'on')
-        except Exception:
-            LOG.exception('Failed to power on node %s, check it\'s power '
-                          'management configuration', node.uuid)
+        except Exception as exc:
+            LOG.error('Failed to power on node %s, check it\'s power '
+                      'management configuration:\n%s', node.uuid, exc)
