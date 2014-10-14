@@ -143,7 +143,7 @@ def process(node_info):
     try:
         ironic.node.set_power_state(node.uuid, 'off')
     except Exception as exc:
-        LOG.error('Failed to power on node %s, check it\'s power '
+        LOG.error('Failed to power off node %s, check it\'s power '
                   'management configuration:\n%s', node.uuid, exc)
 
 
