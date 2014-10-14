@@ -10,6 +10,6 @@ setup(
     url = "https://github.com/Divius/ironic-discoverd/",
     packages = ['ironic_discoverd'],
     install_requires = ['Flask', 'python-ironicclient', 'eventlet',
-                        'python-keystoneclient'],
+                        'python-keystoneclient', 'requests', 'six'],
     entry_points = {'console_scripts': ["ironic-discoverd = ironic_discoverd.main:main"]},
 )
