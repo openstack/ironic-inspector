@@ -136,12 +136,23 @@ HTTP API consist of 2 endpoints:
   * ``cpu_arch`` architecture of the CPU
   * ``memory_mb`` RAM in MiB
   * ``local_gb`` hard drive size in GiB
-  * ``macs`` list of MAC addresses for all NIC's
+  * ``interfaces`` dictionary filled with data from all NIC's, keys being
+    interface names, values being dictionaries with keys:
+    * ``mac`` MAC address
+    * ``ip`` IP address
 
   Response: always HTTP 202.
 
 ChangeLog
 ---------
+
+v0.2.1
+~~~~~~
+
+* Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk
+  (bug #8).
+* If ``interfaces`` is present, only add ports for NIC's with IP address set
+  (also bug #8).
 
 v0.2.0
 ~~~~~~

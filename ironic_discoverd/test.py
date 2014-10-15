@@ -28,12 +28,47 @@ class TestProcess(unittest.TestCase):
             'cpu_arch': 'x86_64',
             'memory_mb': 1024,
             'local_gb': 20,
-            'macs': ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11'],
+            'interfaces': {
+                'em1': {'mac': '11:22:33:44:55:66', 'ip': '1.2.3.4'},
+                'em2': {'mac': 'broken', 'ip': '1.2.3.4'},
+                'em3': {'mac': '', 'ip': '1.2.3.4'},
+                'em4': {'mac': '66:55:44:33:22:11', 'ip': '1.2.3.4'},
+                'em5': {'mac': '66:55:44:33:22:11'},
+            }
         }
+        self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
         firewall.MACS_DISCOVERY = set(['11:22:33:44:55:66',
                                        '66:55:44:33:22:11'])
 
     def test_bmc(self, client_mock, filters_mock):
+        self.node.driver_info['ipmi_address'] = '1.2.3.4'
+        cli = client_mock.return_value
+        cli.node.list.return_value = [
+            Mock(driver_info={}),
+            Mock(driver_info={'ipmi_address': '4.3.2.1'}),
+            self.node,
+            Mock(driver_info={'ipmi_address': '1.2.1.2'}),
+        ]
+        cli.port.create.side_effect = [None, exceptions.Conflict()]
+
+        self.data['ipmi_address'] = '1.2.3.4'
+        discoverd.process(self.data)
+
+        self.assertTrue(cli.node.list.called)
+        self.assertFalse(cli.port.get_by_address.called)
+        cli.node.update.assert_called_once_with(self.node.uuid, self.patch)
+        cli.port.create.assert_any_call(node_uuid=self.node.uuid,
+                                        address='11:22:33:44:55:66')
+        cli.port.create.assert_any_call(node_uuid=self.node.uuid,
+                                        address='66:55:44:33:22:11')
+        self.assertEqual(2, cli.port.create.call_count)
+        filters_mock.assert_called_once_with(cli)
+        self.assertEqual(set(), firewall.MACS_DISCOVERY)
+        cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
+
+    def test_bmc_deprecated_macs(self, client_mock, filters_mock):
+        del self.data['interfaces']
+        self.data['macs'] = self.macs
         self.node.driver_info['ipmi_address'] = '1.2.3.4'
         cli = client_mock.return_value
         cli.node.list.return_value = [

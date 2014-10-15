@@ -46,28 +46,42 @@ def process(node_info):
                   node_info['error'])
         return
 
-    keys = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb', 'macs')
+    compat = False
+    if 'interfaces' not in node_info and 'macs' in node_info:
+        LOG.warn('Using "macs" field is deprecated, please '
+                 'update your discovery ramdisk')
+        node_info['interfaces'] = {'dummy%d' % i: {'mac': m}
+                                   for i, m in enumerate(node_info['macs'])}
+        compat = True
+
+    keys = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb', 'interfaces')
     missing = [key for key in keys if not node_info.get(key)]
     if missing:
         LOG.error('The following required parameters are missing: %s',
                   missing)
         return
 
-    valid_macs = [mac.lower() for mac in node_info['macs']
-                  if is_valid_mac(mac)]
-    if valid_macs != node_info['macs']:
-        LOG.warn('The following MACs were invalid in discovery data '
-                 'for node with BMC %(ipmi_address)s and were '
-                 'excluded: %(invalid)s',
-                 {'invalid': set(node_info['macs']) - set(valid_macs),
-                  'ipmi_address': node_info.get('ipmi_address')})
-
     LOG.info('Discovery data received from node with BMC '
              '%(ipmi_address)s: CPUs: %(cpus)s %(cpu_arch)s, '
              'memory %(memory_mb)s MiB, disk %(local_gb)s GiB, '
-             'macs %(macs)s',
+             'interfaces %(interfaces)s',
              dict((key, node_info.get(key))
                   for key in keys + ('ipmi_address',)))
+
+    valid_interfaces = {
+        n: iface for n, iface in node_info['interfaces'].items()
+        if is_valid_mac(iface['mac']) and (compat or iface.get('ip'))
+    }
+    valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
+    if valid_interfaces != node_info['interfaces']:
+        LOG.warn('The following interfaces were invalid or not eligible in '
+                 'discovery data for node with BMC %(ipmi_address)s and were '
+                 'excluded: %(invalid)s',
+                 {'invalid': {n: iface
+                              for n, iface in node_info['interfaces'].items()
+                              if n not in valid_interfaces},
+                  'ipmi_address': node_info.get('ipmi_address')})
+        LOG.info('Eligible interfaces are %s', valid_interfaces)
 
     ironic = get_client()
     bmc_known = bool(node_info.get('ipmi_address'))
