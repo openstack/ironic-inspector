@@ -138,6 +138,7 @@ HTTP API consist of 2 endpoints:
   * ``local_gb`` hard drive size in GiB
   * ``interfaces`` dictionary filled with data from all NIC's, keys being
     interface names, values being dictionaries with keys:
+
     * ``mac`` MAC address
     * ``ip`` IP address
 
