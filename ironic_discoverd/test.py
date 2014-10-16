@@ -116,9 +116,11 @@ class TestProcess(unittest.TestCase):
 class TestDiscover(unittest.TestCase):
     def setUp(self):
         self.node1 = Mock(driver='pxe_ssh',
-                          uuid='uuid1')
+                          uuid='uuid1',
+                          maintenance=True)
         self.node2 = Mock(driver='pxe_ipmitool',
-                          uuid='uuid2')
+                          uuid='uuid2',
+                          maintenance=False)
         firewall.MACS_DISCOVERY = set()
         init_conf()
 
@@ -143,7 +145,8 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(set(['1', '2']), firewall.MACS_DISCOVERY)
         self.assertEqual(2, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'on')
-        patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
+        patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
+                 {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
         cli.node.update.assert_any_call('uuid1', patch)
         cli.node.update.assert_any_call('uuid3', patch)
         self.assertEqual(2, cli.node.update.call_count)

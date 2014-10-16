@@ -175,7 +175,8 @@ def discover(uuids):
     ironic = get_client()
     LOG.debug('Validating nodes %s', uuids)
     nodes = []
-    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
+    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
+             {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
     for uuid in uuids:
         try:
             node = ironic.node.get(uuid)
@@ -183,8 +184,10 @@ def discover(uuids):
             LOG.exception('Failed validation of node %s', uuid)
             continue
 
-        ironic.node.update(uuid, patch)
+        if not node.maintenance:
+            LOG.warning('Node %s will be put in maintenance mode', node.uuid)
 
+        ironic.node.update(uuid, patch)
         nodes.append(node)
 
     if not nodes:

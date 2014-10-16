@@ -122,6 +122,9 @@ HTTP API consist of 2 endpoints:
   nodes needs to be done prior to calling the endpoint. Requires X-Auth-Token
   header with Keystone token for authentication.
 
+  Nodes will be put into maintenance mode during discovery. It's up to caller
+  to put them back into use after discovery is done.
+
   .. note::
       Before version 0.2.0 this endpoint was not authenticated.
       Now it is, but check for admin role is not implemented yet.
@@ -156,6 +159,7 @@ v0.2.1
   (also bug #8).
 * Now MAC's are whitelisted for all drivers, not only SSH; option
   ``ssh_driver_regex`` was dropped (bug #6).
+* Nodes will be always put into maintenance mode before discovery (bug #5).
 
 v0.2.0
 ~~~~~~
