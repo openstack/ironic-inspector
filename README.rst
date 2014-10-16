@@ -41,6 +41,7 @@ PXE Setup
 * You need TFTP server running and accessible.
 * Build and put into your TFTP directory kernel and ramdisk from the
   diskimage-builder_ `discovery-ironic element`_.
+  You can also use `kernel`_ and `ramdisk`_ prepared for Instack.
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   *ironic-discoverd*. Don't do any firewall configuration: *ironic-discoverd*
   will handle it for you. In *ironic-discoverd* configuration file set
@@ -64,6 +65,8 @@ Use `ironic-discoverd element`_ as an example for this configuration.
 .. _diskimage-builder: https://github.com/openstack/diskimage-builder
 .. _discovery-ironic element: https://github.com/agroup/instack-undercloud/tree/master/elements/discovery-ironic
 .. _ironic-discoverd element: https://github.com/agroup/instack-undercloud/tree/master/elements/ironic-discoverd
+.. _kernel: http://file.rdu.redhat.com/%7Ejslagle/tripleo-images-juno-source/discovery-ramdisk.kernel
+.. _ramdisk: http://file.rdu.redhat.com/%7Ejslagle/tripleo-images-juno-source/discovery-ramdisk.initramfs
 
 Running
 ~~~~~~~
@@ -126,8 +129,8 @@ HTTP API consist of 2 endpoints:
   to put them back into use after discovery is done.
 
   .. note::
-      Before version 0.2.0 this endpoint was not authenticated.
-      Now it is, but check for admin role is not implemented yet.
+      Before version 0.2.0 this endpoint was not authenticated. Now it is,
+      but check for admin role is not implemented yet - see `bug #1`_.
 
   Response: always HTTP 202.
 
@@ -147,19 +150,32 @@ HTTP API consist of 2 endpoints:
 
   Response: always HTTP 202.
 
-ChangeLog
----------
+.. _bug #1: https://github.com/Divius/ironic-discoverd/issues/1
+
+Known Issues
+------------
+
+* `#4`_: Discovery never times out.
+
+.. _#4: https://github.com/Divius/ironic-discoverd/issues/4
+
+Change Log
+----------
 
 v0.2.1
 ~~~~~~
 
 * Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk
-  (bug #8).
+  (`bug #8`_).
 * If ``interfaces`` is present, only add ports for NIC's with IP address set
-  (also bug #8).
-* Now MAC's are whitelisted for all drivers, not only SSH; option
-  ``ssh_driver_regex`` was dropped (bug #6).
-* Nodes will be always put into maintenance mode before discovery (bug #5).
+  (also `bug #8`_).
+* Now MAC's are white-listed for all drivers, not only SSH; option
+  ``ssh_driver_regex`` was dropped (`bug #6`_).
+* Nodes will be always put into maintenance mode before discovery (`bug #5`_).
+
+.. _bug #8: https://github.com/Divius/ironic-discoverd/issues/8
+.. _bug #6: https://github.com/Divius/ironic-discoverd/issues/6
+.. _bug #5: https://github.com/Divius/ironic-discoverd/issues/5
 
 v0.2.0
 ~~~~~~
