@@ -136,7 +136,9 @@ class TestDiscover(unittest.TestCase):
         discoverd.discover(['uuid%d' % i for i in range(4)])
 
         self.assertEqual(4, cli.node.get.call_count)
-        cli.node.list_ports.assert_called_once_with('uuid1', limit=0)
+        self.assertEqual(2, cli.node.list_ports.call_count)
+        cli.node.list_ports.assert_any_call('uuid1', limit=0)
+        cli.node.list_ports.assert_any_call('uuid2', limit=0)
         filters_mock.assert_called_once_with(cli)
         self.assertEqual(set(['1', '2']), firewall.MACS_DISCOVERY)
         self.assertEqual(2, cli.node.set_power_state.call_count)

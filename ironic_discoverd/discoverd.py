@@ -24,7 +24,6 @@ def init_conf():
                   'dnsmasq_interface': 'br-ctlplane',
                   'authenticate': 'true',
                   'firewall_update_period': '15',
-                  'ssh_driver_regex': '^.*_ssh$',
                   'ports_for_inactive_interfaces': 'false'})
 
 
@@ -193,21 +192,15 @@ def discover(uuids):
         return
 
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
-    ssh_regex = re.compile(CONF.get('discoverd', 'ssh_driver_regex'))
 
     to_exclude = set()
     for node in nodes:
-        if not ssh_regex.match(node.driver):
-            continue
-
-        LOG.warning('Driver for %s is %s, requires white-listing MAC',
-                    node.uuid, node.driver)
-
         # TODO(dtantsur): pagination
         ports = ironic.node.list_ports(node.uuid, limit=0)
         to_exclude.update(p.address for p in ports)
 
     if to_exclude:
+        LOG.info('Whitelisting MAC\'s %s in the firewall', to_exclude)
         firewall.whitelist_macs(to_exclude)
         firewall.update_filters(ironic)
 

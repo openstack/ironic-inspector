@@ -154,6 +154,8 @@ v0.2.1
   (bug #8).
 * If ``interfaces`` is present, only add ports for NIC's with IP address set
   (also bug #8).
+* Now MAC's are whitelisted for all drivers, not only SSH; option
+  ``ssh_driver_regex`` was dropped (bug #6).
 
 v0.2.0
 ~~~~~~
