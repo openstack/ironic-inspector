@@ -59,6 +59,8 @@ def main():
 
     discoverd.CONF.read(sys.argv[1])
     debug = discoverd.CONF.getboolean('discoverd', 'debug')
+    if not discoverd.CONF.getboolean('discoverd', 'authenticate'):
+        LOG.warning('Starting unauthenticated, please check configuration')
 
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
     logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
