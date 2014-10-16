@@ -8,6 +8,11 @@ from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 
 
+def init_conf():
+    discoverd.init_conf()
+    discoverd.CONF.add_section('discoverd')
+
+
 # FIXME(dtantsur): this test suite is far from being complete
 @patch.object(firewall, 'update_filters', autospec=True)
 @patch.object(discoverd, 'get_client', autospec=True)
@@ -39,8 +44,9 @@ class TestProcess(unittest.TestCase):
         self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
         firewall.MACS_DISCOVERY = set(['11:22:33:44:55:66',
                                        '66:55:44:33:22:11'])
+        init_conf()
 
-    def test_bmc(self, client_mock, filters_mock):
+    def _do_test_bmc(self, client_mock, filters_mock):
         self.node.driver_info['ipmi_address'] = '1.2.3.4'
         cli = client_mock.return_value
         cli.node.list.return_value = [
@@ -65,34 +71,20 @@ class TestProcess(unittest.TestCase):
         filters_mock.assert_called_once_with(cli)
         self.assertEqual(set(), firewall.MACS_DISCOVERY)
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
+
+    def test_bmc(self, client_mock, filters_mock):
+        self._do_test_bmc(client_mock, filters_mock)
 
     def test_bmc_deprecated_macs(self, client_mock, filters_mock):
         del self.data['interfaces']
         self.data['macs'] = self.macs
-        self.node.driver_info['ipmi_address'] = '1.2.3.4'
-        cli = client_mock.return_value
-        cli.node.list.return_value = [
-            Mock(driver_info={}),
-            Mock(driver_info={'ipmi_address': '4.3.2.1'}),
-            self.node,
-            Mock(driver_info={'ipmi_address': '1.2.1.2'}),
-        ]
-        cli.port.create.side_effect = [None, exceptions.Conflict()]
+        self._do_test_bmc(client_mock, filters_mock)
 
-        self.data['ipmi_address'] = '1.2.3.4'
-        discoverd.process(self.data)
-
-        self.assertTrue(cli.node.list.called)
-        self.assertFalse(cli.port.get_by_address.called)
-        cli.node.update.assert_called_once_with(self.node.uuid, self.patch)
-        cli.port.create.assert_any_call(node_uuid=self.node.uuid,
-                                        address='11:22:33:44:55:66')
-        cli.port.create.assert_any_call(node_uuid=self.node.uuid,
-                                        address='66:55:44:33:22:11')
-        self.assertEqual(2, cli.port.create.call_count)
-        filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(), firewall.MACS_DISCOVERY)
-        cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
+    def test_bmc_ports_for_inactive(self, client_mock, filters_mock):
+        del self.data['interfaces']['em4']
+        discoverd.CONF.set('discoverd', 'ports_for_inactive_interfaces',
+                           'true')
+        self._do_test_bmc(client_mock, filters_mock)
 
     def test_macs(self, client_mock, filters_mock):
         discoverd.ALLOW_SEARCH_BY_MAC = True
@@ -128,8 +120,7 @@ class TestDiscover(unittest.TestCase):
         self.node2 = Mock(driver='pxe_ipmitool',
                           uuid='uuid2')
         firewall.MACS_DISCOVERY = set()
-        if not discoverd.CONF.has_section('discoverd'):
-            discoverd.CONF.add_section('discoverd')
+        init_conf()
 
     def test(self, client_mock, filters_mock):
         cli = client_mock.return_value

@@ -12,15 +12,24 @@ from ironic_discoverd import firewall
 
 LOG = logging.getLogger("discoverd")
 ALLOW_SEARCH_BY_MAC = True
-CONF = configparser.ConfigParser(
-    defaults={'debug': 'false',
-              'listen_address': '0.0.0.0',
-              'listen_port': '5050',
-              'dnsmasq_interface': 'br-ctlplane',
-              'authenticate': 'true',
-              'firewall_update_period': '15',
-              'ssh_driver_regex': '^.*_ssh$'})
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
+
+
+def init_conf():
+    global CONF
+    CONF = configparser.ConfigParser(
+        defaults={'debug': 'false',
+                  'listen_address': '0.0.0.0',
+                  'listen_port': '5050',
+                  'dnsmasq_interface': 'br-ctlplane',
+                  'authenticate': 'true',
+                  'firewall_update_period': '15',
+                  'ssh_driver_regex': '^.*_ssh$',
+                  'ports_for_inactive_interfaces': 'false'})
+
+
+CONF = None
+init_conf()
 
 
 def get_client():
@@ -46,7 +55,7 @@ def process(node_info):
                   node_info['error'])
         return
 
-    compat = False
+    compat = CONF.getboolean('discoverd', 'ports_for_inactive_interfaces')
     if 'interfaces' not in node_info and 'macs' in node_info:
         LOG.warn('Using "macs" field is deprecated, please '
                  'update your discovery ramdisk')
