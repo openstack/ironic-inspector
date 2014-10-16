@@ -57,8 +57,8 @@ def process(node_info):
 
     compat = CONF.getboolean('discoverd', 'ports_for_inactive_interfaces')
     if 'interfaces' not in node_info and 'macs' in node_info:
-        LOG.warn('Using "macs" field is deprecated, please '
-                 'update your discovery ramdisk')
+        LOG.warning('Using "macs" field is deprecated, please '
+                    'update your discovery ramdisk')
         node_info['interfaces'] = {'dummy%d' % i: {'mac': m}
                                    for i, m in enumerate(node_info['macs'])}
         compat = True
@@ -83,13 +83,14 @@ def process(node_info):
     }
     valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
     if valid_interfaces != node_info['interfaces']:
-        LOG.warn('The following interfaces were invalid or not eligible in '
-                 'discovery data for node with BMC %(ipmi_address)s and were '
-                 'excluded: %(invalid)s',
-                 {'invalid': {n: iface
-                              for n, iface in node_info['interfaces'].items()
-                              if n not in valid_interfaces},
-                  'ipmi_address': node_info.get('ipmi_address')})
+        LOG.warning(
+            'The following interfaces were invalid or not eligible in '
+            'discovery data for node with BMC %(ipmi_address)s and were '
+            'excluded: %(invalid)s',
+            {'invalid': {n: iface
+                         for n, iface in node_info['interfaces'].items()
+                         if n not in valid_interfaces},
+             'ipmi_address': node_info.get('ipmi_address')})
         LOG.info('Eligible interfaces are %s', valid_interfaces)
 
     ironic = get_client()
@@ -109,8 +110,8 @@ def process(node_info):
             return
     elif ALLOW_SEARCH_BY_MAC:
         # In case of testing with vms and pxe_ssh driver
-        LOG.warn('No BMC address provided, trying to use MAC '
-                 'addresses for finding node')
+        LOG.warning('No BMC address provided, trying to use MAC '
+                    'addresses for finding node')
         port = None
         for mac in valid_macs:
             try:
@@ -199,8 +200,8 @@ def discover(uuids):
         if not ssh_regex.match(node.driver):
             continue
 
-        LOG.warn('Driver for %s is %s, requires white-listing MAC',
-                 node.uuid, node.driver)
+        LOG.warning('Driver for %s is %s, requires white-listing MAC',
+                    node.uuid, node.driver)
 
         # TODO(dtantsur): pagination
         ports = ironic.node.list_ports(node.uuid, limit=0)
