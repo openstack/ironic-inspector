@@ -38,9 +38,13 @@ def post_discover():
         # TODO(dtanstur): check for admin role
 
     data = request.get_json(force=True)
-    LOG.debug("Got JSON %s, going into processing thread", data)
-    eventlet.greenthread.spawn_n(discoverd.discover, data)
-    return "{}", 202, {"content-type": "application/json"}
+    LOG.debug("Got JSON %s", data)
+    try:
+        discoverd.discover(data)
+    except discoverd.DiscoveryFailed as exc:
+        return str(exc), exc.http_code
+    else:
+        return "", 202
 
 
 def periodic_update(period):

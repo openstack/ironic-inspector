@@ -132,7 +132,11 @@ HTTP API consist of 2 endpoints:
       Before version 0.2.0 this endpoint was not authenticated. Now it is,
       but check for admin role is not implemented yet - see `bug #1`_.
 
-  Response: always HTTP 202.
+  Response:
+
+  * 202 - accepted discovery request
+  * 400 - bad request
+  * 404 - node cannot be found
 
 * ``POST /v1/continue`` internal endpoint for the discovery ramdisk to post
   back discovered data. Should not be used for anything other than implementing

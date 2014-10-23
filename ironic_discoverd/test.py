@@ -1,11 +1,15 @@
 import unittest
 
+import eventlet
 from ironicclient import exceptions
 from mock import patch, Mock, ANY
 
 from ironic_discoverd import client
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
+
+
+eventlet.monkey_patch()
 
 
 def init_conf():
@@ -111,6 +115,8 @@ class TestProcess(unittest.TestCase):
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
 
 
+@patch.object(eventlet.greenthread, 'spawn_n',
+              side_effect=lambda f, *a: f(*a) and None)
 @patch.object(firewall, 'update_filters', autospec=True)
 @patch.object(discoverd, 'get_client', autospec=True)
 class TestDiscover(unittest.TestCase):
@@ -124,20 +130,18 @@ class TestDiscover(unittest.TestCase):
         firewall.MACS_DISCOVERY = set()
         init_conf()
 
-    def test(self, client_mock, filters_mock):
+    def test_ok(self, client_mock, filters_mock, spawn_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = [
-            exceptions.NotFound(),
             self.node1,
-            exceptions.Conflict(),
             self.node2,
         ]
         cli.node.list_ports.return_value = [Mock(address='1'),
                                             Mock(address='2')]
 
-        discoverd.discover(['uuid%d' % i for i in range(4)])
+        discoverd.discover(['uuid1', 'uuid2'])
 
-        self.assertEqual(4, cli.node.get.call_count)
+        self.assertEqual(2, cli.node.get.call_count)
         self.assertEqual(2, cli.node.list_ports.call_count)
         cli.node.list_ports.assert_any_call('uuid1', limit=0)
         cli.node.list_ports.assert_any_call('uuid2', limit=0)
@@ -148,8 +152,70 @@ class TestDiscover(unittest.TestCase):
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
                  {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
         cli.node.update.assert_any_call('uuid1', patch)
-        cli.node.update.assert_any_call('uuid3', patch)
+        cli.node.update.assert_any_call('uuid2', patch)
         self.assertEqual(2, cli.node.update.call_count)
+        spawn_mock.assert_called_once_with(discoverd._background_discover,
+                                           cli, ANY)
+
+    def test_failed_to_get_node(self, client_mock, filters_mock, spawn_mock):
+        cli = client_mock.return_value
+        cli.node.get.side_effect = [
+            self.node1,
+            exceptions.NotFound(),
+        ]
+        self.assertRaisesRegexp(discoverd.DiscoveryFailed,
+                                'Cannot find node uuid2',
+                                discoverd.discover, ['uuid1', 'uuid2'])
+
+        cli.node.get.side_effect = [
+            exceptions.Conflict(),
+            self.node1,
+        ]
+        self.assertRaisesRegexp(discoverd.DiscoveryFailed,
+                                'Cannot get node uuid1',
+                                discoverd.discover, ['uuid1', 'uuid2'])
+
+        self.assertEqual(3, cli.node.get.call_count)
+        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, cli.node.set_power_state.call_count)
+        self.assertEqual(0, cli.node.update.call_count)
+
+    def test_no_uuids(self, client_mock, filters_mock, spawn_mock):
+        self.assertRaisesRegexp(discoverd.DiscoveryFailed,
+                                'No nodes to discover',
+                                discoverd.discover, [])
+        self.assertFalse(client_mock.called)
+
+
+@patch.object(discoverd, 'discover', autospec=True)
+class TestApiDiscover(unittest.TestCase):
+    def setUp(self):
+        init_conf()
+        # Strange monkey-patch-related crash happens if put this on top level
+        from ironic_discoverd import main
+        main.app.config['TESTING'] = True
+        self.app = main.app.test_client()
+
+    def test_no_authentication(self, discover_mock):
+        discoverd.CONF.set('discoverd', 'authenticate', 'false')
+        res = self.app.post('/v1/discover', data='["uuid1"]')
+        self.assertEqual(202, res.status_code)
+        discover_mock.assert_called_once_with(["uuid1"])
+
+    def test_discover_failed(self, discover_mock):
+        discoverd.CONF.set('discoverd', 'authenticate', 'false')
+        discover_mock.side_effect = discoverd.DiscoveryFailed("boom")
+        res = self.app.post('/v1/discover', data='["uuid1"]')
+        self.assertEqual(400, res.status_code)
+        self.assertEqual(b"boom", res.data)
+        discover_mock.assert_called_once_with(["uuid1"])
+
+    def test_failed_authentication(self, discover_mock):
+        discoverd.CONF.set('discoverd', 'authenticate', 'true')
+        res = self.app.post('/v1/discover', data='["uuid1"]')
+        self.assertEqual(401, res.status_code)
+        self.assertFalse(discover_mock.called)
 
 
 @patch.object(client.requests, 'post', autospec=True)

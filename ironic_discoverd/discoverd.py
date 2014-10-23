@@ -1,6 +1,7 @@
 import logging
 import re
 
+import eventlet
 import six
 from six.moves import configparser
 
@@ -170,31 +171,44 @@ def process(node_info):
                   'management configuration:\n%s', node.uuid, exc)
 
 
+class DiscoveryFailed(Exception):
+    def __init__(self, msg, code=400):
+        super(DiscoveryFailed, self).__init__(msg)
+        self.http_code = code
+
+
 def discover(uuids):
     """Initiate discovery for given node uuids."""
+    if not uuids:
+        raise DiscoveryFailed("No nodes to discover")
+
     ironic = get_client()
     LOG.debug('Validating nodes %s', uuids)
     nodes = []
-    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
-             {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
     for uuid in uuids:
         try:
             node = ironic.node.get(uuid)
-        except exceptions.HTTPClientError:
-            LOG.exception('Failed validation of node %s', uuid)
-            continue
+        except exceptions.NotFound:
+            LOG.error('Node %s cannot be found', uuid)
+            raise DiscoveryFailed("Cannot find node %s" % uuid, code=404)
+        except exceptions.HttpError as exc:
+            LOG.exception('Cannot get node %s', uuid)
+            raise DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
         if not node.maintenance:
             LOG.warning('Node %s will be put in maintenance mode', node.uuid)
 
-        ironic.node.update(uuid, patch)
         nodes.append(node)
 
-    if not nodes:
-        LOG.error('No nodes to discover')
-        return
-
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
+    eventlet.greenthread.spawn_n(_background_discover, ironic, nodes)
+
+
+def _background_discover(ironic, nodes):
+    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
+             {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
+    for node in nodes:
+        ironic.node.update(node.uuid, patch)
 
     to_exclude = set()
     for node in nodes:
