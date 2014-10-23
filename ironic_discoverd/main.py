@@ -1,7 +1,9 @@
+import eventlet
+eventlet.monkey_patch(thread=False)
+
 import logging
 import sys
 
-import eventlet
 from flask import Flask, request
 
 from keystoneclient import exceptions
@@ -9,8 +11,6 @@ from keystoneclient import exceptions
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 
-
-eventlet.monkey_patch()
 
 app = Flask(__name__)
 LOG = discoverd.LOG

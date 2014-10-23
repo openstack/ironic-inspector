@@ -1,15 +1,15 @@
+import eventlet
+eventlet.monkey_patch(thread=False)
+
 import unittest
 
-import eventlet
 from ironicclient import exceptions
 from mock import patch, Mock, ANY
 
 from ironic_discoverd import client
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
-
-
-eventlet.monkey_patch()
+from ironic_discoverd import main
 
 
 def init_conf():
@@ -192,8 +192,6 @@ class TestDiscover(unittest.TestCase):
 class TestApiDiscover(unittest.TestCase):
     def setUp(self):
         init_conf()
-        # Strange monkey-patch-related crash happens if put this on top level
-        from ironic_discoverd import main
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
 
