@@ -166,6 +166,12 @@ Known Issues
 Change Log
 ----------
 
+v0.2.2
+~~~~~~
+
+* ``/v1/discover`` now does some sync checks (`bug #3`_).
+* Actually able to start under Python 3.3.
+
 v0.2.1
 ~~~~~~
 
