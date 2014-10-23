@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name = "ironic-discoverd",
-    version = "0.2.1",
+    version = "0.2.2",
     description = "Hardware properties discovery for OpenStack Ironic",
     author = "Dmitry Tantsur",
     author_email = "dtansur@redhat.com",
