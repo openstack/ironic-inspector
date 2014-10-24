@@ -183,6 +183,8 @@ def discover(uuids):
 
         if not node.maintenance:
             LOG.warning('Node %s will be put in maintenance mode', node.uuid)
+        if node.extra.get('on_discovery'):
+            LOG.warning('Node %s seems to be on discovery already', node.uuid)
 
         nodes.append(node)
 

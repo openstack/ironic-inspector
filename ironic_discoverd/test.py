@@ -131,7 +131,8 @@ class TestDiscover(unittest.TestCase):
                           uuid='uuid2',
                           maintenance=False,
                           instance_uuid=None,
-                          power_state=None)
+                          power_state=None,
+                          extra={'on_discovery': True})
         firewall.MACS_DISCOVERY = set()
         init_conf()
 
