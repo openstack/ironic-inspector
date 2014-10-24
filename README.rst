@@ -171,6 +171,7 @@ v0.2.2
 
 * ``/v1/discover`` now does some sync checks (`bug #3`_).
 * Actually able to start under Python 3.3.
+* On each start-up make several attempts to check that Ironic is available.
 
 .. _bug #3: https://github.com/Divius/ironic-discoverd/issues/3
 

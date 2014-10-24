@@ -74,6 +74,27 @@ def main():
 
     interface = discoverd.CONF.get('discoverd', 'dnsmasq_interface')
     firewall.init(interface)
+
+    # Before proceeding we try to make sure:
+    # 1. Keystone access is configured properly
+    # 2. Keystone has already started
+    # 3. Ironic has already started
+    attempts = discoverd.CONF.getint('discoverd', 'ironic_retry_attempts')
+    assert attempts >= 0
+    retry_period = discoverd.CONF.getint('discoverd', 'ironic_retry_period')
+    LOG.debug('Trying to connect to Ironic')
+    for i in range(attempts + 1):  # one attempt always required
+        try:
+            discoverd.get_client().driver.list()
+        except Exception as exc:
+            if i == attempts:
+                raise
+            LOG.error('Unable to connect to Ironic or Keystone, retrying %d '
+                      'times more: %s', attempts - i, exc)
+        else:
+            break
+        eventlet.greenthread.sleep(retry_period)
+
     period = discoverd.CONF.getint('discoverd', 'firewall_update_period')
     eventlet.greenthread.spawn_n(periodic_update, period)
 
