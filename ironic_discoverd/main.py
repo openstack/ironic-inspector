@@ -7,6 +7,7 @@ import sys
 from flask import Flask, request
 
 from keystoneclient import exceptions
+from keystoneclient.v2_0 import client as keystone
 
 from ironic_discoverd import conf
 from ironic_discoverd import discoverd
@@ -15,6 +16,11 @@ from ironic_discoverd import firewall
 
 app = Flask(__name__)
 LOG = discoverd.LOG
+
+
+def get_keystone(token):  # pragma: no cover
+    return keystone.Client(token=token, auth_url=conf.get('discoverd',
+                                                          'os_auth_url'))
 
 
 @app.route('/v1/continue', methods=['POST'])

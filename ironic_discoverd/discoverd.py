@@ -5,7 +5,6 @@ import eventlet
 import six
 
 from ironicclient import client, exceptions
-from keystoneclient.v2_0 import client as keystone
 
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
@@ -16,14 +15,9 @@ ALLOW_SEARCH_BY_MAC = True
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
-def get_client():
+def get_client():  # pragma: no cover
     args = dict((k, conf.get('discoverd', k)) for k in OS_ARGS)
     return client.get_client(1, **args)
-
-
-def get_keystone(token):
-    return keystone.Client(token=token, auth_url=conf.get('discoverd',
-                                                          'os_auth_url'))
 
 
 def is_valid_mac(address):
