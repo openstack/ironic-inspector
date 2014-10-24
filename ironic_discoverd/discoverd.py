@@ -182,6 +182,12 @@ def discover(uuids):
         if not node.maintenance:
             LOG.warning('Node %s will be put in maintenance mode', node.uuid)
 
+        validation = ironic.node.validate(node.uuid)
+        if not validation.power['result']:
+            LOG.error('Failed validation of power interface for node %s, '
+                      'reason: %s', node.uuid, validation.power['reason'])
+            raise DiscoveryFailed('Failed validation of power interface for '
+                                  'node %s' % node.uuid)
         nodes.append(node)
 
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])

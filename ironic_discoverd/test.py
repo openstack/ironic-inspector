@@ -182,6 +182,29 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
 
+    def test_failed_to_validate_node(self, client_mock, filters_mock,
+                                     spawn_mock):
+        cli = client_mock.return_value
+        cli.node.get.side_effect = [
+            self.node1,
+            self.node2,
+        ]
+        cli.node.validate.side_effect = [
+            Mock(power={'result': True}),
+            Mock(power={'result': False, 'reason': 'oops'}),
+        ]
+        self.assertRaisesRegexp(
+            discoverd.DiscoveryFailed,
+            'Failed validation of power interface for node uuid2',
+            discoverd.discover, ['uuid1', 'uuid2'])
+
+        self.assertEqual(2, cli.node.get.call_count)
+        self.assertEqual(2, cli.node.validate.call_count)
+        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, cli.node.set_power_state.call_count)
+        self.assertEqual(0, cli.node.update.call_count)
+
     def test_no_uuids(self, client_mock, filters_mock, spawn_mock):
         self.assertRaisesRegexp(discoverd.DiscoveryFailed,
                                 'No nodes to discover',
