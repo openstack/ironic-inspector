@@ -37,7 +37,7 @@ def init(interface):
               ignore=True)  # may be missing on first run
     _iptables('-F', CHAIN, ignore=True)
     _iptables('-X', CHAIN, ignore=True)
-    # Code expects it to exist
+    # Not really needed, but helps to validate that we have access to iptables
     _iptables('-N', CHAIN)
 
 
@@ -57,7 +57,7 @@ def update_filters(ironic):
         macs_active = set(p.address for p in ironic.port.list(limit=0))
         to_blacklist = macs_active - MACS_DISCOVERY
 
-        # Clean up a bit to accout for possible troubles on previous run
+        # Clean up a bit to account for possible troubles on previous run
         _iptables('-F', NEW_CHAIN, ignore=True)
         _iptables('-X', NEW_CHAIN, ignore=True)
         _iptables('-N', CHAIN, ignore=True)
