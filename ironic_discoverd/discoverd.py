@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 
 import eventlet
 import six
@@ -175,8 +176,6 @@ def discover(uuids):
 
         _validate(ironic, node)
 
-        if not node.maintenance:
-            LOG.warning('Node %s will be put in maintenance mode', node.uuid)
         if node.extra.get('on_discovery'):
             LOG.warning('Node %s seems to be on discovery already', node.uuid)
 
@@ -212,9 +211,16 @@ def _validate(ironic, node):
 
 def _background_discover(ironic, nodes):
     patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
-             {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
+             {'op': 'add', 'path': '/extra/discovery_timestamp',
+              'value': str(time.time())}]
     for node in nodes:
-        ironic.node.update(node.uuid, patch)
+        node_patch = []
+        if not node.maintenance:
+            LOG.warning('Node %s will be put in maintenance mode', node.uuid)
+            node_patch.append(
+                {'op': 'replace', 'path': '/maintenance', 'value': 'true'})
+
+        ironic.node.update(node.uuid, patch + node_patch)
 
     to_exclude = set()
     for node in nodes:

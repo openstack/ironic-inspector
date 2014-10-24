@@ -1,6 +1,7 @@
 import eventlet
 eventlet.monkey_patch(thread=False)
 
+import time
 import unittest
 
 from ironicclient import exceptions
@@ -136,6 +137,7 @@ class TestDiscover(unittest.TestCase):
         firewall.MACS_DISCOVERY = set()
         init_conf()
 
+    @patch.object(time, 'time', lambda: 42.0)
     def test_ok(self, client_mock, filters_mock, spawn_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = [
@@ -156,9 +158,13 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(2, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'on')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
-                 {'op': 'replace', 'path': '/maintenance', 'value': 'true'}]
+                 {'op': 'add', 'path': '/extra/discovery_timestamp',
+                  'value': '42.0'}]
         cli.node.update.assert_any_call('uuid1', patch)
-        cli.node.update.assert_any_call('uuid2', patch)
+        cli.node.update.assert_any_call(
+            'uuid2',
+            patch +
+            [{'op': 'replace', 'path': '/maintenance', 'value': 'true'}])
         self.assertEqual(2, cli.node.update.call_count)
         spawn_mock.assert_called_once_with(discoverd._background_discover,
                                            cli, ANY)
