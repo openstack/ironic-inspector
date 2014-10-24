@@ -32,8 +32,6 @@ def init(interface):
     global INTERFACE
     INTERFACE = interface
 
-    _iptables('-F', NEW_CHAIN, ignore=True)
-    _iptables('-X', NEW_CHAIN, ignore=True)
     _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
               '--dport', '67', '-j', CHAIN,
               ignore=True)  # may be missing on first run
@@ -59,6 +57,10 @@ def update_filters(ironic):
         macs_active = set(p.address for p in ironic.port.list(limit=0))
         to_blacklist = macs_active - MACS_DISCOVERY
 
+        # Clean up a bit to accout for possible troubles on previous run
+        _iptables('-F', NEW_CHAIN, ignore=True)
+        _iptables('-X', NEW_CHAIN, ignore=True)
+        _iptables('-N', CHAIN, ignore=True)
         # Operate on temporary chain
         _iptables('-N', NEW_CHAIN)
         # - Blacklist active macs, so that nova can boot them
