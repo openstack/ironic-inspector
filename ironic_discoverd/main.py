@@ -8,6 +8,7 @@ from flask import Flask, request
 
 from keystoneclient import exceptions
 
+from ironic_discoverd import conf
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 
@@ -26,7 +27,7 @@ def post_continue():
 
 @app.route('/v1/discover', methods=['POST'])
 def post_discover():
-    if discoverd.CONF.getboolean('discoverd', 'authenticate'):
+    if conf.getboolean('discoverd', 'authenticate'):
         if not request.headers.get('X-Auth-Token'):
             LOG.debug("No X-Auth-Token header, rejecting")
             return 'Authentication required', 401
@@ -61,27 +62,27 @@ def main():
     if len(sys.argv) < 2:
         sys.exit("Usage: %s config-file" % sys.argv[0])
 
-    discoverd.CONF.read(sys.argv[1])
-    debug = discoverd.CONF.getboolean('discoverd', 'debug')
+    conf.read(sys.argv[1])
+    debug = conf.getboolean('discoverd', 'debug')
 
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
     logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
     logging.getLogger('requests.packages.urllib3.connectionpool') \
         .setLevel(logging.WARNING)
 
-    if not discoverd.CONF.getboolean('discoverd', 'authenticate'):
+    if not conf.getboolean('discoverd', 'authenticate'):
         LOG.warning('Starting unauthenticated, please check configuration')
 
-    interface = discoverd.CONF.get('discoverd', 'dnsmasq_interface')
+    interface = conf.get('discoverd', 'dnsmasq_interface')
     firewall.init(interface)
 
     # Before proceeding we try to make sure:
     # 1. Keystone access is configured properly
     # 2. Keystone has already started
     # 3. Ironic has already started
-    attempts = discoverd.CONF.getint('discoverd', 'ironic_retry_attempts')
+    attempts = conf.getint('discoverd', 'ironic_retry_attempts')
     assert attempts >= 0
-    retry_period = discoverd.CONF.getint('discoverd', 'ironic_retry_period')
+    retry_period = conf.getint('discoverd', 'ironic_retry_period')
     LOG.debug('Trying to connect to Ironic')
     for i in range(attempts + 1):  # one attempt always required
         try:
@@ -95,9 +96,9 @@ def main():
             break
         eventlet.greenthread.sleep(retry_period)
 
-    period = discoverd.CONF.getint('discoverd', 'firewall_update_period')
+    period = conf.getint('discoverd', 'firewall_update_period')
     eventlet.greenthread.spawn_n(periodic_update, period)
 
     app.run(debug=debug,
-            host=discoverd.CONF.get('discoverd', 'listen_address'),
-            port=discoverd.CONF.getint('discoverd', 'listen_port'))
+            host=conf.get('discoverd', 'listen_address'),
+            port=conf.getint('discoverd', 'listen_port'))

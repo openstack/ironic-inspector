@@ -7,14 +7,15 @@ from ironicclient import exceptions
 from mock import patch, Mock, ANY
 
 from ironic_discoverd import client
+from ironic_discoverd import conf
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 from ironic_discoverd import main
 
 
 def init_conf():
-    discoverd.init_conf()
-    discoverd.CONF.add_section('discoverd')
+    conf.init_conf()
+    conf.CONF.add_section('discoverd')
 
 
 # FIXME(dtantsur): this test suite is far from being complete
@@ -86,8 +87,8 @@ class TestProcess(unittest.TestCase):
 
     def test_bmc_ports_for_inactive(self, client_mock, filters_mock):
         del self.data['interfaces']['em4']
-        discoverd.CONF.set('discoverd', 'ports_for_inactive_interfaces',
-                           'true')
+        conf.CONF.set('discoverd', 'ports_for_inactive_interfaces',
+                      'true')
         self._do_test_bmc(client_mock, filters_mock)
 
     def test_macs(self, client_mock, filters_mock):
@@ -196,13 +197,13 @@ class TestApiDiscover(unittest.TestCase):
         self.app = main.app.test_client()
 
     def test_no_authentication(self, discover_mock):
-        discoverd.CONF.set('discoverd', 'authenticate', 'false')
+        conf.CONF.set('discoverd', 'authenticate', 'false')
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(202, res.status_code)
         discover_mock.assert_called_once_with(["uuid1"])
 
     def test_discover_failed(self, discover_mock):
-        discoverd.CONF.set('discoverd', 'authenticate', 'false')
+        conf.CONF.set('discoverd', 'authenticate', 'false')
         discover_mock.side_effect = discoverd.DiscoveryFailed("boom")
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(400, res.status_code)
@@ -210,7 +211,7 @@ class TestApiDiscover(unittest.TestCase):
         discover_mock.assert_called_once_with(["uuid1"])
 
     def test_failed_authentication(self, discover_mock):
-        discoverd.CONF.set('discoverd', 'authenticate', 'true')
+        conf.CONF.set('discoverd', 'authenticate', 'true')
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(401, res.status_code)
         self.assertFalse(discover_mock.called)

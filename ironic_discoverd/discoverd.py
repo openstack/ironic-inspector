@@ -3,11 +3,11 @@ import re
 
 import eventlet
 import six
-from six.moves import configparser
 
 from ironicclient import client, exceptions
 from keystoneclient.v2_0 import client as keystone
 
+from ironic_discoverd import conf
 from ironic_discoverd import firewall
 
 
@@ -16,31 +16,13 @@ ALLOW_SEARCH_BY_MAC = True
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
-def init_conf():
-    global CONF
-    CONF = configparser.ConfigParser(
-        defaults={'debug': 'false',
-                  'listen_address': '0.0.0.0',
-                  'listen_port': '5050',
-                  'dnsmasq_interface': 'br-ctlplane',
-                  'authenticate': 'true',
-                  'firewall_update_period': '15',
-                  'ports_for_inactive_interfaces': 'false',
-                  'ironic_retry_attempts': '5',
-                  'ironic_retry_period': '5'})
-
-
-CONF = None
-init_conf()
-
-
 def get_client():
-    args = dict((k, CONF.get('discoverd', k)) for k in OS_ARGS)
+    args = dict((k, conf.get('discoverd', k)) for k in OS_ARGS)
     return client.get_client(1, **args)
 
 
 def get_keystone(token):
-    return keystone.Client(token=token, auth_url=CONF.get('discoverd',
+    return keystone.Client(token=token, auth_url=conf.get('discoverd',
                                                           'os_auth_url'))
 
 
@@ -57,7 +39,7 @@ def process(node_info):
                   node_info['error'])
         return
 
-    compat = CONF.getboolean('discoverd', 'ports_for_inactive_interfaces')
+    compat = conf.getboolean('discoverd', 'ports_for_inactive_interfaces')
     if 'interfaces' not in node_info and 'macs' in node_info:
         LOG.warning('Using "macs" field is deprecated, please '
                     'update your discovery ramdisk')
