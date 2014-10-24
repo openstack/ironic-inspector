@@ -124,10 +124,14 @@ class TestDiscover(unittest.TestCase):
     def setUp(self):
         self.node1 = Mock(driver='pxe_ssh',
                           uuid='uuid1',
-                          maintenance=True)
+                          maintenance=True,
+                          instance_uuid=None,
+                          power_state='power off')
         self.node2 = Mock(driver='pxe_ipmitool',
                           uuid='uuid2',
-                          maintenance=False)
+                          maintenance=False,
+                          instance_uuid=None,
+                          power_state=None)
         firewall.MACS_DISCOVERY = set()
         init_conf()
 
@@ -210,6 +214,42 @@ class TestDiscover(unittest.TestCase):
                                 'No nodes to discover',
                                 discoverd.discover, [])
         self.assertFalse(client_mock.called)
+
+    def test_with_instance_uuid(self, client_mock, filters_mock, spawn_mock):
+        self.node2.instance_uuid = 'uuid'
+        cli = client_mock.return_value
+        cli.node.get.side_effect = [
+            self.node1,
+            self.node2,
+        ]
+        self.assertRaisesRegexp(
+            discoverd.DiscoveryFailed,
+            'node uuid2 with assigned instance uuid',
+            discoverd.discover, ['uuid1', 'uuid2'])
+
+        self.assertEqual(2, cli.node.get.call_count)
+        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, cli.node.set_power_state.call_count)
+        self.assertEqual(0, cli.node.update.call_count)
+
+    def test_wrong_power_state(self, client_mock, filters_mock, spawn_mock):
+        self.node2.power_state = 'power on'
+        cli = client_mock.return_value
+        cli.node.get.side_effect = [
+            self.node1,
+            self.node2,
+        ]
+        self.assertRaisesRegexp(
+            discoverd.DiscoveryFailed,
+            'node uuid2 with power state "power on"',
+            discoverd.discover, ['uuid1', 'uuid2'])
+
+        self.assertEqual(2, cli.node.get.call_count)
+        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, cli.node.set_power_state.call_count)
+        self.assertEqual(0, cli.node.update.call_count)
 
 
 @patch.object(discoverd, 'discover', autospec=True)

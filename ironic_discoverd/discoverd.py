@@ -179,19 +179,39 @@ def discover(uuids):
             LOG.exception('Cannot get node %s', uuid)
             raise DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
+        _validate(ironic, node)
+
         if not node.maintenance:
             LOG.warning('Node %s will be put in maintenance mode', node.uuid)
 
-        validation = ironic.node.validate(node.uuid)
-        if not validation.power['result']:
-            LOG.error('Failed validation of power interface for node %s, '
-                      'reason: %s', node.uuid, validation.power['reason'])
-            raise DiscoveryFailed('Failed validation of power interface for '
-                                  'node %s' % node.uuid)
         nodes.append(node)
 
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
     eventlet.greenthread.spawn_n(_background_discover, ironic, nodes)
+
+
+def _validate(ironic, node):
+    if node.instance_uuid:
+        LOG.error('Refusing to discover node %s with assigned instance_uuid',
+                  node.uuid)
+        raise DiscoveryFailed(
+            'Refusing to discover node %s with assigned instance uuid' %
+            node.uuid)
+
+    power_state = node.power_state
+    if power_state is not None and power_state.lower() != 'power off':
+        LOG.error('Refusing to discover node %s with power_state "%s"',
+                  node.uuid, power_state)
+        raise DiscoveryFailed(
+            'Refusing to discover node %s with power state "%s"' %
+            (node.uuid, power_state))
+
+    validation = ironic.node.validate(node.uuid)
+    if not validation.power['result']:
+        LOG.error('Failed validation of power interface for node %s, '
+                  'reason: %s', node.uuid, validation.power['reason'])
+        raise DiscoveryFailed('Failed validation of power interface for '
+                              'node %s' % node.uuid)
 
 
 def _background_discover(ironic, nodes):
