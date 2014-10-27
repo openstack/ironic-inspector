@@ -33,7 +33,7 @@ def post_discover():
             LOG.debug("No X-Auth-Token header, rejecting")
             return 'Authentication required', 401
         try:
-            discoverd.get_keystone(token=request.headers['X-Auth-Token'])
+            utils.get_keystone(token=request.headers['X-Auth-Token'])
         except exceptions.Unauthorized:
             LOG.debug("Keystone denied access, rejecting")
             return 'Access denied', 403

@@ -5,6 +5,7 @@ import time
 import unittest
 
 from ironicclient import exceptions
+from keystoneclient import exceptions as keystone_exc
 from mock import patch, Mock, ANY
 
 from ironic_discoverd import client
@@ -260,19 +261,20 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(0, cli.node.update.call_count)
 
 
-@patch.object(discoverd, 'discover', autospec=True)
-class TestApiDiscover(unittest.TestCase):
+class TestApi(unittest.TestCase):
     def setUp(self):
         init_conf()
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
 
-    def test_no_authentication(self, discover_mock):
+    @patch.object(discoverd, 'discover', autospec=True)
+    def test_discover_no_authentication(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(202, res.status_code)
         discover_mock.assert_called_once_with(["uuid1"])
 
+    @patch.object(discoverd, 'discover', autospec=True)
     def test_discover_failed(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         discover_mock.side_effect = discoverd.DiscoveryFailed("boom")
@@ -281,11 +283,30 @@ class TestApiDiscover(unittest.TestCase):
         self.assertEqual(b"boom", res.data)
         discover_mock.assert_called_once_with(["uuid1"])
 
-    def test_failed_authentication(self, discover_mock):
+    @patch.object(discoverd, 'discover', autospec=True)
+    def test_discover_missing_authentication(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(401, res.status_code)
         self.assertFalse(discover_mock.called)
+
+    @patch.object(utils, 'get_keystone', autospec=True)
+    @patch.object(discoverd, 'discover', autospec=True)
+    def test_discover_failed_authentication(self, discover_mock,
+                                            keystone_mock):
+        conf.CONF.set('discoverd', 'authenticate', 'true')
+        keystone_mock.side_effect = keystone_exc.Unauthorized()
+        res = self.app.post('/v1/discover', data='["uuid1"]',
+                            headers={'X-Auth-Token': 'token'})
+        self.assertEqual(403, res.status_code)
+        self.assertFalse(discover_mock.called)
+        keystone_mock.assert_called_once_with(token='token')
+
+    @patch.object(eventlet.greenthread, 'spawn_n')
+    def test_continue(self, spawn_mock):
+        res = self.app.post('/v1/continue', data='"JSON"')
+        self.assertEqual(202, res.status_code)
+        spawn_mock.assert_called_once_with(discoverd.process, "JSON")
 
 
 @patch.object(client.requests, 'post', autospec=True)
@@ -319,6 +340,35 @@ class TestClient(unittest.TestCase):
             headers={'Content-Type': 'application/json',
                      'X-Auth-Token': 'token'}
         )
+
+
+@patch.object(eventlet.greenthread, 'sleep', autospec=True)
+@patch.object(utils, 'get_client')
+class TestCheckIronicAvailable(unittest.TestCase):
+    def setUp(self):
+        super(TestCheckIronicAvailable, self).setUp()
+        init_conf()
+
+    def test_ok(self, client_mock, sleep_mock):
+        utils.check_ironic_available()
+        client_mock.return_value.driver.list.assert_called_once_with()
+        self.assertFalse(sleep_mock.called)
+
+    def test_2_attempts(self, client_mock, sleep_mock):
+        cli = Mock()
+        client_mock.side_effect = [Exception(), cli]
+        utils.check_ironic_available()
+        self.assertEqual(2, client_mock.call_count)
+        cli.driver.list.assert_called_once_with()
+        sleep_mock.assert_called_once_with(
+            conf.getint('discoverd', 'ironic_retry_period'))
+
+    def test_failed(self, client_mock, sleep_mock):
+        attempts = conf.getint('discoverd', 'ironic_retry_attempts')
+        client_mock.side_effect = RuntimeError()
+        self.assertRaises(RuntimeError, utils.check_ironic_available)
+        self.assertEqual(1 + attempts, client_mock.call_count)
+        self.assertEqual(attempts, sleep_mock.call_count)
 
 
 if __name__ == '__main__':
