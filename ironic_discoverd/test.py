@@ -125,16 +125,24 @@ class TestProcess(unittest.TestCase):
 @patch.object(utils, 'get_client', autospec=True)
 class TestDiscover(unittest.TestCase):
     def setUp(self):
+        super(TestDiscover, self).setUp()
         self.node1 = Mock(driver='pxe_ssh',
                           uuid='uuid1',
                           maintenance=True,
                           instance_uuid=None,
-                          power_state='power off')
+                          # allowed with maintenance=True
+                          power_state='power on')
         self.node2 = Mock(driver='pxe_ipmitool',
                           uuid='uuid2',
                           maintenance=False,
                           instance_uuid=None,
                           power_state=None,
+                          extra={'on_discovery': True})
+        self.node3 = Mock(driver='pxe_ipmitool',
+                          uuid='uuid3',
+                          maintenance=False,
+                          instance_uuid=None,
+                          power_state='power off',
                           extra={'on_discovery': True})
         firewall.MACS_DISCOVERY = set()
         init_conf()
@@ -145,20 +153,22 @@ class TestDiscover(unittest.TestCase):
         cli.node.get.side_effect = [
             self.node1,
             self.node2,
+            self.node3,
         ]
         cli.node.list_ports.return_value = [Mock(address='1'),
                                             Mock(address='2')]
 
-        discoverd.discover(['uuid1', 'uuid2'])
+        discoverd.discover(['uuid1', 'uuid2', 'uuid3'])
 
-        self.assertEqual(2, cli.node.get.call_count)
-        self.assertEqual(2, cli.node.list_ports.call_count)
+        self.assertEqual(3, cli.node.get.call_count)
+        self.assertEqual(3, cli.node.list_ports.call_count)
         cli.node.list_ports.assert_any_call('uuid1', limit=0)
         cli.node.list_ports.assert_any_call('uuid2', limit=0)
+        cli.node.list_ports.assert_any_call('uuid3', limit=0)
         filters_mock.assert_called_once_with(cli)
         self.assertEqual(set(['1', '2']), firewall.MACS_DISCOVERY)
-        self.assertEqual(2, cli.node.set_power_state.call_count)
-        cli.node.set_power_state.assert_called_with(ANY, 'on')
+        self.assertEqual(3, cli.node.set_power_state.call_count)
+        cli.node.set_power_state.assert_called_with(ANY, 'reboot')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
                  {'op': 'add', 'path': '/extra/discovery_timestamp',
                   'value': '42.0'}]
@@ -167,7 +177,11 @@ class TestDiscover(unittest.TestCase):
             'uuid2',
             patch +
             [{'op': 'replace', 'path': '/maintenance', 'value': 'true'}])
-        self.assertEqual(2, cli.node.update.call_count)
+        cli.node.update.assert_any_call(
+            'uuid3',
+            patch +
+            [{'op': 'replace', 'path': '/maintenance', 'value': 'true'}])
+        self.assertEqual(3, cli.node.update.call_count)
         spawn_mock.assert_called_once_with(discoverd._background_discover,
                                            cli, ANY)
 
@@ -244,6 +258,7 @@ class TestDiscover(unittest.TestCase):
 
     def test_wrong_power_state(self, client_mock, filters_mock, spawn_mock):
         self.node2.power_state = 'power on'
+        self.node2.maintenance = False
         cli = client_mock.return_value
         cli.node.get.side_effect = [
             self.node1,

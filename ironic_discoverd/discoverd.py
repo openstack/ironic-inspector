@@ -181,11 +181,14 @@ def _validate(ironic, node):
             node.uuid)
 
     power_state = node.power_state
-    if power_state is not None and power_state.lower() != 'power off':
-        LOG.error('Refusing to discover node %s with power_state "%s"',
+    if (not node.maintenance and power_state is not None
+            and power_state.lower() != 'power off'):
+        LOG.error('Refusing to discover node %s with power_state "%s" '
+                  'and maintenance mode off',
                   node.uuid, power_state)
         raise DiscoveryFailed(
-            'Refusing to discover node %s with power state "%s"' %
+            'Refusing to discover node %s with power state "%s" and '
+            'maintenance mode off' %
             (node.uuid, power_state))
 
     validation = ironic.node.validate(node.uuid)
@@ -222,7 +225,7 @@ def _background_discover(ironic, nodes):
 
     for node in nodes:
         try:
-            ironic.node.set_power_state(node.uuid, 'on')
+            ironic.node.set_power_state(node.uuid, 'reboot')
         except Exception as exc:
             LOG.error('Failed to power on node %s, check it\'s power '
                       'management configuration:\n%s', node.uuid, exc)
