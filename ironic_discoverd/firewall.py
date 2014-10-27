@@ -4,6 +4,7 @@ import subprocess
 from eventlet import semaphore
 
 from ironic_discoverd import conf
+from ironic_discoverd import utils
 
 
 LOG = logging.getLogger("discoverd")
@@ -59,7 +60,7 @@ def unwhitelist_macs(macs):
         MACS_DISCOVERY.difference_update(macs)
 
 
-def update_filters(ironic):
+def update_filters(ironic=None):
     """Update firewall filter rules for discovery.
 
     Gives access to PXE boot port for any machine, except for those,
@@ -73,9 +74,11 @@ def update_filters(ironic):
     This function is using ``eventlet`` semaphore to serialize access from
     different green threads.
 
-    :param ironic: Ironic client intance.
+    :param ironic: Ironic client instance, optional.
     """
     assert INTERFACE is not None
+    ironic = utils.get_client() if ironic is None else ironic
+
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
         to_blacklist = macs_active - MACS_DISCOVERY

@@ -12,6 +12,7 @@ from ironic_discoverd import conf
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 from ironic_discoverd import main
+from ironic_discoverd import utils
 
 
 def init_conf():
@@ -21,7 +22,7 @@ def init_conf():
 
 # FIXME(dtantsur): this test suite is far from being complete
 @patch.object(firewall, 'update_filters', autospec=True)
-@patch.object(discoverd, 'get_client', autospec=True)
+@patch.object(utils, 'get_client', autospec=True)
 class TestProcess(unittest.TestCase):
     def setUp(self):
         self.node = Mock(driver_info={},
@@ -120,7 +121,7 @@ class TestProcess(unittest.TestCase):
 @patch.object(eventlet.greenthread, 'spawn_n',
               side_effect=lambda f, *a: f(*a) and None)
 @patch.object(firewall, 'update_filters', autospec=True)
-@patch.object(discoverd, 'get_client', autospec=True)
+@patch.object(utils, 'get_client', autospec=True)
 class TestDiscover(unittest.TestCase):
     def setUp(self):
         self.node1 = Mock(driver='pxe_ssh',

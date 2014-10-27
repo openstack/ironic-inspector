@@ -1,30 +1,17 @@
 import logging
-import re
 import time
 
 import eventlet
-import six
 
-from ironicclient import client, exceptions
+from ironicclient import exceptions
 
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
+from ironic_discoverd import utils
 
 
 LOG = logging.getLogger("discoverd")
 ALLOW_SEARCH_BY_MAC = True
-OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
-
-
-def get_client():  # pragma: no cover
-    args = dict((k, conf.get('discoverd', k)) for k in OS_ARGS)
-    return client.get_client(1, **args)
-
-
-def is_valid_mac(address):
-    m = "[0-9a-f]{2}(:[0-9a-f]{2}){5}$"
-    return (isinstance(address, six.string_types)
-            and re.match(m, address.lower()))
 
 
 def process(node_info):
@@ -58,7 +45,7 @@ def process(node_info):
 
     valid_interfaces = {
         n: iface for n, iface in node_info['interfaces'].items()
-        if is_valid_mac(iface['mac']) and (compat or iface.get('ip'))
+        if utils.is_valid_mac(iface['mac']) and (compat or iface.get('ip'))
     }
     valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
     if valid_interfaces != node_info['interfaces']:
@@ -72,7 +59,7 @@ def process(node_info):
              'ipmi_address': node_info.get('ipmi_address')})
         LOG.info('Eligible interfaces are %s', valid_interfaces)
 
-    ironic = get_client()
+    ironic = utils.get_client()
     bmc_known = bool(node_info.get('ipmi_address'))
     if bmc_known:
         # TODO(dtantsur): bulk loading
@@ -161,7 +148,7 @@ def discover(uuids):
     if not uuids:
         raise DiscoveryFailed("No nodes to discover")
 
-    ironic = get_client()
+    ironic = utils.get_client()
     LOG.debug('Validating nodes %s', uuids)
     nodes = []
     for uuid in uuids:

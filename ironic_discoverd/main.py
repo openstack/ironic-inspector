@@ -7,20 +7,15 @@ import sys
 from flask import Flask, request
 
 from keystoneclient import exceptions
-from keystoneclient.v2_0 import client as keystone
 
 from ironic_discoverd import conf
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
+from ironic_discoverd import utils
 
 
 app = Flask(__name__)
 LOG = discoverd.LOG
-
-
-def get_keystone(token):  # pragma: no cover
-    return keystone.Client(token=token, auth_url=conf.get('discoverd',
-                                                          'os_auth_url'))
 
 
 @app.route('/v1/continue', methods=['POST'])
@@ -58,7 +53,7 @@ def periodic_update(period):
     while True:
         LOG.debug('Running periodic update of filters')
         try:
-            firewall.update_filters(discoverd.get_client())
+            firewall.update_filters()
         except Exception:
             LOG.exception('Periodic update failed')
         eventlet.greenthread.sleep(period)
@@ -80,26 +75,7 @@ def main():
         LOG.warning('Starting unauthenticated, please check configuration')
 
     firewall.init()
-
-    # Before proceeding we try to make sure:
-    # 1. Keystone access is configured properly
-    # 2. Keystone has already started
-    # 3. Ironic has already started
-    attempts = conf.getint('discoverd', 'ironic_retry_attempts')
-    assert attempts >= 0
-    retry_period = conf.getint('discoverd', 'ironic_retry_period')
-    LOG.debug('Trying to connect to Ironic')
-    for i in range(attempts + 1):  # one attempt always required
-        try:
-            discoverd.get_client().driver.list()
-        except Exception as exc:
-            if i == attempts:
-                raise
-            LOG.error('Unable to connect to Ironic or Keystone, retrying %d '
-                      'times more: %s', attempts - i, exc)
-        else:
-            break
-        eventlet.greenthread.sleep(retry_period)
+    utils.check_ironic_available()
 
     period = conf.getint('discoverd', 'firewall_update_period')
     eventlet.greenthread.spawn_n(periodic_update, period)
