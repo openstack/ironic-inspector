@@ -79,8 +79,7 @@ def main():
     if not conf.getboolean('discoverd', 'authenticate'):
         LOG.warning('Starting unauthenticated, please check configuration')
 
-    interface = conf.get('discoverd', 'dnsmasq_interface')
-    firewall.init(interface)
+    firewall.init()
 
     # Before proceeding we try to make sure:
     # 1. Keystone access is configured properly

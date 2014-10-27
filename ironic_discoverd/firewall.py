@@ -3,6 +3,8 @@ import subprocess
 
 from eventlet import semaphore
 
+from ironic_discoverd import conf
+
 
 LOG = logging.getLogger("discoverd")
 MACS_DISCOVERY = set()
@@ -28,13 +30,17 @@ def _iptables(*args, **kwargs):
             raise
 
 
-def init(interface):
+def init():
+    """Initialize firewall management.
+
+    Must be called one on start-up.
+    """
     global INTERFACE
-    INTERFACE = interface
+    INTERFACE = conf.get('discoverd', 'dnsmasq_interface')
 
     _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
               '--dport', '67', '-j', CHAIN,
-              ignore=True)  # may be missing on first run
+              ignore=True)
     _iptables('-F', CHAIN, ignore=True)
     _iptables('-X', CHAIN, ignore=True)
     # Not really needed, but helps to validate that we have access to iptables
@@ -42,16 +48,33 @@ def init(interface):
 
 
 def whitelist_macs(macs):
+    """Ensure given MAC's are allowed to access PXE boot server."""
     with LOCK:
         MACS_DISCOVERY.update(macs)
 
 
 def unwhitelist_macs(macs):
+    """Ensure given MAC's are NOT allowed to access PXE boot server."""
     with LOCK:
         MACS_DISCOVERY.difference_update(macs)
 
 
 def update_filters(ironic):
+    """Update firewall filter rules for discovery.
+
+    Gives access to PXE boot port for any machine, except for those,
+    whose MAC is registered in Ironic and is not on discovery right now.
+
+    This function is called from both discovery initialization code and from
+    periodic task. This function is supposed to be resistant to unexpected
+    iptables state.
+
+    ``init()`` function must be called once before any call to this function.
+    This function is using ``eventlet`` semaphore to serialize access from
+    different green threads.
+
+    :param ironic: Ironic client intance.
+    """
     assert INTERFACE is not None
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
@@ -60,7 +83,6 @@ def update_filters(ironic):
         # Clean up a bit to account for possible troubles on previous run
         _iptables('-F', NEW_CHAIN, ignore=True)
         _iptables('-X', NEW_CHAIN, ignore=True)
-        _iptables('-N', CHAIN, ignore=True)
         # Operate on temporary chain
         _iptables('-N', NEW_CHAIN)
         # - Blacklist active macs, so that nova can boot them
@@ -75,7 +97,7 @@ def update_filters(ironic):
                   '--dport', '67', '-j', NEW_CHAIN)
         _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
                   '--dport', '67', '-j', CHAIN,
-                  ignore=True)  # may be missing on first run
-        _iptables('-F', CHAIN)
-        _iptables('-X', CHAIN)
+                  ignore=True)
+        _iptables('-F', CHAIN, ignore=True)
+        _iptables('-X', CHAIN, ignore=True)
         _iptables('-E', NEW_CHAIN, CHAIN)
