@@ -78,7 +78,7 @@ Configuration
 
 Copy ``example.conf`` to some permanent place
 (``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
-You have to fill in configuration values with names starting with *os_*.
+Fill in at least configuration values with names starting with *os_*.
 They configure how *ironic-discoverd* authenticates with Keystone.
 
 .. note::
@@ -218,9 +218,9 @@ HTTP API consist of 2 endpoints:
 Known Issues
 ------------
 
-* `#4`_: Discovery never times out.
+* `Bug #4`_: Discovery never times out.
 
-.. _#4: https://github.com/Divius/ironic-discoverd/issues/4
+.. _Bug #4: https://github.com/Divius/ironic-discoverd/issues/4
 
 Change Log
 ----------
@@ -228,9 +228,12 @@ Change Log
 v0.2.2
 ~~~~~~
 
-* ``/v1/discover`` now does some sync checks (`bug #3`_).
-* Actually able to start under Python 3.3.
+* ``/v1/discover`` now does some sync sanity checks (`bug #3`_).
 * On each start-up make several attempts to check that Ironic is available.
+* Now we try a bit harder to recover firewall state on every step.
+* ``discovery_timestamp`` is added to node extra on starting discovery
+  (part of future fix for `bug #4`_).
+* Actually able to start under Python 3.3 (still very experimental).
 * Updated unit tests and this documentation.
 
 .. _bug #3: https://github.com/Divius/ironic-discoverd/issues/3
