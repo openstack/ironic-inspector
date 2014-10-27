@@ -5,40 +5,89 @@ Hardware properties discovery for OpenStack Ironic
     :target: https://travis-ci.org/Divius/ironic-discoverd
 
 This is an auxiliary service for discovering basic hardware properties for a
-node managed by OpenStack Ironic. It fulfills the following tasks:
+node managed by `OpenStack Ironic`_. Hardware introspection or hardware
+properties discovery is a process of getting hardware parameters required for
+scheduling from a bare metal node, given it's power management credentials
+(e.g. IPMI address, user name and password).
 
-* Initiating discovery for given nodes.
-* Managing iptables settings to allow/deny access to PXE boot server (usually
-  *dnsmasq*) for nodes under discovery.
-* Receiving and processing data from discovery ramdisk booted on a node.
+Support for *ironic-discoverd* is present in `Tuskar UI`_ -- OpenStack Horizon
+plugin for installation of OpenStack using OpenStack technologies (TripleO_).
+
+Hardware properties discovery flow using `Tuskar UI`_ is the following:
+
+* User installs undercloud using e.g. instack-undercloud_ and logs into
+  `Tuskar UI`_.
+
+* User uploads CSV file with power credentials for all nodes.
+
+* `Tuskar UI`_:
+
+  * creates nodes in *Ironic* with power credentials populated,
+  * sets maintenance mode for these nodes,
+  * posts node UUID's to *ironic-discoverd*.
+
+* On receiving node UUID's *ironic-discoverd*:
+
+  * validates the nodes: their power credentials and current power state,
+  * allows access to PXE boot service for the nodes,
+  * issues reboot command for the nodes, so that they boot the
+    *discovery ramdisk*.
+
+* *Discovery ramdisk* collects the required information and posts it back to
+  *ironic-discoverd*.
+
+* On receiving data from the *discovery ramdisk*, *ironic-discoverd*:
+
+  * validates received data,
+  * finds the node in Ironic database using it's BMC address (MAC address in
+    case of SSH driver),
+  * fills missing node properties with received data and creates missing ports,
+  * sets ``newly_discovered`` flag in node ``extra`` field to ``true``.
 
 Starting *dnsmasq* and configuring PXE boot environment is not part of this
 package and should be done separately.
 
+*ironic-discoverd* requires OpenStack Juno (2014.2) release or newer.
+
+.. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
+.. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
+.. _TripleO: https://wiki.openstack.org/wiki/TripleO
+.. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
+
 Installation
 ------------
 
-Package
-~~~~~~~
+*ironic-discoverd* is available as an RPM from Fedora 22 repositories or from
+Juno RDO_ for Fedora 20, 21 and EPEL 7. It will be installed and preconfigured
+if you used instack-undercloud_ to build your undercloud.
+Otherwise after enabling required repositories install it using::
 
-Install package from PyPI (you may want to use virtualenv to isolate your
-environment)::
+    yum install openstack-ironic-discoverd
+
+and proceed with `Configuration`_.
+
+Alternatively, you can install package from PyPI (you may want to use
+virtualenv to isolate your environment)::
 
     pip install ironic-discoverd
 
+.. _RDO: https://openstack.redhat.com/
+
+Configuration
+~~~~~~~~~~~~~
+
 Copy ``example.conf`` to some permanent place
-(``/etc/ironic-discoverd/discoverd.conf`` is what we usually use). You have to
-fill in configuration values with names starting with *os_*. They configure
-how *ironic-discoverd* authenticates with Keystone.
+(``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
+You have to fill in configuration values with names starting with *os_*.
+They configure how *ironic-discoverd* authenticates with Keystone.
 
 .. note::
     Configuration file contains a password and thus should be owned by ``root``
     and should have access rights like *0600*.
 
-PXE Setup
-~~~~~~~~~
+As for PXE boot environment, you need:
 
-* You need TFTP server running and accessible.
+* TFTP server running and accessible.
 * Build and put into your TFTP directory kernel and ramdisk from the
   diskimage-builder_ `discovery-ironic element`_.
   You can also use `kernel`_ and `ramdisk`_ prepared for Instack.
@@ -71,7 +120,13 @@ Use `ironic-discoverd element`_ as an example for this configuration.
 Running
 ~~~~~~~
 
-Run as ``root``::
+If you installed *ironic-discoverd* from the RPM, you already have a *systemd*
+unit, so you can::
+
+    systemctl enable openstack-ironic-discoverd
+    systemctl start openstack-ironic-discoverd
+
+Otherwise run as ``root``::
 
     ironic-discoverd /etc/ironic-discoverd/discoverd.conf
 
@@ -104,6 +159,10 @@ interpreter of one of supported versions (currently 2.7 and 3.3), use
 ::
 
     tox -e py27
+
+.. note::
+    Support for Python 3 is highly experimental, stay with Python 2 for the
+    production environment for now.
 
 Run like::
 
@@ -172,6 +231,7 @@ v0.2.2
 * ``/v1/discover`` now does some sync checks (`bug #3`_).
 * Actually able to start under Python 3.3.
 * On each start-up make several attempts to check that Ironic is available.
+* Updated unit tests and this documentation.
 
 .. _bug #3: https://github.com/Divius/ironic-discoverd/issues/3
 
