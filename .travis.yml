@@ -3,7 +3,7 @@ python: 2.7
 env:
     - TOX_ENV=py27
     - TOX_ENV=py33
-    - TOX_ENV=flake8
+    - TOX_ENV=pep8
 install:
     - sudo pip install tox
 script: tox -e $TOX_ENV
