@@ -49,10 +49,15 @@ package and should be done separately.
 
 *ironic-discoverd* requires OpenStack Juno (2014.2) release or newer.
 
+Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
+downloads and accessing the released version of this README.
+
 .. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
 .. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
 .. _TripleO: https://wiki.openstack.org/wiki/TripleO
 .. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
+.. _launchpad: https://bugs.launchpad.net/ironic-discoverd
+.. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
 
 Installation
 ------------
@@ -66,7 +71,7 @@ Otherwise after enabling required repositories install it using::
 
 and proceed with `Configuration`_.
 
-Alternatively, you can install package from PyPI (you may want to use
+Alternatively, you can install package from PyPI_ (you may want to use
 virtualenv to isolate your environment)::
 
     pip install ironic-discoverd
