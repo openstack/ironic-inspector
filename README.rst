@@ -1,9 +1,6 @@
 Hardware properties discovery for OpenStack Ironic
 ==================================================
 
-.. image:: https://travis-ci.org/Divius/ironic-discoverd.svg?branch=master
-    :target: https://travis-ci.org/Divius/ironic-discoverd
-
 This is an auxiliary service for discovering basic hardware properties for a
 node managed by `OpenStack Ironic`_. Hardware introspection or hardware
 properties discovery is a process of getting hardware parameters required for
@@ -52,12 +49,17 @@ package and should be done separately.
 Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
 downloads and accessing the released version of this README.
 
+Source code is hosted on StackForge_, please follow `Gerrit Workflow`_ for
+contributing.
+
 .. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
 .. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
 .. _TripleO: https://wiki.openstack.org/wiki/TripleO
 .. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
 .. _launchpad: https://bugs.launchpad.net/ironic-discoverd
 .. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
+.. _StackForge: https://github.com/stackforge/ironic-discoverd
+.. _Gerrit Workflow: https://wiki.openstack.org/wiki/Gerrit_Workflow
 
 Installation
 ------------
@@ -153,7 +155,7 @@ from PyPI.
 
 Next checkout and create environments::
 
-    git clone https://github.com/Divius/ironic-discoverd.git
+    git clone https://github.com/stackforge/ironic-discoverd.git
     cd ironic-discoverd
     tox
 
@@ -176,6 +178,8 @@ Run like::
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
 
+Follow `Gerrit Workflow`_ to submit a patch.
+
 API
 ---
 
@@ -194,7 +198,7 @@ HTTP API consist of 2 endpoints:
 
   .. note::
       Before version 0.2.0 this endpoint was not authenticated. Now it is,
-      but check for admin role is not implemented yet - see `bug #1`_.
+      but check for admin role is not implemented yet - see `bug #1391866`_.
 
   Response:
 
@@ -218,45 +222,37 @@ HTTP API consist of 2 endpoints:
 
   Response: always HTTP 202.
 
-.. _bug #1: https://github.com/Divius/ironic-discoverd/issues/1
-
-Known Issues
-------------
-
-* `Bug #4`_: Discovery never times out.
-
-.. _Bug #4: https://github.com/Divius/ironic-discoverd/issues/4
+.. _bug #1391866: https://bugs.launchpad.net/ironic-discoverd/+bug/1391866
 
 Change Log
 ----------
 
+v0.2.3
+~~~~~~
+
+* Moved to StackForge and LaunchPad.
+
 v0.2.2
 ~~~~~~
 
-* ``/v1/discover`` now does some sync sanity checks (`bug #3`_).
+* ``/v1/discover`` now does some sync sanity checks.
 * On each start-up make several attempts to check that Ironic is available.
 * Now we try a bit harder to recover firewall state on every step.
 * ``discovery_timestamp`` is added to node extra on starting discovery
-  (part of future fix for `bug #4`_).
+  (part of future fix for `bug #1391871`_).
 * Actually able to start under Python 3.3 (still very experimental).
 * Updated unit tests and this documentation.
 
-.. _bug #3: https://github.com/Divius/ironic-discoverd/issues/3
+.. _bug #1391871: https://bugs.launchpad.net/ironic-discoverd/+bug/1391871
 
 v0.2.1
 ~~~~~~
 
-* Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk
-  (`bug #8`_).
-* If ``interfaces`` is present, only add ports for NIC's with IP address set
-  (also `bug #8`_).
+* Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk.
+* If ``interfaces`` is present, only add ports for NIC's with IP address set.
 * Now MAC's are white-listed for all drivers, not only SSH; option
-  ``ssh_driver_regex`` was dropped (`bug #6`_).
-* Nodes will be always put into maintenance mode before discovery (`bug #5`_).
-
-.. _bug #8: https://github.com/Divius/ironic-discoverd/issues/8
-.. _bug #6: https://github.com/Divius/ironic-discoverd/issues/6
-.. _bug #5: https://github.com/Divius/ironic-discoverd/issues/5
+  ``ssh_driver_regex`` was dropped.
+* Nodes will be always put into maintenance mode before discovery.
 
 v0.2.0
 ~~~~~~
