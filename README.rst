@@ -227,6 +227,11 @@ HTTP API consist of 2 endpoints:
 Change Log
 ----------
 
+v0.2.4
+~~~~~~
+
+* Urgent fix: add requirements.txt and tox.ini to the manifest.
+
 v0.2.3
 ~~~~~~
 
