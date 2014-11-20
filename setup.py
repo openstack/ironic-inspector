@@ -10,7 +10,7 @@ with open('requirements.txt', 'r') as fp:
 
 setup(
     name = "ironic-discoverd",
-    version = "0.2.4",
+    version = "1.0.0",
     description = open('README.rst', 'r').readline().strip(),
     author = "Dmitry Tantsur",
     author_email = "dtantsur@redhat.com",
@@ -21,7 +21,7 @@ setup(
         "ironic-discoverd = ironic_discoverd.main:main"
     ]},
     classifiers = [
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: OpenStack',
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: Apache Software License',
