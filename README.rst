@@ -47,10 +47,8 @@ package and should be done separately.
 *ironic-discoverd* requires OpenStack Juno (2014.2) release or newer.
 
 Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
-downloads and accessing the released version of this README.
-
-Source code is hosted on StackForge_, please follow `Gerrit Workflow`_ for
-contributing.
+downloads and accessing the released version of this README. Refer to
+``CONTRIBUTING.rst`` for instructions on how to contribute.
 
 .. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
 .. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
@@ -58,8 +56,6 @@ contributing.
 .. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
 .. _launchpad: https://bugs.launchpad.net/ironic-discoverd
 .. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
-.. _StackForge: https://github.com/stackforge/ironic-discoverd
-.. _Gerrit Workflow: https://wiki.openstack.org/wiki/Gerrit_Workflow
 
 Installation
 ------------
@@ -146,40 +142,6 @@ You can also use it from CLI::
 
     python -m ironic_discoverd.client --auth-token TOKEN UUID1 UUID2
 
-Developing
-~~~~~~~~~~
-
-First of all, install *tox* utility. It's likely to be in your distribution
-repositories under name of ``python-tox``. Alternatively, you can install it
-from PyPI.
-
-Next checkout and create environments::
-
-    git clone https://github.com/stackforge/ironic-discoverd.git
-    cd ironic-discoverd
-    tox
-
-Repeat *tox* command each time you need to run tests. If you don't have Python
-interpreter of one of supported versions (currently 2.7 and 3.3), use
-``-e`` flag to select only some environments, e.g.
-
-::
-
-    tox -e py27
-
-.. note::
-    Support for Python 3 is highly experimental, stay with Python 2 for the
-    production environment for now.
-
-Run like::
-
-    .tox/py27/bin/ironic-discoverd example.conf
-
-Of course you may have to modify ``example.conf`` to match your OpenStack
-environment.
-
-Follow `Gerrit Workflow`_ to submit a patch.
-
 API
 ---
 
@@ -226,6 +188,11 @@ HTTP API consist of 2 endpoints:
 
 Change Log
 ----------
+
+v1.0.0
+~~~~~~
+
+* Create ``CONTRIBUTING.rst``.
 
 v0.2.4
 ~~~~~~
