@@ -116,7 +116,6 @@ def _process_node(ironic, node, node_info, valid_macs):
     LOG.info('Node %s was updated with data from discovery process, forcing '
              'power off', node.uuid)
 
-    firewall.unwhitelist_macs(valid_macs)
     firewall.update_filters(ironic)
 
     try:
@@ -206,7 +205,6 @@ def _background_discover(ironic, nodes):
 
     if all_macs:
         LOG.info('Whitelisting MAC\'s %s in the firewall', all_macs)
-        firewall.whitelist_macs(all_macs)
         firewall.update_filters(ironic)
 
     for node in nodes:

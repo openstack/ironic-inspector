@@ -17,11 +17,11 @@ import subprocess
 from eventlet import semaphore
 
 from ironic_discoverd import conf
+from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
 
 LOG = logging.getLogger("discoverd")
-MACS_DISCOVERY = set()
 NEW_CHAIN = 'discovery_temp'
 CHAIN = 'discovery'
 INTERFACE = None
@@ -61,18 +61,6 @@ def init():
     _iptables('-N', CHAIN)
 
 
-def whitelist_macs(macs):
-    """Ensure given MAC's are allowed to access PXE boot server."""
-    with LOCK:
-        MACS_DISCOVERY.update(macs)
-
-
-def unwhitelist_macs(macs):
-    """Ensure given MAC's are NOT allowed to access PXE boot server."""
-    with LOCK:
-        MACS_DISCOVERY.difference_update(macs)
-
-
 def update_filters(ironic=None):
     """Update firewall filter rules for discovery.
 
@@ -94,7 +82,8 @@ def update_filters(ironic=None):
 
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
-        to_blacklist = macs_active - MACS_DISCOVERY
+        to_blacklist = macs_active - node_cache.macs_on_discovery()
+        LOG.debug('Blacklisting MAC\'s %s', to_blacklist)
 
         # Clean up a bit to account for possible troubles on previous run
         _iptables('-F', NEW_CHAIN, ignore=True)

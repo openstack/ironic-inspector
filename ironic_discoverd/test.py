@@ -68,8 +68,6 @@ class TestProcess(unittest.TestCase):
             }
         }
         self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
-        firewall.MACS_DISCOVERY = set(['11:22:33:44:55:66',
-                                       '66:55:44:33:22:11'])
         init_conf()
 
     def _do_test(self, client_mock, pop_mock, filters_mock):
@@ -93,7 +91,6 @@ class TestProcess(unittest.TestCase):
                                         address='66:55:44:33:22:11')
         self.assertEqual(2, cli.port.create.call_count)
         filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(), firewall.MACS_DISCOVERY)
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
 
     def test_ok(self, client_mock, pop_mock, filters_mock):
@@ -162,7 +159,6 @@ class TestDiscover(unittest.TestCase):
                           instance_uuid=None,
                           power_state='power off',
                           extra={'on_discovery': True})
-        firewall.MACS_DISCOVERY = set()
         init_conf()
 
     @patch.object(time, 'time', lambda: 42.0)
@@ -198,8 +194,6 @@ class TestDiscover(unittest.TestCase):
                                  bmc_address='1.2.3.5',
                                  mac=['3-1', '3-2'])
         filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(port.address for l in ports for port in l),
-                         firewall.MACS_DISCOVERY)
         self.assertEqual(3, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'reboot')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
@@ -482,6 +476,15 @@ class TestNodeCache(unittest.TestCase):
             "select uuid from nodes").fetchall())
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
+
+    def test_macs_on_discovery(self):
+        self.db.execute("insert into nodes(uuid) values(?)", (self.node.uuid,))
+        self.db.executemany("insert into attributes(name, value, uuid) "
+                            "values(?, ?, ?)",
+                            [('mac', '11:22:11:22:11:22', self.node.uuid),
+                             ('mac', '22:11:22:11:22:11', self.node.uuid)])
+        self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
+                         node_cache.macs_on_discovery())
 
 
 class TestNodeCachePop(unittest.TestCase):

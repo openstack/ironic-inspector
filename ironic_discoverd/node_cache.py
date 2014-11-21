@@ -78,6 +78,12 @@ def add_node(uuid, **attributes):
                     {'name': name, 'value': value})
 
 
+def macs_on_discovery():
+    """List all MAC's that are on discovery right now."""
+    return {x[0] for x in _db().execute("select value from attributes "
+                                        "where name='mac'")}
+
+
 def drop_node(uuid):
     """Forget information about node with given uuid."""
     with _db():
