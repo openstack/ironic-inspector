@@ -73,6 +73,17 @@ def periodic_update(period):
         eventlet.greenthread.sleep(period)
 
 
+def periodic_clean_up(period):
+    while True:
+        LOG.debug('Running periodic clean up of timed out nodes')
+        try:
+            if node_cache.clean_up():
+                firewall.update_filters()
+        except Exception:
+            LOG.exception('Periodic clean up failed')
+        eventlet.greenthread.sleep(period)
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("Usage: %s config-file" % sys.argv[0])
@@ -94,6 +105,8 @@ def main():
 
     period = conf.getint('discoverd', 'firewall_update_period')
     eventlet.greenthread.spawn_n(periodic_update, period)
+    period = conf.getint('discoverd', 'clean_up_period')
+    eventlet.greenthread.spawn_n(periodic_clean_up, period)
 
     app.run(debug=debug,
             host=conf.get('discoverd', 'listen_address'),

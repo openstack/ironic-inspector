@@ -192,6 +192,7 @@ Change Log
 v1.0.0
 ~~~~~~
 
+* Discovery now times out by default.
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.
 * Cache nodes under discovery in a local SQLite database. Set ``database``

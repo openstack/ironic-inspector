@@ -142,3 +142,30 @@ def pop_node(**attributes):
     uuid = found.pop()
     drop_node(uuid)
     return uuid
+
+
+def clean_up():
+    """Reset discovery for timed out nodes.
+
+    :return: list of timed out node UUID's
+    """
+    timeout = conf.getint('discoverd', 'timeout')
+    if timeout <= 0:
+        LOG.debug('Timeout is disabled')
+        return []
+
+    threshold = time.time() - timeout
+    with _db() as db:
+        uuids = [row[0] for row in db.execute('select uuid from nodes '
+                                              'where started_at < ?',
+                                              (threshold,))]
+        if not uuids:
+            return []
+
+        LOG.error('Discovery for nodes %s has timed out', uuids)
+        db.execute('delete from nodes where started_at < ?',
+                   (threshold,))
+        db.executemany('delete from attributes where uuid=?',
+                       [(u,) for u in uuids])
+
+    return uuids

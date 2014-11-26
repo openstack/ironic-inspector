@@ -579,5 +579,46 @@ class TestPlugins(unittest.TestCase):
         mock_post.assert_called_once_with(ANY, 'node', ['port'], 'node_info')
 
 
+class TestNodeCacheCleanUp(BaseTest):
+    def setUp(self):
+        super(TestNodeCacheCleanUp, self).setUp()
+        self.uuid = 'uuid'
+        self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
+        with self.db:
+            self.db.execute('insert into nodes(uuid, started_at) '
+                            'values(?, ?)', (self.uuid, time.time() - 3600000))
+            self.db.executemany('insert into attributes(name, value, uuid) '
+                                'values(?, ?, ?)',
+                                [('mac', v, self.uuid) for v in self.macs])
+
+    def test_no_timeout(self):
+        conf.CONF.set('discoverd', 'timeout', '0')
+
+        self.assertFalse(node_cache.clean_up())
+
+        self.assertEqual(1, len(self.db.execute(
+            'select * from nodes').fetchall()))
+        self.assertEqual(len(self.macs), len(self.db.execute(
+            'select * from attributes').fetchall()))
+
+    @patch.object(time, 'time')
+    def test_ok(self, time_mock):
+        time_mock.return_value = 1000
+
+        self.assertFalse(node_cache.clean_up())
+
+        self.assertEqual(1, len(self.db.execute(
+            'select * from nodes').fetchall()))
+        self.assertEqual(len(self.macs), len(self.db.execute(
+            'select * from attributes').fetchall()))
+
+    def test_cleaned(self):
+        self.assertEqual([self.uuid], node_cache.clean_up())
+
+        self.assertEqual([], self.db.execute('select * from nodes').fetchall())
+        self.assertEqual([], self.db.execute(
+            'select * from attributes').fetchall())
+
+
 if __name__ == '__main__':
     unittest.main()
