@@ -26,6 +26,12 @@ LOG = logging.getLogger('discoverd')
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
 
 
+class DiscoveryFailed(Exception):
+    def __init__(self, msg, code=400):
+        super(DiscoveryFailed, self).__init__(msg)
+        self.http_code = code
+
+
 def get_client():  # pragma: no cover
     args = dict((k, conf.get('discoverd', k)) for k in OS_ARGS)
     return client.get_client(1, **args)

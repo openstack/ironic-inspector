@@ -192,6 +192,9 @@ Change Log
 v1.0.0
 ~~~~~~
 
+* Cache nodes under discovery in a local SQLite database. Set ``database``
+  configuration option to persist this database. Improves performance by
+  making less calls to Ironic API.
 * Create ``CONTRIBUTING.rst``.
 
 v0.2.4

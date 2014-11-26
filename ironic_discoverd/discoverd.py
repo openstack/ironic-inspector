@@ -19,11 +19,11 @@ from ironicclient import exceptions
 
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
+from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
 
 LOG = logging.getLogger("discoverd")
-ALLOW_SEARCH_BY_MAC = True
 
 
 def process(node_info):
@@ -71,47 +71,20 @@ def process(node_info):
              'ipmi_address': node_info.get('ipmi_address')})
         LOG.info('Eligible interfaces are %s', valid_interfaces)
 
+    uuid = node_cache.pop_node(bmc_address=node_info['ipmi_address'],
+                               mac=valid_macs)
+    if uuid is None:
+        LOG.debug('Unable to find a node, cannot proceed')
+        return
+
     ironic = utils.get_client()
-    bmc_known = bool(node_info.get('ipmi_address'))
-    if bmc_known:
-        # TODO(dtantsur): bulk loading
-        nodes = ironic.node.list(maintenance=True, limit=0,
-                                 sort_key='created_at',
-                                 sort_dir='desc', detail=True)
-        address = node_info['ipmi_address']
-        for node in nodes:
-            if node.driver_info.get('ipmi_address') == address:
-                break
-        else:
-            LOG.error('Unable to find node with ipmi_address %s',
-                      node_info['ipmi_address'])
-            return
-    elif ALLOW_SEARCH_BY_MAC:
-        # In case of testing with vms and pxe_ssh driver
-        LOG.warning('No BMC address provided, trying to use MAC '
-                    'addresses for finding node')
-        port = None
-        for mac in valid_macs:
-            try:
-                port = ironic.port.get_by_address(mac)
-            except exceptions.NotFound:
-                continue
-            else:
-                break
-
-        if port is not None:
-            try:
-                node = ironic.node.get(port.node_uuid)
-            except exceptions.NotFound:
-                node = None
-
-        if port is None or node is None:
-            LOG.error('Unable to find node with macs %s',
-                      valid_macs)
-            return
-    else:
-        LOG.error('No ipmi_address provided and searching by MAC is not '
-                  'allowed')
+    try:
+        node = ironic.node.get(uuid)
+    except exceptions.NotFound as exc:
+        LOG.error('Node UUID %(uuid)s is in the cache, but not found '
+                  'by Ironic: %(exc)s',
+                  {'uuid': uuid,
+                   'exc': exc})
         return
 
     if not node.extra.get('on_discovery'):
@@ -153,16 +126,10 @@ def _process_node(ironic, node, node_info, valid_macs):
                   'management configuration:\n%s', node.uuid, exc)
 
 
-class DiscoveryFailed(Exception):
-    def __init__(self, msg, code=400):
-        super(DiscoveryFailed, self).__init__(msg)
-        self.http_code = code
-
-
 def discover(uuids):
     """Initiate discovery for given node uuids."""
     if not uuids:
-        raise DiscoveryFailed("No nodes to discover")
+        raise utils.DiscoveryFailed("No nodes to discover")
 
     ironic = utils.get_client()
     LOG.debug('Validating nodes %s', uuids)
@@ -172,10 +139,10 @@ def discover(uuids):
             node = ironic.node.get(uuid)
         except exceptions.NotFound:
             LOG.error('Node %s cannot be found', uuid)
-            raise DiscoveryFailed("Cannot find node %s" % uuid, code=404)
+            raise utils.DiscoveryFailed("Cannot find node %s" % uuid, code=404)
         except exceptions.HttpError as exc:
             LOG.exception('Cannot get node %s', uuid)
-            raise DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
+            raise utils.DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
         _validate(ironic, node)
 
@@ -192,7 +159,7 @@ def _validate(ironic, node):
     if node.instance_uuid:
         LOG.error('Refusing to discover node %s with assigned instance_uuid',
                   node.uuid)
-        raise DiscoveryFailed(
+        raise utils.DiscoveryFailed(
             'Refusing to discover node %s with assigned instance uuid' %
             node.uuid)
 
@@ -202,7 +169,7 @@ def _validate(ironic, node):
         LOG.error('Refusing to discover node %s with power_state "%s" '
                   'and maintenance mode off',
                   node.uuid, power_state)
-        raise DiscoveryFailed(
+        raise utils.DiscoveryFailed(
             'Refusing to discover node %s with power state "%s" and '
             'maintenance mode off' %
             (node.uuid, power_state))
@@ -211,8 +178,8 @@ def _validate(ironic, node):
     if not validation.power['result']:
         LOG.error('Failed validation of power interface for node %s, '
                   'reason: %s', node.uuid, validation.power['reason'])
-        raise DiscoveryFailed('Failed validation of power interface for '
-                              'node %s' % node.uuid)
+        raise utils.DiscoveryFailed('Failed validation of power interface for '
+                                    'node %s' % node.uuid)
 
 
 def _background_discover(ironic, nodes):
@@ -228,15 +195,18 @@ def _background_discover(ironic, nodes):
 
         ironic.node.update(node.uuid, patch + node_patch)
 
-    to_exclude = set()
+    all_macs = set()
     for node in nodes:
         # TODO(dtantsur): pagination
-        ports = ironic.node.list_ports(node.uuid, limit=0)
-        to_exclude.update(p.address for p in ports)
+        macs = [p.address for p in ironic.node.list_ports(node.uuid, limit=0)]
+        all_macs.update(macs)
+        node_cache.add_node(node.uuid,
+                            bmc_address=node.driver_info.get('ipmi_address'),
+                            mac=macs)
 
-    if to_exclude:
-        LOG.info('Whitelisting MAC\'s %s in the firewall', to_exclude)
-        firewall.whitelist_macs(to_exclude)
+    if all_macs:
+        LOG.info('Whitelisting MAC\'s %s in the firewall', all_macs)
+        firewall.whitelist_macs(all_macs)
         firewall.update_filters(ironic)
 
     for node in nodes:

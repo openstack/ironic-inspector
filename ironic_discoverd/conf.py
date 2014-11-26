@@ -23,7 +23,8 @@ DEFAULTS = {
     'firewall_update_period': '15',
     'ports_for_inactive_interfaces': 'false',
     'ironic_retry_attempts': '5',
-    'ironic_retry_period': '5'
+    'ironic_retry_period': '5',
+    'database': '',
 }
 
 

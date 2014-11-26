@@ -24,6 +24,7 @@ from keystoneclient import exceptions
 from ironic_discoverd import conf
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
+from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
 
@@ -56,7 +57,7 @@ def post_discover():
     LOG.debug("Got JSON %s", data)
     try:
         discoverd.discover(data)
-    except discoverd.DiscoveryFailed as exc:
+    except utils.DiscoveryFailed as exc:
         return str(exc), exc.http_code
     else:
         return "", 202
@@ -87,6 +88,7 @@ def main():
     if not conf.getboolean('discoverd', 'authenticate'):
         LOG.warning('Starting unauthenticated, please check configuration')
 
+    node_cache.init()
     firewall.init()
     utils.check_ironic_available()
 

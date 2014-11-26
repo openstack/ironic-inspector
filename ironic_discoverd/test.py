@@ -26,20 +26,24 @@ from ironic_discoverd import conf
 from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 from ironic_discoverd import main
+from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
 
 def init_conf():
     conf.init_conf()
     conf.CONF.add_section('discoverd')
+    conf.CONF.set('discoverd', 'database', '')
+    node_cache._DB = None
 
 
 # FIXME(dtantsur): this test suite is far from being complete
 @patch.object(firewall, 'update_filters', autospec=True)
+@patch.object(node_cache, 'pop_node', autospec=True)
 @patch.object(utils, 'get_client', autospec=True)
 class TestProcess(unittest.TestCase):
     def setUp(self):
-        self.node = Mock(driver_info={},
+        self.node = Mock(driver_info={'ipmi_address': '1.2.3.4'},
                          properties={'cpu_arch': 'i386', 'local_gb': 40},
                          uuid='uuid',
                          extra={'on_discovery': 'true'})
@@ -50,6 +54,7 @@ class TestProcess(unittest.TestCase):
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
         ]
         self.data = {
+            'ipmi_address': '1.2.3.4',
             'cpus': 2,
             'cpu_arch': 'x86_64',
             'memory_mb': 1024,
@@ -67,60 +72,20 @@ class TestProcess(unittest.TestCase):
                                        '66:55:44:33:22:11'])
         init_conf()
 
-    def _do_test_bmc(self, client_mock, filters_mock):
-        self.node.driver_info['ipmi_address'] = '1.2.3.4'
+    def _do_test(self, client_mock, pop_mock, filters_mock):
         cli = client_mock.return_value
-        cli.node.list.return_value = [
-            Mock(driver_info={}),
-            Mock(driver_info={'ipmi_address': '4.3.2.1'}),
-            self.node,
-            Mock(driver_info={'ipmi_address': '1.2.1.2'}),
-        ]
         cli.port.create.side_effect = [None, exceptions.Conflict()]
-
-        self.data['ipmi_address'] = '1.2.3.4'
-        discoverd.process(self.data)
-
-        self.assertTrue(cli.node.list.called)
-        self.assertFalse(cli.port.get_by_address.called)
-        cli.node.update.assert_called_once_with(self.node.uuid, self.patch)
-        cli.port.create.assert_any_call(node_uuid=self.node.uuid,
-                                        address='11:22:33:44:55:66')
-        cli.port.create.assert_any_call(node_uuid=self.node.uuid,
-                                        address='66:55:44:33:22:11')
-        self.assertEqual(2, cli.port.create.call_count)
-        filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(), firewall.MACS_DISCOVERY)
-        cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
-
-    def test_bmc(self, client_mock, filters_mock):
-        self._do_test_bmc(client_mock, filters_mock)
-
-    def test_bmc_deprecated_macs(self, client_mock, filters_mock):
-        del self.data['interfaces']
-        self.data['macs'] = self.macs
-        self._do_test_bmc(client_mock, filters_mock)
-
-    def test_bmc_ports_for_inactive(self, client_mock, filters_mock):
-        del self.data['interfaces']['em4']
-        conf.CONF.set('discoverd', 'ports_for_inactive_interfaces',
-                      'true')
-        self._do_test_bmc(client_mock, filters_mock)
-
-    def test_macs(self, client_mock, filters_mock):
-        discoverd.ALLOW_SEARCH_BY_MAC = True
-        cli = client_mock.return_value
-        cli.port.get_by_address.side_effect = [
-            exceptions.NotFound(), Mock(node_uuid=self.node.uuid)]
-        cli.port.create.side_effect = [None, exceptions.Conflict()]
+        pop_mock.return_value = self.node.uuid
         cli.node.get.return_value = self.node
 
         discoverd.process(self.data)
 
-        self.assertFalse(cli.node.list.called)
-        cli.port.get_by_address.assert_any_call('11:22:33:44:55:66')
-        cli.port.get_by_address.assert_any_call('66:55:44:33:22:11')
+        pop_mock.assert_called_once_with(bmc_address='1.2.3.4',
+                                         mac=ANY)
         cli.node.get.assert_called_once_with(self.node.uuid)
+        self.assertEqual(['11:22:33:44:55:66', '66:55:44:33:22:11'],
+                         sorted(pop_mock.call_args[1]['mac']))
+
         cli.node.update.assert_called_once_with(self.node.uuid, self.patch)
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
                                         address='11:22:33:44:55:66')
@@ -130,29 +95,69 @@ class TestProcess(unittest.TestCase):
         filters_mock.assert_called_once_with(cli)
         self.assertEqual(set(), firewall.MACS_DISCOVERY)
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
+
+    def test_ok(self, client_mock, pop_mock, filters_mock):
+        self._do_test(client_mock, pop_mock, filters_mock)
+
+    def test_deprecated_macs(self, client_mock, pop_mock, filters_mock):
+        del self.data['interfaces']
+        self.data['macs'] = self.macs
+        self._do_test(client_mock, pop_mock, filters_mock)
+
+    def test_ports_for_inactive(self, client_mock, pop_mock, filters_mock):
+        del self.data['interfaces']['em4']
+        conf.CONF.set('discoverd', 'ports_for_inactive_interfaces',
+                      'true')
+        self._do_test(client_mock, pop_mock, filters_mock)
+
+    def test_not_found(self, client_mock, pop_mock, filters_mock):
+        cli = client_mock.return_value
+        pop_mock.return_value = None
+
+        discoverd.process(self.data)
+
+        self.assertFalse(cli.node.update.called)
+        self.assertFalse(cli.port.create.called)
+        self.assertFalse(cli.node.set_power_state.called)
+
+    def test_not_found_in_ironic(self, client_mock, pop_mock, filters_mock):
+        cli = client_mock.return_value
+        pop_mock.return_value = self.node.uuid
+        cli.node.get.side_effect = exceptions.NotFound()
+
+        discoverd.process(self.data)
+
+        cli.node.get.assert_called_once_with(self.node.uuid)
+        self.assertFalse(cli.node.update.called)
+        self.assertFalse(cli.port.create.called)
+        self.assertFalse(cli.node.set_power_state.called)
 
 
 @patch.object(eventlet.greenthread, 'spawn_n',
               side_effect=lambda f, *a: f(*a) and None)
 @patch.object(firewall, 'update_filters', autospec=True)
+@patch.object(node_cache, 'add_node', autospec=True)
 @patch.object(utils, 'get_client', autospec=True)
 class TestDiscover(unittest.TestCase):
     def setUp(self):
         super(TestDiscover, self).setUp()
         self.node1 = Mock(driver='pxe_ssh',
                           uuid='uuid1',
+                          driver_info={},
                           maintenance=True,
                           instance_uuid=None,
                           # allowed with maintenance=True
                           power_state='power on')
         self.node2 = Mock(driver='pxe_ipmitool',
                           uuid='uuid2',
+                          driver_info={'ipmi_address': '1.2.3.4'},
                           maintenance=False,
                           instance_uuid=None,
                           power_state=None,
                           extra={'on_discovery': True})
         self.node3 = Mock(driver='pxe_ipmitool',
                           uuid='uuid3',
+                          driver_info={'ipmi_address': '1.2.3.5'},
                           maintenance=False,
                           instance_uuid=None,
                           power_state='power off',
@@ -161,25 +166,40 @@ class TestDiscover(unittest.TestCase):
         init_conf()
 
     @patch.object(time, 'time', lambda: 42.0)
-    def test_ok(self, client_mock, filters_mock, spawn_mock):
+    def test_ok(self, client_mock, add_mock, filters_mock, spawn_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = [
             self.node1,
             self.node2,
             self.node3,
         ]
-        cli.node.list_ports.return_value = [Mock(address='1'),
-                                            Mock(address='2')]
+        ports = [
+            [Mock(address='1-1'), Mock(address='1-2')],
+            [Mock(address='2-1'), Mock(address='2-2')],
+            [Mock(address='3-1'), Mock(address='3-2')],
+        ]
+        cli.node.list_ports.side_effect = ports
 
         discoverd.discover(['uuid1', 'uuid2', 'uuid3'])
 
         self.assertEqual(3, cli.node.get.call_count)
         self.assertEqual(3, cli.node.list_ports.call_count)
+        self.assertEqual(3, add_mock.call_count)
         cli.node.list_ports.assert_any_call('uuid1', limit=0)
         cli.node.list_ports.assert_any_call('uuid2', limit=0)
         cli.node.list_ports.assert_any_call('uuid3', limit=0)
+        add_mock.assert_any_call(self.node1.uuid,
+                                 bmc_address=None,
+                                 mac=['1-1', '1-2'])
+        add_mock.assert_any_call(self.node2.uuid,
+                                 bmc_address='1.2.3.4',
+                                 mac=['2-1', '2-2'])
+        add_mock.assert_any_call(self.node3.uuid,
+                                 bmc_address='1.2.3.5',
+                                 mac=['3-1', '3-2'])
         filters_mock.assert_called_once_with(cli)
-        self.assertEqual(set(['1', '2']), firewall.MACS_DISCOVERY)
+        self.assertEqual(set(port.address for l in ports for port in l),
+                         firewall.MACS_DISCOVERY)
         self.assertEqual(3, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'reboot')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
@@ -198,13 +218,14 @@ class TestDiscover(unittest.TestCase):
         spawn_mock.assert_called_once_with(discoverd._background_discover,
                                            cli, ANY)
 
-    def test_failed_to_get_node(self, client_mock, filters_mock, spawn_mock):
+    def test_failed_to_get_node(self, client_mock, add_mock, filters_mock,
+                                spawn_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = [
             self.node1,
             exceptions.NotFound(),
         ]
-        self.assertRaisesRegexp(discoverd.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'Cannot find node uuid2',
                                 discoverd.discover, ['uuid1', 'uuid2'])
 
@@ -212,7 +233,7 @@ class TestDiscover(unittest.TestCase):
             exceptions.Conflict(),
             self.node1,
         ]
-        self.assertRaisesRegexp(discoverd.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'Cannot get node uuid1',
                                 discoverd.discover, ['uuid1', 'uuid2'])
 
@@ -221,8 +242,9 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
+        self.assertFalse(add_mock.called)
 
-    def test_failed_to_validate_node(self, client_mock, filters_mock,
+    def test_failed_to_validate_node(self, client_mock, add_mock, filters_mock,
                                      spawn_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = [
@@ -234,7 +256,7 @@ class TestDiscover(unittest.TestCase):
             Mock(power={'result': False, 'reason': 'oops'}),
         ]
         self.assertRaisesRegexp(
-            discoverd.DiscoveryFailed,
+            utils.DiscoveryFailed,
             'Failed validation of power interface for node uuid2',
             discoverd.discover, ['uuid1', 'uuid2'])
 
@@ -244,14 +266,17 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
+        self.assertFalse(add_mock.called)
 
-    def test_no_uuids(self, client_mock, filters_mock, spawn_mock):
-        self.assertRaisesRegexp(discoverd.DiscoveryFailed,
+    def test_no_uuids(self, client_mock, add_mock, filters_mock, spawn_mock):
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'No nodes to discover',
                                 discoverd.discover, [])
         self.assertFalse(client_mock.called)
+        self.assertFalse(add_mock.called)
 
-    def test_with_instance_uuid(self, client_mock, filters_mock, spawn_mock):
+    def test_with_instance_uuid(self, client_mock, add_mock, filters_mock,
+                                spawn_mock):
         self.node2.instance_uuid = 'uuid'
         cli = client_mock.return_value
         cli.node.get.side_effect = [
@@ -259,7 +284,7 @@ class TestDiscover(unittest.TestCase):
             self.node2,
         ]
         self.assertRaisesRegexp(
-            discoverd.DiscoveryFailed,
+            utils.DiscoveryFailed,
             'node uuid2 with assigned instance uuid',
             discoverd.discover, ['uuid1', 'uuid2'])
 
@@ -268,8 +293,10 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
+        self.assertFalse(add_mock.called)
 
-    def test_wrong_power_state(self, client_mock, filters_mock, spawn_mock):
+    def test_wrong_power_state(self, client_mock, add_mock, filters_mock,
+                               spawn_mock):
         self.node2.power_state = 'power on'
         self.node2.maintenance = False
         cli = client_mock.return_value
@@ -278,7 +305,7 @@ class TestDiscover(unittest.TestCase):
             self.node2,
         ]
         self.assertRaisesRegexp(
-            discoverd.DiscoveryFailed,
+            utils.DiscoveryFailed,
             'node uuid2 with power state "power on"',
             discoverd.discover, ['uuid1', 'uuid2'])
 
@@ -287,6 +314,7 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
+        self.assertFalse(add_mock.called)
 
 
 class TestApi(unittest.TestCase):
@@ -305,7 +333,7 @@ class TestApi(unittest.TestCase):
     @patch.object(discoverd, 'discover', autospec=True)
     def test_discover_failed(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
-        discover_mock.side_effect = discoverd.DiscoveryFailed("boom")
+        discover_mock.side_effect = utils.DiscoveryFailed("boom")
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(400, res.status_code)
         self.assertEqual(b"boom", res.data)
@@ -397,6 +425,109 @@ class TestCheckIronicAvailable(unittest.TestCase):
         self.assertRaises(RuntimeError, utils.check_ironic_available)
         self.assertEqual(1 + attempts, client_mock.call_count)
         self.assertEqual(attempts, sleep_mock.call_count)
+
+
+class TestNodeCache(unittest.TestCase):
+    def setUp(self):
+        super(TestNodeCache, self).setUp()
+        init_conf()
+        self.db = node_cache._db()
+        self.node = Mock(driver_info={'ipmi_address': '1.2.3.4'},
+                         uuid='uuid')
+        self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
+
+    def test_add_node(self):
+        # Ensure previous node information is cleared
+        self.db.execute("insert into nodes(uuid) values(?)", (self.node.uuid,))
+        self.db.execute("insert into nodes(uuid) values('uuid2')")
+        self.db.execute("insert into attributes(name, value, uuid) "
+                        "values(?, ?, ?)",
+                        ('mac', '11:22:11:22:11:22', self.node.uuid))
+
+        node_cache.add_node(self.node.uuid, mac=self.macs,
+                            bmc_address='1.2.3.4', foo=None)
+
+        res = self.db.execute("select uuid, started_at "
+                              "from nodes order by uuid").fetchall()
+        self.assertEqual(['uuid', 'uuid2'], [t[0] for t in res])
+        self.assertTrue(time.time() - 60 < res[0][1] < time.time() + 60)
+
+        res = self.db.execute("select name, value, uuid from attributes "
+                              "order by name, value").fetchall()
+        self.assertEqual([('bmc_address', '1.2.3.4', 'uuid'),
+                          ('mac', '11:22:33:44:55:66', 'uuid'),
+                          ('mac', '66:55:44:33:22:11', 'uuid')],
+                         res)
+
+    def test_add_node_duplicate_mac(self):
+        self.db.execute("insert into nodes(uuid) values(?)", ('another-uuid',))
+        self.db.execute("insert into attributes(name, value, uuid) "
+                        "values(?, ?, ?)",
+                        ('mac', '11:22:11:22:11:22', 'another-uuid'))
+
+        self.assertRaises(utils.DiscoveryFailed,
+                          node_cache.add_node,
+                          self.node.uuid, mac=['11:22:11:22:11:22'])
+
+    def test_drop_node(self):
+        self.db.execute("insert into nodes(uuid) values(?)", (self.node.uuid,))
+        self.db.execute("insert into nodes(uuid) values('uuid2')")
+        self.db.execute("insert into attributes(name, value, uuid) "
+                        "values(?, ?, ?)",
+                        ('mac', '11:22:11:22:11:22', self.node.uuid))
+
+        node_cache.drop_node(self.node.uuid)
+
+        self.assertEqual([('uuid2',)], self.db.execute(
+            "select uuid from nodes").fetchall())
+        self.assertEqual([], self.db.execute(
+            "select * from attributes").fetchall())
+
+
+class TestNodeCachePop(unittest.TestCase):
+    def setUp(self):
+        super(TestNodeCachePop, self).setUp()
+        init_conf()
+        self.db = node_cache._db()
+        self.uuid = 'uuid'
+        self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
+        self.macs2 = ['00:00:00:00:00:00']
+        node_cache.add_node(self.uuid,
+                            bmc_address='1.2.3.4',
+                            mac=self.macs)
+
+    def test_no_data(self):
+        self.assertIsNone(node_cache.pop_node())
+        self.assertIsNone(node_cache.pop_node(mac=[]))
+
+    def test_bmc(self):
+        res = node_cache.pop_node(bmc_address='1.2.3.4')
+        self.assertEqual(self.uuid, res)
+        self.assertEqual([], self.db.execute(
+            "select * from attributes").fetchall())
+
+    def test_macs(self):
+        res = node_cache.pop_node(mac=['11:22:33:33:33:33', self.macs[1]])
+        self.assertEqual(self.uuid, res)
+        self.assertEqual([], self.db.execute(
+            "select * from attributes").fetchall())
+
+    def test_macs_not_found(self):
+        res = node_cache.pop_node(mac=['11:22:33:33:33:33',
+                                       '66:66:44:33:22:11'])
+        self.assertIsNone(res)
+
+    def test_macs_multiple_found(self):
+        node_cache.add_node('uuid2', mac=self.macs2)
+        res = node_cache.pop_node(mac=[self.macs[0], self.macs2[0]])
+        self.assertIsNone(res)
+
+    def test_both(self):
+        res = node_cache.pop_node(bmc_address='1.2.3.4',
+                                  mac=self.macs)
+        self.assertEqual(self.uuid, res)
+        self.assertEqual([], self.db.execute(
+            "select * from attributes").fetchall())
 
 
 if __name__ == '__main__':
