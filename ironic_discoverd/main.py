@@ -14,6 +14,7 @@
 import eventlet
 eventlet.monkey_patch(thread=False)
 
+import json
 import logging
 import sys
 
@@ -36,8 +37,12 @@ LOG = discoverd.LOG
 def post_continue():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
-    eventlet.greenthread.spawn_n(discoverd.process, data)
-    return "{}", 202, {"content-type": "application/json"}
+    try:
+        res = discoverd.process(data)
+    except utils.DiscoveryFailed as exc:
+        return str(exc), exc.http_code
+    else:
+        return json.dumps(res), 200, {'Content-Type': 'applications/json'}
 
 
 @app.route('/v1/discover', methods=['POST'])

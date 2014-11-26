@@ -137,12 +137,23 @@ class TestProcess(BaseTest):
                       'true')
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
 
+    def test_not_on_discovery(self, client_mock, pop_mock, filters_mock,
+                              pre_mock, post_mock):
+        del self.node.extra['on_discovery']
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
+                                'not on discovery',
+                                self._do_test,
+                                client_mock, pop_mock, filters_mock, pre_mock,
+                                post_mock)
+
     def test_not_found(self, client_mock, pop_mock, filters_mock, pre_mock,
                        post_mock):
         cli = client_mock.return_value
-        pop_mock.return_value = None
+        pop_mock.side_effect = utils.DiscoveryFailed('boom')
 
-        discoverd.process(self.data)
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
+                                'boom',
+                                discoverd.process, self.data)
 
         self.assertFalse(cli.node.update.called)
         self.assertFalse(cli.port.create.called)
@@ -154,12 +165,28 @@ class TestProcess(BaseTest):
         pop_mock.return_value = self.node.uuid
         cli.node.get.side_effect = exceptions.NotFound()
 
-        discoverd.process(self.data)
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
+                                'not found in Ironic',
+                                discoverd.process, self.data)
 
         cli.node.get.assert_called_once_with(self.node.uuid)
         self.assertFalse(cli.node.update.called)
         self.assertFalse(cli.port.create.called)
         self.assertFalse(cli.node.set_power_state.called)
+
+    def test_error(self, client_mock, pop_mock, filters_mock, pre_mock,
+                   post_mock):
+        self.data['error'] = 'BOOM'
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
+                                'BOOM',
+                                discoverd.process, self.data)
+
+    def test_missing(self, client_mock, pop_mock, filters_mock, pre_mock,
+                     post_mock):
+        del self.data['cpus']
+        self.assertRaisesRegexp(utils.DiscoveryFailed,
+                                'missing',
+                                discoverd.process, self.data)
 
 
 @patch.object(eventlet.greenthread, 'spawn_n',
@@ -383,11 +410,21 @@ class TestApi(BaseTest):
         self.assertFalse(discover_mock.called)
         keystone_mock.assert_called_once_with(token='token')
 
-    @patch.object(eventlet.greenthread, 'spawn_n')
-    def test_continue(self, spawn_mock):
+    @patch.object(discoverd, 'process', autospec=True)
+    def test_continue(self, process_mock):
+        process_mock.return_value = [42]
         res = self.app.post('/v1/continue', data='"JSON"')
-        self.assertEqual(202, res.status_code)
-        spawn_mock.assert_called_once_with(discoverd.process, "JSON")
+        self.assertEqual(200, res.status_code)
+        process_mock.assert_called_once_with("JSON")
+        self.assertEqual(b'[42]', res.data)
+
+    @patch.object(discoverd, 'process', autospec=True)
+    def test_continue_failed(self, process_mock):
+        process_mock.side_effect = utils.DiscoveryFailed("boom")
+        res = self.app.post('/v1/continue', data='"JSON"')
+        self.assertEqual(400, res.status_code)
+        process_mock.assert_called_once_with("JSON")
+        self.assertEqual(b'boom', res.data)
 
 
 @patch.object(client.requests, 'post', autospec=True)
@@ -531,8 +568,8 @@ class TestNodeCachePop(BaseTest):
                             mac=self.macs)
 
     def test_no_data(self):
-        self.assertIsNone(node_cache.pop_node())
-        self.assertIsNone(node_cache.pop_node(mac=[]))
+        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node)
+        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node, mac=[])
 
     def test_bmc(self):
         res = node_cache.pop_node(bmc_address='1.2.3.4')
@@ -547,14 +584,14 @@ class TestNodeCachePop(BaseTest):
             "select * from attributes").fetchall())
 
     def test_macs_not_found(self):
-        res = node_cache.pop_node(mac=['11:22:33:33:33:33',
-                                       '66:66:44:33:22:11'])
-        self.assertIsNone(res)
+        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node,
+                          mac=['11:22:33:33:33:33',
+                               '66:66:44:33:22:11'])
 
     def test_macs_multiple_found(self):
         node_cache.add_node('uuid2', mac=self.macs2)
-        res = node_cache.pop_node(mac=[self.macs[0], self.macs2[0]])
-        self.assertIsNone(res)
+        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node,
+                          mac=[self.macs[0], self.macs2[0]])
 
     def test_both(self):
         res = node_cache.pop_node(bmc_address='1.2.3.4',

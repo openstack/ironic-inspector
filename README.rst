@@ -182,7 +182,12 @@ HTTP API consist of 2 endpoints:
     * ``mac`` MAC address
     * ``ip`` IP address
 
-  Response: always HTTP 202.
+  Response:
+
+  * 200 - OK
+  * 400 - bad request
+  * 403 - node is not on discovery
+  * 404 - node cannot be found or multiple nodes found
 
 .. _bug #1391866: https://bugs.launchpad.net/ironic-discoverd/+bug/1391866
 
@@ -192,6 +197,7 @@ Change Log
 v1.0.0
 ~~~~~~
 
+* ``/v1/continue`` is now sync and errors are returned.
 * Discovery now times out by default.
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.

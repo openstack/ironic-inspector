@@ -109,7 +109,8 @@ def pop_node(**attributes):
     This function also deletes a node from the cache, thus it's name.
 
     :param attributes: attributes known about this node (like macs, BMC etc)
-    :returns: UUID or None
+    :returns: UUID
+    :raises: DiscoveryFailed if node is not found
     """
     # NOTE(dtantsur): sorting is not required, but gives us predictability
     found = set()
@@ -131,13 +132,13 @@ def pop_node(**attributes):
     if not found:
         LOG.error('Could not find a node based on attributes %s',
                   list(attributes))
-        return
+        raise utils.DiscoveryFailed('Could not find a node', code=404)
     elif len(found) > 1:
         LOG.error('Multiple nodes were matched based on attributes %(keys)s: '
                   '%(uuids)s',
                   {'keys': list(attributes),
                    'uuids': list(found)})
-        return
+        raise utils.DiscoveryFailed('Multiple matching nodes found', code=404)
 
     uuid = found.pop()
     drop_node(uuid)

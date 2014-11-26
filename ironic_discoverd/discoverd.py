@@ -36,7 +36,7 @@ def process(node_info):
     if node_info.get('error'):
         LOG.error('Error happened during discovery: %s',
                   node_info['error'])
-        return
+        raise utils.DiscoveryFailed(node_info['error'])
 
     compat = conf.getboolean('discoverd', 'ports_for_inactive_interfaces')
     if 'interfaces' not in node_info and 'macs' in node_info:
@@ -51,7 +51,8 @@ def process(node_info):
     if missing:
         LOG.error('The following required parameters are missing: %s',
                   missing)
-        return
+        raise utils.DiscoveryFailed(
+            'The following required parameters are missing: %s' % missing)
 
     LOG.info('Discovery data received from node with BMC '
              '%(ipmi_address)s: CPUs: %(cpus)s %(cpu_arch)s, '
@@ -78,23 +79,21 @@ def process(node_info):
 
     uuid = node_cache.pop_node(bmc_address=node_info['ipmi_address'],
                                mac=valid_macs)
-    if uuid is None:
-        LOG.debug('Unable to find a node, cannot proceed')
-        return
-
     ironic = utils.get_client()
     try:
         node = ironic.node.get(uuid)
     except exceptions.NotFound as exc:
         LOG.error('Node UUID %(uuid)s is in the cache, but not found '
-                  'by Ironic: %(exc)s',
-                  {'uuid': uuid,
-                   'exc': exc})
-        return
+                  'in Ironic: %(exc)s',
+                  {'uuid': uuid, 'exc': exc})
+        raise utils.DiscoveryFailed('Node UUID %s was found is cache, '
+                                    'but is not found in Ironic' % uuid,
+                                    code=404)
 
     if not node.extra.get('on_discovery'):
         LOG.error('Node is not on discovery, cannot proceed')
-        return
+        raise utils.DiscoveryFailed('Node %s is not on discovery' % uuid,
+                                    code=403)
 
     _process_node(ironic, node, node_info, valid_macs)
 
@@ -150,6 +149,7 @@ def _process_node(ironic, node, node_info, valid_macs):
     except Exception as exc:
         LOG.error('Failed to power off node %s, check it\'s power '
                   'management configuration:\n%s', node.uuid, exc)
+        raise utils.DiscoveryFailed('Failed to power off node %s' % node.uuid)
 
 
 def discover(uuids):
