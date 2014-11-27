@@ -192,10 +192,14 @@ Change Log
 v1.0.0
 ~~~~~~
 
+* Add support for plugins that hook into data processing pipeline, see
+  `plugin-architecture blueprint`_ for details.
 * Cache nodes under discovery in a local SQLite database. Set ``database``
   configuration option to persist this database. Improves performance by
   making less calls to Ironic API.
 * Create ``CONTRIBUTING.rst``.
+
+.. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
 
 v0.2.4
 ~~~~~~

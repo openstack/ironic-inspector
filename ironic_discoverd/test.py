@@ -28,6 +28,8 @@ from ironic_discoverd import discoverd
 from ironic_discoverd import firewall
 from ironic_discoverd import main
 from ironic_discoverd import node_cache
+from ironic_discoverd.plugins import base as plugins_base
+from ironic_discoverd.plugins import example as example_plugin
 from ironic_discoverd import utils
 
 
@@ -42,7 +44,8 @@ class BaseTest(unittest.TestCase):
         self.addCleanup(lambda: os.unlink(node_cache._DB_NAME))
 
 
-# FIXME(dtantsur): this test suite is far from being complete
+@patch.object(example_plugin.ExampleProcessingHook, 'post_discover')
+@patch.object(example_plugin.ExampleProcessingHook, 'pre_discover')
 @patch.object(firewall, 'update_filters', autospec=True)
 @patch.object(node_cache, 'pop_node', autospec=True)
 @patch.object(utils, 'get_client', autospec=True)
@@ -73,12 +76,26 @@ class TestProcess(BaseTest):
             }
         }
         self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
+        self.port = Mock(uuid='port_uuid')
 
-    def _do_test(self, client_mock, pop_mock, filters_mock):
+    def _do_test(self, client_mock, pop_mock, filters_mock, pre_mock,
+                 post_mock):
+        plugins_base._HOOKS_MGR = None
+        conf.CONF.set('discoverd', 'processing_hooks', 'example')
+
         cli = client_mock.return_value
-        cli.port.create.side_effect = [None, exceptions.Conflict()]
+
+        def fake_port_create(node_uuid, address):
+            if address == '11:22:33:44:55:66':
+                return self.port
+            else:
+                raise exceptions.Conflict()
+
+        cli.port.create.side_effect = fake_port_create
         pop_mock.return_value = self.node.uuid
         cli.node.get.return_value = self.node
+        post_mock.return_value = (['fake patch', 'fake patch 2'],
+                                  {'11:22:33:44:55:66': ['port patch']})
 
         discoverd.process(self.data)
 
@@ -88,7 +105,9 @@ class TestProcess(BaseTest):
         self.assertEqual(['11:22:33:44:55:66', '66:55:44:33:22:11'],
                          sorted(pop_mock.call_args[1]['mac']))
 
-        cli.node.update.assert_called_once_with(self.node.uuid, self.patch)
+        cli.node.update.assert_called_once_with(self.node.uuid,
+                                                self.patch + ['fake patch',
+                                                              'fake patch 2'])
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
                                         address='11:22:33:44:55:66')
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
@@ -96,22 +115,30 @@ class TestProcess(BaseTest):
         self.assertEqual(2, cli.port.create.call_count)
         filters_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
+        cli.port.update.assert_called_once_with(self.port.uuid, ['port patch'])
 
-    def test_ok(self, client_mock, pop_mock, filters_mock):
-        self._do_test(client_mock, pop_mock, filters_mock)
+        pre_mock.assert_called_once_with(self.data)
+        post_mock.assert_called_once_with(self.node, [self.port], self.data)
 
-    def test_deprecated_macs(self, client_mock, pop_mock, filters_mock):
+    def test_ok(self, client_mock, pop_mock, filters_mock, pre_mock,
+                post_mock):
+        self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
+
+    def test_deprecated_macs(self, client_mock, pop_mock, filters_mock,
+                             pre_mock, post_mock):
         del self.data['interfaces']
         self.data['macs'] = self.macs
-        self._do_test(client_mock, pop_mock, filters_mock)
+        self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
 
-    def test_ports_for_inactive(self, client_mock, pop_mock, filters_mock):
+    def test_ports_for_inactive(self, client_mock, pop_mock, filters_mock,
+                                pre_mock, post_mock):
         del self.data['interfaces']['em4']
         conf.CONF.set('discoverd', 'ports_for_inactive_interfaces',
                       'true')
-        self._do_test(client_mock, pop_mock, filters_mock)
+        self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
 
-    def test_not_found(self, client_mock, pop_mock, filters_mock):
+    def test_not_found(self, client_mock, pop_mock, filters_mock, pre_mock,
+                       post_mock):
         cli = client_mock.return_value
         pop_mock.return_value = None
 
@@ -121,7 +148,8 @@ class TestProcess(BaseTest):
         self.assertFalse(cli.port.create.called)
         self.assertFalse(cli.node.set_power_state.called)
 
-    def test_not_found_in_ironic(self, client_mock, pop_mock, filters_mock):
+    def test_not_found_in_ironic(self, client_mock, pop_mock, filters_mock,
+                                 pre_mock, post_mock):
         cli = client_mock.return_value
         pop_mock.return_value = self.node.uuid
         cli.node.get.side_effect = exceptions.NotFound()
@@ -534,6 +562,21 @@ class TestNodeCachePop(BaseTest):
         self.assertEqual(self.uuid, res)
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
+
+
+class TestPlugins(unittest.TestCase):
+    @patch.object(example_plugin.ExampleProcessingHook, 'pre_discover',
+                  autospec=True)
+    @patch.object(example_plugin.ExampleProcessingHook, 'post_discover',
+                  autospec=True)
+    def test_hook(self, mock_post, mock_pre):
+        plugins_base._HOOKS_MGR = None
+        conf.CONF.set('discoverd', 'processing_hooks', 'example')
+        mgr = plugins_base.processing_hooks_manager()
+        mgr.map_method('pre_discover', 'node_info')
+        mock_pre.assert_called_once_with(ANY, 'node_info')
+        mgr.map_method('post_discover', 'node', ['port'], 'node_info')
+        mock_post.assert_called_once_with(ANY, 'node', ['port'], 'node_info')
 
 
 if __name__ == '__main__':

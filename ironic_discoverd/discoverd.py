@@ -20,6 +20,7 @@ from ironicclient import exceptions
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
+from ironic_discoverd.plugins import base as plugins_base
 from ironic_discoverd import utils
 
 
@@ -28,6 +29,10 @@ LOG = logging.getLogger("discoverd")
 
 def process(node_info):
     """Process data from discovery ramdisk."""
+    hooks = plugins_base.processing_hooks_manager()
+    for hook_ext in hooks:
+        hook_ext.obj.pre_discover(node_info)
+
     if node_info.get('error'):
         LOG.error('Error happened during discovery: %s',
                   node_info['error'])
@@ -95,23 +100,45 @@ def process(node_info):
 
 
 def _process_node(ironic, node, node_info, valid_macs):
-    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
-             {'op': 'remove', 'path': '/extra/on_discovery'}]
-    existing = node.properties
-    for key in ('cpus', 'cpu_arch', 'memory_mb', 'local_gb'):
-        if not existing.get(key):
-            patch.append({'op': 'add', 'path': '/properties/%s' % key,
-                          'value': str(node_info[key])})
-    ironic.node.update(node.uuid, patch)
+    hooks = plugins_base.processing_hooks_manager()
 
+    ports = {}
     for mac in valid_macs:
         try:
-            ironic.port.create(node_uuid=node.uuid, address=mac)
+            port = ironic.port.create(node_uuid=node.uuid, address=mac)
+            ports[mac] = port
         except exceptions.Conflict:
             LOG.warning('MAC %(mac)s appeared in discovery data for '
                         'node %(node)s, but already exists in '
                         'database - skipping',
                         {'mac': mac, 'node': node.uuid})
+
+    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
+             {'op': 'remove', 'path': '/extra/on_discovery'}]
+
+    node_patches = []
+    port_patches = {}
+    for hook_ext in hooks:
+        hook_patch = hook_ext.obj.post_discover(node, list(ports.values()),
+                                                node_info)
+        if not hook_patch:
+            continue
+
+        node_patches.extend(hook_patch[0])
+        port_patches.update(hook_patch[1])
+    node_patches = [p for p in node_patches if p]
+    port_patches = {mac: patch for (mac, patch) in port_patches.items()
+                    if mac in ports and patch}
+
+    existing = node.properties
+    for key in ('cpus', 'cpu_arch', 'memory_mb', 'local_gb'):
+        if not existing.get(key):
+            patch.append({'op': 'add', 'path': '/properties/%s' % key,
+                          'value': str(node_info[key])})
+    ironic.node.update(node.uuid, patch + node_patches)
+
+    for mac, patches in port_patches.items():
+        ironic.port.update(ports[mac].uuid, patches)
 
     LOG.info('Node %s was updated with data from discovery process, forcing '
              'power off', node.uuid)

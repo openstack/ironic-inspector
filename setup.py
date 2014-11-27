@@ -17,9 +17,14 @@ setup(
     url = "https://pypi.python.org/pypi/ironic-discoverd",
     packages = ['ironic_discoverd'],
     install_requires = install_requires,
-    entry_points = {'console_scripts': [
-        "ironic-discoverd = ironic_discoverd.main:main"
-    ]},
+    entry_points = {
+        'console_scripts': [
+            "ironic-discoverd = ironic_discoverd.main:main"
+        ],
+        'ironic_discoverd.hooks': [
+            "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
+        ],
+    },
     classifiers = [
         'Development Status :: 5 - Production/Stable',
         'Environment :: OpenStack',
