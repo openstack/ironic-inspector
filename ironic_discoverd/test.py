@@ -14,6 +14,7 @@
 import eventlet
 eventlet.monkey_patch(thread=False)
 
+import os
 import time
 import unittest
 
@@ -30,18 +31,22 @@ from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
 
-def init_conf():
-    conf.init_conf()
-    conf.CONF.add_section('discoverd')
-    conf.CONF.set('discoverd', 'database', '')
-    node_cache._DB = None
+class BaseTest(unittest.TestCase):
+    def setUp(self):
+        super(BaseTest, self).setUp()
+        conf.init_conf()
+        conf.CONF.add_section('discoverd')
+        conf.CONF.set('discoverd', 'database', '')
+        node_cache._DB_NAME = None
+        self.db = node_cache._db()
+        self.addCleanup(lambda: os.unlink(node_cache._DB_NAME))
 
 
 # FIXME(dtantsur): this test suite is far from being complete
 @patch.object(firewall, 'update_filters', autospec=True)
 @patch.object(node_cache, 'pop_node', autospec=True)
 @patch.object(utils, 'get_client', autospec=True)
-class TestProcess(unittest.TestCase):
+class TestProcess(BaseTest):
     def setUp(self):
         self.node = Mock(driver_info={'ipmi_address': '1.2.3.4'},
                          properties={'cpu_arch': 'i386', 'local_gb': 40},
@@ -68,7 +73,6 @@ class TestProcess(unittest.TestCase):
             }
         }
         self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
-        init_conf()
 
     def _do_test(self, client_mock, pop_mock, filters_mock):
         cli = client_mock.return_value
@@ -135,7 +139,7 @@ class TestProcess(unittest.TestCase):
 @patch.object(firewall, 'update_filters', autospec=True)
 @patch.object(node_cache, 'add_node', autospec=True)
 @patch.object(utils, 'get_client', autospec=True)
-class TestDiscover(unittest.TestCase):
+class TestDiscover(BaseTest):
     def setUp(self):
         super(TestDiscover, self).setUp()
         self.node1 = Mock(driver='pxe_ssh',
@@ -159,7 +163,6 @@ class TestDiscover(unittest.TestCase):
                           instance_uuid=None,
                           power_state='power off',
                           extra={'on_discovery': True})
-        init_conf()
 
     @patch.object(time, 'time', lambda: 42.0)
     def test_ok(self, client_mock, add_mock, filters_mock, spawn_mock):
@@ -311,9 +314,9 @@ class TestDiscover(unittest.TestCase):
         self.assertFalse(add_mock.called)
 
 
-class TestApi(unittest.TestCase):
+class TestApi(BaseTest):
     def setUp(self):
-        init_conf()
+        super(TestApi, self).setUp()
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
 
@@ -394,11 +397,7 @@ class TestClient(unittest.TestCase):
 
 @patch.object(eventlet.greenthread, 'sleep', autospec=True)
 @patch.object(utils, 'get_client')
-class TestCheckIronicAvailable(unittest.TestCase):
-    def setUp(self):
-        super(TestCheckIronicAvailable, self).setUp()
-        init_conf()
-
+class TestCheckIronicAvailable(BaseTest):
     def test_ok(self, client_mock, sleep_mock):
         utils.check_ironic_available()
         client_mock.return_value.driver.list.assert_called_once_with()
@@ -421,22 +420,22 @@ class TestCheckIronicAvailable(unittest.TestCase):
         self.assertEqual(attempts, sleep_mock.call_count)
 
 
-class TestNodeCache(unittest.TestCase):
+class TestNodeCache(BaseTest):
     def setUp(self):
         super(TestNodeCache, self).setUp()
-        init_conf()
-        self.db = node_cache._db()
         self.node = Mock(driver_info={'ipmi_address': '1.2.3.4'},
                          uuid='uuid')
         self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
 
     def test_add_node(self):
         # Ensure previous node information is cleared
-        self.db.execute("insert into nodes(uuid) values(?)", (self.node.uuid,))
-        self.db.execute("insert into nodes(uuid) values('uuid2')")
-        self.db.execute("insert into attributes(name, value, uuid) "
-                        "values(?, ?, ?)",
-                        ('mac', '11:22:11:22:11:22', self.node.uuid))
+        with self.db:
+            self.db.execute("insert into nodes(uuid) values(?)",
+                            (self.node.uuid,))
+            self.db.execute("insert into nodes(uuid) values('uuid2')")
+            self.db.execute("insert into attributes(name, value, uuid) "
+                            "values(?, ?, ?)",
+                            ('mac', '11:22:11:22:11:22', self.node.uuid))
 
         node_cache.add_node(self.node.uuid, mac=self.macs,
                             bmc_address='1.2.3.4', foo=None)
@@ -454,21 +453,25 @@ class TestNodeCache(unittest.TestCase):
                          res)
 
     def test_add_node_duplicate_mac(self):
-        self.db.execute("insert into nodes(uuid) values(?)", ('another-uuid',))
-        self.db.execute("insert into attributes(name, value, uuid) "
-                        "values(?, ?, ?)",
-                        ('mac', '11:22:11:22:11:22', 'another-uuid'))
+        with self.db:
+            self.db.execute("insert into nodes(uuid) values(?)",
+                            ('another-uuid',))
+            self.db.execute("insert into attributes(name, value, uuid) "
+                            "values(?, ?, ?)",
+                            ('mac', '11:22:11:22:11:22', 'another-uuid'))
 
         self.assertRaises(utils.DiscoveryFailed,
                           node_cache.add_node,
                           self.node.uuid, mac=['11:22:11:22:11:22'])
 
     def test_drop_node(self):
-        self.db.execute("insert into nodes(uuid) values(?)", (self.node.uuid,))
-        self.db.execute("insert into nodes(uuid) values('uuid2')")
-        self.db.execute("insert into attributes(name, value, uuid) "
-                        "values(?, ?, ?)",
-                        ('mac', '11:22:11:22:11:22', self.node.uuid))
+        with self.db:
+            self.db.execute("insert into nodes(uuid) values(?)",
+                            (self.node.uuid,))
+            self.db.execute("insert into nodes(uuid) values('uuid2')")
+            self.db.execute("insert into attributes(name, value, uuid) "
+                            "values(?, ?, ?)",
+                            ('mac', '11:22:11:22:11:22', self.node.uuid))
 
         node_cache.drop_node(self.node.uuid)
 
@@ -478,20 +481,20 @@ class TestNodeCache(unittest.TestCase):
             "select * from attributes").fetchall())
 
     def test_macs_on_discovery(self):
-        self.db.execute("insert into nodes(uuid) values(?)", (self.node.uuid,))
-        self.db.executemany("insert into attributes(name, value, uuid) "
-                            "values(?, ?, ?)",
-                            [('mac', '11:22:11:22:11:22', self.node.uuid),
-                             ('mac', '22:11:22:11:22:11', self.node.uuid)])
+        with self.db:
+            self.db.execute("insert into nodes(uuid) values(?)",
+                            (self.node.uuid,))
+            self.db.executemany("insert into attributes(name, value, uuid) "
+                                "values(?, ?, ?)",
+                                [('mac', '11:22:11:22:11:22', self.node.uuid),
+                                 ('mac', '22:11:22:11:22:11', self.node.uuid)])
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
                          node_cache.macs_on_discovery())
 
 
-class TestNodeCachePop(unittest.TestCase):
+class TestNodeCachePop(BaseTest):
     def setUp(self):
         super(TestNodeCachePop, self).setUp()
-        init_conf()
-        self.db = node_cache._db()
         self.uuid = 'uuid'
         self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
         self.macs2 = ['00:00:00:00:00:00']

@@ -13,8 +13,11 @@
 
 """Cache for nodes currently under discovery."""
 
+import atexit
 import logging
+import os
 import sqlite3
+import tempfile
 import time
 
 from ironic_discoverd import conf
@@ -22,7 +25,7 @@ from ironic_discoverd import utils
 
 
 LOG = logging.getLogger("discoverd")
-_DB = None
+_DB_NAME = None
 _SCHEMA = """
 create table if not exists nodes
  (uuid text primary key, started_at real);
@@ -36,16 +39,25 @@ create table if not exists attributes
 
 def init():
     """Initialize the database."""
-    global _DB
-    conn = conf.get('discoverd', 'database') or ':memory:'
-    _DB = sqlite3.connect(conn)
-    _DB.executescript(_SCHEMA)
+    global _DB_NAME
+    _DB_NAME = conf.get('discoverd', 'database').strip()
+    if not _DB_NAME:
+        # We can't use in-memory, so we create a temporary file
+        fd, _DB_NAME = tempfile.mkstemp(prefix='discoverd-')
+        os.close(fd)
+
+        def cleanup():
+            if os.path.exists(_DB_NAME):
+                os.unlink(_DB_NAME)
+
+        atexit.register(cleanup)
+    sqlite3.connect(_DB_NAME).executescript(_SCHEMA)
 
 
 def _db():
-    if _DB is None:
+    if _DB_NAME is None:
         init()
-    return _DB
+    return sqlite3.connect(_DB_NAME)
 
 
 def add_node(uuid, **attributes):
@@ -58,9 +70,9 @@ def add_node(uuid, **attributes):
     :param attributes: attributes known about this node (like macs, BMC etc)
     """
     drop_node(uuid)
-    with _db():
-        _db().execute("insert into nodes(uuid, started_at) "
-                      "values(?, ?)", (uuid, time.time()))
+    with _db() as db:
+        db.execute("insert into nodes(uuid, started_at) "
+                   "values(?, ?)", (uuid, time.time()))
         for (name, value) in attributes.items():
             if not value:
                 continue
@@ -68,9 +80,9 @@ def add_node(uuid, **attributes):
                 value = [value]
 
             try:
-                _db().executemany("insert into attributes(name, value, uuid) "
-                                  "values(?, ?, ?)",
-                                  [(name, v, uuid) for v in value])
+                db.executemany("insert into attributes(name, value, uuid) "
+                               "values(?, ?, ?)",
+                               [(name, v, uuid) for v in value])
             except sqlite3.IntegrityError:
                 raise utils.DiscoveryFailed(
                     'Some or all of %(name)s\'s %(value)s are already '
@@ -86,9 +98,9 @@ def macs_on_discovery():
 
 def drop_node(uuid):
     """Forget information about node with given uuid."""
-    with _db():
-        _db().execute("delete from nodes where uuid=?", (uuid,))
-        _db().execute("delete from attributes where uuid=?", (uuid,))
+    with _db() as db:
+        db.execute("delete from nodes where uuid=?", (uuid,))
+        db.execute("delete from attributes where uuid=?", (uuid,))
 
 
 def pop_node(**attributes):
@@ -101,6 +113,7 @@ def pop_node(**attributes):
     """
     # NOTE(dtantsur): sorting is not required, but gives us predictability
     found = set()
+    db = _db()
     for (name, value) in sorted(attributes.items()):
         if not value:
             LOG.warning('Empty value for attribute %s', name)
@@ -109,9 +122,9 @@ def pop_node(**attributes):
             value = [value]
 
         LOG.debug('Trying to use %s %s for discovery' % (name, value))
-        rows = _db().execute('select distinct uuid from attributes where ' +
-                             ' OR '.join('name=? AND value=?' for _ in value),
-                             sum(([name, v] for v in value), [])).fetchall()
+        rows = db.execute('select distinct uuid from attributes where ' +
+                          ' OR '.join('name=? AND value=?' for _ in value),
+                          sum(([name, v] for v in value), [])).fetchall()
         if rows:
             found.update(item[0] for item in rows)
 
