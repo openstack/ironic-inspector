@@ -81,7 +81,7 @@ class TestProcess(BaseTest):
     def _do_test(self, client_mock, pop_mock, filters_mock, pre_mock,
                  post_mock):
         plugins_base._HOOKS_MGR = None
-        conf.CONF.set('discoverd', 'processing_hooks', 'example')
+        conf.CONF.set('discoverd', 'processing_hooks', 'scheduler,example')
 
         cli = client_mock.return_value
 

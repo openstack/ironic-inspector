@@ -46,21 +46,6 @@ def process(node_info):
                                    for i, m in enumerate(node_info['macs'])}
         compat = True
 
-    keys = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb', 'interfaces')
-    missing = [key for key in keys if not node_info.get(key)]
-    if missing:
-        LOG.error('The following required parameters are missing: %s',
-                  missing)
-        raise utils.DiscoveryFailed(
-            'The following required parameters are missing: %s' % missing)
-
-    LOG.info('Discovery data received from node with BMC '
-             '%(ipmi_address)s: CPUs: %(cpus)s %(cpu_arch)s, '
-             'memory %(memory_mb)s MiB, disk %(local_gb)s GiB, '
-             'interfaces %(interfaces)s',
-             dict((key, node_info.get(key))
-                  for key in keys + ('ipmi_address',)))
-
     valid_interfaces = {
         n: iface for n, iface in node_info['interfaces'].items()
         if utils.is_valid_mac(iface['mac']) and (compat or iface.get('ip'))
@@ -129,11 +114,6 @@ def _process_node(ironic, node, node_info, valid_macs):
     port_patches = {mac: patch for (mac, patch) in port_patches.items()
                     if mac in ports and patch}
 
-    existing = node.properties
-    for key in ('cpus', 'cpu_arch', 'memory_mb', 'local_gb'):
-        if not existing.get(key):
-            patch.append({'op': 'add', 'path': '/properties/%s' % key,
-                          'value': str(node_info[key])})
     ironic.node.update(node.uuid, patch + node_patches)
 
     for mac, patches in port_patches.items():
