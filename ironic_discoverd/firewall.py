@@ -51,14 +51,17 @@ def init():
     """
     global INTERFACE
     INTERFACE = conf.get('discoverd', 'dnsmasq_interface')
-
-    _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
-              '--dport', '67', '-j', CHAIN,
-              ignore=True)
-    _iptables('-F', CHAIN, ignore=True)
-    _iptables('-X', CHAIN, ignore=True)
+    _clean_up(CHAIN)
     # Not really needed, but helps to validate that we have access to iptables
     _iptables('-N', CHAIN)
+
+
+def _clean_up(chain):
+    _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
+              '--dport', '67', '-j', chain,
+              ignore=True)
+    _iptables('-F', chain, ignore=True)
+    _iptables('-X', chain, ignore=True)
 
 
 def whitelist_macs(macs):
@@ -97,8 +100,7 @@ def update_filters(ironic=None):
         to_blacklist = macs_active - MACS_DISCOVERY
 
         # Clean up a bit to account for possible troubles on previous run
-        _iptables('-F', NEW_CHAIN, ignore=True)
-        _iptables('-X', NEW_CHAIN, ignore=True)
+        _clean_up(NEW_CHAIN)
         # Operate on temporary chain
         _iptables('-N', NEW_CHAIN)
         # - Blacklist active macs, so that nova can boot them
