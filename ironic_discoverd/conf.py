@@ -25,7 +25,7 @@ DEFAULTS = {
     'ironic_retry_attempts': '5',
     'ironic_retry_period': '5',
     'database': '',
-    'processing_hooks': '',
+    'processing_hooks': 'scheduler',
     'timeout': '3600',
     'clean_up_period': '60',
 }

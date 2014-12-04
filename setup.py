@@ -22,6 +22,7 @@ setup(
             "ironic-discoverd = ironic_discoverd.main:main"
         ],
         'ironic_discoverd.hooks': [
+            "scheduler = ironic_discoverd.plugins.scheduler:SchedulerHook",
             "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
         ],
     },
