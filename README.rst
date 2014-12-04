@@ -214,6 +214,12 @@ v1.0.0
 
 .. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
 
+v0.2.5
+~~~~~~
+
+* Be even more paranoid in cleaning the iptables.
+* Backport ``CONTRIBUTING.rst`` from master.
+
 v0.2.4
 ~~~~~~
 
