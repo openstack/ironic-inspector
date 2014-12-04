@@ -189,6 +189,12 @@ HTTP API consist of 2 endpoints:
 Change Log
 ----------
 
+v0.2.5
+~~~~~~
+
+* Be even more paranoid in cleaning the iptables.
+* Backport ``CONTRIBUTING.rst`` from master.
+
 v0.2.4
 ~~~~~~
 

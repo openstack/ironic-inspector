@@ -10,7 +10,7 @@ with open('requirements.txt', 'r') as fp:
 
 setup(
     name = "ironic-discoverd",
-    version = "0.2.4",
+    version = "0.2.5",
     description = open('README.rst', 'r').readline().strip(),
     author = "Dmitry Tantsur",
     author_email = "dtantsur@redhat.com",
