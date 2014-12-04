@@ -80,7 +80,8 @@ def process(node_info):
         raise utils.DiscoveryFailed('Node %s is not on discovery' % uuid,
                                     code=403)
 
-    _process_node(ironic, node, node_info, valid_macs)
+    updated = _process_node(ironic, node, node_info, valid_macs)
+    return {'node': updated.to_dict()}
 
 
 def _process_node(ironic, node, node_info, valid_macs):
@@ -132,7 +133,7 @@ def _process_node(ironic, node, node_info, valid_macs):
 
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
              {'op': 'remove', 'path': '/extra/on_discovery'}]
-    ironic.node.update(node.uuid, patch)
+    return ironic.node.update(node.uuid, patch)
 
 
 def discover(uuids):
