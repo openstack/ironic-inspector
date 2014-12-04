@@ -96,7 +96,8 @@ class TestProcess(BaseTest):
                 raise exceptions.Conflict()
 
         cli.port.create.side_effect = fake_port_create
-        pop_mock.return_value = self.node.uuid
+        pop_mock.return_value = node_cache.NodeInfo(uuid=self.node.uuid,
+                                                    started_at=time.time())
         cli.node.get.return_value = self.node
         post_mock.return_value = (['fake patch', 'fake patch 2'],
                                   {'11:22:33:44:55:66': ['port patch']})
@@ -184,7 +185,8 @@ class TestProcess(BaseTest):
     def test_not_found_in_ironic(self, client_mock, pop_mock, filters_mock,
                                  pre_mock, post_mock):
         cli = client_mock.return_value
-        pop_mock.return_value = self.node.uuid
+        pop_mock.return_value = node_cache.NodeInfo(uuid=self.node.uuid,
+                                                    started_at=time.time())
         cli.node.get.side_effect = exceptions.NotFound()
 
         self.assertRaisesRegexp(utils.DiscoveryFailed,
@@ -595,13 +597,15 @@ class TestNodeCachePop(BaseTest):
 
     def test_bmc(self):
         res = node_cache.pop_node(bmc_address='1.2.3.4')
-        self.assertEqual(self.uuid, res)
+        self.assertEqual(self.uuid, res.uuid)
+        self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
 
     def test_macs(self):
         res = node_cache.pop_node(mac=['11:22:33:33:33:33', self.macs[1]])
-        self.assertEqual(self.uuid, res)
+        self.assertEqual(self.uuid, res.uuid)
+        self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
 
@@ -618,9 +622,16 @@ class TestNodeCachePop(BaseTest):
     def test_both(self):
         res = node_cache.pop_node(bmc_address='1.2.3.4',
                                   mac=self.macs)
-        self.assertEqual(self.uuid, res)
+        self.assertEqual(self.uuid, res.uuid)
+        self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
+
+    def test_inconsistency(self):
+        with self.db:
+            self.db.execute('delete from nodes where uuid=?', (self.uuid,))
+        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node,
+                          bmc_address='1.2.3.4')
 
 
 class TestPlugins(unittest.TestCase):

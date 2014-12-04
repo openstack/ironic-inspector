@@ -64,21 +64,23 @@ def process(node_info):
              'ipmi_address': bmc_address})
         LOG.info('Eligible interfaces are %s', valid_interfaces)
 
-    uuid = node_cache.pop_node(bmc_address=bmc_address, mac=valid_macs)
+    cached_node = node_cache.pop_node(bmc_address=bmc_address, mac=valid_macs)
     ironic = utils.get_client()
     try:
-        node = ironic.node.get(uuid)
+        node = ironic.node.get(cached_node.uuid)
     except exceptions.NotFound as exc:
         LOG.error('Node UUID %(uuid)s is in the cache, but not found '
                   'in Ironic: %(exc)s',
-                  {'uuid': uuid, 'exc': exc})
+                  {'uuid': cached_node.uuid, 'exc': exc})
         raise utils.DiscoveryFailed('Node UUID %s was found is cache, '
-                                    'but is not found in Ironic' % uuid,
+                                    'but is not found in Ironic' %
+                                    cached_node.uuid,
                                     code=404)
 
     if not node.extra.get('on_discovery'):
         LOG.error('Node is not on discovery, cannot proceed')
-        raise utils.DiscoveryFailed('Node %s is not on discovery' % uuid,
+        raise utils.DiscoveryFailed('Node %s is not on discovery' %
+                                    cached_node.uuid,
                                     code=403)
 
     updated = _process_node(ironic, node, node_info, valid_macs)

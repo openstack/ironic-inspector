@@ -14,6 +14,7 @@
 """Cache for nodes currently under discovery."""
 
 import atexit
+import collections
 import logging
 import os
 import sqlite3
@@ -35,6 +36,10 @@ create table if not exists attributes
   primary key (name, value),
   foreign key (uuid) references nodes);
 """
+
+
+NodeInfo = collections.namedtuple('NodeInfo', ('uuid', 'started_at'))
+"""Record about a node in the cache."""
 
 
 def init():
@@ -109,7 +114,7 @@ def pop_node(**attributes):
     This function also deletes a node from the cache, thus it's name.
 
     :param attributes: attributes known about this node (like macs, BMC etc)
-    :returns: UUID
+    :returns: structure NodeInfo with attributes ``uuid`` and ``created_at``
     :raises: DiscoveryFailed if node is not found
     """
     # NOTE(dtantsur): sorting is not required, but gives us predictability
@@ -141,8 +146,17 @@ def pop_node(**attributes):
         raise utils.DiscoveryFailed('Multiple matching nodes found', code=404)
 
     uuid = found.pop()
-    drop_node(uuid)
-    return uuid
+    try:
+        row = (db.execute('select started_at from nodes where uuid=?', (uuid,))
+               .fetchone())
+        if not row:
+            LOG.error('Inconsistent database: %s is in attributes table, '
+                      'but not in nodes table', uuid)
+            raise utils.DiscoveryFailed('Could not find a node', code=404)
+
+        return NodeInfo(uuid=uuid, started_at=row[0])
+    finally:
+        drop_node(uuid)
 
 
 def clean_up():
