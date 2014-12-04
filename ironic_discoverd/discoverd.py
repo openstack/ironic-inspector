@@ -97,9 +97,6 @@ def _process_node(ironic, node, node_info, valid_macs):
                         'database - skipping',
                         {'mac': mac, 'node': node.uuid})
 
-    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
-             {'op': 'remove', 'path': '/extra/on_discovery'}]
-
     node_patches = []
     port_patches = {}
     for hook_ext in hooks:
@@ -114,22 +111,28 @@ def _process_node(ironic, node, node_info, valid_macs):
     port_patches = {mac: patch for (mac, patch) in port_patches.items()
                     if mac in ports and patch}
 
-    ironic.node.update(node.uuid, patch + node_patches)
+    ironic.node.update(node.uuid, node_patches)
 
     for mac, patches in port_patches.items():
         ironic.port.update(ports[mac].uuid, patches)
 
-    LOG.info('Node %s was updated with data from discovery process, forcing '
-             'power off', node.uuid)
+    LOG.info('Node %s was updated with data from discovery process', node.uuid)
 
     firewall.update_filters(ironic)
 
-    try:
-        ironic.node.set_power_state(node.uuid, 'off')
-    except Exception as exc:
-        LOG.error('Failed to power off node %s, check it\'s power '
-                  'management configuration:\n%s', node.uuid, exc)
-        raise utils.DiscoveryFailed('Failed to power off node %s' % node.uuid)
+    if conf.getboolean('discoverd', 'power_off_after_discovery'):
+        LOG.info('Forcing power off of node %s', node.uuid)
+        try:
+            ironic.node.set_power_state(node.uuid, 'off')
+        except Exception as exc:
+            LOG.error('Failed to power off node %s, check it\'s power '
+                      'management configuration:\n%s', node.uuid, exc)
+            raise utils.DiscoveryFailed('Failed to power off node %s' %
+                                        node.uuid)
+
+    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
+             {'op': 'remove', 'path': '/extra/on_discovery'}]
+    ironic.node.update(node.uuid, patch)
 
 
 def discover(uuids):

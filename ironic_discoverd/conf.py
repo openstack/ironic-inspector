@@ -28,6 +28,7 @@ DEFAULTS = {
     'processing_hooks': 'scheduler',
     'timeout': '3600',
     'clean_up_period': '60',
+    'power_off_after_discovery': 'false',
 }
 
 

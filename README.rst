@@ -189,6 +189,10 @@ HTTP API consist of 2 endpoints:
   * 403 - node is not on discovery
   * 404 - node cannot be found or multiple nodes found
 
+  Successful response body is a JSON dictionary with keys:
+
+  * ``node`` node as returned by Ironic
+
 .. _bug #1391866: https://bugs.launchpad.net/ironic-discoverd/+bug/1391866
 
 Change Log
@@ -198,6 +202,8 @@ v1.0.0
 ~~~~~~
 
 * ``/v1/continue`` is now sync and errors are returned.
+* Option ``power_off_after_discovery`` controls whether to force power off
+  after the successful discovery, and is ``False`` by default.
 * Discovery now times out by default.
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.

@@ -51,15 +51,18 @@ class BaseTest(unittest.TestCase):
 @patch.object(utils, 'get_client', autospec=True)
 class TestProcess(BaseTest):
     def setUp(self):
+        super(TestProcess, self).setUp()
         self.node = Mock(driver_info={'ipmi_address': '1.2.3.4'},
                          properties={'cpu_arch': 'i386', 'local_gb': 40},
                          uuid='uuid',
                          extra={'on_discovery': 'true'})
-        self.patch = [
-            {'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
-            {'op': 'remove', 'path': '/extra/on_discovery'},
+        self.patch1 = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
+        ]
+        self.patch2 = [
+            {'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
+            {'op': 'remove', 'path': '/extra/on_discovery'},
         ]
         self.data = {
             'ipmi_address': '1.2.3.4',
@@ -105,16 +108,17 @@ class TestProcess(BaseTest):
         self.assertEqual(['11:22:33:44:55:66', '66:55:44:33:22:11'],
                          sorted(pop_mock.call_args[1]['mac']))
 
-        cli.node.update.assert_called_once_with(self.node.uuid,
-                                                self.patch + ['fake patch',
-                                                              'fake patch 2'])
+        cli.node.update.assert_any_call(self.node.uuid,
+                                        self.patch1 + ['fake patch',
+                                                       'fake patch 2'])
+        cli.node.update.assert_any_call(self.node.uuid, self.patch2)
+        self.assertEqual(2, cli.node.update.call_count)
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
                                         address='11:22:33:44:55:66')
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
                                         address='66:55:44:33:22:11')
         self.assertEqual(2, cli.port.create.call_count)
         filters_mock.assert_called_once_with(cli)
-        cli.node.set_power_state.assert_called_once_with(self.node.uuid, 'off')
         cli.port.update.assert_called_once_with(self.port.uuid, ['port patch'])
 
         pre_mock.assert_called_once_with(self.data)
@@ -123,6 +127,14 @@ class TestProcess(BaseTest):
     def test_ok(self, client_mock, pop_mock, filters_mock, pre_mock,
                 post_mock):
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
+        self.assertFalse(client_mock.return_value.node.set_power_state.called)
+
+    def test_force_off(self, client_mock, pop_mock, filters_mock, pre_mock,
+                       post_mock):
+        conf.CONF.set('discoverd', 'power_off_after_discovery', 'true')
+        self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
+        client_mock.return_value.node.set_power_state.assert_called_once_with(
+            self.node.uuid, 'off')
 
     def test_deprecated_macs(self, client_mock, pop_mock, filters_mock,
                              pre_mock, post_mock):
