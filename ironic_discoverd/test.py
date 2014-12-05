@@ -80,6 +80,7 @@ class TestProcess(BaseTest):
         }
         self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
         self.port = Mock(uuid='port_uuid')
+        self.attributes = dict(bmc_address='1.2.3.4', mac=ANY)
 
     def _do_test(self, client_mock, pop_mock, filters_mock, pre_mock,
                  post_mock):
@@ -102,8 +103,7 @@ class TestProcess(BaseTest):
 
         discoverd.process(self.data)
 
-        pop_mock.assert_called_once_with(bmc_address='1.2.3.4',
-                                         mac=ANY)
+        pop_mock.assert_called_once_with(**self.attributes)
         cli.node.get.assert_called_once_with(self.node.uuid)
         self.assertEqual(['11:22:33:44:55:66', '66:55:44:33:22:11'],
                          sorted(pop_mock.call_args[1]['mac']))
@@ -126,6 +126,13 @@ class TestProcess(BaseTest):
 
     def test_ok(self, client_mock, pop_mock, filters_mock, pre_mock,
                 post_mock):
+        self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
+        self.assertFalse(client_mock.return_value.node.set_power_state.called)
+
+    def test_no_ipmi(self, client_mock, pop_mock, filters_mock, pre_mock,
+                     post_mock):
+        del self.data['ipmi_address']
+        self.attributes = dict(bmc_address=None, mac=ANY)
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
         self.assertFalse(client_mock.return_value.node.set_power_state.called)
 
