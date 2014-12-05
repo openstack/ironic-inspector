@@ -38,6 +38,8 @@ def process(node_info):
                   node_info['error'])
         raise utils.DiscoveryFailed(node_info['error'])
 
+    bmc_address = node_info.get('ipmi_address')
+
     compat = conf.getboolean('discoverd', 'ports_for_inactive_interfaces')
     if 'interfaces' not in node_info and 'macs' in node_info:
         LOG.warning('Using "macs" field is deprecated, please '
@@ -59,11 +61,10 @@ def process(node_info):
             {'invalid': {n: iface
                          for n, iface in node_info['interfaces'].items()
                          if n not in valid_interfaces},
-             'ipmi_address': node_info.get('ipmi_address')})
+             'ipmi_address': bmc_address})
         LOG.info('Eligible interfaces are %s', valid_interfaces)
 
-    uuid = node_cache.pop_node(bmc_address=node_info['ipmi_address'],
-                               mac=valid_macs)
+    uuid = node_cache.pop_node(bmc_address=bmc_address, mac=valid_macs)
     ironic = utils.get_client()
     try:
         node = ironic.node.get(uuid)
