@@ -201,7 +201,12 @@ Change Log
 v1.0.0
 ~~~~~~
 
-* ``/v1/continue`` is now sync and errors are returned.
+* ``/v1/continue`` is now sync:
+
+  * Errors are properly returned to the caller
+  * This call now returns value in form of ``{'node': <node dict>}`` on
+    success
+
 * Option ``power_off_after_discovery`` controls whether to force power off
   after the successful discovery, and is ``False`` by default.
 * Discovery now times out by default.

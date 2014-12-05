@@ -100,8 +100,11 @@ class TestProcess(BaseTest):
         cli.node.get.return_value = self.node
         post_mock.return_value = (['fake patch', 'fake patch 2'],
                                   {'11:22:33:44:55:66': ['port patch']})
+        self.node.to_dict.return_value = self.data
+        cli.node.update.side_effect = [None, self.node]
 
-        discoverd.process(self.data)
+        res = discoverd.process(self.data)
+        self.assertEqual({'node': self.data}, res)
 
         pop_mock.assert_called_once_with(**self.attributes)
         cli.node.get.assert_called_once_with(self.node.uuid)
