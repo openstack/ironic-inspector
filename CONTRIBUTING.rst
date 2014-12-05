@@ -21,7 +21,7 @@ Basics
   stable branch is ``stable/0.2``.
 
 .. _StackForge: https://github.com/stackforge/ironic-discoverd
-.. _Gerrit Workflow: https://wiki.openstack.org/wiki/Gerrit_Workflow
+.. _Gerrit Workflow: http://docs.openstack.org/infra/manual/developers.html#development-workflow
 
 Development Environment
 ~~~~~~~~~~~~~~~~~~~~~~~
