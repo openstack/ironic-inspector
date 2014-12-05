@@ -5,3 +5,4 @@ hacking
 mock
 
 # plugin-specific
+hardware>=0.7,<0.99

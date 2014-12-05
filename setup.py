@@ -31,6 +31,7 @@ setup(
             "validate_interfaces = ironic_discoverd.plugins.standard:ValidateInterfacesHook",
             "ramdisk_error = ironic_discoverd.plugins.standard:RamdiskErrorHook",
             "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
+            "edeploy = ironic_discoverd.plugins.edeploy:eDeployHook",
         ],
     },
     classifiers = [

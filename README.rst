@@ -322,9 +322,16 @@ See `1.1.0 release tracking page`_ for details.
 
 **Other Changes**
 
+* Experimental plugin ``edeploy`` to use with
+  `eDeploy hardware detection and classification utilities
+  <https://pypi.python.org/pypi/hardware>`_.
+
+  See `eDeploy blueprint`_ for details.
+
 **Known Issues**
 
 .. _1.1.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.1.0
+.. _eDeploy blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/edeploy
 
 1.0 Series
 ~~~~~~~~~~
