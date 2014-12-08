@@ -22,8 +22,9 @@ setup(
             "ironic-discoverd = ironic_discoverd.main:main"
         ],
         'ironic_discoverd.hooks': [
-            "scheduler = ironic_discoverd.plugins.scheduler:SchedulerHook",
-            "validate_interfaces = ironic_discoverd.plugins.validate_interfaces:ValidateInterfacesHook",
+            "scheduler = ironic_discoverd.plugins.standard:SchedulerHook",
+            "validate_interfaces = ironic_discoverd.plugins.standard:ValidateInterfacesHook",
+            "ramdisk_error = ironic_discoverd.plugins.standard:RamdiskErrorHook",
             "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
         ],
     },

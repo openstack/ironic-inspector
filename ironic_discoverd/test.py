@@ -97,7 +97,7 @@ class TestProcess(BaseTest):
                  post_mock):
         plugins_base._HOOKS_MGR = None
         conf.CONF.set('discoverd', 'processing_hooks',
-                      'scheduler,validate_interfaces,example')
+                      'ramdisk_error,scheduler,validate_interfaces,example')
 
         cli = client_mock.return_value
 

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Hook to validate network interfaces."""
+"""Standard set of plugins."""
 
 import logging
 
@@ -20,10 +20,40 @@ from ironic_discoverd.plugins import base
 from ironic_discoverd import utils
 
 
-LOG = logging.getLogger('ironic_discoverd.plugins.validate_interfaces')
+LOG = logging.getLogger('ironic_discoverd.plugins.standard')
+
+
+class SchedulerHook(base.ProcessingHook):
+    """Nova scheduler required properties."""
+
+    KEYS = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb')
+
+    def pre_discover(self, node_info):
+        """Validate that required properties are provided by the ramdisk."""
+        missing = [key for key in self.KEYS if not node_info.get(key)]
+        if missing:
+            LOG.error('The following required parameters are missing: %s',
+                      missing)
+            raise utils.DiscoveryFailed(
+                'The following required parameters are missing: %s' %
+                missing)
+
+        LOG.info('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
+                 'memory %(memory_mb)s MiB, disk %(local_gb)s GiB',
+                 {key: node_info.get(key) for key in self.KEYS})
+
+    def post_discover(self, node, ports, discovered_data):
+        """Update node with scheduler properties."""
+        patch = [{'op': 'add', 'path': '/properties/%s' % key,
+                  'value': str(discovered_data[key])}
+                 for key in self.KEYS
+                 if not node.properties.get(key)]
+        return patch, {}
 
 
 class ValidateInterfacesHook(base.ProcessingHook):
+    """Hook to validate network interfaces."""
+
     def pre_discover(self, node_info):
         bmc_address = node_info.get('ipmi_address')
 
@@ -54,3 +84,14 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
         node_info['interfaces'] = valid_interfaces
         node_info['macs'] = valid_macs
+
+
+class RamdiskErrorHook(base.ProcessingHook):
+    """Hook to process error send from the ramdisk."""
+
+    def pre_discover(self, node_info):
+        if not node_info.get('error'):
+            return
+
+        LOG.error('Error happened during discovery: %s', node_info['error'])
+        raise utils.DiscoveryFailed(node_info['error'])

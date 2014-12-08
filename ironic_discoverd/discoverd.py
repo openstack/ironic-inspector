@@ -33,11 +33,6 @@ def process(node_info):
     for hook_ext in hooks:
         hook_ext.obj.pre_discover(node_info)
 
-    if node_info.get('error'):
-        LOG.error('Error happened during discovery: %s',
-                  node_info['error'])
-        raise utils.DiscoveryFailed(node_info['error'])
-
     bmc_address = node_info.get('ipmi_address')
 
     cached_node = node_cache.pop_node(bmc_address=bmc_address,
