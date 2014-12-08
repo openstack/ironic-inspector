@@ -64,6 +64,9 @@ def process(node_info):
              'ipmi_address': bmc_address})
         LOG.info('Eligible interfaces are %s', valid_interfaces)
 
+    node_info['interfaces'] = valid_interfaces
+    node_info['macs'] = valid_macs
+
     cached_node = node_cache.pop_node(bmc_address=bmc_address, mac=valid_macs)
     ironic = utils.get_client()
     try:
@@ -83,15 +86,15 @@ def process(node_info):
                                     cached_node.uuid,
                                     code=403)
 
-    updated = _process_node(ironic, node, node_info, valid_macs)
+    updated = _process_node(ironic, node, node_info)
     return {'node': updated.to_dict()}
 
 
-def _process_node(ironic, node, node_info, valid_macs):
+def _process_node(ironic, node, node_info):
     hooks = plugins_base.processing_hooks_manager()
 
     ports = {}
-    for mac in valid_macs:
+    for mac in node_info['macs']:
         try:
             port = ironic.port.create(node_uuid=node.uuid, address=mac)
             ports[mac] = port

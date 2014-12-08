@@ -81,6 +81,8 @@ class TestProcess(BaseTest):
         self.macs = ['11:22:33:44:55:66', 'broken', '', '66:55:44:33:22:11']
         self.port = Mock(uuid='port_uuid')
         self.attributes = dict(bmc_address='1.2.3.4', mac=ANY)
+        self.good_macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
+        self.good_interfaces = ['em1', 'em4']
 
     def _do_test(self, client_mock, pop_mock, filters_mock, pre_mock,
                  post_mock):
@@ -90,7 +92,7 @@ class TestProcess(BaseTest):
         cli = client_mock.return_value
 
         def fake_port_create(node_uuid, address):
-            if address == '11:22:33:44:55:66':
+            if address == self.good_macs[0]:
                 return self.port
             else:
                 raise exceptions.Conflict()
@@ -100,7 +102,7 @@ class TestProcess(BaseTest):
                                                     started_at=time.time())
         cli.node.get.return_value = self.node
         post_mock.return_value = (['fake patch', 'fake patch 2'],
-                                  {'11:22:33:44:55:66': ['port patch']})
+                                  {self.good_macs[0]: ['port patch']})
         self.node.to_dict.return_value = self.data
         cli.node.update.side_effect = [None, self.node]
 
@@ -109,8 +111,7 @@ class TestProcess(BaseTest):
 
         pop_mock.assert_called_once_with(**self.attributes)
         cli.node.get.assert_called_once_with(self.node.uuid)
-        self.assertEqual(['11:22:33:44:55:66', '66:55:44:33:22:11'],
-                         sorted(pop_mock.call_args[1]['mac']))
+        self.assertEqual(self.good_macs, sorted(pop_mock.call_args[1]['mac']))
 
         cli.node.update.assert_any_call(self.node.uuid,
                                         self.patch1 + ['fake patch',
@@ -118,15 +119,18 @@ class TestProcess(BaseTest):
         cli.node.update.assert_any_call(self.node.uuid, self.patch2)
         self.assertEqual(2, cli.node.update.call_count)
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
-                                        address='11:22:33:44:55:66')
+                                        address=self.good_macs[0])
         cli.port.create.assert_any_call(node_uuid=self.node.uuid,
-                                        address='66:55:44:33:22:11')
+                                        address=self.good_macs[1])
         self.assertEqual(2, cli.port.create.call_count)
         filters_mock.assert_called_once_with(cli)
         cli.port.update.assert_called_once_with(self.port.uuid, ['port patch'])
 
         pre_mock.assert_called_once_with(self.data)
         post_mock.assert_called_once_with(self.node, [self.port], self.data)
+
+        self.assertEqual(self.good_macs, sorted(self.data['macs']))
+        self.assertEqual(self.good_interfaces, sorted(self.data['interfaces']))
 
     def test_ok(self, client_mock, pop_mock, filters_mock, pre_mock,
                 post_mock):
@@ -151,6 +155,7 @@ class TestProcess(BaseTest):
                              pre_mock, post_mock):
         del self.data['interfaces']
         self.data['macs'] = self.macs
+        self.good_interfaces = ['dummy0', 'dummy3']
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
 
     def test_ports_for_inactive(self, client_mock, pop_mock, filters_mock,
@@ -158,6 +163,7 @@ class TestProcess(BaseTest):
         del self.data['interfaces']['em4']
         conf.CONF.set('discoverd', 'ports_for_inactive_interfaces',
                       'true')
+        self.good_interfaces = ['em1', 'em5']
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
 
     def test_not_on_discovery(self, client_mock, pop_mock, filters_mock,
