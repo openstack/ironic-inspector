@@ -24,12 +24,13 @@ from mock import patch, Mock, ANY  # noqa
 
 from ironic_discoverd import client
 from ironic_discoverd import conf
-from ironic_discoverd import discoverd
+from ironic_discoverd import discover
 from ironic_discoverd import firewall
 from ironic_discoverd import main
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
 from ironic_discoverd.plugins import example as example_plugin
+from ironic_discoverd import process
 from ironic_discoverd import utils
 
 
@@ -116,7 +117,7 @@ class TestProcess(BaseTest):
         self.node.to_dict.return_value = self.data
         cli.node.update.return_value = self.node
 
-        res = discoverd.process(self.data)
+        res = process.process(self.data)
         self.assertEqual({'node': self.data}, res)
 
         pop_mock.assert_called_once_with(**self.attributes)
@@ -158,9 +159,18 @@ class TestProcess(BaseTest):
                                                     started_at=1000)
         cli.node.get.return_value = self.node
 
-        discoverd.process(self.data)
+        process.process(self.data)
 
         cli.node.update.assert_called_once_with(self.node.uuid, self.patch1)
+
+    def test_power_failure(self, client_mock, pop_mock, filters_mock, pre_mock,
+                           post_mock):
+        conf.CONF.set('discoverd', 'power_off_after_discovery', 'true')
+        client_mock.return_value.node.set_power_state.side_effect = (
+            exceptions.Conflict())
+        self.assertRaisesRegexp(utils.DiscoveryFailed, 'Failed to power off',
+                                self._do_test, client_mock, pop_mock,
+                                filters_mock, pre_mock, post_mock)
 
     def test_no_ipmi(self, client_mock, pop_mock, filters_mock, pre_mock,
                      post_mock):
@@ -198,7 +208,7 @@ class TestProcess(BaseTest):
 
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'boom',
-                                discoverd.process, self.data)
+                                process.process, self.data)
 
         self.assertFalse(cli.node.update.called)
         self.assertFalse(cli.port.create.called)
@@ -213,7 +223,7 @@ class TestProcess(BaseTest):
 
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'not found in Ironic',
-                                discoverd.process, self.data)
+                                process.process, self.data)
 
         cli.node.get.assert_called_once_with(self.node.uuid)
         self.assertFalse(cli.node.update.called)
@@ -225,14 +235,14 @@ class TestProcess(BaseTest):
         self.data['error'] = 'BOOM'
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'BOOM',
-                                discoverd.process, self.data)
+                                process.process, self.data)
 
     def test_missing(self, client_mock, pop_mock, filters_mock, pre_mock,
                      post_mock):
         del self.data['cpus']
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'missing',
-                                discoverd.process, self.data)
+                                process.process, self.data)
 
 
 @patch.object(eventlet.greenthread, 'spawn_n',
@@ -276,11 +286,15 @@ class TestDiscover(BaseTest):
         ports = [
             [Mock(address='1-1'), Mock(address='1-2')],
             [Mock(address='2-1'), Mock(address='2-2')],
-            [Mock(address='3-1'), Mock(address='3-2')],
+            [],
         ]
         cli.node.list_ports.side_effect = ports
+        # Failure to powering on does not cause total failure
+        cli.node.set_power_state.side_effect = [None,
+                                                exceptions.Conflict(),
+                                                None]
 
-        discoverd.discover(['uuid1', 'uuid2', 'uuid3'])
+        discover.discover(['uuid1', 'uuid2', 'uuid3'])
 
         self.assertEqual(3, cli.node.get.call_count)
         self.assertEqual(3, cli.node.list_ports.call_count)
@@ -296,8 +310,9 @@ class TestDiscover(BaseTest):
                                  mac=['2-1', '2-2'])
         add_mock.assert_any_call(self.node3.uuid,
                                  bmc_address='1.2.3.5',
-                                 mac=['3-1', '3-2'])
-        filters_mock.assert_called_once_with(cli)
+                                 mac=[])
+        filters_mock.assert_called_with(cli)
+        self.assertEqual(2, filters_mock.call_count)  # 1 node w/o ports
         self.assertEqual(3, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(ANY, 'reboot')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
@@ -307,8 +322,9 @@ class TestDiscover(BaseTest):
         cli.node.update.assert_any_call('uuid2', patch)
         cli.node.update.assert_any_call('uuid3', patch)
         self.assertEqual(3, cli.node.update.call_count)
-        spawn_mock.assert_called_once_with(discoverd._background_discover,
-                                           cli, ANY)
+        spawn_mock.assert_called_with(discover._background_start_discover,
+                                      cli, ANY)
+        self.assertEqual(3, spawn_mock.call_count)
 
     def test_failed_to_get_node(self, client_mock, add_mock, filters_mock,
                                 spawn_mock):
@@ -319,7 +335,7 @@ class TestDiscover(BaseTest):
         ]
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'Cannot find node uuid2',
-                                discoverd.discover, ['uuid1', 'uuid2'])
+                                discover.discover, ['uuid1', 'uuid2'])
 
         cli.node.get.side_effect = [
             exceptions.Conflict(),
@@ -327,7 +343,7 @@ class TestDiscover(BaseTest):
         ]
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'Cannot get node uuid1',
-                                discoverd.discover, ['uuid1', 'uuid2'])
+                                discover.discover, ['uuid1', 'uuid2'])
 
         self.assertEqual(3, cli.node.get.call_count)
         self.assertEqual(0, cli.node.list_ports.call_count)
@@ -350,7 +366,7 @@ class TestDiscover(BaseTest):
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
             'Failed validation of power interface for node uuid2',
-            discoverd.discover, ['uuid1', 'uuid2'])
+            discover.discover, ['uuid1', 'uuid2'])
 
         self.assertEqual(2, cli.node.get.call_count)
         self.assertEqual(2, cli.node.validate.call_count)
@@ -363,7 +379,7 @@ class TestDiscover(BaseTest):
     def test_no_uuids(self, client_mock, add_mock, filters_mock, spawn_mock):
         self.assertRaisesRegexp(utils.DiscoveryFailed,
                                 'No nodes to discover',
-                                discoverd.discover, [])
+                                discover.discover, [])
         self.assertFalse(client_mock.called)
         self.assertFalse(add_mock.called)
 
@@ -378,7 +394,7 @@ class TestDiscover(BaseTest):
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
             'node uuid2 with assigned instance uuid',
-            discoverd.discover, ['uuid1', 'uuid2'])
+            discover.discover, ['uuid1', 'uuid2'])
 
         self.assertEqual(2, cli.node.get.call_count)
         self.assertEqual(0, cli.node.list_ports.call_count)
@@ -399,7 +415,7 @@ class TestDiscover(BaseTest):
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
             'node uuid2 with power state "power on"',
-            discoverd.discover, ['uuid1', 'uuid2'])
+            discover.discover, ['uuid1', 'uuid2'])
 
         self.assertEqual(2, cli.node.get.call_count)
         self.assertEqual(0, cli.node.list_ports.call_count)
@@ -415,14 +431,14 @@ class TestApi(BaseTest):
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
 
-    @patch.object(discoverd, 'discover', autospec=True)
+    @patch.object(discover, 'discover', autospec=True)
     def test_discover_no_authentication(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(202, res.status_code)
         discover_mock.assert_called_once_with(["uuid1"])
 
-    @patch.object(discoverd, 'discover', autospec=True)
+    @patch.object(discover, 'discover', autospec=True)
     def test_discover_failed(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         discover_mock.side_effect = utils.DiscoveryFailed("boom")
@@ -431,7 +447,7 @@ class TestApi(BaseTest):
         self.assertEqual(b"boom", res.data)
         discover_mock.assert_called_once_with(["uuid1"])
 
-    @patch.object(discoverd, 'discover', autospec=True)
+    @patch.object(discover, 'discover', autospec=True)
     def test_discover_missing_authentication(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
         res = self.app.post('/v1/discover', data='["uuid1"]')
@@ -439,7 +455,7 @@ class TestApi(BaseTest):
         self.assertFalse(discover_mock.called)
 
     @patch.object(utils, 'get_keystone', autospec=True)
-    @patch.object(discoverd, 'discover', autospec=True)
+    @patch.object(discover, 'discover', autospec=True)
     def test_discover_failed_authentication(self, discover_mock,
                                             keystone_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
@@ -450,7 +466,7 @@ class TestApi(BaseTest):
         self.assertFalse(discover_mock.called)
         keystone_mock.assert_called_once_with(token='token')
 
-    @patch.object(discoverd, 'process', autospec=True)
+    @patch.object(process, 'process', autospec=True)
     def test_continue(self, process_mock):
         process_mock.return_value = [42]
         res = self.app.post('/v1/continue', data='"JSON"')
@@ -458,7 +474,7 @@ class TestApi(BaseTest):
         process_mock.assert_called_once_with("JSON")
         self.assertEqual(b'[42]', res.data)
 
-    @patch.object(discoverd, 'process', autospec=True)
+    @patch.object(process, 'process', autospec=True)
     def test_continue_failed(self, process_mock):
         process_mock.side_effect = utils.DiscoveryFailed("boom")
         res = self.app.post('/v1/continue', data='"JSON"')

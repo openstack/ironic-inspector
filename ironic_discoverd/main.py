@@ -23,14 +23,15 @@ from flask import Flask, request  # noqa
 from keystoneclient import exceptions
 
 from ironic_discoverd import conf
-from ironic_discoverd import discoverd
+from ironic_discoverd import discover
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
+from ironic_discoverd import process
 from ironic_discoverd import utils
 
 
 app = Flask(__name__)
-LOG = discoverd.LOG
+LOG = logging.getLogger('ironic_discoverd.main')
 
 
 @app.route('/v1/continue', methods=['POST'])
@@ -38,7 +39,7 @@ def post_continue():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s, going into processing thread", data)
     try:
-        res = discoverd.process(data)
+        res = process.process(data)
     except utils.DiscoveryFailed as exc:
         return str(exc), exc.http_code
     else:
@@ -61,7 +62,7 @@ def post_discover():
     data = request.get_json(force=True)
     LOG.debug("Got JSON %s", data)
     try:
-        discoverd.discover(data)
+        discover.discover(data)
     except utils.DiscoveryFailed as exc:
         return str(exc), exc.http_code
     else:

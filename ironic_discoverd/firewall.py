@@ -21,7 +21,7 @@ from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
 
-LOG = logging.getLogger("discoverd")
+LOG = logging.getLogger("ironic_discoverd.firewall")
 NEW_CHAIN = 'discovery_temp'
 CHAIN = 'discovery'
 INTERFACE = None
