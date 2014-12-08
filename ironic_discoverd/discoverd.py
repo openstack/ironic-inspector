@@ -49,12 +49,6 @@ def process(node_info):
                                     cached_node.uuid,
                                     code=404)
 
-    if not node.extra.get('on_discovery'):
-        LOG.error('Node is not on discovery, cannot proceed')
-        raise utils.DiscoveryFailed('Node %s is not on discovery' %
-                                    cached_node.uuid,
-                                    code=403)
-
     updated = _process_node(ironic, node, node_info, cached_node)
     return {'node': updated.to_dict()}
 
@@ -149,10 +143,6 @@ def discover(uuids):
             raise utils.DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
         _validate(ironic, node)
-
-        if node.extra.get('on_discovery'):
-            LOG.warning('Node %s seems to be on discovery already', node.uuid)
-
         nodes.append(node)
 
     LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
@@ -191,13 +181,7 @@ def _background_discover(ironic, nodes):
              {'op': 'add', 'path': '/extra/discovery_timestamp',
               'value': str(time.time())}]
     for node in nodes:
-        node_patch = []
-        if not node.maintenance:
-            LOG.warning('Node %s will be put in maintenance mode', node.uuid)
-            node_patch.append(
-                {'op': 'replace', 'path': '/maintenance', 'value': 'true'})
-
-        ironic.node.update(node.uuid, patch + node_patch)
+        ironic.node.update(node.uuid, patch)
 
     all_macs = set()
     for node in nodes:

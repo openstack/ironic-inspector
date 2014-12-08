@@ -191,15 +191,6 @@ class TestProcess(BaseTest):
         self.good_interfaces = ['em1', 'em5']
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
 
-    def test_not_on_discovery(self, client_mock, pop_mock, filters_mock,
-                              pre_mock, post_mock):
-        del self.node.extra['on_discovery']
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
-                                'not on discovery',
-                                self._do_test,
-                                client_mock, pop_mock, filters_mock, pre_mock,
-                                post_mock)
-
     def test_not_found(self, client_mock, pop_mock, filters_mock, pre_mock,
                        post_mock):
         cli = client_mock.return_value
@@ -313,14 +304,8 @@ class TestDiscover(BaseTest):
                  {'op': 'add', 'path': '/extra/discovery_timestamp',
                   'value': '42.0'}]
         cli.node.update.assert_any_call('uuid1', patch)
-        cli.node.update.assert_any_call(
-            'uuid2',
-            patch +
-            [{'op': 'replace', 'path': '/maintenance', 'value': 'true'}])
-        cli.node.update.assert_any_call(
-            'uuid3',
-            patch +
-            [{'op': 'replace', 'path': '/maintenance', 'value': 'true'}])
+        cli.node.update.assert_any_call('uuid2', patch)
+        cli.node.update.assert_any_call('uuid3', patch)
         self.assertEqual(3, cli.node.update.call_count)
         spawn_mock.assert_called_once_with(discoverd._background_discover,
                                            cli, ANY)
