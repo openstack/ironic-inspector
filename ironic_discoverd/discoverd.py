@@ -60,11 +60,11 @@ def process(node_info):
                                     cached_node.uuid,
                                     code=403)
 
-    updated = _process_node(ironic, node, node_info)
+    updated = _process_node(ironic, node, node_info, cached_node)
     return {'node': updated.to_dict()}
 
 
-def _process_node(ironic, node, node_info):
+def _process_node(ironic, node, node_info, cached_node):
     hooks = plugins_base.processing_hooks_manager()
 
     ports = {}
@@ -92,7 +92,7 @@ def _process_node(ironic, node, node_info):
     port_patches = {mac: patch for (mac, patch) in port_patches.items()
                     if mac in ports and patch}
 
-    ironic.node.update(node.uuid, node_patches)
+    node = ironic.node.update(node.uuid, node_patches)
 
     for mac, patches in port_patches.items():
         ironic.port.update(ports[mac].uuid, patches)
@@ -111,9 +111,28 @@ def _process_node(ironic, node, node_info):
             raise utils.DiscoveryFailed('Failed to power off node %s' %
                                         node.uuid)
 
-    patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
-             {'op': 'remove', 'path': '/extra/on_discovery'}]
-    return ironic.node.update(node.uuid, patch)
+    eventlet.greenthread.spawn_n(_wait_for_power_off, ironic, cached_node)
+    return node
+
+
+_POWER_OFF_CHECK_PERIOD = 5
+
+
+def _wait_for_power_off(ironic, cached_node):
+    deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
+    # NOTE(dtantsur): even VM's don't power off instantly, sleep first
+    while time.time() < deadline:
+        eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
+        node = ironic.node.get(cached_node.uuid)
+        if (node.power_state or 'power off').lower() == 'power off':
+            patch = [{'op': 'add', 'path': '/extra/newly_discovered',
+                      'value': 'true'},
+                     {'op': 'remove', 'path': '/extra/on_discovery'}]
+            ironic.node.update(cached_node.uuid, patch)
+            return
+
+    LOG.error('Timeout waiting for power off state of node %s after discovery',
+              cached_node.uuid)
 
 
 def discover(uuids):

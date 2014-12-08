@@ -44,6 +44,9 @@ class BaseTest(unittest.TestCase):
         self.addCleanup(lambda: os.unlink(node_cache._DB_NAME))
 
 
+@patch.object(eventlet.greenthread, 'spawn_n',
+              lambda f, *a: f(*a) and None)
+@patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @patch.object(example_plugin.ExampleProcessingHook, 'post_discover')
 @patch.object(example_plugin.ExampleProcessingHook, 'pre_discover')
 @patch.object(firewall, 'update_filters', autospec=True)
@@ -55,7 +58,13 @@ class TestProcess(BaseTest):
         self.node = Mock(driver_info={'ipmi_address': '1.2.3.4'},
                          properties={'cpu_arch': 'i386', 'local_gb': 40},
                          uuid='uuid',
+                         power_state='power on',
                          extra={'on_discovery': 'true'})
+        self.node2 = Mock(driver_info={'ipmi_address': '1.2.3.4'},
+                          properties={'cpu_arch': 'i386', 'local_gb': 40},
+                          uuid='uuid',
+                          power_state='power off',
+                          extra={'on_discovery': 'true'})
         self.patch1 = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
@@ -101,17 +110,18 @@ class TestProcess(BaseTest):
         cli.port.create.side_effect = fake_port_create
         pop_mock.return_value = node_cache.NodeInfo(uuid=self.node.uuid,
                                                     started_at=time.time())
-        cli.node.get.return_value = self.node
+        cli.node.get.side_effect = [self.node] * 5 + [self.node2]
         post_mock.return_value = (['fake patch', 'fake patch 2'],
                                   {self.good_macs[0]: ['port patch']})
         self.node.to_dict.return_value = self.data
-        cli.node.update.side_effect = [None, self.node]
+        cli.node.update.return_value = self.node
 
         res = discoverd.process(self.data)
         self.assertEqual({'node': self.data}, res)
 
         pop_mock.assert_called_once_with(**self.attributes)
-        cli.node.get.assert_called_once_with(self.node.uuid)
+        cli.node.get.assert_called_with(self.node.uuid)
+        self.assertEqual(6, cli.node.get.call_count)
         self.assertEqual(self.good_macs, sorted(pop_mock.call_args[1]['mac']))
 
         cli.node.update.assert_any_call(self.node.uuid,
@@ -137,6 +147,20 @@ class TestProcess(BaseTest):
                 post_mock):
         self._do_test(client_mock, pop_mock, filters_mock, pre_mock, post_mock)
         self.assertFalse(client_mock.return_value.node.set_power_state.called)
+
+    @patch.object(time, 'time')
+    def test_power_timeout(self, time_mock, client_mock, pop_mock,
+                           filters_mock, pre_mock, post_mock):
+        cli = client_mock.return_value
+        conf.CONF.set('discoverd', 'timeout', '3600')
+        time_mock.return_value = 10000
+        pop_mock.return_value = node_cache.NodeInfo(uuid=self.node.uuid,
+                                                    started_at=1000)
+        cli.node.get.return_value = self.node
+
+        discoverd.process(self.data)
+
+        cli.node.update.assert_called_once_with(self.node.uuid, self.patch1)
 
     def test_no_ipmi(self, client_mock, pop_mock, filters_mock, pre_mock,
                      post_mock):
