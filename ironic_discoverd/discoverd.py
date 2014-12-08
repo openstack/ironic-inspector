@@ -40,34 +40,8 @@ def process(node_info):
 
     bmc_address = node_info.get('ipmi_address')
 
-    compat = conf.getboolean('discoverd', 'ports_for_inactive_interfaces')
-    if 'interfaces' not in node_info and 'macs' in node_info:
-        LOG.warning('Using "macs" field is deprecated, please '
-                    'update your discovery ramdisk')
-        node_info['interfaces'] = {'dummy%d' % i: {'mac': m}
-                                   for i, m in enumerate(node_info['macs'])}
-        compat = True
-
-    valid_interfaces = {
-        n: iface for n, iface in node_info['interfaces'].items()
-        if utils.is_valid_mac(iface['mac']) and (compat or iface.get('ip'))
-    }
-    valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
-    if valid_interfaces != node_info['interfaces']:
-        LOG.warning(
-            'The following interfaces were invalid or not eligible in '
-            'discovery data for node with BMC %(ipmi_address)s and were '
-            'excluded: %(invalid)s',
-            {'invalid': {n: iface
-                         for n, iface in node_info['interfaces'].items()
-                         if n not in valid_interfaces},
-             'ipmi_address': bmc_address})
-        LOG.info('Eligible interfaces are %s', valid_interfaces)
-
-    node_info['interfaces'] = valid_interfaces
-    node_info['macs'] = valid_macs
-
-    cached_node = node_cache.pop_node(bmc_address=bmc_address, mac=valid_macs)
+    cached_node = node_cache.pop_node(bmc_address=bmc_address,
+                                      mac=node_info.get('macs'))
     ironic = utils.get_client()
     try:
         node = ironic.node.get(cached_node.uuid)
@@ -94,7 +68,7 @@ def _process_node(ironic, node, node_info):
     hooks = plugins_base.processing_hooks_manager()
 
     ports = {}
-    for mac in node_info['macs']:
+    for mac in (node_info.get('macs') or ()):
         try:
             port = ironic.port.create(node_uuid=node.uuid, address=mac)
             ports[mac] = port

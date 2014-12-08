@@ -25,7 +25,7 @@ DEFAULTS = {
     'ironic_retry_attempts': '5',
     'ironic_retry_period': '5',
     'database': '',
-    'processing_hooks': 'scheduler',
+    'processing_hooks': 'scheduler,validate_interfaces',
     'timeout': '3600',
     'clean_up_period': '60',
     'power_off_after_discovery': 'false',
