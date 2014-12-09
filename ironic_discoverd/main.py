@@ -90,6 +90,31 @@ def periodic_clean_up(period):
         eventlet.greenthread.sleep(period)
 
 
+def check_ironic_available():
+    """Try to make sure we can reach Ironic.
+
+    Ensure that:
+    1. Keystone access is configured properly
+    2. Keystone has already started
+    3. Ironic has already started
+    """
+    attempts = conf.getint('discoverd', 'ironic_retry_attempts')
+    assert attempts >= 0
+    retry_period = conf.getint('discoverd', 'ironic_retry_period')
+    LOG.info('Trying to connect to Ironic')
+    for i in range(attempts + 1):  # one attempt always required
+        try:
+            utils.get_client().driver.list()
+        except Exception as exc:
+            if i == attempts:
+                raise
+            LOG.error('Unable to connect to Ironic or Keystone, retrying %d '
+                      'times more: %s', attempts - i, exc)
+        else:
+            break
+        eventlet.greenthread.sleep(retry_period)
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("Usage: %s config-file" % sys.argv[0])
@@ -107,7 +132,7 @@ def main():
 
     node_cache.init()
     firewall.init()
-    utils.check_ironic_available()
+    check_ironic_available()
 
     period = conf.getint('discoverd', 'firewall_update_period')
     eventlet.greenthread.spawn_n(periodic_update, period)

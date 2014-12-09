@@ -51,7 +51,7 @@ def init():
         fd, _DB_NAME = tempfile.mkstemp(prefix='discoverd-')
         os.close(fd)
 
-        def cleanup():
+        def cleanup():  # pragma: no cover
             if os.path.exists(_DB_NAME):
                 os.unlink(_DB_NAME)
 
