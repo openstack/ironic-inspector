@@ -28,7 +28,7 @@ from ironic_discoverd import utils
 
 LOG = logging.getLogger("ironic_discoverd.process")
 
-_POWER_OFF_CHECK_PERIOD = 5
+_POWER_CHECK_PERIOD = 5
 
 
 def process(node_info):
@@ -56,8 +56,7 @@ def process(node_info):
                                     cached_node.uuid,
                                     code=404)
 
-    updated = _process_node(ironic, node, node_info, cached_node)
-    return {'node': updated.to_dict()}
+    return _process_node(ironic, node, node_info, cached_node)
 
 
 def _run_post_hooks(node, ports, node_info):
@@ -102,35 +101,46 @@ def _process_node(ironic, node, node_info, cached_node):
 
     firewall.update_filters(ironic)
 
-    if conf.getboolean('discoverd', 'power_off_after_discovery'):
-        LOG.info('Forcing power off of node %s', node.uuid)
-        try:
-            ironic.node.set_power_state(node.uuid, 'off')
-        except Exception as exc:
-            LOG.error('Failed to power off node %s, check it\'s power '
-                      'management configuration:\n%s', node.uuid, exc)
-            raise utils.DiscoveryFailed('Failed to power off node %s' %
-                                        node.uuid)
-
-    eventlet.greenthread.spawn_n(_wait_for_power_off, ironic, cached_node)
-    return node
+    if node.extra.get('ipmi_setup_credentials'):
+        eventlet.greenthread.spawn_n(_wait_for_power_management,
+                                     ironic, cached_node)
+        return {'ipmi_setup_credentials': True,
+                'ipmi_username': node.driver_info.get('ipmi_username'),
+                'ipmi_password': node.driver_info.get('ipmi_password')}
+    else:
+        _finish_discovery(ironic, cached_node)
+        return {}
 
 
-def _wait_for_power_off(ironic, cached_node):
+def _wait_for_power_management(ironic, cached_node):
     deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
-    # NOTE(dtantsur): even VM's don't power off instantly, sleep first
     while time.time() < deadline:
-        eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
-        node = ironic.node.get(cached_node.uuid)
-        if (node.power_state or 'power off').lower() == 'power off':
-            _finish_discovery(ironic, node)
+        eventlet.greenthread.sleep(_POWER_CHECK_PERIOD)
+        validation = ironic.node.validate(cached_node.uuid)
+        if validation.power['result']:
+            _finish_discovery(ironic, cached_node)
             return
+        LOG.debug('Waiting for management credentials on node %s '
+                  'to be updated, current error: %s',
+                  cached_node.uuid, validation.power['reason'])
 
-    LOG.error('Timeout waiting for power off state of node %s after discovery',
-              cached_node.uuid)
+    LOG.error('Timeout waiting for power credentials update of node %s '
+              'after discovery', cached_node.uuid)
+
+
+def _force_power_off(ironic, node):
+    LOG.debug('Forcing power off of node %s', node.uuid)
+    try:
+        ironic.node.set_power_state(node.uuid, 'off')
+    except Exception as exc:
+        LOG.error('Failed to power off node %s, check it\'s power '
+                  'management configuration:\n%s', node.uuid, exc)
+        raise utils.DiscoveryFailed('Failed to power off node %s' % node.uuid)
 
 
 def _finish_discovery(ironic, node):
+    _force_power_off(ironic, node)
+
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
              {'op': 'remove', 'path': '/extra/on_discovery'}]
     ironic.node.update(node.uuid, patch)

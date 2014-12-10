@@ -201,14 +201,12 @@ Change Log
 v1.0.0
 ~~~~~~
 
+* Support updating IPMI credentials from within ramdisk.
 * ``/v1/continue`` is now sync:
 
   * Errors are properly returned to the caller
-  * This call now returns value in form of ``{'node': <node dict>}`` on
-    success
+  * This call now returns value as a JSON dict
 
-* Option ``power_off_after_discovery`` controls whether to force power off
-  after the successful discovery, and is ``False`` by default.
 * Discovery now times out by default.
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.

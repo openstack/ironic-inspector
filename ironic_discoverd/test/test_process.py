@@ -58,7 +58,7 @@ class BaseTest(test_base.NodeTest):
 class TestProcess(BaseTest):
     def setUp(self):
         super(TestProcess, self).setUp()
-        self.fake_node_json = 'node json'
+        self.fake_result_json = 'node json'
 
     def prepate_mocks(func):
         @functools.wraps(func)
@@ -69,8 +69,7 @@ class TestProcess(BaseTest):
                 started_at=self.started_at)
             cli.port.create.side_effect = self.ports
             cli.node.get.return_value = self.node
-            process_mock.return_value.to_dict.return_value = (
-                self.fake_node_json)
+            process_mock.return_value = self.fake_result_json
 
             return func(self, cli, pop_mock, process_mock)
 
@@ -80,7 +79,7 @@ class TestProcess(BaseTest):
     def test_ok(self, cli, pop_mock, process_mock):
         res = process.process(self.data)
 
-        self.assertEqual({'node': self.fake_node_json}, res)
+        self.assertEqual(self.fake_result_json, res)
 
         # By default interfaces w/o IP are dropped
         self.assertEqual(['em1', 'em2'], sorted(self.data['interfaces']))
@@ -95,9 +94,7 @@ class TestProcess(BaseTest):
     @prepate_mocks
     def test_no_ipmi(self, cli, pop_mock, process_mock):
         del self.data['ipmi_address']
-        res = process.process(self.data)
-
-        self.assertEqual({'node': self.fake_node_json}, res)
+        process.process(self.data)
 
         pop_mock.assert_called_once_with(bmc_address=None,
                                          mac=self.data['macs'])
@@ -109,9 +106,7 @@ class TestProcess(BaseTest):
     def test_deprecated_macs(self, cli, pop_mock, process_mock):
         del self.data['interfaces']
         self.data['macs'] = self.macs
-        res = process.process(self.data)
-
-        self.assertEqual({'node': self.fake_node_json}, res)
+        process.process(self.data)
 
         self.assertEqual(self.macs, sorted(i['mac'] for i in
                                            self.data['interfaces'].values()))
@@ -126,9 +121,7 @@ class TestProcess(BaseTest):
     @prepate_mocks
     def test_ports_for_inactive(self, cli, pop_mock, process_mock):
         conf.CONF.set('discoverd', 'ports_for_inactive_interfaces', 'true')
-        res = process.process(self.data)
-
-        self.assertEqual({'node': self.fake_node_json}, res)
+        process.process(self.data)
 
         self.assertEqual(['em1', 'em2', 'em3'],
                          sorted(self.data['interfaces']))
@@ -208,10 +201,10 @@ class TestProcessNode(BaseTest):
         super(TestProcessNode, self).setUp()
         conf.CONF.set('discoverd', 'processing_hooks',
                       'ramdisk_error,scheduler,validate_interfaces,example')
+        self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
         self.cached_node = node_cache.NodeInfo(uuid=self.uuid,
                                                started_at=self.started_at)
-        self.power_off_repeats = 5
         self.patch_before = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
@@ -222,16 +215,15 @@ class TestProcessNode(BaseTest):
         ]
 
         self.cli = mock.Mock()
-        self.cli.node.get.side_effect = self.fake_get()
+        self.cli.node.validate.side_effect = self.fake_validate()
         self.cli.port.create.side_effect = self.ports
         self.cli.node.update.return_value = self.node
 
-    def fake_get(self):
-        # Simulate long power off
-        for _ in range(self.power_off_repeats):
-            yield self.node
-        self.node.power_state = 'power off'
-        yield self.node
+    def fake_validate(self):
+        # Simulate long ramdisk task
+        for _ in range(self.validate_attempts):
+            yield mock.Mock(power={'result': False, 'reason': 'boom!'})
+        yield mock.Mock(power={'result': True})
 
     def call(self):
         return process._process_node(self.cli, self.node, self.data,
@@ -240,16 +232,14 @@ class TestProcessNode(BaseTest):
     def test_ok(self, filters_mock, post_hook_mock):
         self.call()
 
-        self.cli.node.get.assert_called_with(self.uuid)
-        self.assertEqual(self.power_off_repeats + 1,
-                         self.cli.node.get.call_count)
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0])
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1])
         self.cli.node.update.assert_any_call(self.uuid, self.patch_before)
         self.cli.node.update.assert_any_call(self.uuid, self.patch_after)
-        self.assertFalse(self.cli.node.set_power_state.called)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
+        self.assertFalse(self.cli.node.validate.called)
 
         post_hook_mock.assert_called_once_with(self.node, mock.ANY,
                                                self.data)
@@ -286,25 +276,30 @@ class TestProcessNode(BaseTest):
         self.cli.port.update.assert_called_once_with(self.ports[1].uuid,
                                                      port_patch)
 
+    def test_ipmi_setup_credentials(self, filters_mock, post_hook_mock):
+        self.node.extra['ipmi_setup_credentials'] = True
+
+        self.call()
+
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
+        self.cli.node.validate.assert_called_with(self.uuid)
+        self.assertEqual(self.validate_attempts + 1,
+                         self.cli.node.validate.call_count)
+
     @mock.patch.object(time, 'time')
-    def test_power_timeout(self, time_mock, filters_mock, post_hook_mock):
+    def test_ipmi_setup_credentials_timeout(self, time_mock, filters_mock,
+                                            post_hook_mock):
         conf.CONF.set('discoverd', 'timeout', '100')
+        self.node.extra['ipmi_setup_credentials'] = True
         time_mock.return_value = self.started_at + 1000
 
         self.call()
 
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_before)
+        self.assertFalse(self.cli.node.set_power_state.called)
 
-    def test_force_power_off(self, filters_mock, post_hook_mock):
-        conf.CONF.set('discoverd', 'power_off_after_discovery', 'true')
-
-        self.call()
-
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-
-    def test_force_power_off_failed(self, filters_mock, post_hook_mock):
-        conf.CONF.set('discoverd', 'power_off_after_discovery', 'true')
+    def test_power_off_failed(self, filters_mock, post_hook_mock):
         self.cli.node.set_power_state.side_effect = exceptions.Conflict()
 
         self.assertRaisesRegexp(utils.DiscoveryFailed, 'Failed to power off',
