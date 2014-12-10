@@ -19,6 +19,7 @@ import time
 import eventlet
 from ironicclient import exceptions
 
+from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
 from ironic_discoverd import utils
@@ -72,12 +73,13 @@ def _validate(ironic, node):
             'maintenance mode off' %
             (node.uuid, power_state))
 
-    validation = ironic.node.validate(node.uuid)
-    if not validation.power['result']:
-        LOG.error('Failed validation of power interface for node %s, '
-                  'reason: %s', node.uuid, validation.power['reason'])
-        raise utils.DiscoveryFailed('Failed validation of power interface for '
-                                    'node %s' % node.uuid)
+    if not node.extra.get('ipmi_setup_credentials'):
+        validation = ironic.node.validate(node.uuid)
+        if not validation.power['result']:
+            LOG.error('Failed validation of power interface for node %s, '
+                      'reason: %s', node.uuid, validation.power['reason'])
+            raise utils.DiscoveryFailed(
+                'Failed validation of power interface for node %s' % node.uuid)
 
 
 def _background_start_discover(ironic, node):
@@ -97,8 +99,13 @@ def _background_start_discover(ironic, node):
                  macs, node.uuid)
         firewall.update_filters(ironic)
 
-    try:
-        ironic.node.set_power_state(node.uuid, 'reboot')
-    except Exception as exc:
-        LOG.error('Failed to power on node %s, check it\'s power '
-                  'management configuration:\n%s', node.uuid, exc)
+    if not node.extra.get('ipmi_setup_credentials'):
+        try:
+            ironic.node.set_power_state(node.uuid, 'reboot')
+        except Exception as exc:
+            LOG.error('Failed to power on node %s, check it\'s power '
+                      'management configuration:\n%s', node.uuid, exc)
+    else:
+        LOG.info('Discovery environment is ready for node %s, '
+                 'manual power on is required within %d seconds',
+                 node.uuid, conf.getint('discoverd', 'timeout'))
