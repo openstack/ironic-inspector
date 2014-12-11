@@ -14,15 +14,19 @@
 import logging
 import re
 
+import eventlet
 from ironicclient import client
+from ironicclient import exceptions
 from keystoneclient.v2_0 import client as keystone
 import six
 
 from ironic_discoverd import conf
 
 
-LOG = logging.getLogger('discoverd')
+LOG = logging.getLogger('ironic_discoverd.utils')
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
+RETRY_COUNT = 10
+RETRY_DELAY = 2
 
 
 class DiscoveryFailed(Exception):
@@ -45,3 +49,17 @@ def is_valid_mac(address):
     m = "[0-9a-f]{2}(:[0-9a-f]{2}){5}$"
     return (isinstance(address, six.string_types)
             and re.match(m, address.lower()))
+
+
+def retry_on_conflict(call, *args, **kwargs):
+    for i in range(RETRY_COUNT):
+        try:
+            return call(*args, **kwargs)
+        except exceptions.Conflict as exc:
+            LOG.warning('Conflict on calling %s: %s, retry attempt %d',
+                        getattr(call, '__name__', repr(call)), exc, i)
+            if i == RETRY_COUNT - 1:
+                raise
+            eventlet.greenthread.sleep(RETRY_DELAY)
+
+    raise RuntimeError('unreachable code')  # pragma: no cover

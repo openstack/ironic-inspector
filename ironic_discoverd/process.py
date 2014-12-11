@@ -93,9 +93,9 @@ def _process_node(ironic, node, node_info, cached_node):
                         {'mac': mac, 'node': node.uuid})
 
     node_patches, port_patches = _run_post_hooks(node, ports, node_info)
-    node = ironic.node.update(node.uuid, node_patches)
+    node = utils.retry_on_conflict(ironic.node.update, node.uuid, node_patches)
     for mac, patches in port_patches.items():
-        ironic.port.update(ports[mac].uuid, patches)
+        utils.retry_on_conflict(ironic.port.update, ports[mac].uuid, patches)
 
     LOG.info('Node %s was updated with data from discovery process', node.uuid)
 
@@ -116,7 +116,8 @@ def _wait_for_power_management(ironic, cached_node):
     deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
     while time.time() < deadline:
         eventlet.greenthread.sleep(_POWER_CHECK_PERIOD)
-        validation = ironic.node.validate(cached_node.uuid)
+        validation = utils.retry_on_conflict(ironic.node.validate,
+                                             cached_node.uuid)
         if validation.power['result']:
             _finish_discovery(ironic, cached_node)
             return
@@ -131,7 +132,7 @@ def _wait_for_power_management(ironic, cached_node):
 def _force_power_off(ironic, node):
     LOG.debug('Forcing power off of node %s', node.uuid)
     try:
-        ironic.node.set_power_state(node.uuid, 'off')
+        utils.retry_on_conflict(ironic.node.set_power_state, node.uuid, 'off')
     except Exception as exc:
         LOG.error('Failed to power off node %s, check it\'s power '
                   'management configuration:\n%s', node.uuid, exc)
@@ -143,4 +144,4 @@ def _finish_discovery(ironic, node):
 
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
              {'op': 'remove', 'path': '/extra/on_discovery'}]
-    ironic.node.update(node.uuid, patch)
+    utils.retry_on_conflict(ironic.node.update, node.uuid, patch)

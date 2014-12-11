@@ -247,6 +247,35 @@ class TestProcessNode(BaseTest):
         self.assertEqual(self.ports, sorted(post_hook_mock.call_args[0][1],
                                             key=lambda p: p.address))
 
+    def test_update_retry_on_conflict(self, filters_mock, post_hook_mock):
+        self.cli.node.update.side_effect = [exceptions.Conflict, self.node,
+                                            exceptions.Conflict, self.node]
+
+        self.call()
+
+        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             address=self.macs[0])
+        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             address=self.macs[1])
+        self.cli.node.update.assert_any_call(self.uuid, self.patch_before)
+        self.cli.node.update.assert_any_call(self.uuid, self.patch_after)
+        self.assertEqual(4, self.cli.node.update.call_count)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
+
+    def test_power_off_retry_on_conflict(self, filters_mock, post_hook_mock):
+        self.cli.node.set_power_state.side_effect = [exceptions.Conflict, None]
+
+        self.call()
+
+        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             address=self.macs[0])
+        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             address=self.macs[1])
+        self.cli.node.update.assert_any_call(self.uuid, self.patch_before)
+        self.cli.node.update.assert_any_call(self.uuid, self.patch_after)
+        self.cli.node.set_power_state.assert_called_with(self.uuid, 'off')
+        self.assertEqual(2, self.cli.node.set_power_state.call_count)
+
     def test_port_failed(self, filters_mock, post_hook_mock):
         self.ports[0] = exceptions.Conflict()
 
@@ -300,7 +329,7 @@ class TestProcessNode(BaseTest):
         self.assertFalse(self.cli.node.set_power_state.called)
 
     def test_power_off_failed(self, filters_mock, post_hook_mock):
-        self.cli.node.set_power_state.side_effect = exceptions.Conflict()
+        self.cli.node.set_power_state.side_effect = exceptions.BadRequest()
 
         self.assertRaisesRegexp(utils.DiscoveryFailed, 'Failed to power off',
                                 self.call)

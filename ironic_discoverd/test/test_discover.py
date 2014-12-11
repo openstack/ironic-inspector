@@ -24,6 +24,7 @@ from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
 
 
+@mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
                    side_effect=lambda f, *a: f(*a) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
@@ -70,9 +71,11 @@ class TestDiscover(test_base.BaseTest):
         ]
         cli.node.list_ports.side_effect = ports
         # Failure to powering on does not cause total failure
-        cli.node.set_power_state.side_effect = [None,
-                                                exceptions.Conflict(),
-                                                None]
+        cli.node.set_power_state.side_effect = [
+            None,
+            exceptions.Conflict(),  # this is just retried
+            exceptions.InternalServerError(),
+            None]
 
         discover.discover(['uuid1', 'uuid2', 'uuid3'])
 
@@ -93,7 +96,7 @@ class TestDiscover(test_base.BaseTest):
                                  mac=[])
         filters_mock.assert_called_with(cli)
         self.assertEqual(2, filters_mock.call_count)  # 1 node w/o ports
-        self.assertEqual(3, cli.node.set_power_state.call_count)
+        self.assertEqual(4, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(mock.ANY, 'reboot')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
                  {'op': 'add', 'path': '/extra/discovery_timestamp',
@@ -133,7 +136,7 @@ class TestDiscover(test_base.BaseTest):
                                 discover.discover, ['uuid1', 'uuid2'])
 
         cli.node.get.side_effect = [
-            exceptions.Conflict(),
+            exceptions.BadRequest(),
             self.node1,
         ]
         self.assertRaisesRegexp(utils.DiscoveryFailed,

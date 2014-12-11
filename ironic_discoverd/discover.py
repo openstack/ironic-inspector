@@ -74,7 +74,7 @@ def _validate(ironic, node):
             (node.uuid, power_state))
 
     if not node.extra.get('ipmi_setup_credentials'):
-        validation = ironic.node.validate(node.uuid)
+        validation = utils.retry_on_conflict(ironic.node.validate, node.uuid)
         if not validation.power['result']:
             LOG.error('Failed validation of power interface for node %s, '
                       'reason: %s', node.uuid, validation.power['reason'])
@@ -101,7 +101,8 @@ def _background_start_discover(ironic, node):
 
     if not node.extra.get('ipmi_setup_credentials'):
         try:
-            ironic.node.set_power_state(node.uuid, 'reboot')
+            utils.retry_on_conflict(ironic.node.set_power_state,
+                                    node.uuid, 'reboot')
         except Exception as exc:
             LOG.error('Failed to power on node %s, check it\'s power '
                       'management configuration:\n%s', node.uuid, exc)
