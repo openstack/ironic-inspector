@@ -29,6 +29,7 @@ from ironic_discoverd import utils
 LOG = logging.getLogger("ironic_discoverd.process")
 
 _POWER_CHECK_PERIOD = 5
+_POWER_OFF_CHECK_PERIOD = 5
 
 
 def process(node_info):
@@ -110,7 +111,7 @@ def _process_node(ironic, node, node_info, cached_node):
                 'ipmi_username': node.driver_info.get('ipmi_username'),
                 'ipmi_password': node.driver_info.get('ipmi_password')}
     else:
-        _finish_discovery(ironic, cached_node)
+        eventlet.greenthread.spawn_n(_finish_discovery, ironic, cached_node)
         return {}
 
 
@@ -131,21 +132,38 @@ def _wait_for_power_management(ironic, cached_node):
               'after discovery', cached_node.uuid)
 
 
-def _force_power_off(ironic, node):
-    LOG.debug('Forcing power off of node %s', node.uuid)
+def _force_power_off(ironic, cached_node):
+    LOG.debug('Forcing power off of node %s', cached_node.uuid)
     try:
-        utils.retry_on_conflict(ironic.node.set_power_state, node.uuid, 'off')
+        utils.retry_on_conflict(ironic.node.set_power_state,
+                                cached_node.uuid, 'off')
     except Exception as exc:
         LOG.error('Failed to power off node %s, check it\'s power '
-                  'management configuration:\n%s', node.uuid, exc)
-        raise utils.DiscoveryFailed('Failed to power off node %s' % node.uuid)
+                  'management configuration:\n%s', cached_node.uuid, exc)
+        raise utils.DiscoveryFailed('Failed to power off node %s'
+                                    % cached_node.uuid)
+
+    deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
+    while time.time() < deadline:
+        node = ironic.node.get(cached_node.uuid)
+        if (node.power_state or '').lower() == 'power off':
+            return
+        LOG.info('Waiting for node %s to power off, current state is %s',
+                 cached_node.uuid, node.power_state)
+        eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
+
+    LOG.error('Timeout waiting for node %s to power off after discovery',
+              cached_node.uuid)
+    raise utils.DiscoveryFailed(
+        'Timeout waiting for node %s to power off after discovery',
+        cached_node.uuid)
 
 
-def _finish_discovery(ironic, node):
-    _force_power_off(ironic, node)
+def _finish_discovery(ironic, cached_node):
+    _force_power_off(ironic, cached_node)
 
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
              {'op': 'remove', 'path': '/extra/on_discovery'}]
-    utils.retry_on_conflict(ironic.node.update, node.uuid, patch)
+    utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
-    LOG.info('Discovery finished successfully for node %s', node.uuid)
+    LOG.info('Discovery finished successfully for node %s', cached_node.uuid)

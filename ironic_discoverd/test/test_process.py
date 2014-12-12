@@ -202,6 +202,7 @@ class TestProcessNode(BaseTest):
         conf.CONF.set('discoverd', 'processing_hooks',
                       'ramdisk_error,scheduler,validate_interfaces,example')
         self.validate_attempts = 5
+        self.power_off_attempts = 2
         self.data['macs'] = self.macs  # validate_interfaces hook
         self.cached_node = node_cache.NodeInfo(uuid=self.uuid,
                                                started_at=self.started_at)
@@ -218,6 +219,10 @@ class TestProcessNode(BaseTest):
         self.cli.node.validate.side_effect = self.fake_validate()
         self.cli.port.create.side_effect = self.ports
         self.cli.node.update.return_value = self.node
+        # Simulate longer power off
+        self.cli.node.get.side_effect = (
+            [self.node] * self.power_off_attempts
+            + [mock.Mock(power_state='power off')])
 
     def fake_validate(self):
         # Simulate long ramdisk task
@@ -240,6 +245,8 @@ class TestProcessNode(BaseTest):
         self.cli.node.update.assert_any_call(self.uuid, self.patch_after)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
+        self.assertEqual(self.power_off_attempts + 1,
+                         self.cli.node.get.call_count)
 
         post_hook_mock.assert_called_once_with(self.node, mock.ANY,
                                                self.data)
@@ -275,6 +282,18 @@ class TestProcessNode(BaseTest):
         self.cli.node.update.assert_any_call(self.uuid, self.patch_after)
         self.cli.node.set_power_state.assert_called_with(self.uuid, 'off')
         self.assertEqual(2, self.cli.node.set_power_state.call_count)
+
+    @mock.patch.object(time, 'time')
+    def test_power_off_timeout(self, time_mock, filters_mock,
+                               post_hook_mock):
+        conf.CONF.set('discoverd', 'timeout', '100')
+        time_mock.return_value = self.started_at + 1000
+        self.cli.node.get.return_value = self.node
+
+        self.assertRaisesRegexp(utils.DiscoveryFailed, 'power off', self.call)
+
+        self.cli.node.update.assert_called_once_with(self.uuid,
+                                                     self.patch_before)
 
     def test_port_failed(self, filters_mock, post_hook_mock):
         self.ports[0] = exceptions.Conflict()
