@@ -92,7 +92,7 @@ As for PXE boot environment, you need:
 
 * TFTP server running and accessible.
 * Build and put into your TFTP directory kernel and ramdisk from the
-  diskimage-builder_ `discovery-ironic element`_.
+  diskimage-builder_ `ironic-discoverd-ramdisk element`_.
   You can also use `kernel`_ and `ramdisk`_ prepared for Instack.
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   *ironic-discoverd*. Don't do any firewall configuration: *ironic-discoverd*
@@ -104,8 +104,7 @@ As for PXE boot environment, you need:
 
     label discover
     kernel discovery.kernel
-    append initrd=discovery.ramdisk
-    ironic_callback_url=http://{IP}:5050/v1/continue
+    append initrd=discovery.ramdisk discoverd_callback_url=http://{IP}:5050/v1/continue
 
     ipappend 3
 
@@ -115,10 +114,10 @@ As for PXE boot environment, you need:
 Use `ironic-discoverd element`_ as an example for this configuration.
 
 .. _diskimage-builder: https://github.com/openstack/diskimage-builder
-.. _discovery-ironic element: https://github.com/agroup/instack-undercloud/tree/master/elements/discovery-ironic
+.. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
 .. _ironic-discoverd element: https://github.com/agroup/instack-undercloud/tree/master/elements/ironic-discoverd
-.. _kernel: http://file.rdu.redhat.com/%7Ejslagle/tripleo-images-juno-source/discovery-ramdisk.kernel
-.. _ramdisk: http://file.rdu.redhat.com/%7Ejslagle/tripleo-images-juno-source/discovery-ramdisk.initramfs
+.. _kernel: https://repos.fedorapeople.org/repos/openstack-m/tripleo-images-rdo-juno/discovery-ramdisk.kernel
+.. _ramdisk: https://repos.fedorapeople.org/repos/openstack-m/tripleo-images-rdo-juno/discovery-ramdisk.initramfs
 
 Running
 ~~~~~~~
@@ -142,11 +141,14 @@ You can also use it from CLI::
 
     python -m ironic_discoverd.client --auth-token TOKEN UUID1 UUID2
 
+.. note::
+    This CLI interface is not stable and may be changes without prior notice.
+
 API
 ---
 
 By default *ironic-discoverd* listens on ``0.0.0.0:5050``, this can be changed
-in configuration. Protocol is JSON over HTTP;
+in configuration. Protocol is JSON over HTTP.
 
 HTTP API consist of 2 endpoints:
 
@@ -195,85 +197,80 @@ HTTP API consist of 2 endpoints:
 
 .. _bug #1391866: https://bugs.launchpad.net/ironic-discoverd/+bug/1391866
 
-Change Log
-----------
+Release Notes
+-------------
 
-v1.0.0
-~~~~~~
+1.0 Series
+~~~~~~~~~~
 
-* Support updating IPMI credentials from within ramdisk.
+1.0 is the first feature-complete release series. It's also the first series
+to follow standard OpenStack processes from the beginning.
+
+See `1.0.0 release tracking page`_ for details.
+
+**API**
+
 * ``/v1/continue`` is now sync:
 
   * Errors are properly returned to the caller
   * This call now returns value as a JSON dict
 
-* Discovery now times out by default.
+* Support updating IPMI credentials from within ramdisk.
+
+  Set ``ipmi_setup_credentials`` in *Node* extra to ``true`` to use. Requires
+  manual power on after calling to ``/v1/discover``.
+  See `setup-ipmi-credentials blueprint`_ for details.
+
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.
+
+**Configuration**
+
 * Cache nodes under discovery in a local SQLite database. Set ``database``
   configuration option to persist this database. Improves performance by
   making less calls to Ironic API.
+* Discovery now times out by default, set ``timeout`` option to alter.
+
+**Misc**
+
 * Create ``CONTRIBUTING.rst``.
 
+.. _1.0.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.0.0
+.. _setup-ipmi-credentials blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials
 .. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
 
-v0.2.5
-~~~~~~
+0.2 Series
+~~~~~~~~~~
 
-* Be even more paranoid in cleaning the iptables.
-* Backport ``CONTRIBUTING.rst`` from master.
+0.2 is a long-term support series designed to work with OpenStack Juno
+release. The major changes are:
 
-v0.2.4
-~~~~~~
+**API**
 
-* Urgent fix: add requirements.txt and tox.ini to the manifest.
-
-v0.2.3
-~~~~~~
-
-* Moved to StackForge and LaunchPad.
-
-v0.2.2
-~~~~~~
-
-* ``/v1/discover`` now does some sync sanity checks.
-* On each start-up make several attempts to check that Ironic is available.
-* Now we try a bit harder to recover firewall state on every step.
+* Authentication via Keystone for ``/v1/discover``.
+* Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk
+  **[version 0.2.1]**.
+* If ``interfaces`` is present, only add ports for NIC's with IP address set
+  **[version 0.2.1]**.
+* ``/v1/discover`` now does some sync sanity checks **[version 0.2.2]**.
 * ``discovery_timestamp`` is added to node extra on starting discovery
-  (part of future fix for `bug #1391871`_).
-* Actually able to start under Python 3.3 (still very experimental).
-* Updated unit tests and this documentation.
+  **[version 0.2.2]**.
+* Nodes will be always put into maintenance mode before discovery
+  **[version 0.2.1]**.
 
-.. _bug #1391871: https://bugs.launchpad.net/ironic-discoverd/+bug/1391871
+**Configuration**
 
-v0.2.1
-~~~~~~
-
-* Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk.
-* If ``interfaces`` is present, only add ports for NIC's with IP address set.
-* Now MAC's are white-listed for all drivers, not only SSH; option
-  ``ssh_driver_regex`` was dropped.
-* Nodes will be always put into maintenance mode before discovery.
-
-v0.2.0
-~~~~~~
-
-* Authentication via Keystone.
-* Simple client in ``ironic_discoverd.client``.
-* Switch to setuptools entry points.
-* Switch to tox.
 * Periodic firewall update is now configurable.
-* SSH driver regex is now configurable.
-* Supported on Python 3.3.
-* Enhanced documentation.
+* On each start-up make several attempts to check that Ironic is available
+  **[version 0.2.2]**.
 
-v0.1.1
-~~~~~~
+**Misc**
 
-* Added simple man page.
-* Make interface configurable.
+* Simple client in ``ironic_discoverd.client``.
+* Switch to Gerrit **[version 0.2.3]**, setuptools entry points and tox.
+* Preliminary supported for Python 3.3 (real support depends on Eventlet).
 
-v0.1.0
-~~~~~~
+0.1 Series
+~~~~~~~~~~
 
-* First stable release.
+First stable release series. Not supported any more.
