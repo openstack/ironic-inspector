@@ -37,8 +37,7 @@ def _iptables(*args, **kwargs):
         subprocess.check_output(cmd, **kwargs)
     except subprocess.CalledProcessError as exc:
         if ignore:
-            LOG.debug('iptables %s failed (ignoring):\n%s', args,
-                      exc.output)
+            LOG.debug('ignoring failed iptables %s:\n%s', args, exc.output)
         else:
             LOG.error('iptables %s failed:\n%s', args, exc.output)
             raise
@@ -86,7 +85,7 @@ def update_filters(ironic=None):
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
         to_blacklist = macs_active - node_cache.macs_on_discovery()
-        LOG.debug('Blacklisting MAC\'s %s', to_blacklist)
+        LOG.debug('Blacklisting active MAC\'s %s', to_blacklist)
 
         # Clean up a bit to account for possible troubles on previous run
         _clean_up(NEW_CHAIN)

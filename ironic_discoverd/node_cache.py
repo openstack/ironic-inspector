@@ -88,7 +88,10 @@ def add_node(uuid, **attributes):
                 db.executemany("insert into attributes(name, value, uuid) "
                                "values(?, ?, ?)",
                                [(name, v, uuid) for v in value])
-            except sqlite3.IntegrityError:
+            except sqlite3.IntegrityError as exc:
+                LOG.error('Database integrity error %s, some or all of '
+                          '%s\'s %s seem to be on discovery already',
+                          exc, name, value)
                 raise utils.DiscoveryFailed(
                     'Some or all of %(name)s\'s %(value)s are already '
                     'on discovery' %
@@ -122,12 +125,13 @@ def pop_node(**attributes):
     db = _db()
     for (name, value) in sorted(attributes.items()):
         if not value:
-            LOG.warning('Empty value for attribute %s', name)
+            LOG.debug('Empty value for attribute %s', name)
             continue
         if not isinstance(value, list):
             value = [value]
 
-        LOG.debug('Trying to use %s %s for discovery' % (name, value))
+        LOG.debug('Trying to use %s of value %s for node look up'
+                  % (name, value))
         rows = db.execute('select distinct uuid from attributes where ' +
                           ' OR '.join('name=? AND value=?' for _ in value),
                           sum(([name, v] for v in value), [])).fetchall()
@@ -166,7 +170,6 @@ def clean_up():
     """
     timeout = conf.getint('discoverd', 'timeout')
     if timeout <= 0:
-        LOG.debug('Timeout is disabled')
         return []
 
     threshold = time.time() - timeout

@@ -49,7 +49,8 @@ def discover(uuids):
         _validate(ironic, node)
         nodes.append(node)
 
-    LOG.info('Proceeding with discovery on nodes %s', [n.uuid for n in nodes])
+    LOG.info('Proceeding with discovery on node(s) %s',
+             [n.uuid for n in nodes])
     for node in nodes:
         eventlet.greenthread.spawn_n(_background_start_discover, ironic, node)
 

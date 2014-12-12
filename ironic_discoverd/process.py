@@ -97,7 +97,9 @@ def _process_node(ironic, node, node_info, cached_node):
     for mac, patches in port_patches.items():
         utils.retry_on_conflict(ironic.port.update, ports[mac].uuid, patches)
 
-    LOG.info('Node %s was updated with data from discovery process', node.uuid)
+    LOG.debug('Node %s was updated with data from discovery process, '
+              'patches %s, port patches %s',
+              node.uuid, node_patches, port_patches)
 
     firewall.update_filters(ironic)
 
@@ -145,3 +147,5 @@ def _finish_discovery(ironic, node):
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
              {'op': 'remove', 'path': '/extra/on_discovery'}]
     utils.retry_on_conflict(ironic.node.update, node.uuid, patch)
+
+    LOG.info('Discovery finished successfully for node %s', node.uuid)
