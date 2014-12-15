@@ -1,0 +1,11 @@
+echo "# dmidecode 2.12
+SMBIOS 2.7 present.
+
+Handle 0x0007, DMI type 16, 23 bytes
+Physical Memory Array
+	Location: System Board Or Motherboard
+	Use: System Memory
+	Error Correction Type: None
+	Maximum Capacity: 16 GB
+	Error Information Handle: Not Provided
+	Number Of Devices: 2"
