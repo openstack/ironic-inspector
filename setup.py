@@ -15,7 +15,8 @@ setup(
     author = "Dmitry Tantsur",
     author_email = "dtantsur@redhat.com",
     url = "https://pypi.python.org/pypi/ironic-discoverd",
-    packages = ['ironic_discoverd'],
+    packages = ['ironic_discoverd', 'ironic_discoverd.plugins',
+                'ironic_discoverd.test'],
     install_requires = install_requires,
     entry_points = {
         'console_scripts': [
