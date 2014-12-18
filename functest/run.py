@@ -17,6 +17,7 @@ import eventlet
 eventlet.monkey_patch(thread=False)
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -67,7 +68,11 @@ class Test(base.NodeTest):
             open(os.path.join(net_ifaces, fname), 'wb').close()
 
         ramdisk_url = os.environ.get('RAMDISK_SOURCE', RAMDISK)
-        ramdisk = requests.get(ramdisk_url).content
+        if re.match(r'^https?://', ramdisk_url):
+            ramdisk = requests.get(ramdisk_url).content
+        else:
+            with open(ramdisk_url, 'rb') as f:
+                ramdisk = f.read()
         ramdisk = ramdisk.replace('/proc/cpuinfo', os.path.join(self.env,
                                                                 'cpuinfo.txt'))
         ramdisk = ramdisk.replace('/sys/class/net', net_ifaces)
