@@ -28,7 +28,7 @@ import mock
 import requests
 
 from ironic_discoverd import client
-from ironic_discoverd import firewall
+from ironic_discoverd import conf
 from ironic_discoverd import main
 from ironic_discoverd.test import base
 from ironic_discoverd import utils
@@ -40,6 +40,7 @@ os_auth_url = http://url
 os_username = user
 os_password = password
 os_tenant_name = tenant
+manage_firewall = false
 """
 
 ROOT = './functest/env'
@@ -52,6 +53,7 @@ RAMDISK = ("https://raw.githubusercontent.com/openstack/diskimage-builder/"
 class Test(base.NodeTest):
     def setUp(self):
         super(Test, self).setUp()
+        conf.CONF.set('discoverd', 'manage_firewall', 'false')
         self.node.properties.clear()
 
         self.cli = utils.get_client()
@@ -106,17 +108,15 @@ class Test(base.NodeTest):
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
 
-# FIXME(dtantsur): remove once firewall management is optional
-@mock.patch.object(firewall, '_iptables', lambda *_, **__: None)
 @mock.patch.object(utils, 'get_keystone')
 @mock.patch.object(utils, 'get_client')
 def run(client_mock, keystone_mock):
     d = tempfile.mkdtemp()
     try:
-        conf = os.path.join(d, 'test.conf')
-        with open(conf, 'wb') as fp:
+        conf_file = os.path.join(d, 'test.conf')
+        with open(conf_file, 'wb') as fp:
             fp.write(CONF)
-        sys.argv[1:] = [conf]
+        sys.argv[1:] = [conf_file]
 
         eventlet.greenthread.spawn_n(main.main)
         eventlet.greenthread.sleep(1)

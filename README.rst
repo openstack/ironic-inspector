@@ -230,6 +230,8 @@ See `1.0.0 release tracking page`_ for details.
   configuration option to persist this database. Improves performance by
   making less calls to Ironic API.
 * Discovery now times out by default, set ``timeout`` option to alter.
+* Firewall management can be disabled completely via ``manage_firewall``
+  option.
 
 **Misc**
 
