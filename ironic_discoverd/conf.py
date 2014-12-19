@@ -14,20 +14,26 @@
 from six.moves import configparser
 
 
+# TODO(dtantsur): switch to oslo.db
 DEFAULTS = {
-    'debug': 'false',
-    'listen_address': '0.0.0.0',
-    'listen_port': '5050',
-    'dnsmasq_interface': 'br-ctlplane',
-    'authenticate': 'true',
-    'firewall_update_period': '15',
-    'ports_for_inactive_interfaces': 'false',
+    # Ironic and Keystone connection settings
     'ironic_retry_attempts': '5',
     'ironic_retry_period': '5',
-    'database': '',
-    'processing_hooks': 'scheduler,validate_interfaces',
+    # Firewall management settings
+    'dnsmasq_interface': 'br-ctlplane',
+    'firewall_update_period': '15',
+    # Discovery process settings
+    'ports_for_inactive_interfaces': 'false',
     'timeout': '3600',
     'clean_up_period': '60',
+    # HTTP settings
+    'listen_address': '0.0.0.0',
+    'listen_port': '5050',
+    'authenticate': 'true',
+    # General service settings
+    'database': '',
+    'processing_hooks': 'scheduler,validate_interfaces',
+    'debug': 'false',
 }
 
 
