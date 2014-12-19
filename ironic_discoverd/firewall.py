@@ -48,6 +48,9 @@ def init():
 
     Must be called one on start-up.
     """
+    if not conf.getboolean('discoverd', 'manage_firewall'):
+        return
+
     global INTERFACE
     INTERFACE = conf.get('discoverd', 'dnsmasq_interface')
     _clean_up(CHAIN)
@@ -77,8 +80,13 @@ def update_filters(ironic=None):
     This function is using ``eventlet`` semaphore to serialize access from
     different green threads.
 
+    Does nothing, if firewall management is disabled in configuration.
+
     :param ironic: Ironic client instance, optional.
     """
+    if not conf.getboolean('discoverd', 'manage_firewall'):
+        return
+
     assert INTERFACE is not None
     ironic = utils.get_client() if ironic is None else ironic
 

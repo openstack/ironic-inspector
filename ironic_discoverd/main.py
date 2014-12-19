@@ -135,11 +135,13 @@ def main():
         LOG.warning('Starting unauthenticated, please check configuration')
 
     node_cache.init()
-    firewall.init()
     check_ironic_available()
 
-    period = conf.getint('discoverd', 'firewall_update_period')
-    eventlet.greenthread.spawn_n(periodic_update, period)
+    if conf.getboolean('discoverd', 'manage_firewall'):
+        firewall.init()
+        period = conf.getint('discoverd', 'firewall_update_period')
+        eventlet.greenthread.spawn_n(periodic_update, period)
+
     if conf.getint('discoverd', 'timeout') > 0:
         period = conf.getint('discoverd', 'clean_up_period')
         eventlet.greenthread.spawn_n(periodic_clean_up, period)

@@ -20,6 +20,7 @@ DEFAULTS = {
     'ironic_retry_attempts': '5',
     'ironic_retry_period': '5',
     # Firewall management settings
+    'manage_firewall': 'true',
     'dnsmasq_interface': 'br-ctlplane',
     'firewall_update_period': '15',
     # Discovery process settings
