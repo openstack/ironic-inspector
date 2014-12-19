@@ -76,6 +76,12 @@ class TestDiscover(test_base.BaseTest):
             exceptions.Conflict(),  # this is just retried
             exceptions.InternalServerError(),
             None]
+        # Failure to set boot device is also not fatal
+        cli.node.set_boot_device.side_effect = [
+            exceptions.Conflict(),  # this is just retried
+            None,
+            exceptions.InternalServerError(),
+            None]
 
         discover.discover(['uuid1', 'uuid2', 'uuid3'])
 
@@ -96,6 +102,7 @@ class TestDiscover(test_base.BaseTest):
                                  mac=[])
         filters_mock.assert_called_with(cli)
         self.assertEqual(2, filters_mock.call_count)  # 1 node w/o ports
+        self.assertEqual(4, cli.node.set_boot_device.call_count)
         self.assertEqual(4, cli.node.set_power_state.call_count)
         cli.node.set_power_state.assert_called_with(mock.ANY, 'reboot')
         patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},

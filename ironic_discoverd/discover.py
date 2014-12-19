@@ -102,6 +102,13 @@ def _background_start_discover(ironic, node):
 
     if not node.extra.get('ipmi_setup_credentials'):
         try:
+            utils.retry_on_conflict(ironic.node.set_boot_device,
+                                    node.uuid, 'pxe', persistent=False)
+        except Exception as exc:
+            LOG.warning('Failed to set boot device to PXE for node %s: %s',
+                        node.uuid, exc)
+
+        try:
             utils.retry_on_conflict(ironic.node.set_power_state,
                                     node.uuid, 'reboot')
         except Exception as exc:
