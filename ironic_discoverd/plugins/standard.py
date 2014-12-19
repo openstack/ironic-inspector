@@ -44,10 +44,11 @@ class SchedulerHook(base.ProcessingHook):
 
     def post_discover(self, node, ports, discovered_data):
         """Update node with scheduler properties."""
+        overwrite = conf.getboolean('discoverd', 'overwrite_existing')
         patch = [{'op': 'add', 'path': '/properties/%s' % key,
                   'value': str(discovered_data[key])}
                  for key in self.KEYS
-                 if not node.properties.get(key)]
+                 if overwrite or not node.properties.get(key)]
         return patch, {}
 
 

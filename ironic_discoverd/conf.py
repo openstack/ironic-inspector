@@ -27,6 +27,7 @@ DEFAULTS = {
     'ports_for_inactive_interfaces': 'false',
     'timeout': '3600',
     'clean_up_period': '60',
+    'overwrite_existing': 'false',
     # HTTP settings
     'listen_address': '0.0.0.0',
     'listen_port': '5050',

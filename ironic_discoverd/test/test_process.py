@@ -254,6 +254,19 @@ class TestProcessNode(BaseTest):
         self.assertEqual(self.ports, sorted(post_hook_mock.call_args[0][1],
                                             key=lambda p: p.address))
 
+    def test_overwrite(self, filters_mock, post_hook_mock):
+        conf.CONF.set('discoverd', 'overwrite_existing', 'true')
+        patch = [
+            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}]
+
+        self.call()
+
+        self.cli.node.update.assert_any_call(self.uuid, patch)
+        self.cli.node.update.assert_any_call(self.uuid, self.patch_after)
+
     def test_update_retry_on_conflict(self, filters_mock, post_hook_mock):
         self.cli.node.update.side_effect = [exceptions.Conflict, self.node,
                                             exceptions.Conflict, self.node]
