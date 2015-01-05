@@ -41,23 +41,29 @@ def process(node_info):
     for hook_ext in hooks:
         hook_ext.obj.pre_discover(node_info)
 
-    cached_node = node_cache.pop_node(
+    cached_node = node_cache.find_node(
         bmc_address=node_info.get('ipmi_address'),
         mac=node_info.get('macs'))
 
     ironic = utils.get_client()
     try:
         node = ironic.node.get(cached_node.uuid)
-    except exceptions.NotFound as exc:
-        LOG.error('Node UUID %(uuid)s is in the cache, but not found '
-                  'in Ironic: %(exc)s',
-                  {'uuid': cached_node.uuid, 'exc': exc})
-        raise utils.DiscoveryFailed('Node UUID %s was found is cache, '
-                                    'but is not found in Ironic' %
-                                    cached_node.uuid,
-                                    code=404)
+    except exceptions.NotFound:
+        msg = ('Node UUID %s was found in cache, but is not found in Ironic'
+               % cached_node.uuid)
+        cached_node.finished(error=msg)
+        raise utils.DiscoveryFailed(msg, code=404)
 
-    return _process_node(ironic, node, node_info, cached_node)
+    try:
+        return _process_node(ironic, node, node_info, cached_node)
+    except utils.DiscoveryFailed as exc:
+        cached_node.finished(error=str(exc))
+        raise
+    except Exception as exc:
+        msg = 'Unexpected exception during processing'
+        LOG.exception(msg)
+        cached_node.finished(error=msg, log=False)
+        raise utils.DiscoveryFailed(msg)
 
 
 def _run_post_hooks(node, ports, node_info):
@@ -128,8 +134,9 @@ def _wait_for_power_management(ironic, cached_node):
                   'to be updated, current error: %s',
                   cached_node.uuid, validation.power['reason'])
 
-    LOG.error('Timeout waiting for power credentials update of node %s '
-              'after discovery', cached_node.uuid)
+    msg = ('Timeout waiting for power credentials update of node %s '
+           'after discovery' % cached_node.uuid)
+    cached_node.finished(error=msg)
 
 
 def _force_power_off(ironic, cached_node):
@@ -138,10 +145,10 @@ def _force_power_off(ironic, cached_node):
         utils.retry_on_conflict(ironic.node.set_power_state,
                                 cached_node.uuid, 'off')
     except Exception as exc:
-        LOG.error('Failed to power off node %s, check it\'s power '
-                  'management configuration:\n%s', cached_node.uuid, exc)
-        raise utils.DiscoveryFailed('Failed to power off node %s'
-                                    % cached_node.uuid)
+        msg = ('Failed to power off node %s, check it\'s power '
+               'management configuration: %s' % (cached_node.uuid, exc))
+        cached_node.finished(error=msg)
+        raise utils.DiscoveryFailed(msg)
 
     deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
     while time.time() < deadline:
@@ -152,11 +159,10 @@ def _force_power_off(ironic, cached_node):
                  cached_node.uuid, node.power_state)
         eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
 
-    LOG.error('Timeout waiting for node %s to power off after discovery',
-              cached_node.uuid)
-    raise utils.DiscoveryFailed(
-        'Timeout waiting for node %s to power off after discovery',
-        cached_node.uuid)
+    msg = ('Timeout waiting for node %s to power off after discovery' %
+           cached_node.uuid)
+    cached_node.finished(error=msg)
+    raise utils.DiscoveryFailed(msg)
 
 
 def _finish_discovery(ironic, cached_node):
@@ -166,4 +172,5 @@ def _finish_discovery(ironic, cached_node):
              {'op': 'remove', 'path': '/extra/on_discovery'}]
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
+    cached_node.finished()
     LOG.info('Discovery finished successfully for node %s', cached_node.uuid)

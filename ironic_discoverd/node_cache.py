@@ -14,7 +14,6 @@
 """Cache for nodes currently under discovery."""
 
 import atexit
-import collections
 import logging
 import os
 import sqlite3
@@ -29,7 +28,7 @@ LOG = logging.getLogger("discoverd")
 _DB_NAME = None
 _SCHEMA = """
 create table if not exists nodes
- (uuid text primary key, started_at real);
+ (uuid text primary key, started_at real, finished_at real, error text);
 
 create table if not exists attributes
  (name text, value text, uuid text,
@@ -38,8 +37,32 @@ create table if not exists attributes
 """
 
 
-NodeInfo = collections.namedtuple('NodeInfo', ('uuid', 'started_at'))
-"""Record about a node in the cache."""
+class NodeInfo(object):
+    """Record about a node in the cache."""
+
+    def __init__(self, uuid, started_at, finished_at=None, error=None):
+        self.uuid = uuid
+        self.started_at = started_at
+        self.finished_at = finished_at
+        self.error = error
+
+    def finished(self, error=None, log=True):
+        """Record status for this node.
+
+        Also deletes look up attributes from the cache.
+
+        :param error: error message
+        :param log: whether to log the error message
+        """
+        self.finished_at = time.time()
+        self.error = error
+        if error and log:
+            LOG.error(error)
+
+        with _db() as db:
+            db.execute('update nodes set finished_at=?, error=? where uuid=?',
+                       (self.finished_at, error, self.uuid))
+            db.execute("delete from attributes where uuid=?", (self.uuid,))
 
 
 def init():
@@ -74,8 +97,9 @@ def add_node(uuid, **attributes):
     :param uuid: Ironic node UUID
     :param attributes: attributes known about this node (like macs, BMC etc)
     """
-    drop_node(uuid)
     with _db() as db:
+        db.execute("delete from nodes where uuid=?", (uuid,))
+        db.execute("delete from attributes where uuid=?", (uuid,))
         db.execute("insert into nodes(uuid, started_at) "
                    "values(?, ?)", (uuid, time.time()))
         for (name, value) in attributes.items():
@@ -104,17 +128,8 @@ def macs_on_discovery():
                                         "where name='mac'")}
 
 
-def drop_node(uuid):
-    """Forget information about node with given uuid."""
-    with _db() as db:
-        db.execute("delete from nodes where uuid=?", (uuid,))
-        db.execute("delete from attributes where uuid=?", (uuid,))
-
-
-def pop_node(**attributes):
+def find_node(**attributes):
     """Find node in cache.
-
-    This function also deletes a node from the cache, thus it's name.
 
     :param attributes: attributes known about this node (like macs, BMC etc)
     :returns: structure NodeInfo with attributes ``uuid`` and ``created_at``
@@ -150,17 +165,14 @@ def pop_node(**attributes):
         raise utils.DiscoveryFailed('Multiple matching nodes found', code=404)
 
     uuid = found.pop()
-    try:
-        row = (db.execute('select started_at from nodes where uuid=?', (uuid,))
-               .fetchone())
-        if not row:
-            LOG.error('Inconsistent database: %s is in attributes table, '
-                      'but not in nodes table', uuid)
-            raise utils.DiscoveryFailed('Could not find a node', code=404)
+    row = (db.execute('select started_at from nodes where uuid=?', (uuid,))
+           .fetchone())
+    if not row:
+        LOG.error('Inconsistent database: %s is in attributes table, '
+                  'but not in nodes table', uuid)
+        raise utils.DiscoveryFailed('Could not find a node', code=404)
 
-        return NodeInfo(uuid=uuid, started_at=row[0])
-    finally:
-        drop_node(uuid)
+    return NodeInfo(uuid=uuid, started_at=row[0])
 
 
 def clean_up():
