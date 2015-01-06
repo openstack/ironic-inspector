@@ -53,16 +53,16 @@ class BaseTest(test_base.NodeTest):
 
 
 @mock.patch.object(process, '_process_node', autospec=True)
-@mock.patch.object(node_cache, 'pop_node', autospec=True)
+@mock.patch.object(node_cache, 'find_node', autospec=True)
 @mock.patch.object(utils, 'get_client', autospec=True)
 class TestProcess(BaseTest):
     def setUp(self):
         super(TestProcess, self).setUp()
         self.fake_result_json = 'node json'
 
-    def prepate_mocks(func):
+    def prepare_mocks(func):
         @functools.wraps(func)
-        def wrapper(self, client_mock, pop_mock, process_mock):
+        def wrapper(self, client_mock, pop_mock, process_mock, *args, **kw):
             cli = client_mock.return_value
             pop_mock.return_value = node_cache.NodeInfo(
                 uuid=self.node.uuid,
@@ -71,11 +71,11 @@ class TestProcess(BaseTest):
             cli.node.get.return_value = self.node
             process_mock.return_value = self.fake_result_json
 
-            return func(self, cli, pop_mock, process_mock)
+            return func(self, cli, pop_mock, process_mock, *args, **kw)
 
         return wrapper
 
-    @prepate_mocks
+    @prepare_mocks
     def test_ok(self, cli, pop_mock, process_mock):
         res = process.process(self.data)
 
@@ -91,7 +91,7 @@ class TestProcess(BaseTest):
         process_mock.assert_called_once_with(cli, cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_no_ipmi(self, cli, pop_mock, process_mock):
         del self.data['ipmi_address']
         process.process(self.data)
@@ -102,7 +102,7 @@ class TestProcess(BaseTest):
         process_mock.assert_called_once_with(cli, cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_deprecated_macs(self, cli, pop_mock, process_mock):
         del self.data['interfaces']
         self.data['macs'] = self.macs
@@ -118,7 +118,7 @@ class TestProcess(BaseTest):
         process_mock.assert_called_once_with(cli, cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_ports_for_inactive(self, cli, pop_mock, process_mock):
         conf.CONF.set('discoverd', 'ports_for_inactive_interfaces', 'true')
         process.process(self.data)
@@ -133,7 +133,7 @@ class TestProcess(BaseTest):
         process_mock.assert_called_once_with(cli, cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_invalid_interfaces(self, cli, pop_mock, process_mock):
         self.data['interfaces'] = {
             'br1': {'mac': 'broken', 'ip': '1.2.0.1'},
@@ -152,7 +152,7 @@ class TestProcess(BaseTest):
         process_mock.assert_called_once_with(cli, cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_error(self, cli, pop_mock, process_mock):
         self.data['error'] = 'BOOM'
 
@@ -161,7 +161,7 @@ class TestProcess(BaseTest):
                                 process.process, self.data)
         self.assertFalse(process_mock.called)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_missing_required(self, cli, pop_mock, process_mock):
         del self.data['cpus']
 
@@ -170,7 +170,7 @@ class TestProcess(BaseTest):
                                 process.process, self.data)
         self.assertFalse(process_mock.called)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_not_found_in_cache(self, cli, pop_mock, process_mock):
         pop_mock.side_effect = utils.DiscoveryFailed('not found')
 
@@ -180,7 +180,7 @@ class TestProcess(BaseTest):
         self.assertFalse(cli.node.get.called)
         self.assertFalse(process_mock.called)
 
-    @prepate_mocks
+    @prepare_mocks
     def test_not_found_in_ironic(self, cli, pop_mock, process_mock):
         cli.node.get.side_effect = exceptions.NotFound()
 
@@ -189,6 +189,34 @@ class TestProcess(BaseTest):
                                 process.process, self.data)
         cli.node.get.assert_called_once_with(self.uuid)
         self.assertFalse(process_mock.called)
+
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_expected_exception(self, finished_mock, client_mock, pop_mock,
+                                process_mock):
+        pop_mock.return_value = node_cache.NodeInfo(
+            uuid=self.node.uuid,
+            started_at=self.started_at)
+        process_mock.side_effect = utils.DiscoveryFailed('boom')
+
+        self.assertRaisesRegexp(utils.DiscoveryFailed, 'boom',
+                                process.process, self.data)
+
+        finished_mock.assert_called_once_with(mock.ANY, error='boom')
+
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_unexpected_exception(self, finished_mock, client_mock, pop_mock,
+                                  process_mock):
+        pop_mock.return_value = node_cache.NodeInfo(
+            uuid=self.node.uuid,
+            started_at=self.started_at)
+        process_mock.side_effect = RuntimeError('boom')
+
+        self.assertRaisesRegexp(utils.DiscoveryFailed, 'Unexpected exception',
+                                process.process, self.data)
+
+        finished_mock.assert_called_once_with(
+            mock.ANY, log=False,
+            error='Unexpected exception during processing')
 
 
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
@@ -234,7 +262,8 @@ class TestProcessNode(BaseTest):
         return process._process_node(self.cli, self.node, self.data,
                                      self.cached_node)
 
-    def test_ok(self, filters_mock, post_hook_mock):
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_ok(self, finished_mock, filters_mock, post_hook_mock):
         self.call()
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
@@ -253,6 +282,7 @@ class TestProcessNode(BaseTest):
         # List is built from a dict - order is undefined
         self.assertEqual(self.ports, sorted(post_hook_mock.call_args[0][1],
                                             key=lambda p: p.address))
+        finished_mock.assert_called_once_with(mock.ANY)
 
     def test_overwrite(self, filters_mock, post_hook_mock):
         conf.CONF.set('discoverd', 'overwrite_existing', 'true')
@@ -296,8 +326,9 @@ class TestProcessNode(BaseTest):
         self.cli.node.set_power_state.assert_called_with(self.uuid, 'off')
         self.assertEqual(2, self.cli.node.set_power_state.call_count)
 
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     @mock.patch.object(time, 'time')
-    def test_power_off_timeout(self, time_mock, filters_mock,
+    def test_power_off_timeout(self, time_mock, finished_mock, filters_mock,
                                post_hook_mock):
         conf.CONF.set('discoverd', 'timeout', '100')
         time_mock.return_value = self.started_at + 1000
@@ -307,6 +338,9 @@ class TestProcessNode(BaseTest):
 
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_before)
+        finished_mock.assert_called_once_with(
+            mock.ANY,
+            error='Timeout waiting for node uuid to power off after discovery')
 
     def test_port_failed(self, filters_mock, post_hook_mock):
         self.ports[0] = exceptions.Conflict()
@@ -347,9 +381,10 @@ class TestProcessNode(BaseTest):
         self.assertEqual(self.validate_attempts + 1,
                          self.cli.node.validate.call_count)
 
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     @mock.patch.object(time, 'time')
-    def test_ipmi_setup_credentials_timeout(self, time_mock, filters_mock,
-                                            post_hook_mock):
+    def test_ipmi_setup_credentials_timeout(self, time_mock, finished_mock,
+                                            filters_mock, post_hook_mock):
         conf.CONF.set('discoverd', 'timeout', '100')
         self.node.extra['ipmi_setup_credentials'] = True
         time_mock.return_value = self.started_at + 1000
@@ -359,9 +394,15 @@ class TestProcessNode(BaseTest):
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_before)
         self.assertFalse(self.cli.node.set_power_state.called)
+        finished_mock.assert_called_once_with(
+            mock.ANY,
+            error='Timeout waiting for power credentials update of node '
+            'uuid after discovery')
 
-    def test_power_off_failed(self, filters_mock, post_hook_mock):
-        self.cli.node.set_power_state.side_effect = exceptions.BadRequest()
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_power_off_failed(self, finished_mock, filters_mock,
+                              post_hook_mock):
+        self.cli.node.set_power_state.side_effect = RuntimeError('boom')
 
         self.assertRaisesRegexp(utils.DiscoveryFailed, 'Failed to power off',
                                 self.call)
@@ -369,3 +410,7 @@ class TestProcessNode(BaseTest):
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_before)
+        finished_mock.assert_called_once_with(
+            mock.ANY,
+            error='Failed to power off node uuid, check it\'s power management'
+            ' configuration: boom')

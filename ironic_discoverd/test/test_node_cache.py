@@ -59,22 +59,6 @@ class TestNodeCache(test_base.NodeTest):
                           node_cache.add_node,
                           self.node.uuid, mac=['11:22:11:22:11:22'])
 
-    def test_drop_node(self):
-        with self.db:
-            self.db.execute("insert into nodes(uuid) values(?)",
-                            (self.node.uuid,))
-            self.db.execute("insert into nodes(uuid) values('uuid2')")
-            self.db.execute("insert into attributes(name, value, uuid) "
-                            "values(?, ?, ?)",
-                            ('mac', '11:22:11:22:11:22', self.uuid))
-
-        node_cache.drop_node(self.node.uuid)
-
-        self.assertEqual([('uuid2',)], self.db.execute(
-            "select uuid from nodes").fetchall())
-        self.assertEqual([], self.db.execute(
-            "select * from attributes").fetchall())
-
     def test_macs_on_discovery(self):
         with self.db:
             self.db.execute("insert into nodes(uuid) values(?)",
@@ -96,45 +80,39 @@ class TestNodeCachePop(test_base.NodeTest):
                             mac=self.macs)
 
     def test_no_data(self):
-        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node)
-        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node, mac=[])
+        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node)
+        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node, mac=[])
 
     def test_bmc(self):
-        res = node_cache.pop_node(bmc_address='1.2.3.4')
+        res = node_cache.find_node(bmc_address='1.2.3.4')
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
-        self.assertEqual([], self.db.execute(
-            "select * from attributes").fetchall())
 
     def test_macs(self):
-        res = node_cache.pop_node(mac=['11:22:33:33:33:33', self.macs[1]])
+        res = node_cache.find_node(mac=['11:22:33:33:33:33', self.macs[1]])
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
-        self.assertEqual([], self.db.execute(
-            "select * from attributes").fetchall())
 
     def test_macs_not_found(self):
-        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node,
+        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
                           mac=['11:22:33:33:33:33',
                                '66:66:44:33:22:11'])
 
     def test_macs_multiple_found(self):
         node_cache.add_node('uuid2', mac=self.macs2)
-        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node,
+        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
                           mac=[self.macs[0], self.macs2[0]])
 
     def test_both(self):
-        res = node_cache.pop_node(bmc_address='1.2.3.4',
-                                  mac=self.macs)
+        res = node_cache.find_node(bmc_address='1.2.3.4',
+                                   mac=self.macs)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
-        self.assertEqual([], self.db.execute(
-            "select * from attributes").fetchall())
 
     def test_inconsistency(self):
         with self.db:
             self.db.execute('delete from nodes where uuid=?', (self.uuid,))
-        self.assertRaises(utils.DiscoveryFailed, node_cache.pop_node,
+        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
 
@@ -175,3 +153,29 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual([], self.db.execute('select * from nodes').fetchall())
         self.assertEqual([], self.db.execute(
             'select * from attributes').fetchall())
+
+
+@mock.patch.object(time, 'time', lambda: 42.0)
+class TestNodeInfoFinished(test_base.NodeTest):
+    def setUp(self):
+        super(TestNodeInfoFinished, self).setUp()
+        node_cache.add_node(self.uuid,
+                            bmc_address='1.2.3.4',
+                            mac=self.macs)
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
+
+    def test_success(self):
+        self.node_info.finished()
+
+        self.assertEqual((42.0, None), self.db.execute(
+            'select finished_at, error from nodes').fetchone())
+        self.assertEqual([], self.db.execute(
+            "select * from attributes").fetchall())
+
+    def test_error(self):
+        self.node_info.finished(error='boom')
+
+        self.assertEqual((42.0, 'boom'), self.db.execute(
+            'select finished_at, error from nodes').fetchone())
+        self.assertEqual([], self.db.execute(
+            "select * from attributes").fetchall())
