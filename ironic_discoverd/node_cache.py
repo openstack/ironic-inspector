@@ -13,11 +13,9 @@
 
 """Cache for nodes currently under discovery."""
 
-import atexit
 import logging
-import os
 import sqlite3
-import tempfile
+import sys
 import time
 
 from ironic_discoverd import conf
@@ -68,17 +66,12 @@ class NodeInfo(object):
 def init():
     """Initialize the database."""
     global _DB_NAME
+
     _DB_NAME = conf.get('discoverd', 'database').strip()
-    if not _DB_NAME:
-        # We can't use in-memory, so we create a temporary file
-        fd, _DB_NAME = tempfile.mkstemp(prefix='discoverd-')
-        os.close(fd)
+    if not _DB_NAME:  # pragma: no cover
+        LOG.critical('Configuration option discoverd.database should be set')
+        sys.exit(1)
 
-        def cleanup():  # pragma: no cover
-            if os.path.exists(_DB_NAME):
-                os.unlink(_DB_NAME)
-
-        atexit.register(cleanup)
     sqlite3.connect(_DB_NAME).executescript(_SCHEMA)
 
 

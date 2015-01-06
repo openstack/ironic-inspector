@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import tempfile
 import unittest
 
 import mock
@@ -21,15 +21,21 @@ from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
 
 
+def init_test_conf():
+    db_file = tempfile.NamedTemporaryFile()
+    conf.init_conf()
+    conf.CONF.add_section('discoverd')
+    conf.CONF.set('discoverd', 'database', db_file.name)
+    node_cache._DB_NAME = None
+    return db_file
+
+
 class BaseTest(unittest.TestCase):
     def setUp(self):
         super(BaseTest, self).setUp()
-        conf.init_conf()
-        conf.CONF.add_section('discoverd')
-        conf.CONF.set('discoverd', 'database', '')
-        node_cache._DB_NAME = None
+        self.db_file = init_test_conf()
         self.db = node_cache._db()
-        self.addCleanup(lambda: os.unlink(node_cache._DB_NAME))
+        self.addCleanup(lambda: self.db_file.close())
         plugins_base._HOOKS_MGR = None
 
 

@@ -84,6 +84,9 @@ Copy ``example.conf`` to some permanent place
 Fill in at least configuration values with names starting with *os_*.
 They configure how *ironic-discoverd* authenticates with Keystone.
 
+Also set *database* option to where you want *ironic-discoverd* SQLite
+database to be placed.
+
 .. note::
     Configuration file contains a password and thus should be owned by ``root``
     and should have access rights like *0600*.
@@ -227,8 +230,9 @@ See `1.0.0 release tracking page`_ for details.
 **Configuration**
 
 * Cache nodes under discovery in a local SQLite database. Set ``database``
-  configuration option to persist this database. Improves performance by
-  making less calls to Ironic API.
+  configuration option to where you want to place this database.
+  Improves performance by making less calls to Ironic API and makes possible
+  to get results of discovery.
 * Discovery now times out by default, set ``timeout`` option to alter.
 * Firewall management can be disabled completely via ``manage_firewall``
   option.
