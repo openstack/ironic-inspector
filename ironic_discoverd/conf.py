@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+
 from six.moves import configparser
 
 
@@ -33,18 +35,27 @@ DEFAULTS = {
     'listen_port': '5050',
     'authenticate': 'true',
     # General service settings
-    'database': '',
     'processing_hooks': 'scheduler,validate_interfaces',
     'debug': 'false',
 }
 
 
+def with_default(func):
+    @functools.wraps(func)
+    def wrapper(section, option, default=None):
+        try:
+            return func(section, option)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            return default
+    return wrapper
+
+
 def init_conf():
     global CONF, get, getint, getboolean, read
     CONF = configparser.ConfigParser(defaults=DEFAULTS)
-    get = CONF.get
-    getint = CONF.getint
-    getboolean = CONF.getboolean
+    get = with_default(CONF.get)
+    getint = with_default(CONF.getint)
+    getboolean = with_default(CONF.getboolean)
     read = CONF.read
 
 

@@ -67,7 +67,7 @@ def init():
     """Initialize the database."""
     global _DB_NAME
 
-    _DB_NAME = conf.get('discoverd', 'database').strip()
+    _DB_NAME = conf.get('discoverd', 'database', default='').strip()
     if not _DB_NAME:
         LOG.critical('Configuration option discoverd.database should be set')
         sys.exit(1)
