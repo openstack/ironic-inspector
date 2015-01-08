@@ -17,6 +17,7 @@ import re
 import eventlet
 from ironicclient import client
 from ironicclient import exceptions
+from keystoneclient import exceptions as keystone_exc
 from keystoneclient.v2_0 import client as keystone
 import six
 
@@ -40,9 +41,22 @@ def get_client():  # pragma: no cover
     return client.get_client(1, **args)
 
 
-def get_keystone(token):  # pragma: no cover
-    return keystone.Client(token=token, auth_url=conf.get('discoverd',
-                                                          'os_auth_url'))
+def check_is_admin(token):
+    """Check whether the token is from a user with the admin role.
+
+    :param token: Keystone authentication token.
+    :raises: keystoneclient.exceptions.Unauthorized if the user does not have
+        the admin role in the tenant provided in the admin_tenant_name option.
+    """
+    kc = keystone.Client(token=token,
+                         tenant_name=conf.get('discoverd',
+                                              'admin_tenant_name'),
+                         auth_url=conf.get('discoverd', 'os_auth_url'))
+    if "admin" not in [role.name
+                       for role in kc.roles.roles_for_user(
+                           kc.user_id,
+                           tenant=kc.tenant_id)]:
+        raise keystone_exc.Unauthorized()
 
 
 def is_valid_mac(address):

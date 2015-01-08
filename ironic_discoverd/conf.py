@@ -39,6 +39,7 @@ DEFAULTS = {
     # General service settings
     'processing_hooks': 'scheduler,validate_interfaces',
     'debug': 'false',
+    'admin_tenant_name': 'admin',
 }
 
 

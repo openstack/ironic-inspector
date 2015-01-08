@@ -43,11 +43,10 @@ def check_auth():
         LOG.error("No X-Auth-Token header, rejecting request")
         raise utils.DiscoveryFailed('Authentication required', code=401)
     try:
-        utils.get_keystone(token=request.headers['X-Auth-Token'])
+        utils.check_is_admin(token=request.headers['X-Auth-Token'])
     except exceptions.Unauthorized:
         LOG.error("Keystone denied access, rejecting request")
         raise utils.DiscoveryFailed('Access denied', code=403)
-    # TODO(dtanstur): check for admin role
 
 
 def convert_exceptions(func):

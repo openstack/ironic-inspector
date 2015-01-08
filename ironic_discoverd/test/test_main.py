@@ -59,7 +59,7 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(401, res.status_code)
         self.assertFalse(discover_mock.called)
 
-    @mock.patch.object(utils, 'get_keystone', autospec=True)
+    @mock.patch.object(utils, 'check_is_admin', autospec=True)
     @mock.patch.object(discover, 'introspect', autospec=True)
     def test_discover_failed_authentication(self, discover_mock,
                                             keystone_mock):
