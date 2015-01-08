@@ -17,6 +17,7 @@ import eventlet
 from ironicclient import exceptions
 import mock
 
+from ironic_discoverd import conf
 from ironic_discoverd import discover
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
@@ -118,6 +119,8 @@ class TestDiscover(test_base.BaseTest):
 
     def test_setup_ipmi_credentials(self, client_mock, add_mock, filters_mock,
                                     spawn_mock):
+        conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'true')
+
         cli = client_mock.return_value
         cli.node.get.return_value = self.node1
         cli.node.list_ports.return_value = []
@@ -130,6 +133,18 @@ class TestDiscover(test_base.BaseTest):
         self.assertFalse(cli.node.set_power_state.called)
         spawn_mock.assert_called_once_with(discover._background_start_discover,
                                            cli, mock.ANY)
+
+    def test_setup_ipmi_credentials_disabled(self, client_mock, add_mock,
+                                             filters_mock, spawn_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node1
+        cli.node.list_ports.return_value = []
+        cli.node.validate.side_effect = Exception()
+
+        self.node1.extra['ipmi_setup_credentials'] = True
+
+        self.assertRaisesRegexp(utils.DiscoveryFailed, 'disabled',
+                                discover.discover, ['uuid1'])
 
     def test_failed_to_get_node(self, client_mock, add_mock, filters_mock,
                                 spawn_mock):

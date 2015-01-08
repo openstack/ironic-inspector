@@ -218,10 +218,13 @@ See `1.0.0 release tracking page`_ for details.
   * Errors are properly returned to the caller
   * This call now returns value as a JSON dict
 
-* Support updating IPMI credentials from within ramdisk.
+* Experimental support for updating IPMI credentials from within ramdisk.
 
-  Set ``ipmi_setup_credentials`` in *Node* extra to ``true`` to use. Requires
-  manual power on after calling to ``/v1/discover``.
+  Enable via configuration option ``enable_setting_ipmi_credentials``.
+  Beware that this feature lacks proper testing, is not supported
+  officially yet and is subject to changes without keeping backward
+  compatibility.
+
   See `setup-ipmi-credentials blueprint`_ for details.
 
 * Add support for plugins that hook into data processing pipeline, see
