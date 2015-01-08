@@ -68,7 +68,7 @@ def init():
     global _DB_NAME
 
     _DB_NAME = conf.get('discoverd', 'database').strip()
-    if not _DB_NAME:  # pragma: no cover
+    if not _DB_NAME:
         LOG.critical('Configuration option discoverd.database should be set')
         sys.exit(1)
 

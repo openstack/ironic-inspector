@@ -11,7 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import tempfile
 import time
+import unittest
 
 import mock
 
@@ -179,3 +181,23 @@ class TestNodeInfoFinished(test_base.NodeTest):
             'select finished_at, error from nodes').fetchone())
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
+
+
+class TestInit(unittest.TestCase):
+    def setUp(self):
+        super(TestInit, self).setUp()
+        conf.init_conf()
+        conf.CONF.add_section('discoverd')
+        node_cache._DB_NAME = None
+
+    def test_ok(self):
+        with tempfile.NamedTemporaryFile() as db_file:
+            conf.CONF.set('discoverd', 'database', db_file.name)
+            node_cache.init()
+
+            self.assertIsNotNone(node_cache._DB_NAME)
+            # Verify that table exists
+            node_cache._db().execute("select * from nodes")
+
+    def test_no_database(self):
+        self.assertRaises(SystemExit, node_cache.init)
