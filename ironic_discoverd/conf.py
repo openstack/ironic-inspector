@@ -28,6 +28,7 @@ DEFAULTS = {
     'timeout': '3600',
     'clean_up_period': '60',
     'overwrite_existing': 'false',
+    'enable_setting_ipmi_credentials': 'false',
     # HTTP settings
     'listen_address': '0.0.0.0',
     'listen_port': '5050',

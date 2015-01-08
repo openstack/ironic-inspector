@@ -56,6 +56,12 @@ def discover(uuids):
 
 
 def _validate(ironic, node):
+    if (node.extra.get('ipmi_setup_credentials') and not
+            conf.getboolean('discoverd', 'enable_setting_ipmi_credentials')):
+        msg = 'IPMI credentials setup is disabled in configuration'
+        LOG.error(msg)
+        raise utils.DiscoveryFailed(msg)
+
     if node.instance_uuid:
         LOG.error('Refusing to discover node %s with assigned instance_uuid',
                   node.uuid)
