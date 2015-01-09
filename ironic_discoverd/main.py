@@ -92,12 +92,12 @@ def periodic_update(period):
 
 def periodic_clean_up(period):
     while True:
-        LOG.debug('Running periodic clean up of timed out nodes')
+        LOG.debug('Running periodic clean up of node cache')
         try:
             if node_cache.clean_up():
                 firewall.update_filters()
         except Exception:
-            LOG.exception('Periodic clean up failed')
+            LOG.exception('Periodic clean up of node cache failed')
         eventlet.greenthread.sleep(period)
 
 

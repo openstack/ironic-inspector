@@ -28,6 +28,7 @@ DEFAULTS = {
     # Discovery process settings
     'ports_for_inactive_interfaces': 'false',
     'timeout': '3600',
+    'node_status_keep_time': '604800',
     'clean_up_period': '60',
     'overwrite_existing': 'false',
     'enable_setting_ipmi_credentials': 'false',

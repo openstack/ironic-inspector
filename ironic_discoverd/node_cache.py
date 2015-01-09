@@ -191,10 +191,20 @@ def find_node(**attributes):
 
 
 def clean_up():
-    """Reset discovery for timed out nodes.
+    """Clean up the cache.
+
+    * Finish discovery for timed out nodes.
+    * Drop outdated node status information.
 
     :return: list of timed out node UUID's
     """
+    status_keep_threshold = (time.time() -
+                             conf.getint('discoverd', 'node_status_keep_time'))
+
+    with _db() as db:
+        db.execute('delete from nodes where finished_at < ?',
+                   (status_keep_threshold,))
+
     timeout = conf.getint('discoverd', 'timeout')
     if timeout <= 0:
         return []
@@ -208,8 +218,9 @@ def clean_up():
             return []
 
         LOG.error('Discovery for nodes %s has timed out', uuids)
-        db.execute('delete from nodes where started_at < ?',
-                   (threshold,))
+        db.execute('update nodes set finished_at=?, error=? '
+                   'where started_at < ?',
+                   (time.time(), 'Discovery timed out', threshold))
         db.executemany('delete from attributes where uuid=?',
                        [(u,) for u in uuids])
 

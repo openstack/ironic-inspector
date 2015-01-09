@@ -121,9 +121,10 @@ class TestNodeCachePop(test_base.NodeTest):
 class TestNodeCacheCleanUp(test_base.NodeTest):
     def setUp(self):
         super(TestNodeCacheCleanUp, self).setUp()
+        self.started_at = 100.0
         with self.db:
             self.db.execute('insert into nodes(uuid, started_at) '
-                            'values(?, ?)', (self.uuid, time.time() - 3600000))
+                            'values(?, ?)', (self.uuid, self.started_at))
             self.db.executemany('insert into attributes(name, value, uuid) '
                                 'values(?, ?, ?)',
                                 [('mac', v, self.uuid) for v in self.macs])
@@ -133,8 +134,9 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
         self.assertFalse(node_cache.clean_up())
 
-        self.assertEqual(1, len(self.db.execute(
-            'select * from nodes').fetchall()))
+        res = [tuple(row) for row in self.db.execute(
+            'select finished_at, error from nodes').fetchall()]
+        self.assertEqual([(None, None)], res)
         self.assertEqual(len(self.macs), len(self.db.execute(
             'select * from attributes').fetchall()))
 
@@ -144,17 +146,35 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
         self.assertFalse(node_cache.clean_up())
 
-        self.assertEqual(1, len(self.db.execute(
-            'select * from nodes').fetchall()))
+        res = [tuple(row) for row in self.db.execute(
+            'select finished_at, error from nodes').fetchall()]
+        self.assertEqual([(None, None)], res)
         self.assertEqual(len(self.macs), len(self.db.execute(
             'select * from attributes').fetchall()))
 
-    def test_cleaned(self):
+    @mock.patch.object(time, 'time')
+    def test_timeout(self, time_mock):
+        conf.CONF.set('discoverd', 'timeout', '99')
+        time_mock.return_value = self.started_at + 100
+
         self.assertEqual([self.uuid], node_cache.clean_up())
 
-        self.assertEqual([], self.db.execute('select * from nodes').fetchall())
+        res = [tuple(row) for row in self.db.execute(
+            'select finished_at, error from nodes').fetchall()]
+        self.assertEqual([(self.started_at + 100, 'Discovery timed out')], res)
         self.assertEqual([], self.db.execute(
             'select * from attributes').fetchall())
+
+    def test_old_status(self):
+        conf.CONF.set('discoverd', 'node_status_keep_time', '42')
+        with self.db:
+            self.db.execute('update nodes set finished_at=?',
+                            (time.time() - 100,))
+
+        self.assertEqual([], node_cache.clean_up())
+
+        self.assertEqual([], self.db.execute(
+            'select * from nodes').fetchall())
 
 
 class TestNodeCacheGetNode(test_base.NodeTest):
