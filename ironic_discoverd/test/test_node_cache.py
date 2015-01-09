@@ -47,7 +47,7 @@ class TestNodeCache(test_base.NodeTest):
         self.assertEqual([('bmc_address', '1.2.3.4', self.uuid),
                           ('mac', self.macs[0], self.uuid),
                           ('mac', self.macs[1], self.uuid)],
-                         res)
+                         [tuple(row) for row in res])
 
     def test_add_node_duplicate_mac(self):
         with self.db:
@@ -157,6 +157,23 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
             'select * from attributes').fetchall())
 
 
+class TestNodeCacheGetNode(test_base.NodeTest):
+    def test_ok(self):
+        started_at = time.time() - 42
+        with self.db:
+            self.db.execute('insert into nodes(uuid, started_at) '
+                            'values(?, ?)', (self.uuid, started_at))
+        info = node_cache.get_node(self.uuid)
+
+        self.assertEqual(self.uuid, info.uuid)
+        self.assertEqual(started_at, info.started_at)
+        self.assertIsNone(info.finished_at)
+        self.assertIsNone(info.error)
+
+    def test_not_found(self):
+        self.assertRaises(utils.DiscoveryFailed, node_cache.get_node, 'foo')
+
+
 @mock.patch.object(time, 'time', lambda: 42.0)
 class TestNodeInfoFinished(test_base.NodeTest):
     def setUp(self):
@@ -169,16 +186,16 @@ class TestNodeInfoFinished(test_base.NodeTest):
     def test_success(self):
         self.node_info.finished()
 
-        self.assertEqual((42.0, None), self.db.execute(
-            'select finished_at, error from nodes').fetchone())
+        self.assertEqual((42.0, None), tuple(self.db.execute(
+            'select finished_at, error from nodes').fetchone()))
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
 
     def test_error(self):
         self.node_info.finished(error='boom')
 
-        self.assertEqual((42.0, 'boom'), self.db.execute(
-            'select finished_at, error from nodes').fetchone())
+        self.assertEqual((42.0, 'boom'), tuple(self.db.execute(
+            'select finished_at, error from nodes').fetchone()))
         self.assertEqual([], self.db.execute(
             "select * from attributes").fetchall())
 

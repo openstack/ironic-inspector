@@ -230,6 +230,11 @@ See `1.0.0 release tracking page`_ for details.
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.
 
+* Add new API ``GET /v1/introspection/<uuid>`` and ``client.get_status`` for
+  getting discovery status.
+
+  See `get-status-api blueprint`_ for details.
+
 **Configuration**
 
 * Cache nodes under discovery in a local SQLite database. Set ``database``
@@ -247,6 +252,7 @@ See `1.0.0 release tracking page`_ for details.
 .. _1.0.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.0.0
 .. _setup-ipmi-credentials blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials
 .. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
+.. _get-status-api blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/get-status-api
 
 0.2 Series
 ~~~~~~~~~~

@@ -100,12 +100,19 @@ class Test(base.NodeTest):
         client.discover([self.uuid], auth_token='token')
         eventlet.greenthread.sleep(1)
 
+        status = client.get_status(self.uuid, auth_token='token')
+        self.assertEqual({'finished': False, 'error': None}, status)
+
+        self.node.power_state = 'power off'
         self.call_ramdisk()
         eventlet.greenthread.sleep(1)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66')
+
+        status = client.get_status(self.uuid, auth_token='token')
+        self.assertEqual({'finished': True, 'error': None}, status)
 
 
 @mock.patch.object(utils, 'get_keystone')

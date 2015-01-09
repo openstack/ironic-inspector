@@ -62,6 +62,13 @@ class NodeInfo(object):
                        (self.finished_at, error, self.uuid))
             db.execute("delete from attributes where uuid=?", (self.uuid,))
 
+    @classmethod
+    def from_row(cls, row):
+        """Construct NodeInfo from a database row."""
+        fields = {key: row[key]
+                  for key in ('uuid', 'started_at', 'finished_at', 'error')}
+        return cls(**fields)
+
 
 def init():
     """Initialize the database."""
@@ -78,7 +85,9 @@ def init():
 def _db():
     if _DB_NAME is None:
         init()
-    return sqlite3.connect(_DB_NAME)
+    conn = sqlite3.connect(_DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def add_node(uuid, **attributes):
@@ -119,6 +128,19 @@ def macs_on_discovery():
     """List all MAC's that are on discovery right now."""
     return {x[0] for x in _db().execute("select value from attributes "
                                         "where name='mac'")}
+
+
+def get_node(uuid):
+    """Get node from cache by it's UUID.
+
+    :param uuid: node UUID.
+    :returns: structure NodeInfo.
+    """
+    row = _db().execute('select * from nodes where uuid=?', (uuid,)).fetchone()
+    if row is None:
+        raise utils.DiscoveryFailed('Could not find node %s in cache' % uuid,
+                                    code=404)
+    return NodeInfo.from_row(row)
 
 
 def find_node(**attributes):

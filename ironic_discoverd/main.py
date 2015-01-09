@@ -18,7 +18,7 @@ import json
 import logging
 import sys
 
-from flask import Flask, request  # noqa
+from flask import Flask, request, json as flask_json  # noqa
 
 from keystoneclient import exceptions
 
@@ -45,6 +45,15 @@ def post_continue():
         return str(exc), exc.http_code
     else:
         return json.dumps(res), 200, {'Content-Type': 'applications/json'}
+
+
+@app.route('/v1/introspection/<uuid>')
+def introspection(uuid):
+    # NOTE(dtantsur): in the future this method will also accept PUT
+    # to initiate introspection.
+    node_info = node_cache.get_node(uuid)
+    return flask_json.jsonify(finished=bool(node_info.finished_at),
+                              error=node_info.error or None)
 
 
 @app.route('/v1/discover', methods=['POST'])

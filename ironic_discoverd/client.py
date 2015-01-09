@@ -21,6 +21,14 @@ import six
 _DEFAULT_URL = 'http://127.0.0.1:5050/v1'
 
 
+def _prepare(base_url, auth_token):
+    base_url = base_url.rstrip('/')
+    if not base_url.endswith('v1'):
+        base_url += '/v1'
+    headers = {'X-Auth-Token': auth_token}
+    return base_url, headers
+
+
 def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
     """Post node UUID's for discovery.
 
@@ -34,15 +42,30 @@ def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
         raise TypeError("Expected list of strings for uuids argument, got %s" %
                         uuids)
 
-    base_url = base_url.rstrip('/')
-    if not base_url.endswith('v1'):
-        base_url += '/v1'
-
-    headers = {'Content-Type': 'application/json',
-               'X-Auth-Token': auth_token}
+    base_url, headers = _prepare(base_url, auth_token)
+    headers['Content-Type'] = 'application/json'
     res = requests.post(base_url + "/discover",
                         data=json.dumps(uuids), headers=headers)
     res.raise_for_status()
+
+
+def get_status(uuid, base_url=_DEFAULT_URL, auth_token=''):
+    """Get introspection status for a node.
+
+    New in ironic-discoverd version 1.0.0.
+    :param uuid: node uuid.
+    :param base_url: *ironic-discoverd* URL in form: http://host:port[/ver],
+                     defaults to ``http://127.0.0.1:5050/v1``.
+    :param auth_token: Keystone authentication token.
+    :raises: *requests* library HTTP errors.
+    """
+    if not isinstance(uuid, six.string_types):
+        raise TypeError("Expected string for uuid argument, got %r" % uuid)
+
+    base_url, headers = _prepare(base_url, auth_token)
+    res = requests.get(base_url + "/introspection/%s" % uuid, headers=headers)
+    res.raise_for_status()
+    return res.json()
 
 
 if __name__ == '__main__':

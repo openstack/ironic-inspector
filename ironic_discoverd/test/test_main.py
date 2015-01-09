@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import unittest
 
 import eventlet
@@ -21,6 +22,7 @@ import mock
 from ironic_discoverd import conf
 from ironic_discoverd import discover
 from ironic_discoverd import main
+from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
 from ironic_discoverd.plugins import example as example_plugin
 from ironic_discoverd import process
@@ -84,6 +86,26 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(400, res.status_code)
         process_mock.assert_called_once_with("JSON")
         self.assertEqual(b'boom', res.data)
+
+    @mock.patch.object(node_cache, 'get_node', autospec=True)
+    def test_get_introspection_in_progress(self, get_mock):
+        get_mock.return_value = node_cache.NodeInfo(uuid='uuid',
+                                                    started_at=42.0)
+        res = self.app.get('/v1/introspection/uuid')
+        self.assertEqual(200, res.status_code)
+        self.assertEqual({'finished': False, 'error': None},
+                         json.loads(res.data.decode('utf-8')))
+
+    @mock.patch.object(node_cache, 'get_node', autospec=True)
+    def test_get_introspection_finished(self, get_mock):
+        get_mock.return_value = node_cache.NodeInfo(uuid='uuid',
+                                                    started_at=42.0,
+                                                    finished_at=100.1,
+                                                    error='boom')
+        res = self.app.get('/v1/introspection/uuid')
+        self.assertEqual(200, res.status_code)
+        self.assertEqual({'finished': True, 'error': 'boom'},
+                         json.loads(res.data.decode('utf-8')))
 
 
 @mock.patch.object(eventlet.greenthread, 'sleep', autospec=True)

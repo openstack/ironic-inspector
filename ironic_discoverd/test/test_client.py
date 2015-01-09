@@ -19,8 +19,8 @@ from ironic_discoverd import client
 
 
 @mock.patch.object(client.requests, 'post', autospec=True)
-class TestClient(unittest.TestCase):
-    def test_client(self, mock_post):
+class TestDiscover(unittest.TestCase):
+    def test(self, mock_post):
         client.discover(['uuid1', 'uuid2'], base_url="http://host:port",
                         auth_token="token")
         mock_post.assert_called_once_with(
@@ -30,7 +30,7 @@ class TestClient(unittest.TestCase):
                      'X-Auth-Token': 'token'}
         )
 
-    def test_client_full_url(self, mock_post):
+    def test_full_url(self, mock_post):
         client.discover(['uuid1', 'uuid2'], base_url="http://host:port/v1/",
                         auth_token="token")
         mock_post.assert_called_once_with(
@@ -40,7 +40,7 @@ class TestClient(unittest.TestCase):
                      'X-Auth-Token': 'token'}
         )
 
-    def test_client_default_url(self, mock_post):
+    def test_default_url(self, mock_post):
         client.discover(['uuid1', 'uuid2'],
                         auth_token="token")
         mock_post.assert_called_once_with(
@@ -49,3 +49,19 @@ class TestClient(unittest.TestCase):
             headers={'Content-Type': 'application/json',
                      'X-Auth-Token': 'token'}
         )
+
+
+@mock.patch.object(client.requests, 'get', autospec=True)
+class TestGetStatus(unittest.TestCase):
+    def test(self, mock_get):
+        mock_get.return_value.json.return_value = 'json'
+
+        client.get_status('uuid', auth_token='token')
+
+        mock_get.assert_called_once_with(
+            "http://127.0.0.1:5050/v1/introspection/uuid",
+            headers={'X-Auth-Token': 'token'}
+        )
+
+    def test_invalid_input(self, _):
+        self.assertRaises(TypeError, client.get_status, 42)
