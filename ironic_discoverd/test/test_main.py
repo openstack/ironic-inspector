@@ -35,44 +35,51 @@ class TestApi(test_base.BaseTest):
         super(TestApi, self).setUp()
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
-
-    @mock.patch.object(discover, 'discover', autospec=True)
-    def test_discover_no_authentication(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
-        res = self.app.post('/v1/discover', data='["uuid1"]')
+
+    @mock.patch.object(discover, 'introspect', autospec=True)
+    def test_introspect_no_authentication(self, discover_mock):
+        conf.CONF.set('discoverd', 'authenticate', 'false')
+        res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(202, res.status_code)
-        discover_mock.assert_called_once_with(["uuid1"])
+        discover_mock.assert_called_once_with("uuid1")
 
-    @mock.patch.object(discover, 'discover', autospec=True)
-    def test_discover_failed(self, discover_mock):
-        conf.CONF.set('discoverd', 'authenticate', 'false')
+    @mock.patch.object(discover, 'introspect', autospec=True)
+    def test_intospect_failed(self, discover_mock):
         discover_mock.side_effect = utils.DiscoveryFailed("boom")
-        res = self.app.post('/v1/discover', data='["uuid1"]')
+        res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(400, res.status_code)
         self.assertEqual(b"boom", res.data)
-        discover_mock.assert_called_once_with(["uuid1"])
+        discover_mock.assert_called_once_with("uuid1")
 
-    @mock.patch.object(discover, 'discover', autospec=True)
+    @mock.patch.object(discover, 'introspect', autospec=True)
     def test_discover_missing_authentication(self, discover_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
-        res = self.app.post('/v1/discover', data='["uuid1"]')
+        res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(401, res.status_code)
         self.assertFalse(discover_mock.called)
 
     @mock.patch.object(utils, 'get_keystone', autospec=True)
-    @mock.patch.object(discover, 'discover', autospec=True)
+    @mock.patch.object(discover, 'introspect', autospec=True)
     def test_discover_failed_authentication(self, discover_mock,
                                             keystone_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
         keystone_mock.side_effect = keystone_exc.Unauthorized()
-        res = self.app.post('/v1/discover', data='["uuid1"]',
+        res = self.app.post('/v1/introspection/uuid1',
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
         self.assertFalse(discover_mock.called)
         keystone_mock.assert_called_once_with(token='token')
 
+    @mock.patch.object(discover, 'introspect', autospec=True)
+    def test_discover(self, discover_mock):
+        res = self.app.post('/v1/discover', data='["uuid1"]')
+        self.assertEqual(202, res.status_code)
+        discover_mock.assert_called_once_with("uuid1")
+
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue(self, process_mock):
+        conf.CONF.set('discoverd', 'authenticate', 'true')  # should be ignored
         process_mock.return_value = [42]
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(200, res.status_code)

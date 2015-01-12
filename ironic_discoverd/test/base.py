@@ -45,7 +45,8 @@ class NodeTest(BaseTest):
         self.uuid = 'uuid'
         self.bmc_address = '1.2.3.4'
         self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
-        self.node = mock.Mock(driver_info={'ipmi_address': self.bmc_address},
+        self.node = mock.Mock(driver='pxe_ipmitool',
+                              driver_info={'ipmi_address': self.bmc_address},
                               properties={'cpu_arch': 'i386', 'local_gb': 40},
                               uuid=self.uuid,
                               power_state='power on',

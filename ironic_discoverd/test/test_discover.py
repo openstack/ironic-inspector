@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
-
 import eventlet
 from ironicclient import exceptions
 import mock
@@ -27,220 +25,220 @@ from ironic_discoverd import utils
 
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
-                   side_effect=lambda f, *a: f(*a) and None)
+                   lambda f, *a: f(*a) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(utils, 'get_client', autospec=True)
-class TestDiscover(test_base.BaseTest):
+class TestDiscover(test_base.NodeTest):
     def setUp(self):
         super(TestDiscover, self).setUp()
-        self.node1 = mock.Mock(driver='pxe_ssh',
-                               uuid='uuid1',
-                               driver_info={},
-                               maintenance=True,
-                               instance_uuid=None,
-                               # allowed with maintenance=True
-                               power_state='power on',
-                               provision_state='foobar',
-                               extra={})
-        self.node2 = mock.Mock(driver='pxe_ipmitool',
-                               uuid='uuid2',
-                               driver_info={'ipmi_address': '1.2.3.4'},
-                               maintenance=False,
-                               instance_uuid=None,
-                               power_state=None,
-                               provision_state=None,
-                               extra={'on_discovery': True})
-        self.node3 = mock.Mock(driver='pxe_ipmitool',
-                               uuid='uuid3',
-                               driver_info={'ipmi_address': '1.2.3.5'},
-                               maintenance=False,
-                               instance_uuid=None,
-                               power_state='POWER OFF',
-                               provision_state='INSPECTING',
-                               extra={'on_discovery': True})
+        self.node.power_state = 'power off'
+        self.node_compat = mock.Mock(driver='pxe_ssh',
+                                     uuid='uuid_compat',
+                                     driver_info={},
+                                     maintenance=True,
+                                     # allowed with maintenance=True
+                                     power_state='power on',
+                                     provision_state='foobar',
+                                     extra={'on_discovery': True})
+        self.ports = [mock.Mock(address=m) for m in self.macs]
+        self.patch = [{'op': 'add', 'path': '/extra/on_discovery',
+                       'value': 'true'}]
 
-    @mock.patch.object(time, 'time', lambda: 42.0)
-    def test_ok(self, client_mock, add_mock, filters_mock, spawn_mock):
+    def test_ok(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
-        cli.node.get.side_effect = [
-            self.node1,
-            self.node2,
-            self.node3,
-        ]
-        ports = [
-            [mock.Mock(address='1-1'), mock.Mock(address='1-2')],
-            [mock.Mock(address='2-1'), mock.Mock(address='2-2')],
-            [],
-        ]
-        cli.node.list_ports.side_effect = ports
-        # Failure to powering on does not cause total failure
-        cli.node.set_power_state.side_effect = [
-            None,
-            exceptions.Conflict(),  # this is just retried
-            exceptions.InternalServerError(),
-            None]
-        # Failure to set boot device is also not fatal
-        cli.node.set_boot_device.side_effect = [
-            exceptions.Conflict(),  # this is just retried
-            None,
-            exceptions.InternalServerError(),
-            None]
+        cli.node.get.return_value = self.node
+        cli.node.validate.return_value = mock.Mock(power={'result': True})
+        cli.node.list_ports.return_value = self.ports
 
-        discover.discover(['uuid1', 'uuid2', 'uuid3'])
+        discover.introspect(self.node.uuid)
 
-        self.assertEqual(3, cli.node.get.call_count)
-        self.assertEqual(3, cli.node.list_ports.call_count)
-        self.assertEqual(3, add_mock.call_count)
-        cli.node.list_ports.assert_any_call('uuid1', limit=0)
-        cli.node.list_ports.assert_any_call('uuid2', limit=0)
-        cli.node.list_ports.assert_any_call('uuid3', limit=0)
-        add_mock.assert_any_call(self.node1.uuid,
-                                 bmc_address=None,
-                                 mac=['1-1', '1-2'])
-        add_mock.assert_any_call(self.node2.uuid,
-                                 bmc_address='1.2.3.4',
-                                 mac=['2-1', '2-2'])
-        add_mock.assert_any_call(self.node3.uuid,
-                                 bmc_address='1.2.3.5',
-                                 mac=[])
+        cli.node.get.assert_called_once_with(self.uuid)
+        cli.node.validate.assert_called_once_with(self.uuid)
+        cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+
+        cli.node.update.assert_called_once_with(self.uuid, self.patch)
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         mac=self.macs)
         filters_mock.assert_called_with(cli)
-        self.assertEqual(2, filters_mock.call_count)  # 1 node w/o ports
-        self.assertEqual(4, cli.node.set_boot_device.call_count)
-        self.assertEqual(4, cli.node.set_power_state.call_count)
-        cli.node.set_power_state.assert_called_with(mock.ANY, 'reboot')
-        patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
-                 {'op': 'add', 'path': '/extra/discovery_timestamp',
-                  'value': '42.0'}]
-        cli.node.update.assert_any_call('uuid1', patch)
-        cli.node.update.assert_any_call('uuid2', patch)
-        cli.node.update.assert_any_call('uuid3', patch)
-        self.assertEqual(3, cli.node.update.call_count)
-        spawn_mock.assert_called_with(discover._background_start_discover,
-                                      cli, mock.ANY)
-        self.assertEqual(3, spawn_mock.call_count)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
 
-    def test_setup_ipmi_credentials(self, client_mock, add_mock, filters_mock,
-                                    spawn_mock):
+    def test_retries(self, client_mock, add_mock, filters_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node
+        cli.node.validate.side_effect = [exceptions.Conflict,
+                                         mock.Mock(power={'result': True})]
+        cli.node.list_ports.return_value = self.ports
+        cli.node.update.side_effect = [exceptions.Conflict,
+                                       exceptions.Conflict,
+                                       None]
+        cli.node.set_boot_device.side_effect = [exceptions.Conflict,
+                                                None]
+        cli.node.set_power_state.side_effect = [exceptions.Conflict,
+                                                None]
+
+        discover.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+        cli.node.validate.assert_called_with(self.uuid)
+        cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+
+        cli.node.update.assert_called_with(self.uuid, self.patch)
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         mac=self.macs)
+        filters_mock.assert_called_with(cli)
+        cli.node.set_boot_device.assert_called_with(self.uuid,
+                                                    'pxe',
+                                                    persistent=False)
+        cli.node.set_power_state.assert_called_with(self.uuid,
+                                                    'reboot')
+
+    def test_juno_compat(self, client_mock, add_mock, filters_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node_compat
+        cli.node.validate.return_value = mock.Mock(power={'result': True})
+        cli.node.list_ports.return_value = self.ports
+
+        discover.introspect(self.node_compat.uuid)
+
+        cli.node.get.assert_called_once_with(self.node_compat.uuid)
+        cli.node.validate.assert_called_once_with(self.node_compat.uuid)
+        cli.node.list_ports.assert_called_once_with(self.node_compat.uuid,
+                                                    limit=0)
+
+        cli.node.update.assert_called_once_with(self.node_compat.uuid,
+                                                self.patch)
+        add_mock.assert_called_once_with(self.node_compat.uuid,
+                                         bmc_address=None,
+                                         mac=self.macs)
+        filters_mock.assert_called_with(cli)
+        cli.node.set_boot_device.assert_called_once_with(self.node_compat.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.node_compat.uuid,
+                                                         'reboot')
+
+    def test_no_macs(self, client_mock, add_mock, filters_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node
+        cli.node.list_ports.return_value = []
+
+        discover.introspect(self.node.uuid)
+
+        cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+
+        cli.node.update.assert_called_once_with(self.uuid, self.patch)
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         mac=[])
+        self.assertFalse(filters_mock.called)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+
+    def test_setup_ipmi_credentials(self, client_mock, add_mock, filters_mock):
         conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'true')
 
         cli = client_mock.return_value
-        cli.node.get.return_value = self.node1
-        cli.node.list_ports.return_value = []
+        cli.node.get.return_value = self.node
+        cli.node.list_ports.return_value = self.ports
         cli.node.validate.side_effect = Exception()
 
-        self.node1.extra['ipmi_setup_credentials'] = True
+        self.node.extra['ipmi_setup_credentials'] = True
 
-        discover.discover(['uuid1'])
+        discover.introspect(self.uuid)
 
+        cli.node.update.assert_called_once_with(self.uuid, self.patch)
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         mac=self.macs)
+        filters_mock.assert_called_with(cli)
+        self.assertFalse(cli.node.set_boot_device.called)
         self.assertFalse(cli.node.set_power_state.called)
-        spawn_mock.assert_called_once_with(discover._background_start_discover,
-                                           cli, mock.ANY)
 
     def test_setup_ipmi_credentials_disabled(self, client_mock, add_mock,
-                                             filters_mock, spawn_mock):
+                                             filters_mock):
         cli = client_mock.return_value
-        cli.node.get.return_value = self.node1
+        cli.node.get.return_value = self.node
         cli.node.list_ports.return_value = []
         cli.node.validate.side_effect = Exception()
 
-        self.node1.extra['ipmi_setup_credentials'] = True
+        self.node.extra['ipmi_setup_credentials'] = True
 
         self.assertRaisesRegexp(utils.DiscoveryFailed, 'disabled',
-                                discover.discover, ['uuid1'])
+                                discover.introspect, self.uuid)
 
-    def test_failed_to_get_node(self, client_mock, add_mock, filters_mock,
-                                spawn_mock):
+    def test_failed_to_get_node(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
-        cli.node.get.side_effect = [
-            self.node1,
-            exceptions.NotFound(),
-        ]
+        cli.node.get.side_effect = exceptions.NotFound()
         self.assertRaisesRegexp(utils.DiscoveryFailed,
-                                'Cannot find node uuid2',
-                                discover.discover, ['uuid1', 'uuid2'])
+                                'Cannot find node',
+                                discover.introspect, self.uuid)
 
-        cli.node.get.side_effect = [
-            exceptions.BadRequest(),
-            self.node1,
-        ]
+        cli.node.get.side_effect = exceptions.BadRequest()
         self.assertRaisesRegexp(utils.DiscoveryFailed,
-                                'Cannot get node uuid1',
-                                discover.discover, ['uuid1', 'uuid2'])
+                                'Cannot get node',
+                                discover.introspect, self.uuid)
 
-        self.assertEqual(3, cli.node.get.call_count)
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
         self.assertFalse(add_mock.called)
 
-    def test_failed_to_validate_node(self, client_mock, add_mock, filters_mock,
-                                     spawn_mock):
+    def test_failed_to_validate_node(self, client_mock, add_mock,
+                                     filters_mock):
         cli = client_mock.return_value
-        cli.node.get.side_effect = [
-            self.node1,
-            self.node2,
-        ]
-        cli.node.validate.side_effect = [
-            mock.Mock(power={'result': True}),
-            mock.Mock(power={'result': False, 'reason': 'oops'}),
-        ]
+        cli.node.get.return_value = self.node
+        cli.node.validate.return_value = mock.Mock(power={'result': False,
+                                                          'reason': 'oops'})
+
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
-            'Failed validation of power interface for node uuid2',
-            discover.discover, ['uuid1', 'uuid2'])
+            'Failed validation of power interface for node',
+            discover.introspect, self.uuid)
 
-        self.assertEqual(2, cli.node.get.call_count)
-        self.assertEqual(2, cli.node.validate.call_count)
+        cli.node.validate.assert_called_once_with(self.uuid)
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
         self.assertFalse(add_mock.called)
 
-    def test_no_uuids(self, client_mock, add_mock, filters_mock, spawn_mock):
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
-                                'No nodes to discover',
-                                discover.discover, [])
-        self.assertFalse(client_mock.called)
-        self.assertFalse(add_mock.called)
-
-    def test_wrong_provision_state(self, client_mock, add_mock, filters_mock,
-                                   spawn_mock):
-        self.node2.provision_state = 'active'
+    def test_wrong_provision_state(self, client_mock, add_mock, filters_mock):
+        self.node.provision_state = 'active'
         cli = client_mock.return_value
-        cli.node.get.side_effect = [
-            self.node1,
-            self.node2,
-        ]
+        cli.node.get.return_value = self.node
+
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
-            'node uuid2 with provision state "active"',
-            discover.discover, ['uuid1', 'uuid2'])
+            'node uuid with provision state "active"',
+            discover.introspect, self.uuid)
 
-        self.assertEqual(2, cli.node.get.call_count)
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, cli.node.update.call_count)
         self.assertFalse(add_mock.called)
 
-    def test_wrong_power_state(self, client_mock, add_mock, filters_mock,
-                               spawn_mock):
-        self.node2.power_state = 'power on'
-        self.node2.maintenance = False
+    def test_wrong_power_state(self, client_mock, add_mock, filters_mock):
+        self.node.power_state = 'power on'
         cli = client_mock.return_value
-        cli.node.get.side_effect = [
-            self.node1,
-            self.node2,
-        ]
+        cli.node.get.return_value = self.node
+
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
-            'node uuid2 with power state "power on"',
-            discover.discover, ['uuid1', 'uuid2'])
+            'node uuid with power state "power on"',
+            discover.introspect, self.uuid)
 
-        self.assertEqual(2, cli.node.get.call_count)
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)

@@ -14,6 +14,7 @@
 import eventlet
 eventlet.monkey_patch(thread=False)
 
+import functools
 import json
 import logging
 import sys
@@ -34,50 +35,66 @@ app = Flask(__name__)
 LOG = logging.getLogger('ironic_discoverd.main')
 
 
+def check_auth():
+    if not conf.getboolean('discoverd', 'authenticate'):
+        return
+
+    if not request.headers.get('X-Auth-Token'):
+        LOG.error("No X-Auth-Token header, rejecting request")
+        raise utils.DiscoveryFailed('Authentication required', code=401)
+    try:
+        utils.get_keystone(token=request.headers['X-Auth-Token'])
+    except exceptions.Unauthorized:
+        LOG.error("Keystone denied access, rejecting request")
+        raise utils.DiscoveryFailed('Access denied', code=403)
+    # TODO(dtanstur): check for admin role
+
+
+def convert_exceptions(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except utils.DiscoveryFailed as exc:
+            return str(exc), exc.http_code
+
+    return wrapper
+
+
 @app.route('/v1/continue', methods=['POST'])
+@convert_exceptions
 def post_continue():
     data = request.get_json(force=True)
     LOG.debug("/v1/continue got JSON %s", data)
-    try:
-        res = process.process(data)
-    except utils.DiscoveryFailed as exc:
-        LOG.debug('/v1/continue failed: %s', exc)
-        return str(exc), exc.http_code
-    else:
-        return json.dumps(res), 200, {'Content-Type': 'applications/json'}
+
+    res = process.process(data)
+    return json.dumps(res), 200, {'Content-Type': 'applications/json'}
 
 
-@app.route('/v1/introspection/<uuid>')
+@app.route('/v1/introspection/<uuid>', methods=['GET', 'POST'])
+@convert_exceptions
 def introspection(uuid):
-    # NOTE(dtantsur): in the future this method will also accept PUT
-    # to initiate introspection.
-    node_info = node_cache.get_node(uuid)
-    return flask_json.jsonify(finished=bool(node_info.finished_at),
-                              error=node_info.error or None)
+    check_auth()
+
+    if request.method == 'POST':
+        discover.introspect(uuid)
+        return '', 202
+    else:
+        node_info = node_cache.get_node(uuid)
+        return flask_json.jsonify(finished=bool(node_info.finished_at),
+                                  error=node_info.error or None)
 
 
 @app.route('/v1/discover', methods=['POST'])
+@convert_exceptions
 def post_discover():
-    if conf.getboolean('discoverd', 'authenticate'):
-        if not request.headers.get('X-Auth-Token'):
-            LOG.error("No X-Auth-Token header, rejecting request")
-            return 'Authentication required', 401
-        try:
-            utils.get_keystone(token=request.headers['X-Auth-Token'])
-        except exceptions.Unauthorized:
-            LOG.error("Keystone denied access, rejecting request")
-            return 'Access denied', 403
-        # TODO(dtanstur): check for admin role
-
+    check_auth()
     data = request.get_json(force=True)
     LOG.debug("/v1/discover got JSON %s", data)
-    try:
-        discover.discover(data)
-    except utils.DiscoveryFailed as exc:
-        LOG.debug('/v1/discover failed: %s', exc)
-        return str(exc), exc.http_code
-    else:
-        return "", 202
+
+    for uuid in data:
+        discover.introspect(uuid)
+    return "", 202
 
 
 def periodic_update(period):

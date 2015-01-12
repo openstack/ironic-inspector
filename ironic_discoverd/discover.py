@@ -14,7 +14,6 @@
 """Handling discovery request."""
 
 import logging
-import time
 
 import eventlet
 from ironicclient import exceptions
@@ -31,34 +30,23 @@ VALID_STATES = {'enroll', 'managed', 'inspecting'}
 VALID_POWER_STATES = {'power off'}
 
 
-def discover(uuids):
-    """Initiate discovery for given node uuids."""
-    if not uuids:
-        raise utils.DiscoveryFailed("No nodes to discover")
+def introspect(uuid):
+    """Initiate hardware properties introspection for a given node.
 
+    :param uuid: node uuid
+    :raises: DiscoveryFailed
+    """
     ironic = utils.get_client()
-    LOG.debug('Validating nodes %s', uuids)
-    nodes = []
-    for uuid in uuids:
-        try:
-            node = ironic.node.get(uuid)
-        except exceptions.NotFound:
-            LOG.error('Node %s cannot be found', uuid)
-            raise utils.DiscoveryFailed("Cannot find node %s" % uuid, code=404)
-        except exceptions.HttpError as exc:
-            LOG.exception('Cannot get node %s', uuid)
-            raise utils.DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
-        _validate(ironic, node)
-        nodes.append(node)
+    try:
+        node = ironic.node.get(uuid)
+    except exceptions.NotFound:
+        LOG.error('Node %s cannot be found', uuid)
+        raise utils.DiscoveryFailed("Cannot find node %s" % uuid, code=404)
+    except exceptions.HttpError as exc:
+        LOG.exception('Cannot get node %s', uuid)
+        raise utils.DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
-    LOG.info('Proceeding with discovery on node(s) %s',
-             [n.uuid for n in nodes])
-    for node in nodes:
-        eventlet.greenthread.spawn_n(_background_start_discover, ironic, node)
-
-
-def _validate(ironic, node):
     if (node.extra.get('ipmi_setup_credentials') and not
             conf.getboolean('discoverd', 'enable_setting_ipmi_credentials')):
         msg = 'IPMI credentials setup is disabled in configuration'
@@ -91,12 +79,12 @@ def _validate(ironic, node):
             raise utils.DiscoveryFailed(
                 'Failed validation of power interface for node %s' % node.uuid)
 
+    eventlet.greenthread.spawn_n(_background_start_discover, ironic, node)
+
 
 def _background_start_discover(ironic, node):
-    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'},
-             {'op': 'add', 'path': '/extra/discovery_timestamp',
-              'value': str(time.time())}]
-    ironic.node.update(node.uuid, patch)
+    patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
+    utils.retry_on_conflict(ironic.node.update, node.uuid, patch)
 
     # TODO(dtantsur): pagination
     macs = [p.address for p in ironic.node.list_ports(node.uuid, limit=0)]
