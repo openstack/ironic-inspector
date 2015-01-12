@@ -98,7 +98,7 @@ class Test(base.NodeTest):
 
     def test_bmc(self):
         self.node.power_state = 'power off'
-        client.discover([self.uuid], auth_token='token')
+        client.introspect(self.uuid, auth_token='token')
         eventlet.greenthread.sleep(1)
 
         status = client.get_status(self.uuid, auth_token='token')

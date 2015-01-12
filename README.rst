@@ -142,7 +142,7 @@ of UUID's, ``base_url`` --- optional *ironic-discoverd* service URL and
 
 You can also use it from CLI::
 
-    python -m ironic_discoverd.client --auth-token TOKEN UUID1 UUID2
+    python -m ironic_discoverd.client --auth-token TOKEN introspect UUID
 
 .. note::
     This CLI interface is not stable and may be changes without prior notice.
@@ -153,25 +153,41 @@ API
 By default *ironic-discoverd* listens on ``0.0.0.0:5050``, this can be changed
 in configuration. Protocol is JSON over HTTP.
 
-HTTP API consist of 2 endpoints:
+HTTP API consist of these endpoints:
 
-* ``POST /v1/discover`` initiate hardware discovery. Request body: JSON - list
-  of UUID's of nodes to discover. All power management configuration for these
-  nodes needs to be done prior to calling the endpoint. Requires X-Auth-Token
-  header with Keystone token for authentication.
+* ``POST /v1/introspection/<UUID>`` initiate hardware discovery for node
+  ``<UUID>``. All power management configuration for this node needs to be done
+  prior to calling the endpoint.
 
-  Nodes will be put into maintenance mode during discovery. It's up to caller
-  to put them back into use after discovery is done.
-
-  .. note::
-      Before version 0.2.0 this endpoint was not authenticated. Now it is,
-      but check for admin role is not implemented yet - see `bug #1391866`_.
+  Requires X-Auth-Token header with Keystone token for authentication.
 
   Response:
 
   * 202 - accepted discovery request
   * 400 - bad request
+  * 401, 403 - missing or invalid authentication
   * 404 - node cannot be found
+
+  Client library function: ``ironic_discoverd.client.introspect`` for node
+  ``<UUID>``.
+
+* ``GET /v1/introspection/<UUID>`` get hardware discovery status.
+
+  Requires X-Auth-Token header with Keystone token for authentication.
+
+  Response:
+
+  * 200 - OK
+  * 400 - bad request
+  * 401, 403 - missing or invalid authentication
+  * 404 - node cannot be found
+
+  Response body: JSON dictionary with keys:
+
+  * ``finished`` (boolean) whether discovery is finished
+  * ``error`` error string or ``null``
+
+  Client library function: ``ironic_discoverd.client.get_status``.
 
 * ``POST /v1/continue`` internal endpoint for the discovery ramdisk to post
   back discovered data. Should not be used for anything other than implementing
@@ -194,12 +210,6 @@ HTTP API consist of 2 endpoints:
   * 403 - node is not on discovery
   * 404 - node cannot be found or multiple nodes found
 
-  Successful response body is a JSON dictionary with keys:
-
-  * ``node`` node as returned by Ironic
-
-.. _bug #1391866: https://bugs.launchpad.net/ironic-discoverd/+bug/1391866
-
 Release Notes
 -------------
 
@@ -213,10 +223,20 @@ See `1.0.0 release tracking page`_ for details.
 
 **API**
 
+* New API ``GET /v1/introspection/<uuid>`` and ``client.get_status`` for
+  getting discovery status.
+
+  See `get-status-api blueprint`_ for details.
+
+* New API ``POST /v1/introspection/<uuid>`` and ``client.introspect``
+  is now used to initiate discovery, ``/v1/discover`` is deprecated.
+
+  See `v1 API reform blueprint`_ for details.
+
 * ``/v1/continue`` is now sync:
 
   * Errors are properly returned to the caller
-  * This call now returns value as a JSON dict
+  * This call now returns value as a JSON dict (currently empty)
 
 * Experimental support for updating IPMI credentials from within ramdisk.
 
@@ -229,11 +249,6 @@ See `1.0.0 release tracking page`_ for details.
 
 * Add support for plugins that hook into data processing pipeline, see
   `plugin-architecture blueprint`_ for details.
-
-* Add new API ``GET /v1/introspection/<uuid>`` and ``client.get_status`` for
-  getting discovery status.
-
-  See `get-status-api blueprint`_ for details.
 
 **Configuration**
 
@@ -255,6 +270,7 @@ See `1.0.0 release tracking page`_ for details.
 .. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
 .. _get-status-api blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/get-status-api
 .. _Kilo state machine blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/kilo-state-machine
+.. _v1 API reform blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/v1-api-reform
 
 0.2 Series
 ~~~~~~~~~~

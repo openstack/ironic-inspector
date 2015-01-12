@@ -19,32 +19,41 @@ from ironic_discoverd import client
 
 
 @mock.patch.object(client.requests, 'post', autospec=True)
-class TestDiscover(unittest.TestCase):
+class TestIntrospect(unittest.TestCase):
     def test(self, mock_post):
+        client.introspect('uuid1', base_url="http://host:port",
+                          auth_token="token")
+        mock_post.assert_called_once_with(
+            "http://host:port/v1/introspection/uuid1",
+            headers={'X-Auth-Token': 'token'}
+        )
+
+    def test_invalid_input(self, _):
+        self.assertRaises(TypeError, client.introspect, 42)
+
+    def test_full_url(self, mock_post):
+        client.introspect('uuid1', base_url="http://host:port/v1/",
+                          auth_token="token")
+        mock_post.assert_called_once_with(
+            "http://host:port/v1/introspection/uuid1",
+            headers={'X-Auth-Token': 'token'}
+        )
+
+    def test_default_url(self, mock_post):
+        client.introspect('uuid1', auth_token="token")
+        mock_post.assert_called_once_with(
+            "http://127.0.0.1:5050/v1/introspection/uuid1",
+            headers={'X-Auth-Token': 'token'}
+        )
+
+
+@mock.patch.object(client.requests, 'post', autospec=True)
+class TestDiscover(unittest.TestCase):
+    def test_old_discover(self, mock_post):
         client.discover(['uuid1', 'uuid2'], base_url="http://host:port",
                         auth_token="token")
         mock_post.assert_called_once_with(
             "http://host:port/v1/discover",
-            data='["uuid1", "uuid2"]',
-            headers={'Content-Type': 'application/json',
-                     'X-Auth-Token': 'token'}
-        )
-
-    def test_full_url(self, mock_post):
-        client.discover(['uuid1', 'uuid2'], base_url="http://host:port/v1/",
-                        auth_token="token")
-        mock_post.assert_called_once_with(
-            "http://host:port/v1/discover",
-            data='["uuid1", "uuid2"]',
-            headers={'Content-Type': 'application/json',
-                     'X-Auth-Token': 'token'}
-        )
-
-    def test_default_url(self, mock_post):
-        client.discover(['uuid1', 'uuid2'],
-                        auth_token="token")
-        mock_post.assert_called_once_with(
-            "http://127.0.0.1:5050/v1/discover",
             data='["uuid1", "uuid2"]',
             headers={'Content-Type': 'application/json',
                      'X-Auth-Token': 'token'}

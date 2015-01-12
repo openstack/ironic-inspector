@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 import argparse
 import json
 
@@ -29,23 +31,20 @@ def _prepare(base_url, auth_token):
     return base_url, headers
 
 
-def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
-    """Post node UUID's for discovery.
+def introspect(uuid, base_url=_DEFAULT_URL, auth_token=''):
+    """Start introspection for a node.
 
-    :param uuids: list of UUID's.
+    :param uuid: node uuid
     :param base_url: *ironic-discoverd* URL in form: http://host:port[/ver],
                      defaults to ``http://127.0.0.1:5050/v1``.
     :param auth_token: Keystone authentication token.
-    :raises: *requests* library HTTP errors.
     """
-    if not all(isinstance(s, six.string_types) for s in uuids):
-        raise TypeError("Expected list of strings for uuids argument, got %s" %
-                        uuids)
+    if not isinstance(uuid, six.string_types):
+        raise TypeError("Expected string for uuid argument, got %r" % uuid)
 
     base_url, headers = _prepare(base_url, auth_token)
-    headers['Content-Type'] = 'application/json'
-    res = requests.post(base_url + "/discover",
-                        data=json.dumps(uuids), headers=headers)
+    res = requests.post("%s/introspection/%s" % (base_url, uuid),
+                        headers=headers)
     res.raise_for_status()
 
 
@@ -63,15 +62,35 @@ def get_status(uuid, base_url=_DEFAULT_URL, auth_token=''):
         raise TypeError("Expected string for uuid argument, got %r" % uuid)
 
     base_url, headers = _prepare(base_url, auth_token)
-    res = requests.get(base_url + "/introspection/%s" % uuid, headers=headers)
+    res = requests.get("%s/introspection/%s" % (base_url, uuid),
+                       headers=headers)
     res.raise_for_status()
     return res.json()
 
 
-if __name__ == '__main__':
+def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
+    """Post node UUID's for discovery.
+
+    DEPRECATED. Use introspect instead.
+    """
+    if not all(isinstance(s, six.string_types) for s in uuids):
+        raise TypeError("Expected list of strings for uuids argument, got %s" %
+                        uuids)
+
+    base_url, headers = _prepare(base_url, auth_token)
+    headers['Content-Type'] = 'application/json'
+    res = requests.post(base_url + "/discover",
+                        data=json.dumps(uuids), headers=headers)
+    res.raise_for_status()
+
+
+if __name__ == '__main__':  # pragma: no cover
     parser = argparse.ArgumentParser(description='Discover nodes.')
-    parser.add_argument('uuids', metavar='UUID', type=str, nargs='+',
-                        help='node UUID\'s.')
+    parser.add_argument('cmd', metavar='cmd',
+                        choices=['introspect', 'get_status'],
+                        help='command: introspect or get_status.')
+    parser.add_argument('uuid', metavar='UUID', type=str,
+                        help='node UUID.')
     parser.add_argument('--base-url', dest='base_url', action='store',
                         default=_DEFAULT_URL,
                         help='base URL, default to localhost.')
@@ -79,4 +98,12 @@ if __name__ == '__main__':
                         default='',
                         help='Keystone token.')
     args = parser.parse_args()
-    discover(args.uuids, base_url=args.base_url, auth_token=args.auth_token)
+    func = globals()[args.cmd]
+    try:
+        res = func(uuid=args.uuid, base_url=args.base_url,
+                   auth_token=args.auth_token)
+    except Exception as exc:
+        print('Error:', exc)
+    else:
+        if res:
+            print(res)
