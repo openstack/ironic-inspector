@@ -26,6 +26,9 @@ from ironic_discoverd import utils
 
 
 LOG = logging.getLogger("ironic_discoverd.discover")
+# See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
+VALID_STATES = {'enroll', 'managed', 'inspecting'}
+VALID_POWER_STATES = {'power off'}
 
 
 def discover(uuids):
@@ -62,23 +65,23 @@ def _validate(ironic, node):
         LOG.error(msg)
         raise utils.DiscoveryFailed(msg)
 
-    if node.instance_uuid:
-        LOG.error('Refusing to discover node %s with assigned instance_uuid',
-                  node.uuid)
-        raise utils.DiscoveryFailed(
-            'Refusing to discover node %s with assigned instance uuid' %
-            node.uuid)
+    if not node.maintenance:
+        provision_state = node.provision_state
+        if provision_state and provision_state.lower() not in VALID_STATES:
+            msg = ('Refusing to discoverd node %s with provision state "%s" '
+                   'and maintenance mode off')
+            LOG.error(msg, node.uuid, provision_state)
+            raise utils.DiscoveryFailed(msg % (node.uuid, provision_state))
 
-    power_state = node.power_state
-    if (not node.maintenance and power_state is not None
-            and power_state.lower() != 'power off'):
-        LOG.error('Refusing to discover node %s with power_state "%s" '
-                  'and maintenance mode off',
-                  node.uuid, power_state)
-        raise utils.DiscoveryFailed(
-            'Refusing to discover node %s with power state "%s" and '
-            'maintenance mode off' %
-            (node.uuid, power_state))
+        power_state = node.power_state
+        if power_state and power_state.lower() not in VALID_POWER_STATES:
+            msg = ('Refusing to discover node %s with power state "%s" '
+                   'and maintenance mode off')
+            LOG.error(msg, node.uuid, power_state)
+            raise utils.DiscoveryFailed(msg % (node.uuid, power_state))
+    else:
+        LOG.info('Node %s is in maintenance mode, skipping power and provision'
+                 ' states check')
 
     if not node.extra.get('ipmi_setup_credentials'):
         validation = utils.retry_on_conflict(ironic.node.validate, node.uuid)

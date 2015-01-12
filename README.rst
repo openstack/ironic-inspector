@@ -247,12 +247,14 @@ See `1.0.0 release tracking page`_ for details.
 
 **Misc**
 
+* Support for OpenStack Kilo release - see `Kilo state machine blueprint`_.
 * Create ``CONTRIBUTING.rst``.
 
 .. _1.0.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.0.0
 .. _setup-ipmi-credentials blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials
 .. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
 .. _get-status-api blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/get-status-api
+.. _Kilo state machine blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/kilo-state-machine
 
 0.2 Series
 ~~~~~~~~~~

@@ -49,5 +49,7 @@ class NodeTest(BaseTest):
                               properties={'cpu_arch': 'i386', 'local_gb': 40},
                               uuid=self.uuid,
                               power_state='power on',
+                              provision_state='inspecting',
                               extra={'on_discovery': 'true'},
-                              instance_uuid=None)
+                              instance_uuid=None,
+                              maintenance=False)

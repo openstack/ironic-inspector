@@ -97,13 +97,13 @@ class Test(base.NodeTest):
         subprocess.check_call(['/bin/bash', '-eux', self.ramdisk_sh], env=env)
 
     def test_bmc(self):
+        self.node.power_state = 'power off'
         client.discover([self.uuid], auth_token='token')
         eventlet.greenthread.sleep(1)
 
         status = client.get_status(self.uuid, auth_token='token')
         self.assertEqual({'finished': False, 'error': None}, status)
 
-        self.node.power_state = 'power off'
         self.call_ramdisk()
         eventlet.greenthread.sleep(1)
 

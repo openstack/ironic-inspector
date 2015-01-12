@@ -41,6 +41,7 @@ class TestDiscover(test_base.BaseTest):
                                instance_uuid=None,
                                # allowed with maintenance=True
                                power_state='power on',
+                               provision_state='foobar',
                                extra={})
         self.node2 = mock.Mock(driver='pxe_ipmitool',
                                uuid='uuid2',
@@ -48,13 +49,15 @@ class TestDiscover(test_base.BaseTest):
                                maintenance=False,
                                instance_uuid=None,
                                power_state=None,
+                               provision_state=None,
                                extra={'on_discovery': True})
         self.node3 = mock.Mock(driver='pxe_ipmitool',
                                uuid='uuid3',
                                driver_info={'ipmi_address': '1.2.3.5'},
                                maintenance=False,
                                instance_uuid=None,
-                               power_state='power off',
+                               power_state='POWER OFF',
+                               provision_state='INSPECTING',
                                extra={'on_discovery': True})
 
     @mock.patch.object(time, 'time', lambda: 42.0)
@@ -203,9 +206,9 @@ class TestDiscover(test_base.BaseTest):
         self.assertFalse(client_mock.called)
         self.assertFalse(add_mock.called)
 
-    def test_with_instance_uuid(self, client_mock, add_mock, filters_mock,
-                                spawn_mock):
-        self.node2.instance_uuid = 'uuid'
+    def test_wrong_provision_state(self, client_mock, add_mock, filters_mock,
+                                   spawn_mock):
+        self.node2.provision_state = 'active'
         cli = client_mock.return_value
         cli.node.get.side_effect = [
             self.node1,
@@ -213,7 +216,7 @@ class TestDiscover(test_base.BaseTest):
         ]
         self.assertRaisesRegexp(
             utils.DiscoveryFailed,
-            'node uuid2 with assigned instance uuid',
+            'node uuid2 with provision state "active"',
             discover.discover, ['uuid1', 'uuid2'])
 
         self.assertEqual(2, cli.node.get.call_count)
