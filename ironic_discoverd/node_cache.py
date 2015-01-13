@@ -13,6 +13,7 @@
 
 """Cache for nodes currently under discovery."""
 
+import json
 import logging
 import sqlite3
 import sys
@@ -22,7 +23,7 @@ from ironic_discoverd import conf
 from ironic_discoverd import utils
 
 
-LOG = logging.getLogger("discoverd")
+LOG = logging.getLogger("ironic_discoverd.node_cache")
 _DB_NAME = None
 _SCHEMA = """
 create table if not exists nodes
@@ -31,6 +32,11 @@ create table if not exists nodes
 create table if not exists attributes
  (name text, value text, uuid text,
   primary key (name, value),
+  foreign key (uuid) references nodes);
+
+create table if not exists options
+ (uuid text, name text, value text,
+  primary key (uuid, name),
   foreign key (uuid) references nodes);
 """
 
@@ -43,6 +49,27 @@ class NodeInfo(object):
         self.started_at = started_at
         self.finished_at = finished_at
         self.error = error
+        self._options = None
+
+    @property
+    def options(self):
+        """Node discovery options as a dict."""
+        if self._options is None:
+            rows = _db().execute('select name, value from options '
+                                 'where uuid=?', (self.uuid,))
+            self._options = {row['name']: json.loads(row['value'])
+                             for row in rows}
+        return self._options
+
+    def set_option(self, name, value):
+        """Set an option for a node."""
+        encoded = json.dumps(value)
+        self.options[name] = value
+        with _db() as db:
+            db.execute('delete from options where uuid=? and name=?',
+                       (self.uuid, name))
+            db.execute('insert into options(uuid, name, value) values(?,?,?)',
+                       (self.uuid, name, encoded))
 
     def finished(self, error=None, log=True):
         """Record status for this node.
@@ -61,6 +88,7 @@ class NodeInfo(object):
             db.execute('update nodes set finished_at=?, error=? where uuid=?',
                        (self.finished_at, error, self.uuid))
             db.execute("delete from attributes where uuid=?", (self.uuid,))
+            db.execute("delete from options where uuid=?", (self.uuid,))
 
     @classmethod
     def from_row(cls, row):
@@ -98,12 +126,16 @@ def add_node(uuid, **attributes):
 
     :param uuid: Ironic node UUID
     :param attributes: attributes known about this node (like macs, BMC etc)
+    :returns: NodeInfo
     """
+    started_at = time.time()
     with _db() as db:
         db.execute("delete from nodes where uuid=?", (uuid,))
         db.execute("delete from attributes where uuid=?", (uuid,))
+        db.execute("delete from options where uuid=?", (uuid,))
+
         db.execute("insert into nodes(uuid, started_at) "
-                   "values(?, ?)", (uuid, time.time()))
+                   "values(?, ?)", (uuid, started_at))
         for (name, value) in attributes.items():
             if not value:
                 continue
@@ -122,6 +154,8 @@ def add_node(uuid, **attributes):
                     'Some or all of %(name)s\'s %(value)s are already '
                     'on discovery' %
                     {'name': name, 'value': value})
+
+    return NodeInfo(uuid=uuid, started_at=started_at)
 
 
 def macs_on_discovery():
@@ -222,6 +256,8 @@ def clean_up():
                    'where started_at < ?',
                    (time.time(), 'Discovery timed out', threshold))
         db.executemany('delete from attributes where uuid=?',
+                       [(u,) for u in uuids])
+        db.executemany('delete from options where uuid=?',
                        [(u,) for u in uuids])
 
     return uuids
