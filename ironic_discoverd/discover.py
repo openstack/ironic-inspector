@@ -30,7 +30,7 @@ VALID_STATES = {'enroll', 'managed', 'inspecting'}
 VALID_POWER_STATES = {'power off'}
 
 
-def introspect(uuid):
+def introspect(uuid, setup_ipmi_credentials=False):
     """Initiate hardware properties introspection for a given node.
 
     :param uuid: node uuid
@@ -47,7 +47,7 @@ def introspect(uuid):
         LOG.exception('Cannot get node %s', uuid)
         raise utils.DiscoveryFailed("Cannot get node %s: %s" % (uuid, exc))
 
-    if (node.extra.get('ipmi_setup_credentials') and not
+    if (setup_ipmi_credentials and not
             conf.getboolean('discoverd', 'enable_setting_ipmi_credentials')):
         msg = 'IPMI credentials setup is disabled in configuration'
         LOG.error(msg)
@@ -71,7 +71,7 @@ def introspect(uuid):
         LOG.info('Node %s is in maintenance mode, skipping power and provision'
                  ' states check')
 
-    if not node.extra.get('ipmi_setup_credentials'):
+    if not setup_ipmi_credentials:
         validation = utils.retry_on_conflict(ironic.node.validate, node.uuid)
         if not validation.power['result']:
             LOG.error('Failed validation of power interface for node %s, '
@@ -79,25 +79,28 @@ def introspect(uuid):
             raise utils.DiscoveryFailed(
                 'Failed validation of power interface for node %s' % node.uuid)
 
-    eventlet.greenthread.spawn_n(_background_start_discover, ironic, node)
+    eventlet.greenthread.spawn_n(_background_start_discover, ironic, node,
+                                 setup_ipmi_credentials=setup_ipmi_credentials)
 
 
-def _background_start_discover(ironic, node):
+def _background_start_discover(ironic, node, setup_ipmi_credentials):
     patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
     utils.retry_on_conflict(ironic.node.update, node.uuid, patch)
 
     # TODO(dtantsur): pagination
     macs = [p.address for p in ironic.node.list_ports(node.uuid, limit=0)]
-    node_cache.add_node(node.uuid,
-                        bmc_address=node.driver_info.get('ipmi_address'),
-                        mac=macs)
+    cached_node = node_cache.add_node(
+        node.uuid,
+        bmc_address=node.driver_info.get('ipmi_address'),
+        mac=macs)
+    cached_node.set_option('setup_ipmi_credentials', setup_ipmi_credentials)
 
     if macs:
         LOG.info('Whitelisting MAC\'s %s for node %s on the firewall',
                  macs, node.uuid)
         firewall.update_filters(ironic)
 
-    if not node.extra.get('ipmi_setup_credentials'):
+    if not setup_ipmi_credentials:
         try:
             utils.retry_on_conflict(ironic.node.set_boot_device,
                                     node.uuid, 'pxe', persistent=False)

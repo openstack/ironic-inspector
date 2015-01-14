@@ -372,7 +372,7 @@ class TestProcessNode(BaseTest):
                                                      port_patch)
 
     def test_ipmi_setup_credentials(self, filters_mock, post_hook_mock):
-        self.node.extra['ipmi_setup_credentials'] = True
+        self.cached_node.set_option('setup_ipmi_credentials', True)
 
         self.call()
 
@@ -386,7 +386,7 @@ class TestProcessNode(BaseTest):
     def test_ipmi_setup_credentials_timeout(self, time_mock, finished_mock,
                                             filters_mock, post_hook_mock):
         conf.CONF.set('discoverd', 'timeout', '100')
-        self.node.extra['ipmi_setup_credentials'] = True
+        self.cached_node.set_option('setup_ipmi_credentials', True)
         time_mock.return_value = self.started_at + 1000
 
         self.call()

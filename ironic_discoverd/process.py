@@ -110,7 +110,7 @@ def _process_node(ironic, node, node_info, cached_node):
 
     firewall.update_filters(ironic)
 
-    if node.extra.get('ipmi_setup_credentials'):
+    if cached_node.options.get('setup_ipmi_credentials'):
         eventlet.greenthread.spawn_n(_wait_for_power_management,
                                      ironic, cached_node)
         return {'ipmi_setup_credentials': True,

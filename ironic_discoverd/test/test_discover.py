@@ -25,7 +25,7 @@ from ironic_discoverd import utils
 
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
-                   lambda f, *a: f(*a) and None)
+                   lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(utils, 'get_client', autospec=True)
@@ -67,6 +67,8 @@ class TestDiscover(test_base.NodeTest):
                                                          persistent=False)
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
+        add_mock.return_value.set_option.assert_called_once_with(
+            'setup_ipmi_credentials', False)
 
     def test_retries(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
@@ -152,9 +154,7 @@ class TestDiscover(test_base.NodeTest):
         cli.node.list_ports.return_value = self.ports
         cli.node.validate.side_effect = Exception()
 
-        self.node.extra['ipmi_setup_credentials'] = True
-
-        discover.introspect(self.uuid)
+        discover.introspect(self.uuid, setup_ipmi_credentials=True)
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
@@ -171,10 +171,9 @@ class TestDiscover(test_base.NodeTest):
         cli.node.list_ports.return_value = []
         cli.node.validate.side_effect = Exception()
 
-        self.node.extra['ipmi_setup_credentials'] = True
-
         self.assertRaisesRegexp(utils.DiscoveryFailed, 'disabled',
-                                discover.introspect, self.uuid)
+                                discover.introspect, self.uuid,
+                                setup_ipmi_credentials=True)
 
     def test_failed_to_get_node(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
