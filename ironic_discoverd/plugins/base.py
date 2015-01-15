@@ -23,30 +23,29 @@ from ironic_discoverd import conf
 
 @six.add_metaclass(abc.ABCMeta)
 class ProcessingHook(object):  # pragma: no cover
-    """Abstract base class for discovery data processing hooks."""
+    """Abstract base class for introspection data processing hooks."""
 
-    def pre_discover(self, node_info):
-        """Pre-discovery hook.
+    def before_processing(self, node_info):
+        """Hook to run before any other data processing.
 
-        This hook is run before any processing is done on data, even sanity
-        checks.
+        This hook is run even before sanity checks.
 
         :param node_info: raw information sent by the ramdisk, may be modified
                           by the hook.
         :returns: nothing.
         """
 
-    def post_discover(self, node, ports, discovered_data):
-        """Post-discovery hook.
+    def before_update(self, node, ports, node_info):
+        """Hook to run before Ironic node update.
 
-        This hook is run after node is found, just before it's updated with the
-        data.
+        This hook is run after node is found and ports are created,
+        just before the node is updated with the data.
 
         :param node: Ironic node as returned by the Ironic client, should not
                      be modified directly by the hook.
         :param ports: Ironic ports created by discoverd, also should not be
                       updated directly.
-        :param discovered_data: processed data from the ramdisk.
+        :param node_info: processed data from the ramdisk.
         :returns: tuple (node patches, port patches) where
                   *node_patches* is a list of JSON patches [RFC 6902] to apply
                   to the node, *port_patches* is a dict where keys are

@@ -156,7 +156,7 @@ class TestProcess(BaseTest):
     def test_error(self, cli, pop_mock, process_mock):
         self.data['error'] = 'BOOM'
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.Error,
                                 'BOOM',
                                 process.process, self.data)
         self.assertFalse(process_mock.called)
@@ -165,16 +165,16 @@ class TestProcess(BaseTest):
     def test_missing_required(self, cli, pop_mock, process_mock):
         del self.data['cpus']
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.Error,
                                 'missing',
                                 process.process, self.data)
         self.assertFalse(process_mock.called)
 
     @prepare_mocks
     def test_not_found_in_cache(self, cli, pop_mock, process_mock):
-        pop_mock.side_effect = utils.DiscoveryFailed('not found')
+        pop_mock.side_effect = utils.Error('not found')
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.Error,
                                 'not found',
                                 process.process, self.data)
         self.assertFalse(cli.node.get.called)
@@ -184,7 +184,7 @@ class TestProcess(BaseTest):
     def test_not_found_in_ironic(self, cli, pop_mock, process_mock):
         cli.node.get.side_effect = exceptions.NotFound()
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.Error,
                                 'not found',
                                 process.process, self.data)
         cli.node.get.assert_called_once_with(self.uuid)
@@ -196,9 +196,9 @@ class TestProcess(BaseTest):
         pop_mock.return_value = node_cache.NodeInfo(
             uuid=self.node.uuid,
             started_at=self.started_at)
-        process_mock.side_effect = utils.DiscoveryFailed('boom')
+        process_mock.side_effect = utils.Error('boom')
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed, 'boom',
+        self.assertRaisesRegexp(utils.Error, 'boom',
                                 process.process, self.data)
 
         finished_mock.assert_called_once_with(mock.ANY, error='boom')
@@ -211,18 +211,18 @@ class TestProcess(BaseTest):
             started_at=self.started_at)
         process_mock.side_effect = RuntimeError('boom')
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed, 'Unexpected exception',
+        self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
                                 process.process, self.data)
 
         finished_mock.assert_called_once_with(
-            mock.ANY, log=False,
+            mock.ANY,
             error='Unexpected exception during processing')
 
 
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
                    lambda f, *a: f(*a) and None)
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
-@mock.patch.object(example_plugin.ExampleProcessingHook, 'post_discover')
+@mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 class TestProcessNode(BaseTest):
     def setUp(self):
@@ -334,13 +334,14 @@ class TestProcessNode(BaseTest):
         time_mock.return_value = self.started_at + 1000
         self.cli.node.get.return_value = self.node
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed, 'power off', self.call)
+        self.assertRaisesRegexp(utils.Error, 'power off', self.call)
 
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_before)
         finished_mock.assert_called_once_with(
             mock.ANY,
-            error='Timeout waiting for node uuid to power off after discovery')
+            error='Timeout waiting for node uuid to power off '
+            'after introspection')
 
     def test_port_failed(self, filters_mock, post_hook_mock):
         self.ports[0] = exceptions.Conflict()
@@ -396,15 +397,15 @@ class TestProcessNode(BaseTest):
         self.assertFalse(self.cli.node.set_power_state.called)
         finished_mock.assert_called_once_with(
             mock.ANY,
-            error='Timeout waiting for power credentials update of node '
-            'uuid after discovery')
+            error='Timeout waiting for power credentials update of node uuid '
+            'after introspection')
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_power_off_failed(self, finished_mock, filters_mock,
                               post_hook_mock):
         self.cli.node.set_power_state.side_effect = RuntimeError('boom')
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed, 'Failed to power off',
+        self.assertRaisesRegexp(utils.Error, 'Failed to power off',
                                 self.call)
 
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')

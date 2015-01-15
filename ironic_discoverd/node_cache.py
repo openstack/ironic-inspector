@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Cache for nodes currently under discovery."""
+"""Cache for nodes currently under introspection."""
 
 import json
 import logging
@@ -53,7 +53,7 @@ class NodeInfo(object):
 
     @property
     def options(self):
-        """Node discovery options as a dict."""
+        """Node introspection options as a dict."""
         if self._options is None:
             rows = _db().execute('select name, value from options '
                                  'where uuid=?', (self.uuid,))
@@ -71,18 +71,15 @@ class NodeInfo(object):
             db.execute('insert into options(uuid, name, value) values(?,?,?)',
                        (self.uuid, name, encoded))
 
-    def finished(self, error=None, log=True):
+    def finished(self, error=None):
         """Record status for this node.
 
         Also deletes look up attributes from the cache.
 
         :param error: error message
-        :param log: whether to log the error message
         """
         self.finished_at = time.time()
         self.error = error
-        if error and log:
-            LOG.error(error)
 
         with _db() as db:
             db.execute('update nodes set finished_at=?, error=? where uuid=?',
@@ -119,7 +116,7 @@ def _db():
 
 
 def add_node(uuid, **attributes):
-    """Store information about a node under discovery.
+    """Store information about a node under introspection.
 
     All existing information about this node is dropped.
     Empty values are skipped.
@@ -147,19 +144,18 @@ def add_node(uuid, **attributes):
                                "values(?, ?, ?)",
                                [(name, v, uuid) for v in value])
             except sqlite3.IntegrityError as exc:
-                LOG.error('Database integrity error %s, some or all of '
-                          '%s\'s %s seem to be on discovery already',
-                          exc, name, value)
-                raise utils.DiscoveryFailed(
+                LOG.error('Database integrity error %s during '
+                          'adding attributes', exc)
+                raise utils.Error(
                     'Some or all of %(name)s\'s %(value)s are already '
-                    'on discovery' %
+                    'on introspection' %
                     {'name': name, 'value': value})
 
     return NodeInfo(uuid=uuid, started_at=started_at)
 
 
-def macs_on_discovery():
-    """List all MAC's that are on discovery right now."""
+def active_macs():
+    """List all MAC's that are on introspection right now."""
     return {x[0] for x in _db().execute("select value from attributes "
                                         "where name='mac'")}
 
@@ -172,8 +168,7 @@ def get_node(uuid):
     """
     row = _db().execute('select * from nodes where uuid=?', (uuid,)).fetchone()
     if row is None:
-        raise utils.DiscoveryFailed('Could not find node %s in cache' % uuid,
-                                    code=404)
+        raise utils.Error('Could not find node %s in cache' % uuid, code=404)
     return NodeInfo.from_row(row)
 
 
@@ -182,7 +177,7 @@ def find_node(**attributes):
 
     :param attributes: attributes known about this node (like macs, BMC etc)
     :returns: structure NodeInfo with attributes ``uuid`` and ``created_at``
-    :raises: DiscoveryFailed if node is not found
+    :raises: Error if node is not found
     """
     # NOTE(dtantsur): sorting is not required, but gives us predictability
     found = set()
@@ -203,28 +198,25 @@ def find_node(**attributes):
             found.update(item[0] for item in rows)
 
     if not found:
-        LOG.error('Could not find a node based on attributes %s',
-                  list(attributes))
-        raise utils.DiscoveryFailed('Could not find a node', code=404)
+        raise utils.Error(
+            'Could not find a node for attributes %s' % attributes, code=404)
     elif len(found) > 1:
-        LOG.error('Multiple nodes were matched based on attributes %(keys)s: '
-                  '%(uuids)s',
-                  {'keys': list(attributes),
-                   'uuids': list(found)})
-        raise utils.DiscoveryFailed('Multiple matching nodes found', code=404)
+        raise utils.Error(
+            'Multiple matching nodes found for attributes %s: %s'
+            % (attributes, list(found)), code=404)
 
     uuid = found.pop()
     row = db.execute('select started_at, finished_at from nodes where uuid=?',
                      (uuid,)).fetchone()
     if not row:
-        LOG.error('Inconsistent database: %s is in attributes table, '
-                  'but not in nodes table', uuid)
-        raise utils.DiscoveryFailed('Could not find a node', code=404)
+        raise utils.Error(
+            'Could not find node %s in introspection cache, '
+            'probably it\'s not on introspection now' % uuid, code=404)
 
     if row['finished_at']:
-        LOG.error('Discovery for node %s finished on %s already',
-                  uuid, row['finished_at'])
-        raise utils.DiscoveryFailed('Discovery for node %s already finished')
+        raise utils.Error(
+            'Introspection for node %s already finished on %s' %
+            (uuid, row['finished_at']))
 
     return NodeInfo(uuid=uuid, started_at=row['started_at'])
 
@@ -232,7 +224,7 @@ def find_node(**attributes):
 def clean_up():
     """Clean up the cache.
 
-    * Finish discovery for timed out nodes.
+    * Finish introspection for timed out nodes.
     * Drop outdated node status information.
 
     :return: list of timed out node UUID's
@@ -256,10 +248,10 @@ def clean_up():
         if not uuids:
             return []
 
-        LOG.error('Discovery for nodes %s has timed out', uuids)
+        LOG.error('Introspection for nodes %s has timed out', uuids)
         db.execute('update nodes set finished_at=?, error=? '
                    'where started_at < ?',
-                   (time.time(), 'Discovery timed out', threshold))
+                   (time.time(), 'Introspection timeout', threshold))
         db.executemany('delete from attributes where uuid=?',
                        [(u,) for u in uuids])
         db.executemany('delete from options where uuid=?',

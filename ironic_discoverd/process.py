@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Handling discovery data from the ramdisk."""
+"""Handling introspection data from the ramdisk."""
 
 import logging
 import time
@@ -33,13 +33,13 @@ _POWER_OFF_CHECK_PERIOD = 5
 
 
 def process(node_info):
-    """Process data from discovery ramdisk.
+    """Process data from the discovery ramdisk.
 
     This function heavily relies on the hooks to do the actual data processing.
     """
     hooks = plugins_base.processing_hooks_manager()
     for hook_ext in hooks:
-        hook_ext.obj.pre_discover(node_info)
+        hook_ext.obj.before_processing(node_info)
 
     cached_node = node_cache.find_node(
         bmc_address=node_info.get('ipmi_address'),
@@ -52,18 +52,18 @@ def process(node_info):
         msg = ('Node UUID %s was found in cache, but is not found in Ironic'
                % cached_node.uuid)
         cached_node.finished(error=msg)
-        raise utils.DiscoveryFailed(msg, code=404)
+        raise utils.Error(msg, code=404)
 
     try:
         return _process_node(ironic, node, node_info, cached_node)
-    except utils.DiscoveryFailed as exc:
+    except utils.Error as exc:
         cached_node.finished(error=str(exc))
         raise
     except Exception as exc:
         msg = 'Unexpected exception during processing'
         LOG.exception(msg)
-        cached_node.finished(error=msg, log=False)
-        raise utils.DiscoveryFailed(msg)
+        cached_node.finished(error=msg)
+        raise utils.Error(msg)
 
 
 def _run_post_hooks(node, ports, node_info):
@@ -73,7 +73,7 @@ def _run_post_hooks(node, ports, node_info):
     node_patches = []
     port_patches = {}
     for hook_ext in hooks:
-        hook_patch = hook_ext.obj.post_discover(node, port_instances,
+        hook_patch = hook_ext.obj.before_update(node, port_instances,
                                                 node_info)
         if not hook_patch:
             continue
@@ -94,7 +94,7 @@ def _process_node(ironic, node, node_info, cached_node):
             port = ironic.port.create(node_uuid=node.uuid, address=mac)
             ports[mac] = port
         except exceptions.Conflict:
-            LOG.warning('MAC %(mac)s appeared in discovery data for '
+            LOG.warning('MAC %(mac)s appeared in introspection data for '
                         'node %(node)s, but already exists in '
                         'database - skipping',
                         {'mac': mac, 'node': node.uuid})
@@ -104,7 +104,7 @@ def _process_node(ironic, node, node_info, cached_node):
     for mac, patches in port_patches.items():
         utils.retry_on_conflict(ironic.port.update, ports[mac].uuid, patches)
 
-    LOG.debug('Node %s was updated with data from discovery process, '
+    LOG.debug('Node %s was updated with data from introspection process, '
               'patches %s, port patches %s',
               node.uuid, node_patches, port_patches)
 
@@ -117,7 +117,7 @@ def _process_node(ironic, node, node_info, cached_node):
                 'ipmi_username': node.driver_info.get('ipmi_username'),
                 'ipmi_password': node.driver_info.get('ipmi_password')}
     else:
-        eventlet.greenthread.spawn_n(_finish_discovery, ironic, cached_node)
+        eventlet.greenthread.spawn_n(_finish, ironic, cached_node)
         return {}
 
 
@@ -128,14 +128,15 @@ def _wait_for_power_management(ironic, cached_node):
         validation = utils.retry_on_conflict(ironic.node.validate,
                                              cached_node.uuid)
         if validation.power['result']:
-            _finish_discovery(ironic, cached_node)
+            _finish(ironic, cached_node)
             return
         LOG.debug('Waiting for management credentials on node %s '
                   'to be updated, current error: %s',
                   cached_node.uuid, validation.power['reason'])
 
     msg = ('Timeout waiting for power credentials update of node %s '
-           'after discovery' % cached_node.uuid)
+           'after introspection' % cached_node.uuid)
+    LOG.error(msg)
     cached_node.finished(error=msg)
 
 
@@ -148,7 +149,7 @@ def _force_power_off(ironic, cached_node):
         msg = ('Failed to power off node %s, check it\'s power '
                'management configuration: %s' % (cached_node.uuid, exc))
         cached_node.finished(error=msg)
-        raise utils.DiscoveryFailed(msg)
+        raise utils.Error(msg)
 
     deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
     while time.time() < deadline:
@@ -159,13 +160,13 @@ def _force_power_off(ironic, cached_node):
                  cached_node.uuid, node.power_state)
         eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
 
-    msg = ('Timeout waiting for node %s to power off after discovery' %
+    msg = ('Timeout waiting for node %s to power off after introspection' %
            cached_node.uuid)
     cached_node.finished(error=msg)
-    raise utils.DiscoveryFailed(msg)
+    raise utils.Error(msg)
 
 
-def _finish_discovery(ironic, cached_node):
+def _finish(ironic, cached_node):
     _force_power_off(ironic, cached_node)
 
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
@@ -173,4 +174,5 @@ def _finish_discovery(ironic, cached_node):
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
     cached_node.finished()
-    LOG.info('Discovery finished successfully for node %s', cached_node.uuid)
+    LOG.info('Introspection finished successfully for node %s',
+             cached_node.uuid)

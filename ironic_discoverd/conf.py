@@ -18,6 +18,8 @@ from six.moves import configparser
 
 # TODO(dtantsur): switch to oslo.db
 DEFAULTS = {
+    # Keystone credentials
+    'admin_tenant_name': 'admin',
     # Ironic and Keystone connection settings
     'ironic_retry_attempts': '5',
     'ironic_retry_period': '5',
@@ -25,7 +27,7 @@ DEFAULTS = {
     'manage_firewall': 'true',
     'dnsmasq_interface': 'br-ctlplane',
     'firewall_update_period': '15',
-    # Discovery process settings
+    # Introspection process settings
     'ports_for_inactive_interfaces': 'false',
     'timeout': '3600',
     'node_status_keep_time': '604800',
@@ -39,7 +41,6 @@ DEFAULTS = {
     # General service settings
     'processing_hooks': 'scheduler,validate_interfaces',
     'debug': 'false',
-    'admin_tenant_name': 'admin',
 }
 
 

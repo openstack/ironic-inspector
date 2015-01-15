@@ -16,8 +16,8 @@ from ironicclient import exceptions
 import mock
 
 from ironic_discoverd import conf
-from ironic_discoverd import discover
 from ironic_discoverd import firewall
+from ironic_discoverd import introspect
 from ironic_discoverd import node_cache
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
@@ -51,7 +51,7 @@ class TestDiscover(test_base.NodeTest):
         cli.node.validate.return_value = mock.Mock(power={'result': True})
         cli.node.list_ports.return_value = self.ports
 
-        discover.introspect(self.node.uuid)
+        introspect.introspect(self.node.uuid)
 
         cli.node.get.assert_called_once_with(self.uuid)
         cli.node.validate.assert_called_once_with(self.uuid)
@@ -84,7 +84,7 @@ class TestDiscover(test_base.NodeTest):
         cli.node.set_power_state.side_effect = [exceptions.Conflict,
                                                 None]
 
-        discover.introspect(self.node.uuid)
+        introspect.introspect(self.node.uuid)
 
         cli.node.get.assert_called_once_with(self.uuid)
         cli.node.validate.assert_called_with(self.uuid)
@@ -107,7 +107,7 @@ class TestDiscover(test_base.NodeTest):
         cli.node.validate.return_value = mock.Mock(power={'result': True})
         cli.node.list_ports.return_value = self.ports
 
-        discover.introspect(self.node_compat.uuid)
+        introspect.introspect(self.node_compat.uuid)
 
         cli.node.get.assert_called_once_with(self.node_compat.uuid)
         cli.node.validate.assert_called_once_with(self.node_compat.uuid)
@@ -131,7 +131,7 @@ class TestDiscover(test_base.NodeTest):
         cli.node.get.return_value = self.node
         cli.node.list_ports.return_value = []
 
-        discover.introspect(self.node.uuid)
+        introspect.introspect(self.node.uuid)
 
         cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
 
@@ -154,7 +154,7 @@ class TestDiscover(test_base.NodeTest):
         cli.node.list_ports.return_value = self.ports
         cli.node.validate.side_effect = Exception()
 
-        discover.introspect(self.uuid, setup_ipmi_credentials=True)
+        introspect.introspect(self.uuid, setup_ipmi_credentials=True)
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
@@ -171,21 +171,21 @@ class TestDiscover(test_base.NodeTest):
         cli.node.list_ports.return_value = []
         cli.node.validate.side_effect = Exception()
 
-        self.assertRaisesRegexp(utils.DiscoveryFailed, 'disabled',
-                                discover.introspect, self.uuid,
+        self.assertRaisesRegexp(utils.Error, 'disabled',
+                                introspect.introspect, self.uuid,
                                 setup_ipmi_credentials=True)
 
     def test_failed_to_get_node(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = exceptions.NotFound()
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.Error,
                                 'Cannot find node',
-                                discover.introspect, self.uuid)
+                                introspect.introspect, self.uuid)
 
         cli.node.get.side_effect = exceptions.BadRequest()
-        self.assertRaisesRegexp(utils.DiscoveryFailed,
+        self.assertRaisesRegexp(utils.Error,
                                 'Cannot get node',
-                                discover.introspect, self.uuid)
+                                introspect.introspect, self.uuid)
 
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
@@ -201,9 +201,9 @@ class TestDiscover(test_base.NodeTest):
                                                           'reason': 'oops'})
 
         self.assertRaisesRegexp(
-            utils.DiscoveryFailed,
+            utils.Error,
             'Failed validation of power interface for node',
-            discover.introspect, self.uuid)
+            introspect.introspect, self.uuid)
 
         cli.node.validate.assert_called_once_with(self.uuid)
         self.assertEqual(0, cli.node.list_ports.call_count)
@@ -218,9 +218,9 @@ class TestDiscover(test_base.NodeTest):
         cli.node.get.return_value = self.node
 
         self.assertRaisesRegexp(
-            utils.DiscoveryFailed,
+            utils.Error,
             'node uuid with provision state "active"',
-            discover.introspect, self.uuid)
+            introspect.introspect, self.uuid)
 
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
@@ -234,9 +234,9 @@ class TestDiscover(test_base.NodeTest):
         cli.node.get.return_value = self.node
 
         self.assertRaisesRegexp(
-            utils.DiscoveryFailed,
+            utils.Error,
             'node uuid with power state "power on"',
-            discover.introspect, self.uuid)
+            introspect.introspect, self.uuid)
 
         self.assertEqual(0, cli.node.list_ports.call_count)
         self.assertEqual(0, filters_mock.call_count)

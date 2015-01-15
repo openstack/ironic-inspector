@@ -30,13 +30,17 @@ RETRY_COUNT = 10
 RETRY_DELAY = 2
 
 
-class DiscoveryFailed(Exception):
+class Error(Exception):
+    """Discoverd exception."""
+
     def __init__(self, msg, code=400):
-        super(DiscoveryFailed, self).__init__(msg)
+        super(Error, self).__init__(msg)
+        LOG.error(msg)
         self.http_code = code
 
 
 def get_client():  # pragma: no cover
+    """Get Ironic client instance."""
     args = dict((k, conf.get('discoverd', k)) for k in OS_ARGS)
     return client.get_client(1, **args)
 
@@ -60,12 +64,14 @@ def check_is_admin(token):
 
 
 def is_valid_mac(address):
+    """Return whether given value is a valid MAC."""
     m = "[0-9a-f]{2}(:[0-9a-f]{2}){5}$"
     return (isinstance(address, six.string_types)
             and re.match(m, address.lower()))
 
 
 def retry_on_conflict(call, *args, **kwargs):
+    """Wrapper to retry 409 CONFLICT exceptions."""
     for i in range(RETRY_COUNT):
         try:
             return call(*args, **kwargs)

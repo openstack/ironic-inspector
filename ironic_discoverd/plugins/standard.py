@@ -28,13 +28,11 @@ class SchedulerHook(base.ProcessingHook):
 
     KEYS = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb')
 
-    def pre_discover(self, node_info):
+    def before_processing(self, node_info):
         """Validate that required properties are provided by the ramdisk."""
         missing = [key for key in self.KEYS if not node_info.get(key)]
         if missing:
-            LOG.error('The following required parameters are missing: %s',
-                      missing)
-            raise utils.DiscoveryFailed(
+            raise utils.Error(
                 'The following required parameters are missing: %s' %
                 missing)
 
@@ -42,11 +40,11 @@ class SchedulerHook(base.ProcessingHook):
                  'memory %(memory_mb)s MiB, disk %(local_gb)s GiB',
                  {key: node_info.get(key) for key in self.KEYS})
 
-    def post_discover(self, node, ports, discovered_data):
+    def before_update(self, node, ports, node_info):
         """Update node with scheduler properties."""
         overwrite = conf.getboolean('discoverd', 'overwrite_existing')
         patch = [{'op': 'add', 'path': '/properties/%s' % key,
-                  'value': str(discovered_data[key])}
+                  'value': str(node_info[key])}
                  for key in self.KEYS
                  if overwrite or not node.properties.get(key)]
         return patch, {}
@@ -55,7 +53,8 @@ class SchedulerHook(base.ProcessingHook):
 class ValidateInterfacesHook(base.ProcessingHook):
     """Hook to validate network interfaces."""
 
-    def pre_discover(self, node_info):
+    def before_processing(self, node_info):
+        """Validate information about network interfaces."""
         bmc_address = node_info.get('ipmi_address')
 
         compat = conf.getboolean('discoverd', 'ports_for_inactive_interfaces')
@@ -76,8 +75,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
         if valid_interfaces != node_info['interfaces']:
             LOG.warning(
                 'The following interfaces were invalid or not eligible in '
-                'discovery data for node with BMC %(ipmi_address)s and were '
-                'excluded: %(invalid)s',
+                'introspection data for node with BMC %(ipmi_address)s and '
+                'were excluded: %(invalid)s',
                 {'invalid': {n: iface
                              for n, iface in node_info['interfaces'].items()
                              if n not in valid_interfaces},
@@ -91,9 +90,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
 class RamdiskErrorHook(base.ProcessingHook):
     """Hook to process error send from the ramdisk."""
 
-    def pre_discover(self, node_info):
+    def before_processing(self, node_info):
         if not node_info.get('error'):
             return
 
-        LOG.error('Error happened during discovery: %s', node_info['error'])
-        raise utils.DiscoveryFailed(node_info['error'])
+        raise utils.Error('Ramdisk reported error: %s' % node_info['error'])

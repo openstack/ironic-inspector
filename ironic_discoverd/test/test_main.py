@@ -15,12 +15,11 @@ import json
 import unittest
 
 import eventlet
-from ironicclient import exceptions
 from keystoneclient import exceptions as keystone_exc
 import mock
 
 from ironic_discoverd import conf
-from ironic_discoverd import discover
+from ironic_discoverd import introspect
 from ironic_discoverd import main
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
@@ -37,51 +36,51 @@ class TestApi(test_base.BaseTest):
         self.app = main.app.test_client()
         conf.CONF.set('discoverd', 'authenticate', 'false')
 
-    @mock.patch.object(discover, 'introspect', autospec=True)
-    def test_introspect_no_authentication(self, discover_mock):
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_no_authentication(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(202, res.status_code)
-        discover_mock.assert_called_once_with("uuid1",
-                                              setup_ipmi_credentials=False)
+        introspect_mock.assert_called_once_with("uuid1",
+                                                setup_ipmi_credentials=False)
 
-    @mock.patch.object(discover, 'introspect', autospec=True)
-    def test_introspect_setup_ipmi_credentials(self, discover_mock):
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_setup_ipmi_credentials(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         res = self.app.post('/v1/introspection/uuid1?setup_ipmi_credentials=1')
         self.assertEqual(202, res.status_code)
-        discover_mock.assert_called_once_with("uuid1",
-                                              setup_ipmi_credentials=True)
+        introspect_mock.assert_called_once_with("uuid1",
+                                                setup_ipmi_credentials=True)
 
-    @mock.patch.object(discover, 'introspect', autospec=True)
-    def test_intospect_failed(self, discover_mock):
-        discover_mock.side_effect = utils.DiscoveryFailed("boom")
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_intospect_failed(self, introspect_mock):
+        introspect_mock.side_effect = utils.Error("boom")
         res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(400, res.status_code)
         self.assertEqual(b"boom", res.data)
-        discover_mock.assert_called_once_with("uuid1",
-                                              setup_ipmi_credentials=False)
+        introspect_mock.assert_called_once_with("uuid1",
+                                                setup_ipmi_credentials=False)
 
-    @mock.patch.object(discover, 'introspect', autospec=True)
-    def test_discover_missing_authentication(self, discover_mock):
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_missing_authentication(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
         res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(401, res.status_code)
-        self.assertFalse(discover_mock.called)
+        self.assertFalse(introspect_mock.called)
 
     @mock.patch.object(utils, 'check_is_admin', autospec=True)
-    @mock.patch.object(discover, 'introspect', autospec=True)
-    def test_discover_failed_authentication(self, discover_mock,
-                                            keystone_mock):
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_failed_authentication(self, introspect_mock,
+                                              keystone_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
         keystone_mock.side_effect = keystone_exc.Unauthorized()
         res = self.app.post('/v1/introspection/uuid1',
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
-        self.assertFalse(discover_mock.called)
+        self.assertFalse(introspect_mock.called)
         keystone_mock.assert_called_once_with(token='token')
 
-    @mock.patch.object(discover, 'introspect', autospec=True)
+    @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_discover(self, discover_mock):
         res = self.app.post('/v1/discover', data='["uuid1"]')
         self.assertEqual(202, res.status_code)
@@ -98,7 +97,7 @@ class TestApi(test_base.BaseTest):
 
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue_failed(self, process_mock):
-        process_mock.side_effect = utils.DiscoveryFailed("boom")
+        process_mock.side_effect = utils.Error("boom")
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(400, res.status_code)
         process_mock.assert_called_once_with("JSON")
@@ -151,41 +150,20 @@ class TestCheckIronicAvailable(test_base.BaseTest):
 
 
 class TestPlugins(unittest.TestCase):
-    @mock.patch.object(example_plugin.ExampleProcessingHook, 'pre_discover',
-                       autospec=True)
-    @mock.patch.object(example_plugin.ExampleProcessingHook, 'post_discover',
-                       autospec=True)
+    @mock.patch.object(example_plugin.ExampleProcessingHook,
+                       'before_processing', autospec=True)
+    @mock.patch.object(example_plugin.ExampleProcessingHook,
+                       'before_update', autospec=True)
     def test_hook(self, mock_post, mock_pre):
         plugins_base._HOOKS_MGR = None
         conf.CONF.set('discoverd', 'processing_hooks', 'example')
         mgr = plugins_base.processing_hooks_manager()
-        mgr.map_method('pre_discover', 'node_info')
+        mgr.map_method('before_processing', 'node_info')
         mock_pre.assert_called_once_with(mock.ANY, 'node_info')
-        mgr.map_method('post_discover', 'node', ['port'], 'node_info')
+        mgr.map_method('before_update', 'node', ['port'], 'node_info')
         mock_post.assert_called_once_with(mock.ANY, 'node', ['port'],
                                           'node_info')
 
     def test_manager_is_cached(self):
         self.assertIs(plugins_base.processing_hooks_manager(),
                       plugins_base.processing_hooks_manager())
-
-
-@mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
-class TestUtils(unittest.TestCase):
-    def test_retry_on_conflict(self):
-        call = mock.Mock()
-        call.side_effect = ([exceptions.Conflict()] * (utils.RETRY_COUNT - 1)
-                            + [mock.sentinel.result])
-        res = utils.retry_on_conflict(call, 1, 2, x=3)
-        self.assertEqual(mock.sentinel.result, res)
-        call.assert_called_with(1, 2, x=3)
-        self.assertEqual(utils.RETRY_COUNT, call.call_count)
-
-    def test_retry_on_conflict_fail(self):
-        call = mock.Mock()
-        call.side_effect = ([exceptions.Conflict()] * (utils.RETRY_COUNT + 1)
-                            + [mock.sentinel.result])
-        self.assertRaises(exceptions.Conflict, utils.retry_on_conflict,
-                          call, 1, 2, x=3)
-        call.assert_called_with(1, 2, x=3)
-        self.assertEqual(utils.RETRY_COUNT, call.call_count)

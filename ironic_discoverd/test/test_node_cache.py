@@ -59,11 +59,11 @@ class TestNodeCache(test_base.NodeTest):
                             "values(?, ?, ?)",
                             ('mac', '11:22:11:22:11:22', 'another-uuid'))
 
-        self.assertRaises(utils.DiscoveryFailed,
+        self.assertRaises(utils.Error,
                           node_cache.add_node,
                           self.node.uuid, mac=['11:22:11:22:11:22'])
 
-    def test_macs_on_discovery(self):
+    def test_active_macs(self):
         with self.db:
             self.db.execute("insert into nodes(uuid) values(?)",
                             (self.node.uuid,))
@@ -72,7 +72,7 @@ class TestNodeCache(test_base.NodeTest):
                                 [('mac', '11:22:11:22:11:22', self.uuid),
                                  ('mac', '22:11:22:11:22:11', self.uuid)])
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
-                         node_cache.macs_on_discovery())
+                         node_cache.active_macs())
 
 
 class TestNodeCacheFind(test_base.NodeTest):
@@ -84,8 +84,8 @@ class TestNodeCacheFind(test_base.NodeTest):
                             mac=self.macs)
 
     def test_no_data(self):
-        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node)
-        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node, mac=[])
+        self.assertRaises(utils.Error, node_cache.find_node)
+        self.assertRaises(utils.Error, node_cache.find_node, mac=[])
 
     def test_bmc(self):
         res = node_cache.find_node(bmc_address='1.2.3.4')
@@ -98,13 +98,13 @@ class TestNodeCacheFind(test_base.NodeTest):
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
 
     def test_macs_not_found(self):
-        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
+        self.assertRaises(utils.Error, node_cache.find_node,
                           mac=['11:22:33:33:33:33',
                                '66:66:44:33:22:11'])
 
     def test_macs_multiple_found(self):
         node_cache.add_node('uuid2', mac=self.macs2)
-        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
+        self.assertRaises(utils.Error, node_cache.find_node,
                           mac=[self.macs[0], self.macs2[0]])
 
     def test_both(self):
@@ -116,14 +116,14 @@ class TestNodeCacheFind(test_base.NodeTest):
     def test_inconsistency(self):
         with self.db:
             self.db.execute('delete from nodes where uuid=?', (self.uuid,))
-        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
+        self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
     def test_already_finished(self):
         with self.db:
             self.db.execute('update nodes set finished_at=42.0 where uuid=?',
                             (self.uuid,))
-        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
+        self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
 
@@ -176,7 +176,8 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
         res = [tuple(row) for row in self.db.execute(
             'select finished_at, error from nodes').fetchall()]
-        self.assertEqual([(self.started_at + 100, 'Discovery timed out')], res)
+        self.assertEqual([(self.started_at + 100, 'Introspection timeout')],
+                         res)
         self.assertEqual([], self.db.execute(
             'select * from attributes').fetchall())
         self.assertEqual([], self.db.execute(
@@ -208,7 +209,7 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         self.assertIsNone(info.error)
 
     def test_not_found(self):
-        self.assertRaises(utils.DiscoveryFailed, node_cache.get_node, 'foo')
+        self.assertRaises(utils.Error, node_cache.get_node, 'foo')
 
 
 @mock.patch.object(time, 'time', lambda: 42.0)

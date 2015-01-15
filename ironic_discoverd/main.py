@@ -19,34 +19,34 @@ import json
 import logging
 import sys
 
-from flask import Flask, request, json as flask_json  # noqa
-
+import flask
 from keystoneclient import exceptions
 
 from ironic_discoverd import conf
-from ironic_discoverd import discover
 from ironic_discoverd import firewall
+from ironic_discoverd import introspect
 from ironic_discoverd import node_cache
 from ironic_discoverd import process
 from ironic_discoverd import utils
 
 
-app = Flask(__name__)
+app = flask.Flask(__name__)
 LOG = logging.getLogger('ironic_discoverd.main')
 
 
 def check_auth():
+    """Check whether request is properly authenticated."""
     if not conf.getboolean('discoverd', 'authenticate'):
         return
 
-    if not request.headers.get('X-Auth-Token'):
+    if not flask.request.headers.get('X-Auth-Token'):
         LOG.error("No X-Auth-Token header, rejecting request")
-        raise utils.DiscoveryFailed('Authentication required', code=401)
+        raise utils.Error('Authentication required', code=401)
     try:
-        utils.check_is_admin(token=request.headers['X-Auth-Token'])
-    except exceptions.Unauthorized:
-        LOG.error("Keystone denied access, rejecting request")
-        raise utils.DiscoveryFailed('Access denied', code=403)
+        utils.check_is_admin(token=flask.request.headers['X-Auth-Token'])
+    except exceptions.Unauthorized as exc:
+        LOG.error("Keystone denied access: %s, rejecting request", exc)
+        raise utils.Error('Access denied', code=403)
 
 
 def convert_exceptions(func):
@@ -54,7 +54,7 @@ def convert_exceptions(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except utils.DiscoveryFailed as exc:
+        except utils.Error as exc:
             return str(exc), exc.http_code
 
     return wrapper
@@ -62,8 +62,8 @@ def convert_exceptions(func):
 
 @app.route('/v1/continue', methods=['POST'])
 @convert_exceptions
-def post_continue():
-    data = request.get_json(force=True)
+def api_continue():
+    data = flask.request.get_json(force=True)
     LOG.debug("/v1/continue got JSON %s", data)
 
     res = process.process(data)
@@ -72,31 +72,32 @@ def post_continue():
 
 @app.route('/v1/introspection/<uuid>', methods=['GET', 'POST'])
 @convert_exceptions
-def introspection(uuid):
+def api_introspection(uuid):
     check_auth()
 
-    if request.method == 'POST':
-        setup_ipmi_credentials = request.args.get('setup_ipmi_credentials',
-                                                  type=bool,
-                                                  default=False)
-        discover.introspect(uuid,
-                            setup_ipmi_credentials=setup_ipmi_credentials)
+    if flask.request.method == 'POST':
+        setup_ipmi_credentials = flask.request.args.get(
+            'setup_ipmi_credentials',
+            type=bool,
+            default=False)
+        introspect.introspect(uuid,
+                              setup_ipmi_credentials=setup_ipmi_credentials)
         return '', 202
     else:
         node_info = node_cache.get_node(uuid)
-        return flask_json.jsonify(finished=bool(node_info.finished_at),
+        return flask.json.jsonify(finished=bool(node_info.finished_at),
                                   error=node_info.error or None)
 
 
 @app.route('/v1/discover', methods=['POST'])
 @convert_exceptions
-def post_discover():
+def api_discover():
     check_auth()
-    data = request.get_json(force=True)
+    data = flask.request.get_json(force=True)
     LOG.debug("/v1/discover got JSON %s", data)
 
     for uuid in data:
-        discover.introspect(uuid)
+        introspect.introspect(uuid)
     return "", 202
 
 

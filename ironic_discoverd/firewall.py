@@ -67,13 +67,13 @@ def _clean_up(chain):
 
 
 def update_filters(ironic=None):
-    """Update firewall filter rules for discovery.
+    """Update firewall filter rules for introspection.
 
     Gives access to PXE boot port for any machine, except for those,
-    whose MAC is registered in Ironic and is not on discovery right now.
+    whose MAC is registered in Ironic and is not on introspection right now.
 
-    This function is called from both discovery initialization code and from
-    periodic task. This function is supposed to be resistant to unexpected
+    This function is called from both introspection initialization code and
+    from periodic task. This function is supposed to be resistant to unexpected
     iptables state.
 
     ``init()`` function must be called once before any call to this function.
@@ -92,7 +92,7 @@ def update_filters(ironic=None):
 
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
-        to_blacklist = macs_active - node_cache.macs_on_discovery()
+        to_blacklist = macs_active - node_cache.active_macs()
         LOG.debug('Blacklisting active MAC\'s %s', to_blacklist)
 
         # Clean up a bit to account for possible troubles on previous run
