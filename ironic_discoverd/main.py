@@ -76,7 +76,11 @@ def introspection(uuid):
     check_auth()
 
     if request.method == 'POST':
-        discover.introspect(uuid)
+        setup_ipmi_credentials = request.args.get('setup_ipmi_credentials',
+                                                  type=bool,
+                                                  default=False)
+        discover.introspect(uuid,
+                            setup_ipmi_credentials=setup_ipmi_credentials)
         return '', 202
     else:
         node_info = node_cache.get_node(uuid)

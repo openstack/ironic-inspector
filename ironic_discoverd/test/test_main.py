@@ -42,7 +42,16 @@ class TestApi(test_base.BaseTest):
         conf.CONF.set('discoverd', 'authenticate', 'false')
         res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(202, res.status_code)
-        discover_mock.assert_called_once_with("uuid1")
+        discover_mock.assert_called_once_with("uuid1",
+                                              setup_ipmi_credentials=False)
+
+    @mock.patch.object(discover, 'introspect', autospec=True)
+    def test_introspect_setup_ipmi_credentials(self, discover_mock):
+        conf.CONF.set('discoverd', 'authenticate', 'false')
+        res = self.app.post('/v1/introspection/uuid1?setup_ipmi_credentials=1')
+        self.assertEqual(202, res.status_code)
+        discover_mock.assert_called_once_with("uuid1",
+                                              setup_ipmi_credentials=True)
 
     @mock.patch.object(discover, 'introspect', autospec=True)
     def test_intospect_failed(self, discover_mock):
@@ -50,7 +59,8 @@ class TestApi(test_base.BaseTest):
         res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(400, res.status_code)
         self.assertEqual(b"boom", res.data)
-        discover_mock.assert_called_once_with("uuid1")
+        discover_mock.assert_called_once_with("uuid1",
+                                              setup_ipmi_credentials=False)
 
     @mock.patch.object(discover, 'introspect', autospec=True)
     def test_discover_missing_authentication(self, discover_mock):
