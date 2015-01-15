@@ -75,9 +75,9 @@ class TestNodeCache(test_base.NodeTest):
                          node_cache.macs_on_discovery())
 
 
-class TestNodeCachePop(test_base.NodeTest):
+class TestNodeCacheFind(test_base.NodeTest):
     def setUp(self):
-        super(TestNodeCachePop, self).setUp()
+        super(TestNodeCacheFind, self).setUp()
         self.macs2 = ['00:00:00:00:00:00']
         node_cache.add_node(self.uuid,
                             bmc_address='1.2.3.4',
@@ -116,6 +116,13 @@ class TestNodeCachePop(test_base.NodeTest):
     def test_inconsistency(self):
         with self.db:
             self.db.execute('delete from nodes where uuid=?', (self.uuid,))
+        self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
+                          bmc_address='1.2.3.4')
+
+    def test_already_finished(self):
+        with self.db:
+            self.db.execute('update nodes set finished_at=42.0 where uuid=?',
+                            (self.uuid,))
         self.assertRaises(utils.DiscoveryFailed, node_cache.find_node,
                           bmc_address='1.2.3.4')
 

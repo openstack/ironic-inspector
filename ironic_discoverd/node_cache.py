@@ -214,14 +214,19 @@ def find_node(**attributes):
         raise utils.DiscoveryFailed('Multiple matching nodes found', code=404)
 
     uuid = found.pop()
-    row = (db.execute('select started_at from nodes where uuid=?', (uuid,))
-           .fetchone())
+    row = db.execute('select started_at, finished_at from nodes where uuid=?',
+                     (uuid,)).fetchone()
     if not row:
         LOG.error('Inconsistent database: %s is in attributes table, '
                   'but not in nodes table', uuid)
         raise utils.DiscoveryFailed('Could not find a node', code=404)
 
-    return NodeInfo(uuid=uuid, started_at=row[0])
+    if row['finished_at']:
+        LOG.error('Discovery for node %s finished on %s already',
+                  uuid, row['finished_at'])
+        raise utils.DiscoveryFailed('Discovery for node %s already finished')
+
+    return NodeInfo(uuid=uuid, started_at=row['started_at'])
 
 
 def clean_up():
