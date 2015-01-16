@@ -242,15 +242,16 @@ def clean_up():
 
     threshold = time.time() - timeout
     with _db() as db:
-        uuids = [row[0] for row in db.execute('select uuid from nodes '
-                                              'where started_at < ?',
-                                              (threshold,))]
+        uuids = [row[0] for row in
+                 db.execute('select uuid from nodes where '
+                            'started_at < ? and finished_at is null',
+                            (threshold,))]
         if not uuids:
             return []
 
         LOG.error('Introspection for nodes %s has timed out', uuids)
         db.execute('update nodes set finished_at=?, error=? '
-                   'where started_at < ?',
+                   'where started_at < ? and finished_at is null',
                    (time.time(), 'Introspection timeout', threshold))
         db.executemany('delete from attributes where uuid=?',
                        [(u,) for u in uuids])

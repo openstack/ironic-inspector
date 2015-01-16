@@ -169,14 +169,21 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
     @mock.patch.object(time, 'time')
     def test_timeout(self, time_mock):
+        # Add a finished node to confirm we don't try to timeout it
+        with self.db:
+            self.db.execute('insert into nodes(uuid, started_at, finished_at) '
+                            'values(?, ?, ?)', (self.uuid + '1',
+                                                self.started_at,
+                                                self.started_at + 60))
         conf.CONF.set('discoverd', 'timeout', '99')
         time_mock.return_value = self.started_at + 100
 
         self.assertEqual([self.uuid], node_cache.clean_up())
 
         res = [tuple(row) for row in self.db.execute(
-            'select finished_at, error from nodes').fetchall()]
-        self.assertEqual([(self.started_at + 100, 'Introspection timeout')],
+            'select finished_at, error from nodes order by uuid').fetchall()]
+        self.assertEqual([(self.started_at + 100, 'Introspection timeout'),
+                          (self.started_at + 60, None)],
                          res)
         self.assertEqual([], self.db.execute(
             'select * from attributes').fetchall())
