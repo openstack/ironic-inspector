@@ -1,0 +1,7 @@
+# generic
+coverage
+docutils
+hacking
+mock
+
+# plugin-specific

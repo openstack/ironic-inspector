@@ -1,7 +1,7 @@
-eventlet>=0.15.1
+eventlet>=0.15.1,<0.16.0
 Flask>=0.10,<1.0
 python-ironicclient>=0.2.1
 python-keystoneclient>=0.10.0
-requests>=2.2.0,!=2.4.0
+requests>=1.2.1,!=2.4.0
 six>=1.7.0
-stevedore>=1.1.0
+stevedore>=1.0.0
