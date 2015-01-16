@@ -14,6 +14,7 @@
 import eventlet
 eventlet.monkey_patch(thread=False)
 
+import argparse
 import functools
 import json
 import logging
@@ -147,11 +148,22 @@ def check_ironic_available():
         eventlet.greenthread.sleep(retry_period)
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit("Usage: %s config-file" % sys.argv[0])
+def config_shim(args):
+    """Make new argument parsing method backwards compatible."""
+    if len(args) == 2 and args[1][0] != '-':
+        return ['--config-file', args[1]]
 
-    conf.read(sys.argv[1])
+
+def main():
+    old_args = config_shim(sys.argv)
+    parser = argparse.ArgumentParser(description='''Hardware introspection
+                                                 service for OpenStack Ironic.
+                                                 ''')
+    parser.add_argument('--config-file', dest='config', required=True)
+    # if parse_args is passed None it uses sys.argv instead.
+    args = parser.parse_args(old_args)
+
+    conf.read(args.config)
     debug = conf.getboolean('discoverd', 'debug')
 
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
@@ -160,6 +172,10 @@ def main():
         logging.WARNING)
     logging.getLogger('ironicclient.common.http').setLevel(
         logging.INFO if debug else logging.ERROR)
+
+    if old_args:
+        LOG.warning('"ironic-discoverd <config-file>" syntax is deprecated use'
+                    ' "ironic-discoverd --config-file <config-file>" instead')
 
     if not conf.getboolean('discoverd', 'authenticate'):
         LOG.warning('Starting unauthenticated, please check configuration')

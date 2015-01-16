@@ -55,7 +55,7 @@ Github::
 
 Run the service with::
 
-    .tox/py27/bin/ironic-discoverd example.conf
+    .tox/py27/bin/ironic-discoverd --config-file example.conf
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
