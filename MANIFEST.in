@@ -2,6 +2,7 @@ include example.conf
 include LICENSE
 include ironic-discoverd.8
 include requirements.txt
+include test-requirements.txt
 include tox.ini
-include CONTRIBUTING.rst
+include *.rst
 recursive-include functest *
