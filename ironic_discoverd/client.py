@@ -106,4 +106,4 @@ if __name__ == '__main__':  # pragma: no cover
         print('Error:', exc)
     else:
         if res:
-            print(res)
+            print(json.dumps(res))
