@@ -20,8 +20,12 @@ Basics
   ``VERSION`` is the current stable series. E.g. at the moment of writing the
   stable branch is ``stable/0.2``.
 
+* Please file a launchpad_ blueprint for any significant code change and a bug
+  for any significant bug fix.
+
 .. _StackForge: https://github.com/stackforge/ironic-discoverd
 .. _Gerrit Workflow: http://docs.openstack.org/infra/manual/developers.html#development-workflow
+.. _launchpad: https://bugs.launchpad.net/ironic-discoverd
 
 Development Environment
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -59,3 +63,21 @@ Run the service with::
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
+
+Writing a Plugin
+~~~~~~~~~~~~~~~~
+
+**ironic-discoverd** allows to hook your code into data processing chain after
+introspection. Inherit ``ProcessingHook`` class defined in
+`ironic_discoverd.plugins.base
+<https://github.com/stackforge/ironic-discoverd/blob/master/ironic_discoverd/plugins/base.py>`_
+module and overwrite any or both of the following methods:
+
+``before_processing(node_info)``
+    called before any data processing, providing the raw data. Each plugin in
+    the chain can modify the data, so order in which plugins are loaded
+    matters here. Returns nothing.
+``before_update(node,ports,node_info)``
+    called after node is found and ports are created, but before data is
+    updated on a node. Returns JSON patches for node and ports to apply.
+    Please refer to the docstring for details and examples.
