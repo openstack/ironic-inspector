@@ -133,7 +133,7 @@ unit, so you can::
 
 Otherwise run as ``root``::
 
-    ironic-discoverd /etc/ironic-discoverd/discoverd.conf
+    ironic-discoverd --config-file /etc/ironic-discoverd/discoverd.conf
 
 *ironic-discoverd* has a simple client library bundled within it.
 It provides function ``ironic_discoverd.client.discover``, accepting list

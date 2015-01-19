@@ -167,3 +167,15 @@ class TestPlugins(unittest.TestCase):
     def test_manager_is_cached(self):
         self.assertIs(plugins_base.processing_hooks_manager(),
                       plugins_base.processing_hooks_manager())
+
+
+class TestConfigShim(unittest.TestCase):
+    def test_old_style_invocation(self):
+        self.assertEqual(main.config_shim(
+                         ['ironic-discoverd', '/etc/conf']),
+                         ['--config-file', '/etc/conf'])
+
+    def test_new_style_returns_None(self):
+        self.assertEqual(main.config_shim(
+                         ['ironic-discoverd', '--config-file', '/etc/conf']),
+                         None)
