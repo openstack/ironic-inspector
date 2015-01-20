@@ -123,7 +123,7 @@ def run(client_mock, keystone_mock):
         conf_file = os.path.join(d, 'test.conf')
         with open(conf_file, 'wb') as fp:
             fp.write(CONF)
-        sys.argv[1:] = [conf_file]
+        sys.argv[1:] = ['--config-file', conf_file]
         base.init_test_conf()
 
         eventlet.greenthread.spawn_n(main.main)
