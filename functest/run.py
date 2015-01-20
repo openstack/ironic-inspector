@@ -13,9 +13,9 @@
 
 from __future__ import print_function
 
-import eventlet
-eventlet.monkey_patch(thread=False)
+import ironic_discoverd.test  # noqa - pulls in monkey patching
 
+import eventlet
 import os
 import re
 import shutil
