@@ -59,6 +59,10 @@ class TestDiscover(unittest.TestCase):
                      'X-Auth-Token': 'token'}
         )
 
+    def test_invalid_input(self, _):
+        self.assertRaises(TypeError, client.discover, 42)
+        self.assertRaises(TypeError, client.discover, [42])
+
 
 @mock.patch.object(client.requests, 'get', autospec=True)
 class TestGetStatus(unittest.TestCase):
