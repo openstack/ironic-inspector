@@ -26,7 +26,7 @@ from ironic_discoverd import utils
 
 LOG = logging.getLogger("ironic_discoverd.introspect")
 # See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
-VALID_STATES = {'enroll', 'managed', 'inspecting'}
+VALID_STATES = {'enroll', 'manageable', 'inspecting'}
 VALID_POWER_STATES = {'power off'}
 
 
