@@ -1,5 +1,5 @@
-Hardware properties discovery for OpenStack Ironic
-==================================================
+Hardware properties introspection for OpenStack Ironic
+======================================================
 
 This is an auxiliary service for discovering basic hardware properties for a
 node managed by `OpenStack Ironic`_. Hardware introspection or hardware
@@ -7,74 +7,85 @@ properties discovery is a process of getting hardware parameters required for
 scheduling from a bare metal node, given it's power management credentials
 (e.g. IPMI address, user name and password).
 
-Support for *ironic-discoverd* is present in `Tuskar UI`_ -- OpenStack Horizon
-plugin for installation of OpenStack using OpenStack technologies (TripleO_).
+A special *discovery ramdisk* is required to collect the information on a
+node. The default one can be built using diskimage-builder_ and
+`ironic-discoverd-ramdisk element`_ (see Configuration_ below).
 
-Hardware properties discovery flow using `Tuskar UI`_ is the following:
+Support for **ironic-discoverd** is present in `Tuskar UI`_ --
+OpenStack Horizon plugin for TripleO_.
 
-* User installs undercloud using e.g. instack-undercloud_ and logs into
-  `Tuskar UI`_.
-
-* User uploads CSV file with power credentials for all nodes.
-
-* `Tuskar UI`_:
-
-  * creates nodes in *Ironic* with power credentials populated,
-  * sets maintenance mode for these nodes,
-  * posts node UUID's to *ironic-discoverd*.
-
-* On receiving node UUID's *ironic-discoverd*:
-
-  * validates the nodes: their power credentials and current power state,
-  * allows access to PXE boot service for the nodes,
-  * issues reboot command for the nodes, so that they boot the
-    *discovery ramdisk*.
-
-* *Discovery ramdisk* collects the required information and posts it back to
-  *ironic-discoverd*.
-
-* On receiving data from the *discovery ramdisk*, *ironic-discoverd*:
-
-  * validates received data,
-  * finds the node in Ironic database using it's BMC address (MAC address in
-    case of SSH driver),
-  * fills missing node properties with received data and creates missing ports,
-  * sets ``newly_discovered`` flag in node ``extra`` field to ``true``.
-
-Starting *dnsmasq* and configuring PXE boot environment is not part of this
-package and should be done separately.
-
-*ironic-discoverd* requires OpenStack Juno (2014.2) release or newer.
+**ironic-discoverd** requires OpenStack Juno (2014.2) release or newer.
 
 Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
 downloads and accessing the released version of this README. Refer to
-``CONTRIBUTING.rst`` for instructions on how to contribute.
+CONTRIBUTING.rst_ for instructions on how to contribute.
 
 .. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
 .. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
 .. _TripleO: https://wiki.openstack.org/wiki/TripleO
-.. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
 .. _launchpad: https://bugs.launchpad.net/ironic-discoverd
 .. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
+.. _CONTRIBUTING.rst: https://github.com/stackforge/ironic-discoverd/blob/master/CONTRIBUTING.rst
+
+Workflow
+--------
+
+Usual hardware introspection flow is as follows:
+
+* Operator installs undercloud (e.g. using instack-undercloud_)
+
+* Operator enrolls nodes into Ironic either manually or by uploading CSV file
+  to `Tuskar UI`_. Power management credentials should be provided to Ironic
+  at this step.
+
+* Operator sends nodes on introspection either manually using
+  **ironic-discoverd** `HTTP API`_ or again via `Tuskar UI`_.
+
+* On receiving node UUID **ironic-discoverd**:
+
+  * validates node power credentials, current power and provisioning states,
+  * allows firewall access to PXE boot service for the nodes,
+  * issues reboot command for the nodes, so that they boot the
+    discovery ramdisk.
+
+* The discovery ramdisk collects the required information and posts it back
+  to **ironic-discoverd**.
+
+* On receiving data from the discovery ramdisk, **ironic-discoverd**:
+
+  * validates received data,
+  * finds the node in Ironic database using it's BMC address (MAC address in
+    case of SSH driver),
+  * fills missing node properties with received data and creates missing ports.
+
+* Separate `HTTP API`_ can be used to query introspection results for a given
+  node.
+
+Starting DHCP server and configuring PXE boot environment is not part of this
+package and should be done separately.
+
+.. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
 
 Installation
 ------------
 
-*ironic-discoverd* is available as an RPM from Fedora 22 repositories or from
+**ironic-discoverd** is available as an RPM from Fedora 22 repositories or from
 Juno RDO_ for Fedora 20, 21 and EPEL 7. It will be installed and preconfigured
 if you used instack-undercloud_ to build your undercloud.
 Otherwise after enabling required repositories install it using::
 
     yum install openstack-ironic-discoverd
 
-and proceed with `Configuration`_.
-
-Alternatively, you can install package from PyPI_ (you may want to use
-virtualenv to isolate your environment)::
+Alternatively (e.g. if you need the latest version), you can install package
+from PyPI_ (you may want to use virtualenv to isolate your environment)::
 
     pip install ironic-discoverd
 
+The third way for RPM-based distros is to use `ironic-discoverd copr`_ which
+contains **unstable** git snapshots of **ironic-discoverd**.
+
 .. _RDO: https://openstack.redhat.com/
+.. _ironic-discoverd copr: https://copr.fedoraproject.org/coprs/divius/ironic-discoverd/
 
 Configuration
 ~~~~~~~~~~~~~
@@ -82,25 +93,33 @@ Configuration
 Copy ``example.conf`` to some permanent place
 (``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
 Fill in at least configuration values with names starting with *os_*.
-They configure how *ironic-discoverd* authenticates with Keystone.
+They configure how **ironic-discoverd** authenticates with Keystone.
 
-Also set *database* option to where you want *ironic-discoverd* SQLite
+Also set *database* option to where you want **ironic-discoverd** SQLite
 database to be placed.
+
+See comments inside `example.conf
+<https://github.com/stackforge/ironic-discoverd/blob/master/example.conf>`_
+for the other possible configuration options.
 
 .. note::
     Configuration file contains a password and thus should be owned by ``root``
-    and should have access rights like *0600*.
+    and should have access rights like ``0600``.
 
-As for PXE boot environment, you need:
+As for PXE boot environment, you'll need:
 
 * TFTP server running and accessible.
+
 * Build and put into your TFTP directory kernel and ramdisk from the
   diskimage-builder_ `ironic-discoverd-ramdisk element`_.
   You can also use `kernel`_ and `ramdisk`_ prepared for Instack.
+
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
-  *ironic-discoverd*. Don't do any firewall configuration: *ironic-discoverd*
-  will handle it for you. In *ironic-discoverd* configuration file set
-  ``dnsmasq_interface`` to the interface your PXE boot server listens on.
+  **ironic-discoverd**. Don't do any firewall configuration:
+  **ironic-discoverd** will handle it for you. In **ironic-discoverd**
+  configuration file set ``dnsmasq_interface`` to the interface your
+  PXE boot server listens on.
+
 * Configure your ``$TFTPROOT/pxelinux.cfg/default`` with something like::
 
     default discover
@@ -118,15 +137,15 @@ Use `ironic-discoverd element`_ as an example for this configuration.
 
 .. _diskimage-builder: https://github.com/openstack/diskimage-builder
 .. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
-.. _ironic-discoverd element: https://github.com/agroup/instack-undercloud/tree/master/elements/ironic-discoverd
 .. _kernel: https://repos.fedorapeople.org/repos/openstack-m/tripleo-images-rdo-juno/discovery-ramdisk.kernel
 .. _ramdisk: https://repos.fedorapeople.org/repos/openstack-m/tripleo-images-rdo-juno/discovery-ramdisk.initramfs
+.. _ironic-discoverd element: https://github.com/agroup/instack-undercloud/tree/master/elements/ironic-discoverd
 
 Running
 ~~~~~~~
 
-If you installed *ironic-discoverd* from the RPM, you already have a *systemd*
-unit, so you can::
+If you installed **ironic-discoverd** from the RPM, you already have
+a *systemd* unit, so you can::
 
     systemctl enable openstack-ironic-discoverd
     systemctl start openstack-ironic-discoverd
@@ -135,25 +154,49 @@ Otherwise run as ``root``::
 
     ironic-discoverd --config-file /etc/ironic-discoverd/discoverd.conf
 
-*ironic-discoverd* has a simple client library bundled within it.
-It provides function ``ironic_discoverd.client.discover``, accepting list
-of UUID's, ``base_url`` --- optional *ironic-discoverd* service URL and
-``auth_token`` --- optional Keystone token.
+.. note::
+    Running as ``root`` is not required if **ironic-discoverd** does not
+    manage the firewall (i.e. ``manage_firewall`` is set to ``false`` in the
+    configuration file).
 
-You can also use it from CLI::
+A good starting point for writing your own *systemd* unit should be `one used
+in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/plain/openstack-ironic-discoverd.service>`_.
+
+Usage
+-----
+
+**ironic-discoverd** has a simple client library bundled within it.
+It provides functions:
+
+* ``ironic_discoverd.client.introspect`` for starting introspection
+* ``ironic_discoverd.client.get_status`` for querying introspection status
+
+both accepting:
+
+``uuid``
+    node UUID
+``base_url``
+    optional **ironic-discoverd** service URL (defaults to ``127.0.0.1:5050``)
+``auth_token``
+    optional Keystone token.
+
+For testing purposes you can also use it from CLI::
 
     python -m ironic_discoverd.client --auth-token TOKEN introspect UUID
+    python -m ironic_discoverd.client --auth-token TOKEN get_status UUID
 
 .. note::
-    This CLI interface is not stable and may be changes without prior notice.
+    This CLI interface is not stable and may be changed without prior notice.
+    Proper supported CLI is `expected later
+    <https://bugs.launchpad.net/ironic-discoverd/+bug/1410180>`_.
 
-API
----
+HTTP API
+~~~~~~~~
 
-By default *ironic-discoverd* listens on ``0.0.0.0:5050``, this can be changed
-in configuration. Protocol is JSON over HTTP.
+By default **ironic-discoverd** listens on ``0.0.0.0:5050``, port
+can be changed in configuration. Protocol is JSON over HTTP.
 
-HTTP API consist of these endpoints:
+The HTTP API consist of these endpoints:
 
 * ``POST /v1/introspection/<UUID>`` initiate hardware discovery for node
   ``<UUID>``. All power management configuration for this node needs to be done
@@ -168,8 +211,7 @@ HTTP API consist of these endpoints:
   * 401, 403 - missing or invalid authentication
   * 404 - node cannot be found
 
-  Client library function: ``ironic_discoverd.client.introspect`` for node
-  ``<UUID>``.
+  Client library function: ``ironic_discoverd.client.introspect``.
 
 * ``GET /v1/introspection/<UUID>`` get hardware discovery status.
 
@@ -191,7 +233,7 @@ HTTP API consist of these endpoints:
 
 * ``POST /v1/continue`` internal endpoint for the discovery ramdisk to post
   back discovered data. Should not be used for anything other than implementing
-  the ramdisk. Request body: JSON dictionary with keys:
+  the ramdisk. Request body: JSON dictionary with at least these keys:
 
   * ``cpus`` number of CPU
   * ``cpu_arch`` architecture of the CPU
@@ -203,12 +245,42 @@ HTTP API consist of these endpoints:
     * ``mac`` MAC address
     * ``ip`` IP address
 
+  .. note::
+        This list highly depends on enabled plugins, provided above are
+        expected keys for the default set of plugins. See Plugins_ for details.
+
   Response:
 
   * 200 - OK
   * 400 - bad request
-  * 403 - node is not on discovery
+  * 403 - node is not on introspection
   * 404 - node cannot be found or multiple nodes found
+
+Plugins
+~~~~~~~
+
+**ironic-discoverd** heavily relies on plugins for data processing. Even the
+standard functionality is largely based on plugins. Set ``processing_hooks``
+option in the configuration file to change the set of plugins to be run on
+introspection data. Note that order does matter in this option.
+
+These are plugins that are enabled by default and should not be disabled,
+unless you understand what you're doing:
+
+``scheduler``
+    validates and updates basic hardware scheduling properties: CPU number and
+    architecture, memory and disk size.
+``validate_interfaces``
+    validates network interfaces information.
+
+Here are some plugins that can be additionally enabled:
+
+``ramdisk_error``
+    reports error, if ``error`` field is set by the ramdisk.
+``example``
+    example plugin logging it's input and output.
+
+Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
 
 Release Notes
 -------------
@@ -221,7 +293,24 @@ to follow standard OpenStack processes from the beginning.
 
 See `1.0.0 release tracking page`_ for details.
 
-**API**
+**Upgrade notes**
+
+Action required:
+
+* Fill in ``database`` option in the configuration file before upgrading.
+
+Action recommended:
+
+* Switch your init scripts to use ``ironic-discoverd --config-file <path>``
+  instead of just ``ironic-discoverd <path>``.
+
+* Stop relying on ``on_discovery`` and ``newly_discovered`` being set in node
+  ``extra`` field during and after introspection. Use new get status HTTP
+  endpoint and client API instead.
+
+**Major features**
+
+* Introspection now times out by default, set ``timeout`` option to alter.
 
 * New API ``GET /v1/introspection/<uuid>`` and ``client.get_status`` for
   getting discovery status.
@@ -238,6 +327,25 @@ See `1.0.0 release tracking page`_ for details.
   * Errors are properly returned to the caller
   * This call now returns value as a JSON dict (currently empty)
 
+* Add support for plugins that hook into data processing pipeline. Refer to
+  Plugins_ for information on bundled plugins and to CONTRIBUTING.rst_ for
+  information on how to write your own.
+
+  See `plugin-architecture blueprint`_ for details.
+
+* Support for OpenStack Kilo release and new Ironic state machine -
+  see `Kilo state machine blueprint`_.
+
+* Cache nodes under introspection in a local SQLite database.
+  ``database`` configuration option sets where to place this database.
+  Improves performance by making less calls to Ironic API and makes possible
+  to get results of introspection.
+
+**Other Changes**
+
+* Firewall management can be disabled completely via ``manage_firewall``
+  option.
+
 * Experimental support for updating IPMI credentials from within ramdisk.
 
   Enable via configuration option ``enable_setting_ipmi_credentials``.
@@ -246,24 +354,6 @@ See `1.0.0 release tracking page`_ for details.
   compatibility.
 
   See `setup-ipmi-credentials blueprint`_ for details.
-
-* Add support for plugins that hook into data processing pipeline, see
-  `plugin-architecture blueprint`_ for details.
-
-**Configuration**
-
-* Cache nodes under discovery in a local SQLite database. Set ``database``
-  configuration option to where you want to place this database.
-  Improves performance by making less calls to Ironic API and makes possible
-  to get results of discovery.
-* Discovery now times out by default, set ``timeout`` option to alter.
-* Firewall management can be disabled completely via ``manage_firewall``
-  option.
-
-**Misc**
-
-* Support for OpenStack Kilo release - see `Kilo state machine blueprint`_.
-* Create ``CONTRIBUTING.rst``.
 
 .. _1.0.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.0.0
 .. _setup-ipmi-credentials blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials
