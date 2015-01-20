@@ -102,7 +102,7 @@ def api_discover():
     return "", 202
 
 
-def periodic_update(period):
+def periodic_update(period):  # pragma: no cover
     while True:
         LOG.debug('Running periodic update of filters')
         try:
@@ -112,7 +112,7 @@ def periodic_update(period):
         eventlet.greenthread.sleep(period)
 
 
-def periodic_clean_up(period):
+def periodic_clean_up(period):  # pragma: no cover
     while True:
         LOG.debug('Running periodic clean up of node cache')
         try:
@@ -154,7 +154,26 @@ def config_shim(args):
         return ['--config-file', args[1]]
 
 
-def main():
+def init():
+    if not conf.getboolean('discoverd', 'authenticate'):
+        LOG.warning('Starting unauthenticated, please check configuration')
+
+    node_cache.init()
+    check_ironic_available()
+
+    if conf.getboolean('discoverd', 'manage_firewall'):
+        firewall.init()
+        period = conf.getint('discoverd', 'firewall_update_period')
+        eventlet.greenthread.spawn_n(periodic_update, period)
+
+    if conf.getint('discoverd', 'timeout') > 0:
+        period = conf.getint('discoverd', 'clean_up_period')
+        eventlet.greenthread.spawn_n(periodic_clean_up, period)
+    else:
+        LOG.warning('Timeout is disabled in configuration')
+
+
+def main():  # pragma: no cover
     old_args = config_shim(sys.argv)
     parser = argparse.ArgumentParser(description='''Hardware introspection
                                                  service for OpenStack Ironic.
@@ -177,23 +196,7 @@ def main():
         LOG.warning('"ironic-discoverd <config-file>" syntax is deprecated use'
                     ' "ironic-discoverd --config-file <config-file>" instead')
 
-    if not conf.getboolean('discoverd', 'authenticate'):
-        LOG.warning('Starting unauthenticated, please check configuration')
-
-    node_cache.init()
-    check_ironic_available()
-
-    if conf.getboolean('discoverd', 'manage_firewall'):
-        firewall.init()
-        period = conf.getint('discoverd', 'firewall_update_period')
-        eventlet.greenthread.spawn_n(periodic_update, period)
-
-    if conf.getint('discoverd', 'timeout') > 0:
-        period = conf.getint('discoverd', 'clean_up_period')
-        eventlet.greenthread.spawn_n(periodic_clean_up, period)
-    else:
-        LOG.warning('Timeout is disabled in configuration')
-
+    init()
     app.run(debug=debug,
             host=conf.get('discoverd', 'listen_address'),
             port=conf.getint('discoverd', 'listen_port'))
