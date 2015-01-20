@@ -15,6 +15,7 @@
 
 import json
 import logging
+import os
 import sqlite3
 import sys
 import time
@@ -104,6 +105,9 @@ def init():
         LOG.critical('Configuration option discoverd.database should be set')
         sys.exit(1)
 
+    db_dir = os.path.dirname(_DB_NAME)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir)
     sqlite3.connect(_DB_NAME).executescript(_SCHEMA)
 
 

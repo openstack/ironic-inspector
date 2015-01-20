@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import tempfile
 import time
 import unittest
@@ -267,6 +268,12 @@ class TestInit(unittest.TestCase):
             self.assertIsNotNone(node_cache._DB_NAME)
             # Verify that table exists
             node_cache._db().execute("select * from nodes")
+
+    def test_create_dir(self):
+        temp = tempfile.mkdtemp()
+        conf.CONF.set('discoverd', 'database',
+                      os.path.join(temp, 'dir', 'file'))
+        node_cache.init()
 
     def test_no_database(self):
         self.assertRaises(SystemExit, node_cache.init)
