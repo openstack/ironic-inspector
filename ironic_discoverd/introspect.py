@@ -88,27 +88,38 @@ def _background_start_discover(ironic, node, setup_ipmi_credentials):
         bmc_address=node.driver_info.get('ipmi_address'),
         mac=macs)
     cached_node.set_option('setup_ipmi_credentials', setup_ipmi_credentials)
+    try:
+        _prepare_for_pxe(ironic, cached_node, macs, setup_ipmi_credentials)
+    except utils.Error as exc:
+        cached_node.finished(error=str(exc))
+    except Exception as exc:
+        msg = 'Unexpected exception during preparing for PXE boot'
+        LOG.exception(msg)
+        cached_node.finished(error=msg)
 
+
+def _prepare_for_pxe(ironic, cached_node, macs, setup_ipmi_credentials):
     if macs:
         LOG.info('Whitelisting MAC\'s %s for node %s on the firewall',
-                 macs, node.uuid)
+                 macs, cached_node.uuid)
         firewall.update_filters(ironic)
 
     if not setup_ipmi_credentials:
         try:
             utils.retry_on_conflict(ironic.node.set_boot_device,
-                                    node.uuid, 'pxe', persistent=False)
+                                    cached_node.uuid, 'pxe', persistent=False)
         except Exception as exc:
             LOG.warning('Failed to set boot device to PXE for node %s: %s',
-                        node.uuid, exc)
+                        cached_node.uuid, exc)
 
         try:
             utils.retry_on_conflict(ironic.node.set_power_state,
-                                    node.uuid, 'reboot')
+                                    cached_node.uuid, 'reboot')
         except Exception as exc:
-            LOG.error('Failed to power on node %s, check it\'s power '
-                      'management configuration:\n%s', node.uuid, exc)
+            raise utils.Error('Failed to power on node %s, check it\'s power '
+                              'management configuration:\n%s'
+                              % (cached_node.uuid, exc))
     else:
         LOG.info('Introspection environment is ready for node %s, '
                  'manual power on is required within %d seconds',
-                 node.uuid, conf.getint('discoverd', 'timeout'))
+                 cached_node.uuid, conf.getint('discoverd', 'timeout'))

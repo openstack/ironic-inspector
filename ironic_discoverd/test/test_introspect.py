@@ -29,9 +29,9 @@ from ironic_discoverd import utils
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(utils, 'get_client', autospec=True)
-class TestDiscover(test_base.NodeTest):
+class TestIntrospect(test_base.NodeTest):
     def setUp(self):
-        super(TestDiscover, self).setUp()
+        super(TestIntrospect, self).setUp()
         self.node.power_state = 'power off'
         self.node_compat = mock.Mock(driver='pxe_ssh',
                                      uuid='uuid_compat',
@@ -44,12 +44,14 @@ class TestDiscover(test_base.NodeTest):
         self.ports = [mock.Mock(address=m) for m in self.macs]
         self.patch = [{'op': 'add', 'path': '/extra/on_discovery',
                        'value': 'true'}]
+        self.cached_node = mock.Mock(uuid=self.uuid)
 
     def test_ok(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node
         cli.node.validate.return_value = mock.Mock(power={'result': True})
         cli.node.list_ports.return_value = self.ports
+        add_mock.return_value = self.cached_node
 
         introspect.introspect(self.node.uuid)
 
@@ -83,6 +85,7 @@ class TestDiscover(test_base.NodeTest):
                                                 None]
         cli.node.set_power_state.side_effect = [exceptions.Conflict,
                                                 None]
+        add_mock.return_value = self.cached_node
 
         introspect.introspect(self.node.uuid)
 
@@ -101,11 +104,57 @@ class TestDiscover(test_base.NodeTest):
         cli.node.set_power_state.assert_called_with(self.uuid,
                                                     'reboot')
 
+    def test_power_failure(self, client_mock, add_mock, filters_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node
+        cli.node.validate.return_value = mock.Mock(power={'result': True})
+        cli.node.list_ports.return_value = self.ports
+        cli.node.set_boot_device.side_effect = exceptions.BadRequest()
+        cli.node.set_power_state.side_effect = exceptions.BadRequest()
+        add_mock.return_value = self.cached_node
+
+        introspect.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+
+        cli.node.update.assert_called_once_with(self.uuid, self.patch)
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         mac=self.macs)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        add_mock.return_value.finished.assert_called_once_with(
+            error=mock.ANY)
+
+    def test_unexpected_error(self, client_mock, add_mock, filters_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node
+        cli.node.validate.return_value = mock.Mock(power={'result': True})
+        cli.node.list_ports.return_value = self.ports
+        add_mock.return_value = self.cached_node
+        filters_mock.side_effect = RuntimeError()
+
+        introspect.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+
+        cli.node.update.assert_called_once_with(self.uuid, self.patch)
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         mac=self.macs)
+        self.assertFalse(cli.node.set_boot_device.called)
+        add_mock.return_value.finished.assert_called_once_with(
+            error=mock.ANY)
+
     def test_juno_compat(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node_compat
         cli.node.validate.return_value = mock.Mock(power={'result': True})
         cli.node.list_ports.return_value = self.ports
+        add_mock.return_value = mock.Mock(uuid=self.node_compat.uuid)
 
         introspect.introspect(self.node_compat.uuid)
 
@@ -130,6 +179,7 @@ class TestDiscover(test_base.NodeTest):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node
         cli.node.list_ports.return_value = []
+        add_mock.return_value = self.cached_node
 
         introspect.introspect(self.node.uuid)
 
