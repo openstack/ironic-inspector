@@ -108,17 +108,29 @@ for the other possible configuration options.
 
 As for PXE boot environment, you'll need:
 
-* TFTP server running and accessible.
+* TFTP server running and accessible (see below for using *dnsmasq*).
+  Ensure ``pxelinux.0`` is present in the TFTP root.
 
 * Build and put into your TFTP directory kernel and ramdisk from the
-  diskimage-builder_ `ironic-discoverd-ramdisk element`_.
-  You can also use `kernel`_ and `ramdisk`_ prepared for Instack.
+  diskimage-builder_ `ironic-discoverd-ramdisk element`_::
+
+    ramdisk-image-create -o discovery fedora ironic-discoverd-ramdisk
+
+  You need diskimage-builder_ 0.1.38 or newer to do it.
 
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   **ironic-discoverd**. Don't do any firewall configuration:
   **ironic-discoverd** will handle it for you. In **ironic-discoverd**
   configuration file set ``dnsmasq_interface`` to the interface your
-  PXE boot server listens on.
+  PXE boot server listens on. Here is an example *dnsmasq.conf*::
+
+    port=0
+    interface={INTERFACE}
+    bind-interfaces
+    dhcp-range={DHCP IP RANGE, e.g. 192.168.0.50,192.168.0.150}
+    enable-tftp
+    tftp-root={TFTP ROOT, e.g. /tftpboot}
+    dhcp-boot=pxelinux.0
 
 * Configure your ``$TFTPROOT/pxelinux.cfg/default`` with something like::
 
@@ -126,20 +138,33 @@ As for PXE boot environment, you'll need:
 
     label discover
     kernel discovery.kernel
-    append initrd=discovery.ramdisk discoverd_callback_url=http://{IP}:5050/v1/continue
+    append initrd=discovery.initramfs discoverd_callback_url=http://{IP}:5050/v1/continue
 
     ipappend 3
 
   Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
   will be accessed by ramdisk on a booting machine).
 
-Use `ironic-discoverd element`_ as an example for this configuration.
+  .. note::
+    There are some prebuilt images which use obsolete ``ironic_callback_url``
+    instead of ``discoverd_callback_url``. Modify ``pxelinux.cfg/default``
+    accordingly if you have one of these.
+
+Here is *discoverd.conf* you may end up with::
+
+    [discoverd]
+    debug = false
+    os_auth_url = http://127.0.0.1:5000/v2.0
+    os_username = admin
+    os_password = password
+    os_tenant_name = admin
+    dnsmasq_interface = br-ctlplane
+
+.. note::
+    Set ``debug = true`` if you want to see complete logs.
 
 .. _diskimage-builder: https://github.com/openstack/diskimage-builder
 .. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
-.. _kernel: https://repos.fedorapeople.org/repos/openstack-m/tripleo-images-rdo-juno/discovery-ramdisk.kernel
-.. _ramdisk: https://repos.fedorapeople.org/repos/openstack-m/tripleo-images-rdo-juno/discovery-ramdisk.initramfs
-.. _ironic-discoverd element: https://github.com/agroup/instack-undercloud/tree/master/elements/ironic-discoverd
 
 Running
 ~~~~~~~
