@@ -12,4 +12,4 @@
 # limitations under the License.
 
 import eventlet
-eventlet.monkey_patch(thread=False)  # thread=True breaks func tests
+eventlet.monkey_patch(thread=False)

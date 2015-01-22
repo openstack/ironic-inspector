@@ -11,10 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-
 import eventlet
-eventlet.monkey_patch(thread=(sys.version_info < (3, 3)))
+eventlet.monkey_patch(thread=False)
 
 import argparse
 import functools
