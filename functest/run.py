@@ -47,7 +47,7 @@ ROOT = './functest/env'
 
 RAMDISK = ("https://raw.githubusercontent.com/openstack/diskimage-builder/"
            "master/elements/ironic-discoverd-ramdisk/"
-           "init.d/80-discovery-ironic")
+           "init.d/80-ironic-discoverd-ramdisk")
 
 
 class Test(base.NodeTest):
