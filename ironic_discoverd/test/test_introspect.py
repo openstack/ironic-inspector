@@ -72,6 +72,21 @@ class TestIntrospect(test_base.NodeTest):
         add_mock.return_value.set_option.assert_called_once_with(
             'setup_ipmi_credentials', False)
 
+    def test_ok_ilo_and_drac(self, client_mock, add_mock, filters_mock):
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node
+        cli.node.validate.return_value = mock.Mock(power={'result': True})
+        cli.node.list_ports.return_value = self.ports
+        add_mock.return_value = self.cached_node
+
+        for name in ('ilo_address', 'drac_host'):
+            self.node.driver_info = {name: self.bmc_address}
+            introspect.introspect(self.node.uuid)
+
+        add_mock.assert_called_with(self.uuid,
+                                    bmc_address=self.bmc_address,
+                                    mac=self.macs)
+
     def test_retries(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node

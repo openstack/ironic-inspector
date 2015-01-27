@@ -77,16 +77,23 @@ def introspect(uuid, setup_ipmi_credentials=False):
                                  setup_ipmi_credentials=setup_ipmi_credentials)
 
 
+def _get_ipmi_address(node):
+    # All these are kind-of-ipmi
+    for name in ('ipmi_address', 'ilo_address', 'drac_host'):
+        value = node.driver_info.get(name)
+        if value:
+            return value
+
+
 def _background_start_discover(ironic, node, setup_ipmi_credentials):
     patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
     utils.retry_on_conflict(ironic.node.update, node.uuid, patch)
 
     # TODO(dtantsur): pagination
     macs = [p.address for p in ironic.node.list_ports(node.uuid, limit=0)]
-    cached_node = node_cache.add_node(
-        node.uuid,
-        bmc_address=node.driver_info.get('ipmi_address'),
-        mac=macs)
+    cached_node = node_cache.add_node(node.uuid,
+                                      bmc_address=_get_ipmi_address(node),
+                                      mac=macs)
     cached_node.set_option('setup_ipmi_credentials', setup_ipmi_credentials)
     try:
         _prepare_for_pxe(ironic, cached_node, macs, setup_ipmi_credentials)
