@@ -26,8 +26,8 @@ from ironic_discoverd import conf
 
 LOG = logging.getLogger('ironic_discoverd.utils')
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
-RETRY_COUNT = 10
-RETRY_DELAY = 2
+RETRY_COUNT = 12
+RETRY_DELAY = 5
 
 
 class Error(Exception):
@@ -77,7 +77,7 @@ def retry_on_conflict(call, *args, **kwargs):
             return call(*args, **kwargs)
         except exceptions.Conflict as exc:
             LOG.warning('Conflict on calling %s: %s, retry attempt %d',
-                        getattr(call, '__name__', repr(call)), exc, i)
+                        getattr(call, '__name__', repr(call)), exc, i + 1)
             if i == RETRY_COUNT - 1:
                 raise
             eventlet.greenthread.sleep(RETRY_DELAY)
