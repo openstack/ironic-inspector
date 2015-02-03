@@ -311,6 +311,21 @@ Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
 Release Notes
 -------------
 
+1.1 Series
+~~~~~~~~~~
+
+See `1.1.0 release tracking page`_ for details.
+
+**Upgrade Notes**
+
+**Major Features**
+
+**Other Changes**
+
+**Known Issues**
+
+.. _1.1.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.1.0
+
 1.0 Series
 ~~~~~~~~~~
 
