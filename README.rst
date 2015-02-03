@@ -314,7 +314,8 @@ Release Notes
 ~~~~~~~~~~
 
 1.0 is the first feature-complete release series. It's also the first series
-to follow standard OpenStack processes from the beginning.
+to follow standard OpenStack processes from the beginning. All 0.2 series
+users are advised to upgrade.
 
 See `1.0.0 release tracking page`_ for details.
 
@@ -323,6 +324,8 @@ See `1.0.0 release tracking page`_ for details.
 Action required:
 
 * Fill in ``database`` option in the configuration file before upgrading.
+* Stop relying on **ironic-discoverd** setting maintenance mode itself.
+* Stop relying on ``discovery_timestamp`` node extra field.
 
 Action recommended:
 
@@ -332,6 +335,8 @@ Action recommended:
 * Stop relying on ``on_discovery`` and ``newly_discovered`` being set in node
   ``extra`` field during and after introspection. Use new get status HTTP
   endpoint and client API instead.
+
+* Switch from ``discover`` to ``introspect`` HTTP endpoint and client API.
 
 **Major features**
 
@@ -361,6 +366,9 @@ Action recommended:
 * Support for OpenStack Kilo release and new Ironic state machine -
   see `Kilo state machine blueprint`_.
 
+  As a side effect, no longer depend on maintenance mode for introspection.
+  Stop putting node in maintenance mode before introspection.
+
 * Cache nodes under introspection in a local SQLite database.
   ``database`` configuration option sets where to place this database.
   Improves performance by making less calls to Ironic API and makes possible
@@ -380,6 +388,13 @@ Action recommended:
 
   See `setup-ipmi-credentials blueprint`_ for details.
 
+**Known Issues**
+
+* `bug 1415040 <https://bugs.launchpad.net/ironic-discoverd/+bug/1415040>`_
+  it is required to set IP addresses instead of host names in
+  ``ipmi_address``/``ilo_address``/``drac_host`` node ``driver_info`` field
+  for **ironic-discoverd** to work properly.
+
 .. _1.0.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.0.0
 .. _setup-ipmi-credentials blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials
 .. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
@@ -390,8 +405,8 @@ Action recommended:
 0.2 Series
 ~~~~~~~~~~
 
-0.2 is a long-term support series designed to work with OpenStack Juno
-release. The major changes are:
+0.2 series is designed to work with OpenStack Juno release.
+The major changes are:
 
 **API**
 
@@ -401,8 +416,6 @@ release. The major changes are:
 * If ``interfaces`` is present, only add ports for NIC's with IP address set
   **[version 0.2.1]**.
 * ``/v1/discover`` now does some sync sanity checks **[version 0.2.2]**.
-* ``discovery_timestamp`` is added to node extra on starting discovery
-  **[version 0.2.2]**.
 * Nodes will be always put into maintenance mode before discovery
   **[version 0.2.1]**.
 
@@ -415,7 +428,6 @@ release. The major changes are:
 **Misc**
 
 * Simple client in ``ironic_discoverd.client``.
-* Switch to Gerrit **[version 0.2.3]**, setuptools entry points and tox.
 * Preliminary supported for Python 3.3 (real support depends on Eventlet).
 
 0.1 Series
