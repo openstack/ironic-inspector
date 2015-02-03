@@ -1,7 +1,7 @@
-Hardware properties introspection for OpenStack Ironic
-======================================================
+Hardware introspection for OpenStack Ironic
+===========================================
 
-This is an auxiliary service for discovering basic hardware properties for a
+This is an auxiliary service for discovering hardware properties for a
 node managed by `OpenStack Ironic`_. Hardware introspection or hardware
 properties discovery is a process of getting hardware parameters required for
 scheduling from a bare metal node, given it's power management credentials
@@ -32,7 +32,8 @@ Workflow
 
 Usual hardware introspection flow is as follows:
 
-* Operator installs undercloud (e.g. using instack-undercloud_)
+* Operator installs undercloud with **ironic-discoverd**
+  (e.g. using instack-undercloud_).
 
 * Operator enrolls nodes into Ironic either manually or by uploading CSV file
   to `Tuskar UI`_. Power management credentials should be provided to Ironic
