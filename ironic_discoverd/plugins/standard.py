@@ -66,7 +66,17 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
         ports_for_inactive = conf.getboolean('discoverd',
                                              'ports_for_inactive_interfaces')
-        if not ports_for_inactive:
+        only_pxe = conf.getboolean('discoverd', 'only_pxe_booting_port')
+        pxe_mac = node_info.get('boot_interface')
+
+        if only_pxe and pxe_mac:
+            LOG.info('PXE boot interface was %s', pxe_mac)
+            pxe_mac = pxe_mac.replace('-', ':').lower()
+            valid_interfaces = {
+                n: iface for n, iface in valid_interfaces.items()
+                if iface['mac'].lower() == pxe_mac
+            }
+        elif not ports_for_inactive:
             valid_interfaces = {
                 n: iface for n, iface in valid_interfaces.items()
                 if iface.get('ip')

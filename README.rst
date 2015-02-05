@@ -324,6 +324,14 @@ See `1.1.0 release tracking page`_ for details.
 
 **Major Features**
 
+* Default to only creating a port for the NIC that the ramdisk was PXE booted
+  from, if such information is provided by ramdisk as ``boot_interface`` field.
+  Adjustable by ``only_pxe_booting_port`` option.
+
+  See `better-boot-interface-detection blueprint
+  <https://blueprints.launchpad.net/ironic-discoverd/+spec/better-boot-interface-detection>`_
+  for details.
+
 **Other Changes**
 
 **Known Issues**

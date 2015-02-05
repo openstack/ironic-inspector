@@ -34,6 +34,7 @@ class BaseTest(test_base.NodeTest):
                       'ramdisk_error,scheduler,validate_interfaces')
         self.started_at = time.time()
         self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
+        self.pxe_mac = self.macs[1]
         self.data = {
             'ipmi_address': self.bmc_address,
             'cpus': 2,
@@ -44,12 +45,14 @@ class BaseTest(test_base.NodeTest):
                 'em1': {'mac': self.macs[0], 'ip': '1.2.0.1'},
                 'em2': {'mac': self.macs[1], 'ip': '1.2.0.2'},
                 'em3': {'mac': self.all_macs[2]},
-            }
+            },
+            'boot_interface': self.pxe_mac,
         }
-        self.ports = [
+        self.all_ports = [
             mock.Mock(uuid='port_uuid%d' % i, address=mac)
             for i, mac in enumerate(self.macs)
         ]
+        self.ports = [self.all_ports[1]]
 
 
 @mock.patch.object(process, '_process_node', autospec=True)
@@ -77,6 +80,46 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_ok(self, cli, pop_mock, process_mock):
+        res = process.process(self.data)
+
+        self.assertEqual(self.fake_result_json, res)
+
+        # Only boot interface is added by default
+        self.assertEqual(['em2'], sorted(self.data['interfaces']))
+        self.assertEqual(['em1', 'em2', 'em3'],
+                         sorted(self.data['all_interfaces']))
+        self.assertEqual([self.pxe_mac], self.data['macs'])
+
+        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
+                                         mac=self.data['macs'])
+        cli.node.get.assert_called_once_with(self.uuid)
+        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+                                             self.data, pop_mock.return_value)
+
+    @prepare_mocks
+    def test_no_boot_interface(self, cli, pop_mock, process_mock):
+        del self.data['boot_interface']
+
+        res = process.process(self.data)
+
+        self.assertEqual(self.fake_result_json, res)
+
+        # By default interfaces w/o IP are dropped
+        self.assertEqual(['em1', 'em2'], sorted(self.data['interfaces']))
+        self.assertEqual(['em1', 'em2', 'em3'],
+                         sorted(self.data['all_interfaces']))
+        self.assertEqual(self.macs, sorted(self.data['macs']))
+
+        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
+                                         mac=self.data['macs'])
+        cli.node.get.assert_called_once_with(self.uuid)
+        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+                                             self.data, pop_mock.return_value)
+
+    @prepare_mocks
+    def test_non_pxe_interfaces(self, cli, pop_mock, process_mock):
+        conf.CONF.set('discoverd', 'only_pxe_booting_port', 'false')
+
         res = process.process(self.data)
 
         self.assertEqual(self.fake_result_json, res)
@@ -112,6 +155,8 @@ class TestProcess(BaseTest):
     @prepare_mocks
     def test_ports_for_inactive(self, cli, pop_mock, process_mock):
         conf.CONF.set('discoverd', 'ports_for_inactive_interfaces', 'true')
+        del self.data['boot_interface']
+
         process.process(self.data)
 
         self.assertEqual(['em1', 'em2', 'em3'],
@@ -234,6 +279,7 @@ class TestProcessNode(BaseTest):
         self.validate_attempts = 5
         self.power_off_attempts = 2
         self.data['macs'] = self.macs  # validate_interfaces hook
+        self.ports = self.all_ports
         self.cached_node = node_cache.NodeInfo(uuid=self.uuid,
                                                started_at=self.started_at)
         self.patch_before = [
