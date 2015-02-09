@@ -267,6 +267,9 @@ The HTTP API consist of these endpoints:
   * ``local_gb`` hard drive size in GiB
   * ``interfaces`` dictionary filled with data from all NIC's, keys being
     interface names, values being dictionaries with keys:
+  * Optional MAC address of the NIC that the machine PXE booted from
+    either in standard format ``11:22:33:44:55:66`` or in *PXELinux*
+    ``BOOTIF`` format ``01-11-22-33-44-55-66``.
 
     * ``mac`` MAC address
     * ``ip`` IP address

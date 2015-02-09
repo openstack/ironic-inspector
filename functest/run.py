@@ -66,7 +66,7 @@ class Test(base.NodeTest):
         shutil.copytree(ROOT, self.env)
         net_ifaces = os.path.join(self.env, 'net')
         os.mkdir(net_ifaces)
-        for fname in ('lo', 'em1', 'em2'):
+        for fname in ('lo', 'em1', 'em2', 'em3'):
             open(os.path.join(net_ifaces, fname), 'wb').close()
 
         ramdisk_url = os.environ.get('RAMDISK_SOURCE', RAMDISK)
