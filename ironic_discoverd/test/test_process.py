@@ -46,7 +46,7 @@ class BaseTest(test_base.NodeTest):
                 'em2': {'mac': self.macs[1], 'ip': '1.2.0.2'},
                 'em3': {'mac': self.all_macs[2]},
             },
-            'boot_interface': self.pxe_mac,
+            'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
         }
         self.all_ports = [
             mock.Mock(uuid='port_uuid%d' % i, address=mac)
@@ -80,6 +80,26 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_ok(self, cli, pop_mock, process_mock):
+        res = process.process(self.data)
+
+        self.assertEqual(self.fake_result_json, res)
+
+        # Only boot interface is added by default
+        self.assertEqual(['em2'], sorted(self.data['interfaces']))
+        self.assertEqual(['em1', 'em2', 'em3'],
+                         sorted(self.data['all_interfaces']))
+        self.assertEqual([self.pxe_mac], self.data['macs'])
+
+        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
+                                         mac=self.data['macs'])
+        cli.node.get.assert_called_once_with(self.uuid)
+        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+                                             self.data, pop_mock.return_value)
+
+    @prepare_mocks
+    def test_boot_interface_as_mac(self, cli, pop_mock, process_mock):
+        self.data['boot_interface'] = self.pxe_mac
+
         res = process.process(self.data)
 
         self.assertEqual(self.fake_result_json, res)

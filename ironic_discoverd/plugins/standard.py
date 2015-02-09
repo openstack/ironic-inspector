@@ -71,7 +71,11 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
         if only_pxe and pxe_mac:
             LOG.info('PXE boot interface was %s', pxe_mac)
-            pxe_mac = pxe_mac.replace('-', ':').lower()
+            if '-' in pxe_mac:
+                # pxelinux format: 01-aa-bb-cc-dd-ee-ff
+                pxe_mac = pxe_mac.split('-', 1)[1]
+                pxe_mac = pxe_mac.replace('-', ':').lower()
+
             valid_interfaces = {
                 n: iface for n, iface in valid_interfaces.items()
                 if iface['mac'].lower() == pxe_mac
