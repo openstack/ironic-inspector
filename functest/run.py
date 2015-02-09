@@ -14,7 +14,7 @@
 from __future__ import print_function
 
 import eventlet
-eventlet.monkey_patch(thread=False)
+eventlet.monkey_patch()
 
 import os
 import re
