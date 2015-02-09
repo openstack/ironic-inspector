@@ -56,23 +56,28 @@ class ValidateInterfacesHook(base.ProcessingHook):
     def before_processing(self, node_info):
         """Validate information about network interfaces."""
         bmc_address = node_info.get('ipmi_address')
-
-        compat = conf.getboolean('discoverd', 'ports_for_inactive_interfaces')
-        if 'interfaces' not in node_info and 'macs' in node_info:
-            LOG.warning('Using "macs" field is deprecated, please '
-                        'update your discovery ramdisk')
-            node_info['interfaces'] = {
-                'dummy%d' % i: {'mac': m}
-                for i, m in enumerate(node_info['macs'])}
-            compat = True
+        if not node_info.get('interfaces'):
+            raise utils.Error('No interfaces supplied by the ramdisk')
 
         valid_interfaces = {
             n: iface for n, iface in node_info['interfaces'].items()
-            if (utils.is_valid_mac(iface.get('mac'))
-                and (compat or iface.get('ip')))
+            if utils.is_valid_mac(iface.get('mac'))
         }
-        valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
-        if valid_interfaces != node_info['interfaces']:
+
+        ports_for_inactive = conf.getboolean('discoverd',
+                                             'ports_for_inactive_interfaces')
+        if not ports_for_inactive:
+            valid_interfaces = {
+                n: iface for n, iface in valid_interfaces.items()
+                if iface.get('ip')
+            }
+
+        if not valid_interfaces:
+            raise utils.Error('No valid interfaces found for node with '
+                              'BMC %(ipmi_address)s, got %(interfaces)s' %
+                              {'ipmi_address': bmc_address,
+                               'interfaces': node_info['interfaces']})
+        elif valid_interfaces != node_info['interfaces']:
             LOG.warning(
                 'The following interfaces were invalid or not eligible in '
                 'introspection data for node with BMC %(ipmi_address)s and '
@@ -83,7 +88,9 @@ class ValidateInterfacesHook(base.ProcessingHook):
                  'ipmi_address': bmc_address})
             LOG.info('Eligible interfaces are %s', valid_interfaces)
 
+        node_info['all_interfaces'] = node_info['interfaces']
         node_info['interfaces'] = valid_interfaces
+        valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
         node_info['macs'] = valid_macs
 
 

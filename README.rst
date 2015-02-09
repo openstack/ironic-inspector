@@ -318,6 +318,10 @@ See `1.1.0 release tracking page`_ for details.
 
 **Upgrade Notes**
 
+* This version no longer supports ancient ramdisks that sent ``macs`` instead
+  of ``interfaces``. It also raises exception if no valid interfaces were
+  found after processing.
+
 **Major Features**
 
 **Other Changes**

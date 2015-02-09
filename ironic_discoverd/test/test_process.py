@@ -83,6 +83,8 @@ class TestProcess(BaseTest):
 
         # By default interfaces w/o IP are dropped
         self.assertEqual(['em1', 'em2'], sorted(self.data['interfaces']))
+        self.assertEqual(['em1', 'em2', 'em3'],
+                         sorted(self.data['all_interfaces']))
         self.assertEqual(self.macs, sorted(self.data['macs']))
 
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
@@ -103,20 +105,9 @@ class TestProcess(BaseTest):
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
-    def test_deprecated_macs(self, cli, pop_mock, process_mock):
+    def test_no_interfaces(self, cli, pop_mock, process_mock):
         del self.data['interfaces']
-        self.data['macs'] = self.macs
-        process.process(self.data)
-
-        self.assertEqual(self.macs, sorted(i['mac'] for i in
-                                           self.data['interfaces'].values()))
-        self.assertEqual(self.macs, sorted(self.data['macs']))
-
-        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=self.data['macs'])
-        cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
-                                             self.data, pop_mock.return_value)
+        self.assertRaises(utils.Error, process.process, self.data)
 
     @prepare_mocks
     def test_ports_for_inactive(self, cli, pop_mock, process_mock):
@@ -134,20 +125,31 @@ class TestProcess(BaseTest):
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
-    def test_invalid_interfaces(self, cli, pop_mock, process_mock):
+    def test_invalid_interfaces_all(self, cli, pop_mock, process_mock):
         self.data['interfaces'] = {
             'br1': {'mac': 'broken', 'ip': '1.2.0.1'},
             'br2': {'mac': '', 'ip': '1.2.0.2'},
             'br3': {},
         }
 
+        self.assertRaises(utils.Error, process.process, self.data)
+
+    @prepare_mocks
+    def test_invalid_interfaces(self, cli, pop_mock, process_mock):
+        self.data['interfaces'] = {
+            'br1': {'mac': 'broken', 'ip': '1.2.0.1'},
+            'br2': {'mac': '', 'ip': '1.2.0.2'},
+            'br3': {},
+            'em1': {'mac': self.macs[1], 'ip': '1.2.3.4'},
+        }
+
         process.process(self.data)
 
-        self.assertEqual({}, self.data['interfaces'])
-        self.assertEqual([], self.data['macs'])
+        self.assertEqual(['em1'], list(self.data['interfaces']))
+        self.assertEqual([self.macs[1]], self.data['macs'])
 
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=[])
+                                         mac=[self.macs[1]])
         cli.node.get.assert_called_once_with(self.uuid)
         process_mock.assert_called_once_with(cli, cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
