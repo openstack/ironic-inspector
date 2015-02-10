@@ -61,8 +61,9 @@ class TestIntrospect(test_base.NodeTest):
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         mac=self.macs)
+                                         bmc_address=self.bmc_address)
+        self.cached_node.add_attribute.assert_called_once_with('mac',
+                                                               self.macs)
         filters_mock.assert_called_with(cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
@@ -84,8 +85,7 @@ class TestIntrospect(test_base.NodeTest):
             introspect.introspect(self.node.uuid)
 
         add_mock.assert_called_with(self.uuid,
-                                    bmc_address=self.bmc_address,
-                                    mac=self.macs)
+                                    bmc_address=self.bmc_address)
 
     def test_retries(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
@@ -110,8 +110,7 @@ class TestIntrospect(test_base.NodeTest):
 
         cli.node.update.assert_called_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         mac=self.macs)
+                                         bmc_address=self.bmc_address)
         filters_mock.assert_called_with(cli)
         cli.node.set_boot_device.assert_called_with(self.uuid,
                                                     'pxe',
@@ -134,8 +133,7 @@ class TestIntrospect(test_base.NodeTest):
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         mac=self.macs)
+                                         bmc_address=self.bmc_address)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
@@ -158,8 +156,7 @@ class TestIntrospect(test_base.NodeTest):
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         mac=self.macs)
+                                         bmc_address=self.bmc_address)
         self.assertFalse(cli.node.set_boot_device.called)
         add_mock.return_value.finished.assert_called_once_with(
             error=mock.ANY)
@@ -181,8 +178,9 @@ class TestIntrospect(test_base.NodeTest):
         cli.node.update.assert_called_once_with(self.node_compat.uuid,
                                                 self.patch)
         add_mock.assert_called_once_with(self.node_compat.uuid,
-                                         bmc_address=None,
-                                         mac=self.macs)
+                                         bmc_address=None)
+        add_mock.return_value.add_attribute.assert_called_once_with('mac',
+                                                                    self.macs)
         filters_mock.assert_called_with(cli)
         cli.node.set_boot_device.assert_called_once_with(self.node_compat.uuid,
                                                          'pxe',
@@ -202,8 +200,8 @@ class TestIntrospect(test_base.NodeTest):
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         mac=[])
+                                         bmc_address=self.bmc_address)
+        self.assertFalse(self.cached_node.add_attribute.called)
         self.assertFalse(filters_mock.called)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
@@ -218,13 +216,13 @@ class TestIntrospect(test_base.NodeTest):
         cli.node.get.return_value = self.node
         cli.node.list_ports.return_value = self.ports
         cli.node.validate.side_effect = Exception()
+        add_mock.return_value = self.cached_node
 
         introspect.introspect(self.uuid, setup_ipmi_credentials=True)
 
         cli.node.update.assert_called_once_with(self.uuid, self.patch)
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         mac=self.macs)
+                                         bmc_address=self.bmc_address)
         filters_mock.assert_called_with(cli)
         self.assertFalse(cli.node.set_boot_device.called)
         self.assertFalse(cli.node.set_power_state.called)

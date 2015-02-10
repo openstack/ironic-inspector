@@ -73,8 +73,23 @@ def introspect(uuid, setup_ipmi_credentials=False):
                    'reason: %s')
             raise utils.Error(msg % (node.uuid, validation.power['reason']))
 
-    eventlet.greenthread.spawn_n(_background_start_discover, ironic, node,
-                                 setup_ipmi_credentials=setup_ipmi_credentials)
+    cached_node = node_cache.add_node(node.uuid,
+                                      bmc_address=_get_ipmi_address(node))
+    cached_node.set_option('setup_ipmi_credentials', setup_ipmi_credentials)
+
+    def _handle_exceptions():
+        try:
+            _background_introspect(
+                ironic, cached_node,
+                setup_ipmi_credentials=setup_ipmi_credentials)
+        except utils.Error as exc:
+            cached_node.finished(error=str(exc))
+        except Exception as exc:
+            msg = 'Unexpected exception in background introspection thread'
+            LOG.exception(msg)
+            cached_node.finished(error=msg)
+
+    eventlet.greenthread.spawn_n(_handle_exceptions)
 
 
 def _get_ipmi_address(node):
@@ -85,28 +100,15 @@ def _get_ipmi_address(node):
             return value
 
 
-def _background_start_discover(ironic, node, setup_ipmi_credentials):
+def _background_introspect(ironic, cached_node, setup_ipmi_credentials):
     patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
-    utils.retry_on_conflict(ironic.node.update, node.uuid, patch)
+    utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
     # TODO(dtantsur): pagination
-    macs = [p.address for p in ironic.node.list_ports(node.uuid, limit=0)]
-    cached_node = node_cache.add_node(node.uuid,
-                                      bmc_address=_get_ipmi_address(node),
-                                      mac=macs)
-    cached_node.set_option('setup_ipmi_credentials', setup_ipmi_credentials)
-    try:
-        _prepare_for_pxe(ironic, cached_node, macs, setup_ipmi_credentials)
-    except utils.Error as exc:
-        cached_node.finished(error=str(exc))
-    except Exception as exc:
-        msg = 'Unexpected exception during preparing for PXE boot'
-        LOG.exception(msg)
-        cached_node.finished(error=msg)
-
-
-def _prepare_for_pxe(ironic, cached_node, macs, setup_ipmi_credentials):
+    macs = [p.address for p in ironic.node.list_ports(cached_node.uuid,
+                                                      limit=0)]
     if macs:
+        cached_node.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
         LOG.info('Whitelisting MAC\'s %s for node %s on the firewall',
                  macs, cached_node.uuid)
         firewall.update_filters(ironic)

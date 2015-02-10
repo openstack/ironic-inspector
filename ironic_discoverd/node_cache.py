@@ -13,6 +13,7 @@
 
 """Cache for nodes currently under introspection."""
 
+import contextlib
 import json
 import logging
 import os
@@ -40,6 +41,9 @@ create table if not exists options
   primary key (uuid, name),
   foreign key (uuid) references nodes);
 """
+
+
+MACS_ATTRIBUTE = 'mac'
 
 
 class NodeInfo(object):
@@ -88,6 +92,29 @@ class NodeInfo(object):
             db.execute("delete from attributes where uuid=?", (self.uuid,))
             db.execute("delete from options where uuid=?", (self.uuid,))
 
+    def add_attribute(self, name, value, database=None):
+        """Store look up attribute for a node in the database.
+
+        :param name: attribute name
+        :param value: attribute value or list of possible values
+        :param database: optional existing database connection
+        :raises: Error if attributes values are already in database
+        """
+        if not isinstance(value, list):
+            value = [value]
+
+        with _maybe_db(database) as db:
+            try:
+                db.executemany("insert into attributes(name, value, uuid) "
+                               "values(?, ?, ?)",
+                               [(name, v, self.uuid) for v in value])
+            except sqlite3.IntegrityError as exc:
+                LOG.error('Database integrity error %s during '
+                          'adding attributes', exc)
+                raise utils.Error(
+                    'Some or all of %(name)s\'s %(value)s are already '
+                    'on introspection' % {'name': name, 'value': value})
+
     @classmethod
     def from_row(cls, row):
         """Construct NodeInfo from a database row."""
@@ -119,6 +146,15 @@ def _db():
     return conn
 
 
+@contextlib.contextmanager
+def _maybe_db(db=None):
+    if db is None:
+        with _db() as db:
+            yield db
+    else:
+        yield db
+
+
 def add_node(uuid, **attributes):
     """Store information about a node under introspection.
 
@@ -137,31 +173,20 @@ def add_node(uuid, **attributes):
 
         db.execute("insert into nodes(uuid, started_at) "
                    "values(?, ?)", (uuid, started_at))
+
+        node_info = NodeInfo(uuid=uuid, started_at=started_at)
         for (name, value) in attributes.items():
             if not value:
                 continue
-            if not isinstance(value, list):
-                value = [value]
+            node_info.add_attribute(name, value, database=db)
 
-            try:
-                db.executemany("insert into attributes(name, value, uuid) "
-                               "values(?, ?, ?)",
-                               [(name, v, uuid) for v in value])
-            except sqlite3.IntegrityError as exc:
-                LOG.error('Database integrity error %s during '
-                          'adding attributes', exc)
-                raise utils.Error(
-                    'Some or all of %(name)s\'s %(value)s are already '
-                    'on introspection' %
-                    {'name': name, 'value': value})
-
-    return NodeInfo(uuid=uuid, started_at=started_at)
+    return node_info
 
 
 def active_macs():
     """List all MAC's that are on introspection right now."""
     return {x[0] for x in _db().execute("select value from attributes "
-                                        "where name='mac'")}
+                                        "where name=?", (MACS_ATTRIBUTE,))}
 
 
 def get_node(uuid):

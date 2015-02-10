@@ -75,6 +75,19 @@ class TestNodeCache(test_base.NodeTest):
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
                          node_cache.active_macs())
 
+    def test_add_attribute(self):
+        with self.db:
+            self.db.execute("insert into nodes(uuid) values(?)",
+                            (self.node.uuid,))
+        node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
+        node_info.add_attribute('key', 'value')
+        res = self.db.execute("select name, value, uuid from attributes "
+                              "order by name, value").fetchall()
+        self.assertEqual([('key', 'value', self.uuid)],
+                         [tuple(row) for row in res])
+        self.assertRaises(utils.Error, node_info.add_attribute,
+                          'key', 'value')
+
 
 class TestNodeCacheFind(test_base.NodeTest):
     def setUp(self):
