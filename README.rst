@@ -308,6 +308,9 @@ Here are some plugins that can be additionally enabled:
     reports error, if ``error`` field is set by the ramdisk.
 ``example``
     example plugin logging it's input and output.
+``root_device_hint``
+    gathers block devices from ramdisk and exposes root device in multiple
+    runs.
 
 Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
 
@@ -342,6 +345,8 @@ See `1.1.0 release tracking page`_ for details.
   <https://pypi.python.org/pypi/hardware>`_.
 
   See `eDeploy blueprint`_ for details.
+
+* Plugin ``root_device_hint`` for in-band root device discovery.
 
 **Known Issues**
 

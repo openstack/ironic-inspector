@@ -32,6 +32,7 @@ setup(
             "ramdisk_error = ironic_discoverd.plugins.standard:RamdiskErrorHook",
             "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
             "edeploy = ironic_discoverd.plugins.edeploy:eDeployHook",
+            "root_device_hint = ironic_discoverd.plugins.root_device_hint:RootDeviceHintHook",
         ],
     },
     classifiers = [
