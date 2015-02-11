@@ -28,7 +28,8 @@ from ironic_discoverd import utils
 
 LOG = logging.getLogger("ironic_discoverd.process")
 
-_POWER_CHECK_PERIOD = 5
+_CREDENTIALS_WAIT_RETRIES = 10
+_CREDENTIALS_WAIT_PERIOD = 3
 _POWER_OFF_CHECK_PERIOD = 5
 
 
@@ -110,34 +111,49 @@ def _process_node(ironic, node, node_info, cached_node):
 
     firewall.update_filters(ironic)
 
-    if cached_node.options.get('setup_ipmi_credentials'):
-        eventlet.greenthread.spawn_n(_wait_for_power_management,
-                                     ironic, cached_node)
+    if cached_node.options.get('new_ipmi_credentials'):
+        new_username, new_password = (
+            cached_node.options.get('new_ipmi_credentials'))
+        eventlet.greenthread.spawn_n(_finish_set_ipmi_credentials,
+                                     ironic, cached_node,
+                                     new_username, new_password)
         return {'ipmi_setup_credentials': True,
-                'ipmi_username': node.driver_info.get('ipmi_username'),
-                'ipmi_password': node.driver_info.get('ipmi_password')}
+                'ipmi_username': new_username,
+                'ipmi_password': new_password}
     else:
         eventlet.greenthread.spawn_n(_finish, ironic, cached_node)
         return {}
 
 
-def _wait_for_power_management(ironic, cached_node):
+def _finish_set_ipmi_credentials(ironic, cached_node,
+                                 new_username, new_password):
+    patch = [{'op': 'add', 'path': '/driver_info/ipmi_username',
+              'value': new_username},
+             {'op': 'add', 'path': '/driver_info/ipmi_password',
+              'value': new_password}]
+    utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
+
     deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
+    attempt = 1
     while time.time() < deadline:
-        eventlet.greenthread.sleep(_POWER_CHECK_PERIOD)
-        validation = utils.retry_on_conflict(ironic.node.validate,
-                                             cached_node.uuid)
-        if validation.power['result']:
+        try:
+            # We use this call because it requires valid credentials.
+            # We don't care about boot device, obviously.
+            ironic.node.get_boot_device(cached_node.uuid)
+        except Exception as exc:
+            LOG.info('Waiting for credentials update on node %s, attempt %d'
+                     'current error is %s',
+                     cached_node.uuid, attempt, exc)
+            eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
+            attempt += 1
+        else:
             _finish(ironic, cached_node)
             return
-        LOG.debug('Waiting for management credentials on node %s '
-                  'to be updated, current error: %s',
-                  cached_node.uuid, validation.power['reason'])
 
-    msg = ('Timeout waiting for power credentials update of node %s '
-           'after introspection' % cached_node.uuid)
-    LOG.error(msg)
+    msg = ('Failed to validate updated IPMI credentials for node '
+           '%s, node might require maintenance' % cached_node.uuid)
     cached_node.finished(error=msg)
+    raise utils.Error(msg)
 
 
 def _force_power_off(ironic, cached_node):

@@ -14,6 +14,7 @@
 """Handling introspection request."""
 
 import logging
+import string
 
 import eventlet
 from ironicclient import exceptions
@@ -28,12 +29,42 @@ LOG = logging.getLogger("ironic_discoverd.introspect")
 # See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
 VALID_STATES = {'enroll', 'manageable', 'inspecting'}
 VALID_POWER_STATES = {'power off'}
+PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
+PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
 
-def introspect(uuid, setup_ipmi_credentials=False):
+def _validate_ipmi_credentials(node, new_ipmi_credentials):
+    if not conf.getboolean('discoverd', 'enable_setting_ipmi_credentials'):
+        raise utils.Error(
+            'IPMI credentials setup is disabled in configuration')
+
+    new_username, new_password = new_ipmi_credentials
+    if not new_username:
+        new_username = node.driver_info.get('ipmi_username')
+    if not new_username:
+        raise utils.Error('Setting IPMI credentials requested for node %s,'
+                          ' but neither new user name nor'
+                          ' driver_info[ipmi_username] are provided'
+                          % node.uuid)
+    wrong_chars = {c for c in new_password
+                   if c not in PASSWORD_ACCEPTED_CHARS}
+    if wrong_chars:
+        raise utils.Error('Forbidden characters encountered in new IPMI '
+                          'password for node %s: "%s"; use only '
+                          'letters and numbers' %
+                          (node.uuid, ''.join(wrong_chars)))
+    if not 0 < len(new_password) <= PASSWORD_MAX_LENGTH:
+        raise utils.Error('IPMI password length should be > 0 and <= %d'
+                          % PASSWORD_MAX_LENGTH)
+
+    return new_username, new_password
+
+
+def introspect(uuid, new_ipmi_credentials=None):
     """Initiate hardware properties introspection for a given node.
 
     :param uuid: node uuid
+    :param new_ipmi_credentials: tuple (new username, new password) or None
     :raises: Error
     """
     ironic = utils.get_client()
@@ -44,11 +75,6 @@ def introspect(uuid, setup_ipmi_credentials=False):
         raise utils.Error("Cannot find node %s" % uuid, code=404)
     except exceptions.HttpError as exc:
         raise utils.Error("Cannot get node %s: %s" % (uuid, exc))
-
-    if (setup_ipmi_credentials and not
-            conf.getboolean('discoverd', 'enable_setting_ipmi_credentials')):
-        raise utils.Error(
-            'IPMI credentials setup is disabled in configuration')
 
     if not node.maintenance:
         provision_state = node.provision_state
@@ -66,7 +92,10 @@ def introspect(uuid, setup_ipmi_credentials=False):
         LOG.info('Node %s is in maintenance mode, skipping power and provision'
                  ' states check')
 
-    if not setup_ipmi_credentials:
+    if new_ipmi_credentials:
+        new_ipmi_credentials = (
+            _validate_ipmi_credentials(node, new_ipmi_credentials))
+    else:
         validation = utils.retry_on_conflict(ironic.node.validate, node.uuid)
         if not validation.power['result']:
             msg = ('Failed validation of power interface for node %s, '
@@ -75,13 +104,11 @@ def introspect(uuid, setup_ipmi_credentials=False):
 
     cached_node = node_cache.add_node(node.uuid,
                                       bmc_address=_get_ipmi_address(node))
-    cached_node.set_option('setup_ipmi_credentials', setup_ipmi_credentials)
+    cached_node.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
     def _handle_exceptions():
         try:
-            _background_introspect(
-                ironic, cached_node,
-                setup_ipmi_credentials=setup_ipmi_credentials)
+            _background_introspect(ironic, cached_node)
         except utils.Error as exc:
             cached_node.finished(error=str(exc))
         except Exception as exc:
@@ -100,7 +127,7 @@ def _get_ipmi_address(node):
             return value
 
 
-def _background_introspect(ironic, cached_node, setup_ipmi_credentials):
+def _background_introspect(ironic, cached_node):
     patch = [{'op': 'add', 'path': '/extra/on_discovery', 'value': 'true'}]
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
@@ -113,7 +140,7 @@ def _background_introspect(ironic, cached_node, setup_ipmi_credentials):
                  macs, cached_node.uuid)
         firewall.update_filters(ironic)
 
-    if not setup_ipmi_credentials:
+    if not cached_node.options.get('new_ipmi_credentials'):
         try:
             utils.retry_on_conflict(ironic.node.set_boot_device,
                                     cached_node.uuid, 'pxe', persistent=False)

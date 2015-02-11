@@ -77,12 +77,19 @@ def api_introspection(uuid):
     check_auth()
 
     if flask.request.method == 'POST':
-        setup_ipmi_credentials = flask.request.args.get(
-            'setup_ipmi_credentials',
-            type=bool,
-            default=False)
+        new_ipmi_password = flask.request.args.get('new_ipmi_password',
+                                                   type=str,
+                                                   default=None)
+        if new_ipmi_password:
+            new_ipmi_username = flask.request.args.get('new_ipmi_username',
+                                                       type=str,
+                                                       default=None)
+            new_ipmi_credentials = (new_ipmi_username, new_ipmi_password)
+        else:
+            new_ipmi_credentials = None
+
         introspect.introspect(uuid,
-                              setup_ipmi_credentials=setup_ipmi_credentials)
+                              new_ipmi_credentials=new_ipmi_credentials)
         return '', 202
     else:
         node_info = node_cache.get_node(uuid)

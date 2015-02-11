@@ -42,15 +42,27 @@ class TestApi(test_base.BaseTest):
         res = self.app.post('/v1/introspection/uuid1')
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with("uuid1",
-                                                setup_ipmi_credentials=False)
+                                                new_ipmi_credentials=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_introspect_setup_ipmi_credentials(self, introspect_mock):
+    def test_introspect_set_ipmi_credentials(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
-        res = self.app.post('/v1/introspection/uuid1?setup_ipmi_credentials=1')
+        res = self.app.post('/v1/introspection/uuid1?new_ipmi_username=user&'
+                            'new_ipmi_password=password')
         self.assertEqual(202, res.status_code)
-        introspect_mock.assert_called_once_with("uuid1",
-                                                setup_ipmi_credentials=True)
+        introspect_mock.assert_called_once_with(
+            "uuid1",
+            new_ipmi_credentials=('user', 'password'))
+
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_set_ipmi_credentials_no_user(self, introspect_mock):
+        conf.CONF.set('discoverd', 'authenticate', 'false')
+        res = self.app.post('/v1/introspection/uuid1?'
+                            'new_ipmi_password=password')
+        self.assertEqual(202, res.status_code)
+        introspect_mock.assert_called_once_with(
+            "uuid1",
+            new_ipmi_credentials=(None, 'password'))
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_intospect_failed(self, introspect_mock):
@@ -59,7 +71,7 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(400, res.status_code)
         self.assertEqual(b"boom", res.data)
         introspect_mock.assert_called_once_with("uuid1",
-                                                setup_ipmi_credentials=False)
+                                                new_ipmi_credentials=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_missing_authentication(self, introspect_mock):
