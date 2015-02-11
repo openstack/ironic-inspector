@@ -25,25 +25,40 @@ class TestIntrospect(unittest.TestCase):
                           auth_token="token")
         mock_post.assert_called_once_with(
             "http://host:port/v1/introspection/uuid1",
-            headers={'X-Auth-Token': 'token'}
+            headers={'X-Auth-Token': 'token'},
+            params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
 
     def test_invalid_input(self, _):
         self.assertRaises(TypeError, client.introspect, 42)
+        self.assertRaises(ValueError, client.introspect, 'uuid',
+                          new_ipmi_username='user')
 
     def test_full_url(self, mock_post):
         client.introspect('uuid1', base_url="http://host:port/v1/",
                           auth_token="token")
         mock_post.assert_called_once_with(
             "http://host:port/v1/introspection/uuid1",
-            headers={'X-Auth-Token': 'token'}
+            headers={'X-Auth-Token': 'token'},
+            params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
 
     def test_default_url(self, mock_post):
         client.introspect('uuid1', auth_token="token")
         mock_post.assert_called_once_with(
             "http://127.0.0.1:5050/v1/introspection/uuid1",
-            headers={'X-Auth-Token': 'token'}
+            headers={'X-Auth-Token': 'token'},
+            params={'new_ipmi_username': None, 'new_ipmi_password': None}
+        )
+
+    def test_set_ipmi_credentials(self, mock_post):
+        client.introspect('uuid1', base_url="http://host:port",
+                          auth_token="token", new_ipmi_password='p',
+                          new_ipmi_username='u')
+        mock_post.assert_called_once_with(
+            "http://host:port/v1/introspection/uuid1",
+            headers={'X-Auth-Token': 'token'},
+            params={'new_ipmi_username': 'u', 'new_ipmi_password': 'p'}
         )
 
 

@@ -31,20 +31,30 @@ def _prepare(base_url, auth_token):
     return base_url, headers
 
 
-def introspect(uuid, base_url=_DEFAULT_URL, auth_token=''):
+def introspect(uuid, base_url=_DEFAULT_URL, auth_token='',
+               new_ipmi_password=None, new_ipmi_username=None):
     """Start introspection for a node.
 
     :param uuid: node uuid
     :param base_url: *ironic-discoverd* URL in form: http://host:port[/ver],
                      defaults to ``http://127.0.0.1:5050/v1``.
     :param auth_token: Keystone authentication token.
+    :param new_ipmi_password: if set, *ironic-discoverd* will update IPMI
+                              password to this value.
+    :param new_ipmi_username: if new_ipmi_password is set, this values sets
+                              new IPMI user name. Defaults to one in
+                              driver_info.
     """
     if not isinstance(uuid, six.string_types):
         raise TypeError("Expected string for uuid argument, got %r" % uuid)
+    if new_ipmi_username and not new_ipmi_password:
+        raise ValueError("Setting IPMI user name requires a new password")
 
     base_url, headers = _prepare(base_url, auth_token)
+    params = {'new_ipmi_username': new_ipmi_username,
+              'new_ipmi_password': new_ipmi_password}
     res = requests.post("%s/introspection/%s" % (base_url, uuid),
-                        headers=headers)
+                        headers=headers, params=params)
     res.raise_for_status()
 
 

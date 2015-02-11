@@ -285,6 +285,42 @@ The HTTP API consist of these endpoints:
   * 403 - node is not on introspection
   * 404 - node cannot be found or multiple nodes found
 
+  Response body: JSON dictionary. If `Setting IPMI Credentials`_ is requested,
+  body will contain the following keys:
+
+  * ``ipmi_setup_credentials`` boolean ``True``
+  * ``ipmi_username`` new IPMI user name
+  * ``ipmi_password`` new IPMI password
+
+Setting IPMI Credentials
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you have physical access to your nodes, you can use **ironic-discoverd** to
+set IPMI credentials for them without knowing the original ones. The workflow
+is as follows:
+
+* Ensure nodes will PXE boot on the right network by default.
+
+* Set ``enable_setting_ipmi_credentials = true`` in the **ironic-discoverd**
+  configuration file.
+
+* Enroll nodes in Ironic with setting their ``ipmi_address`` only. This step
+  allows **ironic-discoverd** to distinguish nodes.
+
+* Set maintenance mode on nodes. That's an important step, otherwise Ironic
+  might interfer with introspection process.
+
+* Start introspection with providing additional parameters:
+
+  * ``new_ipmi_password`` IPMI password to set,
+  * ``new_ipmi_username`` IPMI user name to set, defaults to one in node
+    driver_info.
+
+* Manually power on the nodes and wait.
+
+* After introspection is finished (watch nodes power state or use
+  **ironic-discoverd** status API) you can turn maintenance mode off.
+
 Plugins
 ~~~~~~~
 
@@ -334,6 +370,13 @@ See `1.1.0 release tracking page`_ for details.
   See `better-boot-interface-detection blueprint
   <https://blueprints.launchpad.net/ironic-discoverd/+spec/better-boot-interface-detection>`_
   for details.
+
+* `Setting IPMI Credentials`_ feature is considered stable now and is exposed
+  in the client. It still needs to be enabled via configuration.
+
+  See `setup-ipmi-credentials-take2 blueprint
+  <https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials-take2>`_
+  for what changed since 1.0.0 (tl;dr: everything).
 
 **Other Changes**
 
