@@ -39,8 +39,12 @@ class RootDeviceHintHook(base.ProcessingHook):
     """
 
     def before_update(self, node, ports, node_info):
+        if 'block_devices' not in node_info:
+            LOG.warning('No block device was received from ramdisk')
+            return [], {}
+
         if 'root_device' in node.properties:
-            LOG.info('Root device is already known for the node.')
+            LOG.info('Root device is already known for the node')
             return [], {}
 
         if 'block_devices' in node.extra:
@@ -52,10 +56,10 @@ class RootDeviceHintHook(base.ProcessingHook):
 
             if len(new_devices) > 1:
                 LOG.warning('Root device cannot be identified because '
-                            'multiple new devices were found.')
+                            'multiple new devices were found')
                 return [], {}
             elif len(new_devices) == 0:
-                LOG.warning('No new devices were found.')
+                LOG.warning('No new devices were found')
                 return [], {}
 
             return [

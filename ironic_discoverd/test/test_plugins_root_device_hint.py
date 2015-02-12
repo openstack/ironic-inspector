@@ -72,3 +72,10 @@ class TestRootDeviceHint(test_base.NodeTest):
         node_patches, _ = self.hook.before_update(self.node, None, node_info)
 
         self.assertEqual(0, len(node_patches))
+
+    def test_no_block_devices_from_ramdisk(self):
+        node_info = {}
+        self.hook.before_processing(node_info)
+        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+
+        self.assertEqual(0, len(node_patches))
