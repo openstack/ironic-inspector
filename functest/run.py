@@ -19,6 +19,7 @@ eventlet.monkey_patch()
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -48,6 +49,8 @@ ROOT = './functest/env'
 RAMDISK = ("https://raw.githubusercontent.com/openstack/diskimage-builder/"
            "master/elements/ironic-discoverd-ramdisk/"
            "init.d/80-ironic-discoverd-ramdisk")
+
+JQ = "https://stedolan.github.io/jq/download/linux64/jq"
 
 
 class Test(base.NodeTest):
@@ -81,6 +84,13 @@ class Test(base.NodeTest):
         self.ramdisk_sh = os.path.join(self.env, 'ramdisk')
         with open(self.ramdisk_sh, 'wb') as f:
             f.write(ramdisk)
+
+        # jq is not on gate slaves
+        jq_path = os.path.join(self.env, 'jq')
+        with open(jq_path, 'wb') as f:
+            jq = requests.get(JQ, stream=True).raw
+            shutil.copyfileobj(jq, f)
+        os.chmod(jq_path, stat.S_IRWXU)
 
         # These properties come from fake tools in functest/env
         self.patch = [
