@@ -230,6 +230,17 @@ The HTTP API consist of these endpoints:
 
   Requires X-Auth-Token header with Keystone token for authentication.
 
+  Optional parameters:
+
+  * ``new_ipmi_password`` if set, **ironic-discoverd** will try to set IPMI
+    password on the machine to this value. Power credentials validation will be
+    skipped and manual power on will be required. See `Setting IPMI
+    credentials`_ for details.
+
+  * ``new_ipmi_username`` provides new IPMI user name in addition to password
+    set by ``new_ipmi_password``. Defaults to current ``ipmi_username`` in
+    node ``driver_info`` field.
+
   Response:
 
   * 202 - accepted discovery request
@@ -267,12 +278,18 @@ The HTTP API consist of these endpoints:
   * ``local_gb`` hard drive size in GiB
   * ``interfaces`` dictionary filled with data from all NIC's, keys being
     interface names, values being dictionaries with keys:
-  * Optional MAC address of the NIC that the machine PXE booted from
-    either in standard format ``11:22:33:44:55:66`` or in *PXELinux*
-    ``BOOTIF`` format ``01-11-22-33-44-55-66``.
 
     * ``mac`` MAC address
     * ``ip`` IP address
+
+  * ``boot_interface`` optional MAC address of the NIC that the machine
+    PXE booted from either in standard format ``11:22:33:44:55:66`` or
+    in *PXELinux* ``BOOTIF`` format ``01-11-22-33-44-55-66``.
+
+  * ``block_devices`` optional block devices information for
+    ``root_device_hint`` plugin, dictionary with keys:
+
+    * ``serials`` list of serial numbers of block devices.
 
   .. note::
         This list highly depends on enabled plugins, provided above are
@@ -320,6 +337,10 @@ is as follows:
 
 * After introspection is finished (watch nodes power state or use
   **ironic-discoverd** status API) you can turn maintenance mode off.
+
+Note that due to various limitations on password value in different BMC,
+**ironic-discoverd** will only accept passwords with length between 1 and 20
+consisting only of letters and numbers.
 
 Plugins
 ~~~~~~~

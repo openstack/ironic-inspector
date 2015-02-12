@@ -90,7 +90,7 @@ def introspect(uuid, new_ipmi_credentials=None):
             raise utils.Error(msg % (node.uuid, power_state))
     else:
         LOG.info('Node %s is in maintenance mode, skipping power and provision'
-                 ' states check')
+                 ' states check', node.uuid)
 
     if new_ipmi_credentials:
         new_ipmi_credentials = (
