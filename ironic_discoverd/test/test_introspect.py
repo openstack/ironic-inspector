@@ -285,6 +285,7 @@ class TestSetIpmiCredentials(BaseTest):
         conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'true')
         self.new_creds = ('user', 'password')
         self.cached_node.options['new_ipmi_credentials'] = self.new_creds
+        self.node.maintenance = True
 
     def test_ok(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
@@ -343,6 +344,13 @@ class TestSetIpmiCredentials(BaseTest):
 
     def test_too_long(self, client_mock, add_mock, filters_mock):
         self.new_creds = ('user', 'password' * 100)
+        self._prepare(client_mock)
+
+        self.assertRaises(utils.Error, introspect.introspect, self.uuid,
+                          new_ipmi_credentials=self.new_creds)
+
+    def test_require_maintenance(self, client_mock, add_mock, filters_mock):
+        self.node.maintenance = False
         self._prepare(client_mock)
 
         self.assertRaises(utils.Error, introspect.introspect, self.uuid,

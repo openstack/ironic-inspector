@@ -38,6 +38,11 @@ def _validate_ipmi_credentials(node, new_ipmi_credentials):
         raise utils.Error(
             'IPMI credentials setup is disabled in configuration')
 
+    if not node.maintenance:
+        # Otherwise Ironic is going to interfer
+        raise utils.Error('Node should be in maintenance mode to set '
+                          'IPMI credentials on it')
+
     new_username, new_password = new_ipmi_credentials
     if not new_username:
         new_username = node.driver_info.get('ipmi_username')
