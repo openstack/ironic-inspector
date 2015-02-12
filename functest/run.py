@@ -42,6 +42,7 @@ os_username = user
 os_password = password
 os_tenant_name = tenant
 manage_firewall = false
+enable_setting_ipmi_credentials = true
 """
 
 ROOT = './functest/env'
@@ -57,9 +58,11 @@ class Test(base.NodeTest):
     def setUp(self):
         super(Test, self).setUp()
         conf.CONF.set('discoverd', 'manage_firewall', 'false')
+        conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'true')
         self.node.properties.clear()
 
         self.cli = utils.get_client()
+        self.cli.reset_mock()
         self.cli.node.get.return_value = self.node
         self.cli.node.update.return_value = self.node
 
@@ -92,6 +95,10 @@ class Test(base.NodeTest):
             shutil.copyfileobj(jq, f)
         os.chmod(jq_path, stat.S_IRWXU)
 
+        old_wd = os.getcwd()
+        os.chdir(self.temp)
+        self.addCleanup(lambda: os.chdir(old_wd))
+
         # These properties come from fake tools in functest/env
         self.patch = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
@@ -99,6 +106,7 @@ class Test(base.NodeTest):
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '16384'},
             {'path': '/properties/local_gb', 'value': '464', 'op': 'add'}
         ]
+        self.node.power_state = 'power off'
 
     def call_ramdisk(self):
         env = os.environ.copy()
@@ -107,9 +115,10 @@ class Test(base.NodeTest):
         subprocess.check_call(['/bin/bash', '-eux', self.ramdisk_sh], env=env)
 
     def test_bmc(self):
-        self.node.power_state = 'power off'
         client.introspect(self.uuid, auth_token='token')
         eventlet.greenthread.sleep(1)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
 
         status = client.get_status(self.uuid, auth_token='token')
         self.assertEqual({'finished': False, 'error': None}, status)
@@ -123,6 +132,38 @@ class Test(base.NodeTest):
 
         status = client.get_status(self.uuid, auth_token='token')
         self.assertEqual({'finished': True, 'error': None}, status)
+
+    def test_setup_ipmi(self):
+        patch_credentials = [
+            {'op': 'add', 'path': '/driver_info/ipmi_username',
+             'value': 'admin'},
+            {'op': 'add', 'path': '/driver_info/ipmi_password',
+             'value': 'pwd'},
+        ]
+        self.node.maintenance = True
+        client.introspect(self.uuid, auth_token='token',
+                          new_ipmi_username='admin', new_ipmi_password='pwd')
+        eventlet.greenthread.sleep(1)
+        self.assertFalse(self.cli.node.set_power_state.called)
+
+        status = client.get_status(self.uuid, auth_token='token')
+        self.assertEqual({'finished': False, 'error': None}, status)
+
+        self.call_ramdisk()
+        eventlet.greenthread.sleep(1)
+
+        self.cli.node.update.assert_any_call(self.uuid, self.patch)
+        self.cli.node.update.assert_any_call(self.uuid, patch_credentials)
+        self.cli.port.create.assert_called_once_with(
+            node_uuid=self.uuid, address='11:22:33:44:55:66')
+
+        status = client.get_status(self.uuid, auth_token='token')
+        self.assertEqual({'finished': True, 'error': None}, status)
+
+        with open(os.path.join(self.temp, 'ipmi_calls.txt'), 'rb') as f:
+            lines = f.readlines()
+            self.assertIn('user set name 2 admin\n', lines)
+            self.assertIn('user set password 2 pwd\n', lines)
 
 
 @mock.patch.object(utils, 'check_is_admin')

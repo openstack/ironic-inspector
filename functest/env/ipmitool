@@ -1,4 +1,5 @@
-echo "Set in Progress         : Set Complete
+if [[ "$1" == "lan" ]]; then
+    echo "Set in Progress         : Set Complete
 Auth Type Support       : NONE MD2 MD5 PASSWORD 
 Auth Type Enable        : Callback : 
                         : User     : MD2 MD5 PASSWORD 
@@ -19,3 +20,6 @@ Backup Gateway IP       : 0.0.0.0
 Backup Gateway MAC      : 00:00:00:00:00:00
 TFTP Server IP          : 0.0.0.0
 NTP Server IP           : 1.1.0.0"
+else
+    echo $@ >> ipmi_calls.txt
+fi
