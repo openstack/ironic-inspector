@@ -15,6 +15,8 @@
 
 import logging
 
+from ironic_discoverd.common.i18n import _LI
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd.plugins import base
 
 
@@ -40,11 +42,11 @@ class RootDeviceHintHook(base.ProcessingHook):
 
     def before_update(self, node, ports, node_info):
         if 'block_devices' not in node_info:
-            LOG.warning('No block device was received from ramdisk')
+            LOG.warning(_LW('No block device was received from ramdisk'))
             return [], {}
 
         if 'root_device' in node.properties:
-            LOG.info('Root device is already known for the node')
+            LOG.info(_LI('Root device is already known for the node'))
             return [], {}
 
         if 'block_devices' in node.extra:
@@ -55,11 +57,11 @@ class RootDeviceHintHook(base.ProcessingHook):
                            if device not in previous_devices]
 
             if len(new_devices) > 1:
-                LOG.warning('Root device cannot be identified because '
-                            'multiple new devices were found')
+                LOG.warning(_LW('Root device cannot be identified because '
+                            'multiple new devices were found'))
                 return [], {}
             elif len(new_devices) == 0:
-                LOG.warning('No new devices were found')
+                LOG.warning(_LW('No new devices were found'))
                 return [], {}
 
             return [

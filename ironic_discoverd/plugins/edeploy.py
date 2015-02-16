@@ -22,6 +22,8 @@ import logging
 from hardware import matcher
 from hardware import state
 
+from ironic_discoverd.common.i18n import _
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd import conf
 from ironic_discoverd.plugins import base
 from ironic_discoverd import utils
@@ -46,7 +48,7 @@ class eDeployHook(base.ProcessingHook):
 
         if 'data' not in node_info:
             raise utils.Error(
-                'edeploy plugin: no "data" key in the received JSON')
+                _('edeploy plugin: no "data" key in the received JSON'))
 
         LOG.debug('before_processing: %s', node_info['data'])
 
@@ -66,8 +68,8 @@ class eDeployHook(base.ProcessingHook):
             var['profile'] = prof
             node_info['hardware'] = var
         except Exception as excpt:
-            LOG.warning(
-                'Unable to find a matching hardware profile: %s' % excpt)
+            LOG.warning(_LW(
+                'Unable to find a matching hardware profile: %s'), excpt)
         finally:
             if sobj:
                 sobj.save()
