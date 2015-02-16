@@ -29,7 +29,7 @@ setup(
     install_requires = install_requires,
     entry_points = {
         'console_scripts': [
-            "ironic-discoverd = ironic_discoverd.main:main"
+            "ironic-discoverd = ironic_discoverd.main:main",
         ],
         'ironic_discoverd.hooks': [
             "scheduler = ironic_discoverd.plugins.standard:SchedulerHook",
@@ -38,6 +38,13 @@ setup(
             "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
             "edeploy = ironic_discoverd.plugins.edeploy:eDeployHook",
             "root_device_hint = ironic_discoverd.plugins.root_device_hint:RootDeviceHintHook",
+        ],
+        'openstack.cli.extension': [
+            'baremetal-introspection = ironic_discoverd.shell',
+        ],
+        'openstack.baremetal_introspection.v1': [
+            "baremetal_introspection_start = ironic_discoverd.shell:StartCommand",
+            "baremetal_introspection_status = ironic_discoverd.shell:StatusCommand",
         ],
     },
     classifiers = [

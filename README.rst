@@ -193,30 +193,37 @@ in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/pla
 Usage
 -----
 
-**ironic-discoverd** has a simple client library bundled within it.
-It provides functions:
+**ironic-discoverd** has a simple client library for Python and a CLI tool
+bundled with it.
 
-* ``ironic_discoverd.client.introspect`` for starting introspection
-* ``ironic_discoverd.client.get_status`` for querying introspection status
+Client library is in module ``ironic_discoverd.client``, every call
+accepts additional optional arguments:
 
-both accepting:
+* ``base_url`` **ironic-discoverd** API endpoint, defaults to
+  ``127.0.0.1:5050``,
+* ``auth_token`` Keystone authentication token.
 
-``uuid``
-    node UUID
-``base_url``
-    optional **ironic-discoverd** service URL (defaults to ``127.0.0.1:5050``)
-``auth_token``
-    optional Keystone token.
+CLI tool is based on OpenStackClient_ with prefix
+``openstack baremetal introspection``. Accepts optional argument
+``--discoverd-url`` with the **ironic-discoverd** API endpoint.
 
-For testing purposes you can also use it from CLI::
+* **Start introspection on a node**:
 
-    python -m ironic_discoverd.client --auth-token TOKEN introspect UUID
-    python -m ironic_discoverd.client --auth-token TOKEN get_status UUID
+  ``introspect(uuid, new_ipmi_username=None, new_ipmi_password=None)``
 
-.. note::
-    This CLI interface is not stable and may be changed without prior notice.
-    Proper supported CLI is `expected later
-    <https://bugs.launchpad.net/ironic-discoverd/+bug/1410180>`_.
+  ::
+
+    $ openstack baremetal introspection start UUID [--new-ipmi-password=PWD [--new-ipmi-username=USER]]
+
+* **Query introspection status**:
+
+  ``get_status(uuid)``
+
+  ::
+
+    $ openstack baremetal introspection status UUID
+
+.. _OpenStackClient: http://docs.openstack.org/developer/python-openstackclient/
 
 HTTP API
 ~~~~~~~~
@@ -250,8 +257,6 @@ The HTTP API consist of these endpoints:
   * 401, 403 - missing or invalid authentication
   * 404 - node cannot be found
 
-  Client library function: ``ironic_discoverd.client.introspect``.
-
 * ``GET /v1/introspection/<UUID>`` get hardware discovery status.
 
   Requires X-Auth-Token header with Keystone token for authentication.
@@ -267,8 +272,6 @@ The HTTP API consist of these endpoints:
 
   * ``finished`` (boolean) whether discovery is finished
   * ``error`` error string or ``null``
-
-  Client library function: ``ironic_discoverd.client.get_status``.
 
 * ``POST /v1/continue`` internal endpoint for the discovery ramdisk to post
   back discovered data. Should not be used for anything other than implementing
@@ -405,6 +408,8 @@ See `1.1.0 release tracking page`_ for details.
   See `setup-ipmi-credentials-take2 blueprint
   <https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials-take2>`_
   for what changed since 1.0.0 (tl;dr: everything).
+
+* Proper CLI tool implemented as a plugin for OpenStackClient_.
 
 **Other Changes**
 
