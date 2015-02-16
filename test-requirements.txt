@@ -1,8 +1,7 @@
-# generic
-coverage
-docutils
-hacking
-mock
-
-# plugin-specific
-hardware>=0.7,<0.99
+# The order of packages is significant, because pip processes them in the order
+# of appearance. Changing the order has an impact on the overall integration
+# process, which may cause wedges in the gate later.
+coverage>=3.6
+doc8 # Apache-2.0
+hacking>=0.10.0,<0.11
+mock>=1.0
