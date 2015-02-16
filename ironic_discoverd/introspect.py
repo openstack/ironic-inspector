@@ -108,7 +108,7 @@ def introspect(uuid, new_ipmi_credentials=None):
             raise utils.Error(msg % (node.uuid, validation.power['reason']))
 
     cached_node = node_cache.add_node(node.uuid,
-                                      bmc_address=_get_ipmi_address(node))
+                                      bmc_address=utils.get_ipmi_address(node))
     cached_node.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
     def _handle_exceptions():
@@ -122,14 +122,6 @@ def introspect(uuid, new_ipmi_credentials=None):
             cached_node.finished(error=msg)
 
     eventlet.greenthread.spawn_n(_handle_exceptions)
-
-
-def _get_ipmi_address(node):
-    # All these are kind-of-ipmi
-    for name in ('ipmi_address', 'ilo_address', 'drac_host'):
-        value = node.driver_info.get(name)
-        if value:
-            return value
 
 
 def _background_introspect(ironic, cached_node):

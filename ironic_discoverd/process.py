@@ -115,7 +115,7 @@ def _process_node(ironic, node, node_info, cached_node):
         new_username, new_password = (
             cached_node.options.get('new_ipmi_credentials'))
         eventlet.greenthread.spawn_n(_finish_set_ipmi_credentials,
-                                     ironic, cached_node,
+                                     ironic, node, cached_node, node_info,
                                      new_username, new_password)
         return {'ipmi_setup_credentials': True,
                 'ipmi_username': new_username,
@@ -125,12 +125,15 @@ def _process_node(ironic, node, node_info, cached_node):
         return {}
 
 
-def _finish_set_ipmi_credentials(ironic, cached_node,
+def _finish_set_ipmi_credentials(ironic, node, cached_node, node_info,
                                  new_username, new_password):
     patch = [{'op': 'add', 'path': '/driver_info/ipmi_username',
               'value': new_username},
              {'op': 'add', 'path': '/driver_info/ipmi_password',
               'value': new_password}]
+    if not utils.get_ipmi_address(node) and node_info.get('ipmi_address'):
+        patch.append({'op': 'add', 'path': '/driver_info/ipmi_address',
+                      'value': node_info['ipmi_address']})
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
     for attempt in range(_CREDENTIALS_WAIT_RETRIES):
