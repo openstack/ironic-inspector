@@ -133,9 +133,7 @@ def _finish_set_ipmi_credentials(ironic, cached_node,
               'value': new_password}]
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
-    deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
-    attempt = 1
-    while time.time() < deadline:
+    for attempt in range(_CREDENTIALS_WAIT_RETRIES):
         try:
             # We use this call because it requires valid credentials.
             # We don't care about boot device, obviously.
@@ -145,7 +143,6 @@ def _finish_set_ipmi_credentials(ironic, cached_node,
                      'current error is %s',
                      cached_node.uuid, attempt, exc)
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
-            attempt += 1
         else:
             _finish(ironic, cached_node)
             return
