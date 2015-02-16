@@ -19,6 +19,9 @@ import time
 import eventlet
 from ironicclient import exceptions
 
+from ironic_discoverd.common.i18n import _
+from ironic_discoverd.common.i18n import _LI
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
@@ -50,7 +53,7 @@ def process(node_info):
     try:
         node = ironic.node.get(cached_node.uuid)
     except exceptions.NotFound:
-        msg = ('Node UUID %s was found in cache, but is not found in Ironic'
+        msg = (_('Node UUID %s was found in cache, but is not found in Ironic')
                % cached_node.uuid)
         cached_node.finished(error=msg)
         raise utils.Error(msg, code=404)
@@ -61,7 +64,7 @@ def process(node_info):
         cached_node.finished(error=str(exc))
         raise
     except Exception as exc:
-        msg = 'Unexpected exception during processing'
+        msg = _('Unexpected exception during processing')
         LOG.exception(msg)
         cached_node.finished(error=msg)
         raise utils.Error(msg)
@@ -95,9 +98,9 @@ def _process_node(ironic, node, node_info, cached_node):
             port = ironic.port.create(node_uuid=node.uuid, address=mac)
             ports[mac] = port
         except exceptions.Conflict:
-            LOG.warning('MAC %(mac)s appeared in introspection data for '
-                        'node %(node)s, but already exists in '
-                        'database - skipping',
+            LOG.warning(_LW('MAC %(mac)s appeared in introspection data for '
+                            'node %(node)s, but already exists in '
+                            'database - skipping') %
                         {'mac': mac, 'node': node.uuid})
 
     node_patches, port_patches = _run_post_hooks(node, ports, node_info)
@@ -142,16 +145,17 @@ def _finish_set_ipmi_credentials(ironic, node, cached_node, node_info,
             # We don't care about boot device, obviously.
             ironic.node.get_boot_device(cached_node.uuid)
         except Exception as exc:
-            LOG.info('Waiting for credentials update on node %s, attempt %d'
-                     'current error is %s',
-                     cached_node.uuid, attempt, exc)
+            LOG.info(_LI('Waiting for credentials update on node %(node)s,'
+                         ' attempt %(attempt)d current error is %(exc)s') %
+                     {'node': cached_node.uuid,
+                      'attempt': attempt, 'exc': exc})
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
         else:
             _finish(ironic, cached_node)
             return
 
-    msg = ('Failed to validate updated IPMI credentials for node '
-           '%s, node might require maintenance' % cached_node.uuid)
+    msg = (_('Failed to validate updated IPMI credentials for node '
+             '%s, node might require maintenance') % cached_node.uuid)
     cached_node.finished(error=msg)
     raise utils.Error(msg)
 
@@ -162,8 +166,9 @@ def _force_power_off(ironic, cached_node):
         utils.retry_on_conflict(ironic.node.set_power_state,
                                 cached_node.uuid, 'off')
     except Exception as exc:
-        msg = ('Failed to power off node %s, check it\'s power '
-               'management configuration: %s' % (cached_node.uuid, exc))
+        msg = (_('Failed to power off node %(node)s, check it\'s power '
+                 'management configuration: %(exc)s') %
+               {'node': cached_node.uuid, 'exc': exc})
         cached_node.finished(error=msg)
         raise utils.Error(msg)
 
@@ -172,11 +177,12 @@ def _force_power_off(ironic, cached_node):
         node = ironic.node.get(cached_node.uuid)
         if (node.power_state or '').lower() == 'power off':
             return
-        LOG.info('Waiting for node %s to power off, current state is %s',
-                 cached_node.uuid, node.power_state)
+        LOG.info(_LI('Waiting for node %(node)s to power off,'
+                     ' current state is %(power_state)s') %
+                 {'node': cached_node.uuid, 'power_state': node.power_state})
         eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
 
-    msg = ('Timeout waiting for node %s to power off after introspection' %
+    msg = (_('Timeout waiting for node %s to power off after introspection') %
            cached_node.uuid)
     cached_node.finished(error=msg)
     raise utils.Error(msg)
@@ -190,5 +196,5 @@ def _finish(ironic, cached_node):
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
     cached_node.finished()
-    LOG.info('Introspection finished successfully for node %s',
+    LOG.info(_LI('Introspection finished successfully for node %s'),
              cached_node.uuid)

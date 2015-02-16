@@ -21,6 +21,9 @@ import sqlite3
 import sys
 import time
 
+from ironic_discoverd.common.i18n import _
+from ironic_discoverd.common.i18n import _LC
+from ironic_discoverd.common.i18n import _LE
 from ironic_discoverd import conf
 from ironic_discoverd import utils
 
@@ -109,11 +112,11 @@ class NodeInfo(object):
                                "values(?, ?, ?)",
                                [(name, v, self.uuid) for v in value])
             except sqlite3.IntegrityError as exc:
-                LOG.error('Database integrity error %s during '
-                          'adding attributes', exc)
-                raise utils.Error(
+                LOG.error(_LE('Database integrity error %s during '
+                              'adding attributes'), exc)
+                raise utils.Error(_(
                     'Some or all of %(name)s\'s %(value)s are already '
-                    'on introspection' % {'name': name, 'value': value})
+                    'on introspection') % {'name': name, 'value': value})
 
     @classmethod
     def from_row(cls, row):
@@ -129,7 +132,8 @@ def init():
 
     _DB_NAME = conf.get('discoverd', 'database', default='').strip()
     if not _DB_NAME:
-        LOG.critical('Configuration option discoverd.database should be set')
+        LOG.critical(_LC('Configuration option discoverd.database'
+                         ' should be set'))
         sys.exit(1)
 
     db_dir = os.path.dirname(_DB_NAME)
@@ -197,7 +201,8 @@ def get_node(uuid):
     """
     row = _db().execute('select * from nodes where uuid=?', (uuid,)).fetchone()
     if row is None:
-        raise utils.Error('Could not find node %s in cache' % uuid, code=404)
+        raise utils.Error(_('Could not find node %s in cache') % uuid,
+                          code=404)
     return NodeInfo.from_row(row)
 
 
@@ -227,25 +232,25 @@ def find_node(**attributes):
             found.update(item[0] for item in rows)
 
     if not found:
-        raise utils.Error(
-            'Could not find a node for attributes %s' % attributes, code=404)
+        raise utils.Error(_(
+            'Could not find a node for attributes %s') % attributes, code=404)
     elif len(found) > 1:
-        raise utils.Error(
-            'Multiple matching nodes found for attributes %s: %s'
-            % (attributes, list(found)), code=404)
+        raise utils.Error(_(
+            'Multiple matching nodes found for attributes %(attr)s: %(found)s')
+            % {'attr': attributes, 'found': list(found)}, code=404)
 
     uuid = found.pop()
     row = db.execute('select started_at, finished_at from nodes where uuid=?',
                      (uuid,)).fetchone()
     if not row:
-        raise utils.Error(
+        raise utils.Error(_(
             'Could not find node %s in introspection cache, '
-            'probably it\'s not on introspection now' % uuid, code=404)
+            'probably it\'s not on introspection now') % uuid, code=404)
 
     if row['finished_at']:
-        raise utils.Error(
-            'Introspection for node %s already finished on %s' %
-            (uuid, row['finished_at']))
+        raise utils.Error(_(
+            'Introspection for node %(node)s already finished on %(finish)s') %
+            {'node': uuid, 'finish': row['finished_at']})
 
     return NodeInfo(uuid=uuid, started_at=row['started_at'])
 
@@ -278,7 +283,7 @@ def clean_up():
         if not uuids:
             return []
 
-        LOG.error('Introspection for nodes %s has timed out', uuids)
+        LOG.error(_LE('Introspection for nodes %s has timed out'), uuids)
         db.execute('update nodes set finished_at=?, error=? '
                    'where started_at < ? and finished_at is null',
                    (time.time(), 'Introspection timeout', threshold))

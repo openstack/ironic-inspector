@@ -23,6 +23,9 @@ import sys
 import flask
 from keystoneclient import exceptions
 
+from ironic_discoverd.common.i18n import _
+from ironic_discoverd.common.i18n import _LE
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import introspect
@@ -41,13 +44,13 @@ def check_auth():
         return
 
     if not flask.request.headers.get('X-Auth-Token'):
-        LOG.error("No X-Auth-Token header, rejecting request")
-        raise utils.Error('Authentication required', code=401)
+        LOG.error(_LE("No X-Auth-Token header, rejecting request"))
+        raise utils.Error(_('Authentication required'), code=401)
     try:
         utils.check_is_admin(token=flask.request.headers['X-Auth-Token'])
     except exceptions.Unauthorized as exc:
-        LOG.error("Keystone denied access: %s, rejecting request", exc)
-        raise utils.Error('Access denied', code=403)
+        LOG.error(_LE("Keystone denied access: %s, rejecting request"), exc)
+        raise utils.Error(_('Access denied'), code=403)
 
 
 def convert_exceptions(func):
@@ -115,7 +118,7 @@ def periodic_update(period):  # pragma: no cover
         try:
             firewall.update_filters()
         except Exception:
-            LOG.exception('Periodic update failed')
+            LOG.exception(_LE('Periodic update failed'))
         eventlet.greenthread.sleep(period)
 
 
@@ -126,7 +129,7 @@ def periodic_clean_up(period):  # pragma: no cover
             if node_cache.clean_up():
                 firewall.update_filters()
         except Exception:
-            LOG.exception('Periodic clean up of node cache failed')
+            LOG.exception(_LE('Periodic clean up of node cache failed'))
         eventlet.greenthread.sleep(period)
 
 
@@ -148,8 +151,9 @@ def check_ironic_available():
         except Exception as exc:
             if i == attempts:
                 raise
-            LOG.warning('Unable to connect to Ironic or Keystone, retrying %d '
-                        'times more: %s', attempts - i, exc)
+            LOG.warning(_LW('Unable to connect to Ironic or Keystone, retrying'
+                            ' %(count)d times more: %(exc)s') %
+                        {'count': attempts - i, 'exc': exc})
         else:
             break
         eventlet.greenthread.sleep(retry_period)
@@ -163,7 +167,8 @@ def config_shim(args):
 
 def init():
     if not conf.getboolean('discoverd', 'authenticate'):
-        LOG.warning('Starting unauthenticated, please check configuration')
+        LOG.warning(_LW('Starting unauthenticated, please check'
+                        ' configuration'))
 
     node_cache.init()
     check_ironic_available()
@@ -177,7 +182,7 @@ def init():
         period = conf.getint('discoverd', 'clean_up_period')
         eventlet.greenthread.spawn_n(periodic_clean_up, period)
     else:
-        LOG.warning('Timeout is disabled in configuration')
+        LOG.warning(_LW('Timeout is disabled in configuration'))
 
 
 def main():  # pragma: no cover
@@ -200,8 +205,9 @@ def main():  # pragma: no cover
         logging.INFO if debug else logging.ERROR)
 
     if old_args:
-        LOG.warning('"ironic-discoverd <config-file>" syntax is deprecated use'
-                    ' "ironic-discoverd --config-file <config-file>" instead')
+        LOG.warning(_LW('"ironic-discoverd <config-file>" syntax is deprecated'
+                        ' use "ironic-discoverd --config-file <config-file>"'
+                        ' instead'))
 
     init()
     app.run(debug=debug,
