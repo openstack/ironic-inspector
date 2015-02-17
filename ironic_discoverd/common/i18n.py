@@ -13,7 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from oslo import oslo_i18n
+import oslo_i18n
 
 _translators = oslo_i18n.TranslatorFactory(domain='ironic-discoverd')
 
