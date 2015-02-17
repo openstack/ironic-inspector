@@ -454,12 +454,10 @@ class TestProcessNode(BaseTest):
                          self.cli.node.get_boot_device.call_count)
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
-    @mock.patch.object(time, 'time')
-    def test_set_ipmi_credentials_timeout(self, time_mock, finished_mock,
+    def test_set_ipmi_credentials_timeout(self, finished_mock,
                                           filters_mock, post_hook_mock):
-        conf.CONF.set('discoverd', 'timeout', '100')
         self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
-        time_mock.return_value = self.started_at + 1000
+        self.cli.node.get_boot_device.side_effect = RuntimeError('boom')
 
         self.assertRaisesRegexp(utils.Error, 'Failed to validate',
                                 self.call)
@@ -467,6 +465,8 @@ class TestProcessNode(BaseTest):
         self.cli.node.update.assert_any_call(self.uuid, self.patch_before)
         self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
         self.assertEqual(2, self.cli.node.update.call_count)
+        self.assertEqual(process._CREDENTIALS_WAIT_RETRIES,
+                         self.cli.node.get_boot_device.call_count)
         self.assertFalse(self.cli.node.set_power_state.called)
         finished_mock.assert_called_once_with(
             mock.ANY,
