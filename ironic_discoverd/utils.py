@@ -70,6 +70,14 @@ def is_valid_mac(address):
             and re.match(m, address.lower()))
 
 
+def get_ipmi_address(node):
+    # All these are kind-of-ipmi
+    for name in ('ipmi_address', 'ilo_address', 'drac_host'):
+        value = node.driver_info.get(name)
+        if value:
+            return value
+
+
 def retry_on_conflict(call, *args, **kwargs):
     """Wrapper to retry 409 CONFLICT exceptions."""
     for i in range(RETRY_COUNT):

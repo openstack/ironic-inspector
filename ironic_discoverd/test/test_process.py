@@ -453,6 +453,22 @@ class TestProcessNode(BaseTest):
         self.assertEqual(self.validate_attempts + 1,
                          self.cli.node.get_boot_device.call_count)
 
+    def test_set_ipmi_credentials_no_address(self, filters_mock,
+                                             post_hook_mock):
+        self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
+        del self.node.driver_info['ipmi_address']
+        self.patch_credentials.append({'op': 'add',
+                                       'path': '/driver_info/ipmi_address',
+                                       'value': self.bmc_address})
+
+        self.call()
+
+        self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
+        self.cli.node.get_boot_device.assert_called_with(self.uuid)
+        self.assertEqual(self.validate_attempts + 1,
+                         self.cli.node.get_boot_device.call_count)
+
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_set_ipmi_credentials_timeout(self, finished_mock,
                                           filters_mock, post_hook_mock):
