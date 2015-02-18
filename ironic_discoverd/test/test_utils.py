@@ -44,6 +44,29 @@ class TestCheckIsAdmin(base.BaseTest):
                           utils.check_is_admin, 'token')
 
 
+@mock.patch('ironic_discoverd.node_cache.NodeInfo')
+class TestGetIpmiAddress(base.BaseTest):
+    def test_ipv4_in_resolves(self, mock_node):
+        node = mock_node.return_value
+        node.driver_info.get.return_value = '192.168.1.1'
+        ip = utils.get_ipmi_address(node)
+        self.assertEqual(ip, '192.168.1.1')
+
+    @mock.patch('socket.gethostbyname')
+    def test_good_hostname_resolves(self, mock_socket, mock_node):
+        node = mock_node.return_value
+        node.driver_info.get.return_value = 'www.example.com'
+        mock_socket.return_value = '192.168.1.1'
+        ip = utils.get_ipmi_address(node)
+        mock_socket.assert_called_once_with('www.example.com')
+        self.assertEqual(ip, '192.168.1.1')
+
+    def test_bad_hostname_errors(self, mock_node):
+        node = mock_node.return_value
+        node.driver_info.get.return_value = 'meow'
+        self.assertRaises(utils.Error, utils.get_ipmi_address, node)
+
+
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 class TestRetryOnConflict(unittest.TestCase):
     def test_retry_on_conflict(self):

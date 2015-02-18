@@ -13,6 +13,7 @@
 
 import logging
 import re
+import socket
 
 import eventlet
 from ironicclient import client
@@ -76,7 +77,12 @@ def get_ipmi_address(node):
     for name in ('ipmi_address', 'ilo_address', 'drac_host'):
         value = node.driver_info.get(name)
         if value:
-            return value
+            try:
+                ip = socket.gethostbyname(value)
+                return ip
+            except socket.gaierror:
+                msg = ('Failed to resolve the hostname (%s) for node %s')
+                raise Error(msg % (value, node.uuid))
 
 
 def retry_on_conflict(call, *args, **kwargs):
