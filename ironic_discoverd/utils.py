@@ -21,6 +21,7 @@ from keystoneclient import exceptions as keystone_exc
 from keystoneclient.v2_0 import client as keystone
 import six
 
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd import conf
 
 
@@ -84,8 +85,11 @@ def retry_on_conflict(call, *args, **kwargs):
         try:
             return call(*args, **kwargs)
         except exceptions.Conflict as exc:
-            LOG.warning('Conflict on calling %s: %s, retry attempt %d',
-                        getattr(call, '__name__', repr(call)), exc, i + 1)
+            LOG.warning(_LW('Conflict on calling %(call)s: %(exc)s,'
+                            ' retry attempt %(count)d') %
+                        {'call': getattr(call, '__name__', repr(call)),
+                         'exc': exc,
+                         'count': i + 1})
             if i == RETRY_COUNT - 1:
                 raise
             eventlet.greenthread.sleep(RETRY_DELAY)

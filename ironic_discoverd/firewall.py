@@ -16,6 +16,7 @@ import subprocess
 
 from eventlet import semaphore
 
+from ironic_discoverd.common.i18n import _LE
 from ironic_discoverd import conf
 from ironic_discoverd import node_cache
 from ironic_discoverd import utils
@@ -39,7 +40,8 @@ def _iptables(*args, **kwargs):
         if ignore:
             LOG.debug('ignoring failed iptables %s:\n%s', args, exc.output)
         else:
-            LOG.error('iptables %s failed:\n%s', args, exc.output)
+            LOG.error(_LE('iptables %(iptables)s failed:\n%(exc)s') %
+                      {'iptables': args, 'exc': exc.output})
             raise
 
 

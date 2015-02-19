@@ -15,6 +15,9 @@
 
 import logging
 
+from ironic_discoverd.common.i18n import _
+from ironic_discoverd.common.i18n import _LI
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd import conf
 from ironic_discoverd.plugins import base
 from ironic_discoverd import utils
@@ -33,11 +36,11 @@ class SchedulerHook(base.ProcessingHook):
         missing = [key for key in self.KEYS if not node_info.get(key)]
         if missing:
             raise utils.Error(
-                'The following required parameters are missing: %s' %
+                _('The following required parameters are missing: %s') %
                 missing)
 
-        LOG.info('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
-                 'memory %(memory_mb)s MiB, disk %(local_gb)s GiB',
+        LOG.info(_LI('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
+                     'memory %(memory_mb)s MiB, disk %(local_gb)s GiB'),
                  {key: node_info.get(key) for key in self.KEYS})
 
     def before_update(self, node, ports, node_info):
@@ -57,7 +60,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
         """Validate information about network interfaces."""
         bmc_address = node_info.get('ipmi_address')
         if not node_info.get('interfaces'):
-            raise utils.Error('No interfaces supplied by the ramdisk')
+            raise utils.Error(_('No interfaces supplied by the ramdisk'))
 
         valid_interfaces = {
             n: iface for n, iface in node_info['interfaces'].items()
@@ -70,7 +73,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
         pxe_mac = node_info.get('boot_interface')
 
         if only_pxe and pxe_mac:
-            LOG.info('PXE boot interface was %s', pxe_mac)
+            LOG.info(_LI('PXE boot interface was %s'), pxe_mac)
             if '-' in pxe_mac:
                 # pxelinux format: 01-aa-bb-cc-dd-ee-ff
                 pxe_mac = pxe_mac.split('-', 1)[1]
@@ -87,20 +90,20 @@ class ValidateInterfacesHook(base.ProcessingHook):
             }
 
         if not valid_interfaces:
-            raise utils.Error('No valid interfaces found for node with '
-                              'BMC %(ipmi_address)s, got %(interfaces)s' %
+            raise utils.Error(_('No valid interfaces found for node with '
+                                'BMC %(ipmi_address)s, got %(interfaces)s') %
                               {'ipmi_address': bmc_address,
                                'interfaces': node_info['interfaces']})
         elif valid_interfaces != node_info['interfaces']:
-            LOG.warning(
+            LOG.warning(_LW(
                 'The following interfaces were invalid or not eligible in '
                 'introspection data for node with BMC %(ipmi_address)s and '
-                'were excluded: %(invalid)s',
+                'were excluded: %(invalid)s'),
                 {'invalid': {n: iface
                              for n, iface in node_info['interfaces'].items()
                              if n not in valid_interfaces},
                  'ipmi_address': bmc_address})
-            LOG.info('Eligible interfaces are %s', valid_interfaces)
+            LOG.info(_LI('Eligible interfaces are %s'), valid_interfaces)
 
         node_info['all_interfaces'] = node_info['interfaces']
         node_info['interfaces'] = valid_interfaces
@@ -115,4 +118,4 @@ class RamdiskErrorHook(base.ProcessingHook):
         if not node_info.get('error'):
             return
 
-        raise utils.Error('Ramdisk reported error: %s' % node_info['error'])
+        raise utils.Error(_('Ramdisk reported error: %s') % node_info['error'])
