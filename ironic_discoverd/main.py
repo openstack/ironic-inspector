@@ -23,9 +23,7 @@ import sys
 import flask
 from keystoneclient import exceptions
 
-from ironic_discoverd.common.i18n import _
-from ironic_discoverd.common.i18n import _LE
-from ironic_discoverd.common.i18n import _LW
+from ironic_discoverd.common.i18n import _, _LE, _LW
 from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import introspect

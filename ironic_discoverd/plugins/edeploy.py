@@ -22,8 +22,7 @@ import logging
 from hardware import matcher
 from hardware import state
 
-from ironic_discoverd.common.i18n import _
-from ironic_discoverd.common.i18n import _LW
+from ironic_discoverd.common.i18n import _, _LW
 from ironic_discoverd import conf
 from ironic_discoverd.plugins import base
 from ironic_discoverd import utils

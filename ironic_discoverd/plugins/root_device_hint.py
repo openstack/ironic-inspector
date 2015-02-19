@@ -15,8 +15,7 @@
 
 import logging
 
-from ironic_discoverd.common.i18n import _LI
-from ironic_discoverd.common.i18n import _LW
+from ironic_discoverd.common.i18n import _LI, _LW
 from ironic_discoverd.plugins import base
 
 
