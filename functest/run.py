@@ -103,7 +103,7 @@ class Test(base.NodeTest):
         self.patch = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'op': 'add', 'path': '/properties/memory_mb', 'value': '16384'},
+            {'op': 'add', 'path': '/properties/memory_mb', 'value': '12288'},
             {'path': '/properties/local_gb', 'value': '464', 'op': 'add'}
         ]
         self.node.power_state = 'power off'
