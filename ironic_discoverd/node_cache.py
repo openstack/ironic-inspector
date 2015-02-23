@@ -21,9 +21,7 @@ import sqlite3
 import sys
 import time
 
-from ironic_discoverd.common.i18n import _
-from ironic_discoverd.common.i18n import _LC
-from ironic_discoverd.common.i18n import _LE
+from ironic_discoverd.common.i18n import _, _LC, _LE
 from ironic_discoverd import conf
 from ironic_discoverd import utils
 
