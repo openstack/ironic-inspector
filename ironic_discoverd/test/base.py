@@ -16,6 +16,7 @@ import unittest
 
 import mock
 
+from ironic_discoverd.common import i18n
 from ironic_discoverd import conf
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
@@ -37,6 +38,11 @@ class BaseTest(unittest.TestCase):
         self.db = node_cache._db()
         self.addCleanup(lambda: self.db_file.close())
         plugins_base._HOOKS_MGR = None
+        for name in ('_', '_LI', '_LW', '_LE', '_LC'):
+            patch = mock.patch.object(i18n, name, lambda s: s)
+            patch.start()
+            # 'p=patch' magic is due to how closures work
+            self.addCleanup(lambda p=patch: p.stop())
 
 
 class NodeTest(BaseTest):
