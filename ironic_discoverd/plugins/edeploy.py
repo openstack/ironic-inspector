@@ -101,11 +101,15 @@ class eDeployHook(base.ProcessingHook):
         """Store the hardware data from what has been discovered."""
 
         if 'hardware' in node_info:
+            capabilities_dict = utils.capabilities_to_dict(
+                node.properties.get('capabilities'))
+            capabilities_dict['profile'] = node_info['hardware']['profile']
+
             return [
                 {'op': 'add',
                  'path': '/extra/configdrive_metadata',
                  'value': {'hardware': node_info['hardware']}},
                 {'op': 'add',
                  'path': '/properties/capabilities',
-                 'value': 'profile:%s' % node_info['hardware']['profile']}
+                 'value': utils.dict_to_capabilities(capabilities_dict)}
             ], {}

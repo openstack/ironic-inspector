@@ -95,3 +95,16 @@ def retry_on_conflict(call, *args, **kwargs):
             eventlet.greenthread.sleep(RETRY_DELAY)
 
     raise RuntimeError('unreachable code')  # pragma: no cover
+
+
+def capabilities_to_dict(caps):
+    """Convert the Node's capabilities into a dictionary."""
+    if not caps:
+        return {}
+    return dict([key.split(':', 1) for key in caps.split(',')])
+
+
+def dict_to_capabilities(caps_dict):
+    """Convert a dictionary into a string with the capabilities syntax."""
+    return ','.join(["%s:%s" % (key, value)
+                     for key, value in caps_dict.items()])

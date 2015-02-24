@@ -63,3 +63,18 @@ class TestRetryOnConflict(unittest.TestCase):
                           call, 1, 2, x=3)
         call.assert_called_with(1, 2, x=3)
         self.assertEqual(utils.RETRY_COUNT, call.call_count)
+
+
+class TestCapabilities(unittest.TestCase):
+
+    def test_capabilities_to_dict(self):
+        capabilities = 'cat:meow,dog:wuff'
+        expected_output = {'cat': 'meow', 'dog': 'wuff'}
+        output = utils.capabilities_to_dict(capabilities)
+        self.assertEqual(expected_output, output)
+
+    def test_dict_to_capabilities(self):
+        capabilities_dict = {'cat': 'meow', 'dog': 'wuff'}
+        output = utils.dict_to_capabilities(capabilities_dict)
+        self.assertIn('cat:meow', output)
+        self.assertIn('dog:wuff', output)
