@@ -3,9 +3,14 @@ import re
 from setuptools import setup
 
 
-with open('requirements.txt', 'r') as fp:
-    install_requires = [re.split(r'[<>=]', line)[0]
-                        for line in fp if line.strip()]
+try:
+    # Distributions have to delete *requirements.txt
+    with open('requirements.txt', 'r') as fp:
+        install_requires = [re.split(r'[<>=]', line)[0]
+                            for line in fp if line.strip()]
+except EnvironmentError:
+    print("No requirements.txt, not handling dependencies")
+    install_requires = []
 
 
 with open('ironic_discoverd/__init__.py', 'rb') as fp:
