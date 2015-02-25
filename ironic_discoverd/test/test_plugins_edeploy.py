@@ -12,13 +12,13 @@
 # limitations under the License.
 
 import os
-import unittest
 
 from hardware import state
 import mock
 
 from ironic_discoverd import conf
 from ironic_discoverd.plugins import edeploy
+from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
 
 
@@ -31,8 +31,10 @@ def fake_load(obj, cfg_dir):
 @mock.patch.object(state.State, '_load_specs',
                    lambda o, n: [('network', '$iface', 'serial', '$mac'),
                                  ('network', '$iface', 'ipv4', '$ipv4')])
-class TestEdeploy(unittest.TestCase):
+class TestEdeploy(test_base.NodeTest):
+
     def setUp(self):
+        super(TestEdeploy, self).setUp()
         conf.init_conf()
         conf.CONF.add_section('edeploy')
         basedir = os.path.dirname(os.path.abspath(__file__))
@@ -51,7 +53,7 @@ class TestEdeploy(unittest.TestCase):
         self.assertEqual('192.168.100.12', node_info['hardware']['ipv4'])
         self.assertEqual('99:99:99:99:99:99',
                          node_info['interfaces']['eth0']['mac'])
-        node_patches, _ = hook.before_update(None, None, node_info)
+        node_patches, _ = hook.before_update(self.node, None, node_info)
         self.assertEqual('/extra/configdrive_metadata',
                          node_patches[0]['path'])
         self.assertEqual('hw1',
@@ -60,6 +62,16 @@ class TestEdeploy(unittest.TestCase):
                          node_patches[1]['path'])
         self.assertEqual('profile:hw1',
                          node_patches[1]['value'])
+
+    def test_hook_multiple_capabilities(self):
+        hook = edeploy.eDeployHook()
+        self.node.properties['capabilities'] = 'cat:meow,profile:robin'
+        node_info = {'hardware': {'profile': 'batman'}}
+        node_patches, _ = hook.before_update(self.node,  None, node_info)
+        self.assertIn('cat:meow', node_patches[1]['value'])
+        self.assertIn('profile:batman', node_patches[1]['value'])
+        # Assert the old profile is gone
+        self.assertNotIn('profile:robin', node_patches[1]['value'])
 
     def test_hook_no_data(self):
         hook = edeploy.eDeployHook()
