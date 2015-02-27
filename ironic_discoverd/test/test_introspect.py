@@ -248,7 +248,7 @@ class TestIntrospect(BaseTest):
 
         self.assertRaisesRegexp(
             utils.Error,
-            'node uuid with provision state "active"',
+            'node %s with provision state "active"' % self.uuid,
             introspect.introspect, self.uuid)
 
         self.assertEqual(0, cli.node.list_ports.call_count)
@@ -264,7 +264,7 @@ class TestIntrospect(BaseTest):
 
         self.assertRaisesRegexp(
             utils.Error,
-            'node uuid with power state "power on"',
+            'node %s with power state "power on"' % self.uuid,
             introspect.introspect, self.uuid)
 
         self.assertEqual(0, cli.node.list_ports.call_count)

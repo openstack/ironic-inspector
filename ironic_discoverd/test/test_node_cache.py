@@ -42,7 +42,8 @@ class TestNodeCache(test_base.NodeTest):
 
         res = self.db.execute("select uuid, started_at "
                               "from nodes order by uuid").fetchall()
-        self.assertEqual(['uuid', 'uuid2'], [t[0] for t in res])
+        self.assertEqual(['1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e',
+                          'uuid2'], [t[0] for t in res])
         self.assertTrue(time.time() - 60 < res[0][1] < time.time() + 60)
 
         res = self.db.execute("select name, value, uuid from attributes "

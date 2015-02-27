@@ -14,17 +14,22 @@
 import unittest
 
 import mock
+from oslo_utils import uuidutils
 
 from ironic_discoverd import client
 
 
 @mock.patch.object(client.requests, 'post', autospec=True)
 class TestIntrospect(unittest.TestCase):
+    def setUp(self):
+        super(TestIntrospect, self).setUp()
+        self.uuid = uuidutils.generate_uuid()
+
     def test(self, mock_post):
-        client.introspect('uuid1', base_url="http://host:port",
+        client.introspect(self.uuid, base_url="http://host:port",
                           auth_token="token")
         mock_post.assert_called_once_with(
-            "http://host:port/v1/introspection/uuid1",
+            "http://host:port/v1/introspection/%s" % self.uuid,
             headers={'X-Auth-Token': 'token'},
             params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
@@ -35,28 +40,28 @@ class TestIntrospect(unittest.TestCase):
                           new_ipmi_username='user')
 
     def test_full_url(self, mock_post):
-        client.introspect('uuid1', base_url="http://host:port/v1/",
+        client.introspect(self.uuid, base_url="http://host:port/v1/",
                           auth_token="token")
         mock_post.assert_called_once_with(
-            "http://host:port/v1/introspection/uuid1",
+            "http://host:port/v1/introspection/%s" % self.uuid,
             headers={'X-Auth-Token': 'token'},
             params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
 
     def test_default_url(self, mock_post):
-        client.introspect('uuid1', auth_token="token")
+        client.introspect(self.uuid, auth_token="token")
         mock_post.assert_called_once_with(
-            "http://127.0.0.1:5050/v1/introspection/uuid1",
+            "http://127.0.0.1:5050/v1/introspection/%s" % self.uuid,
             headers={'X-Auth-Token': 'token'},
             params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
 
     def test_set_ipmi_credentials(self, mock_post):
-        client.introspect('uuid1', base_url="http://host:port",
+        client.introspect(self.uuid, base_url="http://host:port",
                           auth_token="token", new_ipmi_password='p',
                           new_ipmi_username='u')
         mock_post.assert_called_once_with(
-            "http://host:port/v1/introspection/uuid1",
+            "http://host:port/v1/introspection/%s" % self.uuid,
             headers={'X-Auth-Token': 'token'},
             params={'new_ipmi_username': 'u', 'new_ipmi_password': 'p'}
         )
@@ -64,12 +69,18 @@ class TestIntrospect(unittest.TestCase):
 
 @mock.patch.object(client.requests, 'post', autospec=True)
 class TestDiscover(unittest.TestCase):
+    def setUp(self):
+        super(TestDiscover, self).setUp()
+        self.uuid = uuidutils.generate_uuid()
+
     def test_old_discover(self, mock_post):
-        client.discover(['uuid1', 'uuid2'], base_url="http://host:port",
+        uuid2 = uuidutils.generate_uuid()
+        client.discover([self.uuid, uuid2], base_url="http://host:port",
                         auth_token="token")
         mock_post.assert_called_once_with(
             "http://host:port/v1/discover",
-            data='["uuid1", "uuid2"]',
+            data='["%(uuid1)s", "%(uuid2)s"]' % {'uuid1': self.uuid,
+                                                 'uuid2': uuid2},
             headers={'Content-Type': 'application/json',
                      'X-Auth-Token': 'token'}
         )
@@ -81,13 +92,17 @@ class TestDiscover(unittest.TestCase):
 
 @mock.patch.object(client.requests, 'get', autospec=True)
 class TestGetStatus(unittest.TestCase):
+    def setUp(self):
+        super(TestGetStatus, self).setUp()
+        self.uuid = uuidutils.generate_uuid()
+
     def test(self, mock_get):
         mock_get.return_value.json.return_value = 'json'
 
-        client.get_status('uuid', auth_token='token')
+        client.get_status(self.uuid, auth_token='token')
 
         mock_get.assert_called_once_with(
-            "http://127.0.0.1:5050/v1/introspection/uuid",
+            "http://127.0.0.1:5050/v1/introspection/%s" % self.uuid,
             headers={'X-Auth-Token': 'token'}
         )
 

@@ -17,6 +17,7 @@ import unittest
 import eventlet
 from keystoneclient import exceptions as keystone_exc
 import mock
+from oslo_utils import uuidutils
 
 from ironic_discoverd import conf
 from ironic_discoverd import introspect
@@ -35,48 +36,50 @@ class TestApi(test_base.BaseTest):
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
         conf.CONF.set('discoverd', 'authenticate', 'false')
+        self.uuid = uuidutils.generate_uuid()
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_no_authentication(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
-        res = self.app.post('/v1/introspection/uuid1')
+        res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(202, res.status_code)
-        introspect_mock.assert_called_once_with("uuid1",
+        introspect_mock.assert_called_once_with(self.uuid,
                                                 new_ipmi_credentials=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
-        res = self.app.post('/v1/introspection/uuid1?new_ipmi_username=user&'
-                            'new_ipmi_password=password')
+        res = self.app.post('/v1/introspection/%s?new_ipmi_username=user&'
+                            'new_ipmi_password=password' % self.uuid)
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with(
-            "uuid1",
+            self.uuid,
             new_ipmi_credentials=('user', 'password'))
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials_no_user(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'false')
-        res = self.app.post('/v1/introspection/uuid1?'
-                            'new_ipmi_password=password')
+        res = self.app.post('/v1/introspection/%s?'
+                            'new_ipmi_password=password' % self.uuid)
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with(
-            "uuid1",
+            self.uuid,
             new_ipmi_credentials=(None, 'password'))
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_intospect_failed(self, introspect_mock):
         introspect_mock.side_effect = utils.Error("boom")
-        res = self.app.post('/v1/introspection/uuid1')
+        res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(400, res.status_code)
         self.assertEqual(b"boom", res.data)
-        introspect_mock.assert_called_once_with("uuid1",
-                                                new_ipmi_credentials=None)
+        introspect_mock.assert_called_once_with(
+            self.uuid,
+            new_ipmi_credentials=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_missing_authentication(self, introspect_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
-        res = self.app.post('/v1/introspection/uuid1')
+        res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(401, res.status_code)
         self.assertFalse(introspect_mock.called)
 
@@ -86,17 +89,29 @@ class TestApi(test_base.BaseTest):
                                               keystone_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
         keystone_mock.side_effect = keystone_exc.Unauthorized()
-        res = self.app.post('/v1/introspection/uuid1',
+        res = self.app.post('/v1/introspection/%s' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
         self.assertFalse(introspect_mock.called)
         keystone_mock.assert_called_once_with(token='token')
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_invalid_uuid(self, introspect_mock):
+        uuid_dummy = 'uuid1'
+        res = self.app.post('/v1/introspection/%s' % uuid_dummy)
+        self.assertEqual(400, res.status_code)
+
+    @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_discover(self, discover_mock):
-        res = self.app.post('/v1/discover', data='["uuid1"]')
+        res = self.app.post('/v1/discover', data='["%s"]' % self.uuid)
         self.assertEqual(202, res.status_code)
-        discover_mock.assert_called_once_with("uuid1")
+        discover_mock.assert_called_once_with(self.uuid)
+
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_discover_invalid_uuid(self, discover_mock):
+        uuid_dummy = 'uuid1'
+        res = self.app.post('/v1/discover', data='["%s"]' % uuid_dummy)
+        self.assertEqual(400, res.status_code)
 
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue(self, process_mock):
@@ -117,20 +132,20 @@ class TestApi(test_base.BaseTest):
 
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_in_progress(self, get_mock):
-        get_mock.return_value = node_cache.NodeInfo(uuid='uuid',
+        get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
                                                     started_at=42.0)
-        res = self.app.get('/v1/introspection/uuid')
+        res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(200, res.status_code)
         self.assertEqual({'finished': False, 'error': None},
                          json.loads(res.data.decode('utf-8')))
 
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_finished(self, get_mock):
-        get_mock.return_value = node_cache.NodeInfo(uuid='uuid',
+        get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
                                                     started_at=42.0,
                                                     finished_at=100.1,
                                                     error='boom')
-        res = self.app.get('/v1/introspection/uuid')
+        res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(200, res.status_code)
         self.assertEqual({'finished': True, 'error': 'boom'},
                          json.loads(res.data.decode('utf-8')))
