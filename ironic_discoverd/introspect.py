@@ -27,7 +27,6 @@ from ironic_discoverd import utils
 LOG = logging.getLogger("ironic_discoverd.introspect")
 # See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
 VALID_STATES = {'enroll', 'manageable', 'inspecting'}
-VALID_POWER_STATES = {'power off'}
 
 
 def introspect(uuid, setup_ipmi_credentials=False):
@@ -56,12 +55,6 @@ def introspect(uuid, setup_ipmi_credentials=False):
             msg = ('Refusing to introspect node %s with provision state "%s" '
                    'and maintenance mode off')
             raise utils.Error(msg % (node.uuid, provision_state))
-
-        power_state = node.power_state
-        if power_state and power_state.lower() not in VALID_POWER_STATES:
-            msg = ('Refusing to introspect node %s with power state "%s" '
-                   'and maintenance mode off')
-            raise utils.Error(msg % (node.uuid, power_state))
     else:
         LOG.info('Node %s is in maintenance mode, skipping power and provision'
                  ' states check')
