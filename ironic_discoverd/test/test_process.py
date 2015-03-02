@@ -410,8 +410,8 @@ class TestProcessNode(BaseTest):
                                                      self.patch_before)
         finished_mock.assert_called_once_with(
             mock.ANY,
-            error='Timeout waiting for node uuid to power off '
-            'after introspection')
+            error='Timeout waiting for node %s to power off '
+            'after introspection' % self.uuid)
 
     def test_port_failed(self, filters_mock, post_hook_mock):
         self.ports[0] = exceptions.Conflict()
@@ -486,8 +486,8 @@ class TestProcessNode(BaseTest):
         self.assertFalse(self.cli.node.set_power_state.called)
         finished_mock.assert_called_once_with(
             mock.ANY,
-            error='Failed to validate updated IPMI credentials for node uuid, '
-            'node might require maintenance')
+            error='Failed to validate updated IPMI credentials for node %s, '
+            'node might require maintenance' % self.uuid)
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_power_off_failed(self, finished_mock, filters_mock,
@@ -502,5 +502,5 @@ class TestProcessNode(BaseTest):
                                                      self.patch_before)
         finished_mock.assert_called_once_with(
             mock.ANY,
-            error='Failed to power off node uuid, check it\'s power management'
-            ' configuration: boom')
+            error='Failed to power off node %s, check it\'s power management'
+            ' configuration: boom' % self.uuid)

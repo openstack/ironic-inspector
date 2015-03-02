@@ -48,7 +48,7 @@ class BaseTest(unittest.TestCase):
 class NodeTest(BaseTest):
     def setUp(self):
         super(NodeTest, self).setUp()
-        self.uuid = 'uuid'
+        self.uuid = '1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e'
         self.bmc_address = '1.2.3.4'
         self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
         self.node = mock.Mock(driver='pxe_ipmitool',

@@ -18,6 +18,7 @@ import argparse
 import functools
 import json
 import logging
+from oslo_utils import uuidutils
 import sys
 
 import flask
@@ -77,6 +78,9 @@ def api_continue():
 def api_introspection(uuid):
     check_auth()
 
+    if not uuidutils.is_uuid_like(uuid):
+        raise utils.Error(_('Invalid UUID value'), code=400)
+
     if flask.request.method == 'POST':
         new_ipmi_password = flask.request.args.get('new_ipmi_password',
                                                    type=str,
@@ -104,6 +108,10 @@ def api_discover():
     check_auth()
     data = flask.request.get_json(force=True)
     LOG.debug("/v1/discover got JSON %s", data)
+
+    for uuid in data:
+        if not uuidutils.is_uuid_like(uuid):
+            raise utils.Error(_('Invalid UUID value'), code=400)
 
     for uuid in data:
         introspect.introspect(uuid)
