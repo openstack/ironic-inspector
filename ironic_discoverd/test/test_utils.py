@@ -15,7 +15,7 @@ import unittest
 
 import eventlet
 from ironicclient import exceptions
-from keystoneclient import exceptions as keystone_exc
+from keystonemiddleware import auth_token
 import mock
 
 from ironic_discoverd import conf
@@ -23,25 +23,46 @@ from ironic_discoverd.test import base
 from ironic_discoverd import utils
 
 
-class TestCheckIsAdmin(base.BaseTest):
-    @mock.patch('keystoneclient.v2_0.client.Client')
-    def test_admin_token(self, mock_ks):
-        conf.CONF.set('discoverd', 'os_auth_url', '127.0.0.1')
-        fake_client = mock_ks.return_value
-        mockAdmin = mock.Mock()
-        mockAdmin.name = 'admin'
-        fake_client.roles.roles_for_user.return_value = [mockAdmin]
-        utils.check_is_admin('token')
+class TestCheckAuth(base.BaseTest):
+    def setUp(self):
+        super(TestCheckAuth, self).setUp()
+        conf.CONF.set('discoverd', 'authenticate', 'true')
 
-    @mock.patch('keystoneclient.v2_0.client.Client')
-    def test_non_admin_token(self, mock_ks):
-        conf.CONF.set('discoverd', 'os_auth_url', '127.0.0.1')
-        fake_client = mock_ks.return_value
-        mockMember = mock.Mock()
-        mockMember.name = 'member'
-        fake_client.roles.roles_for_user.return_value = [mockMember]
-        self.assertRaises(keystone_exc.Unauthorized,
-                          utils.check_is_admin, 'token')
+    @mock.patch.object(auth_token, 'AuthProtocol')
+    def test_middleware(self, mock_auth):
+        conf.CONF.set('discoverd', 'os_username', 'admin')
+        conf.CONF.set('discoverd', 'os_tenant_name', 'admin')
+        conf.CONF.set('discoverd', 'os_password', 'password')
+
+        app = mock.Mock(wsgi_app=mock.sentinel.app)
+        utils.add_auth_middleware(app)
+
+        mock_auth.assert_called_once_with(
+            mock.sentinel.app,
+            {'admin_user': 'admin', 'admin_tenant_name': 'admin',
+             'admin_password': 'password', 'delay_auth_decision': True,
+             'auth_uri': 'http://127.0.0.1:5000/v2.0',
+             'identity_uri': 'http://127.0.0.1:35357'}
+        )
+
+    def test_ok(self):
+        request = mock.Mock(headers={'X-Identity-Status': 'Confirmed',
+                                     'X-Roles': 'admin,member'})
+        utils.check_auth(request)
+
+    def test_invalid(self):
+        request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
+        self.assertRaises(utils.Error, utils.check_auth, request)
+
+    def test_not_admin(self):
+        request = mock.Mock(headers={'X-Identity-Status': 'Confirmed',
+                                     'X-Roles': 'member'})
+        self.assertRaises(utils.Error, utils.check_auth, request)
+
+    def test_disabled(self):
+        conf.CONF.set('discoverd', 'authenticate', 'false')
+        request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
+        utils.check_auth(request)
 
 
 @mock.patch('ironic_discoverd.node_cache.NodeInfo')

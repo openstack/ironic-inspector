@@ -15,7 +15,6 @@ import json
 import unittest
 
 import eventlet
-from keystoneclient import exceptions as keystone_exc
 import mock
 from oslo_utils import uuidutils
 
@@ -76,24 +75,16 @@ class TestApi(test_base.BaseTest):
             self.uuid,
             new_ipmi_credentials=None)
 
-    @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_introspect_missing_authentication(self, introspect_mock):
-        conf.CONF.set('discoverd', 'authenticate', 'true')
-        res = self.app.post('/v1/introspection/%s' % self.uuid)
-        self.assertEqual(401, res.status_code)
-        self.assertFalse(introspect_mock.called)
-
-    @mock.patch.object(utils, 'check_is_admin', autospec=True)
+    @mock.patch.object(utils, 'check_auth', autospec=True)
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_failed_authentication(self, introspect_mock,
-                                              keystone_mock):
+                                              auth_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
-        keystone_mock.side_effect = keystone_exc.Unauthorized()
+        auth_mock.side_effect = utils.Error('Boom', code=403)
         res = self.app.post('/v1/introspection/%s' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
         self.assertFalse(introspect_mock.called)
-        keystone_mock.assert_called_once_with(token='token')
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_invalid_uuid(self, introspect_mock):

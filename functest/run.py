@@ -166,7 +166,7 @@ class Test(base.NodeTest):
             self.assertIn('user set password 2 pwd\n', lines)
 
 
-@mock.patch.object(utils, 'check_is_admin')
+@mock.patch.object(utils, 'check_auth')
 @mock.patch.object(utils, 'get_client')
 def run(client_mock, keystone_mock):
     d = tempfile.mkdtemp()

@@ -3,6 +3,7 @@
 # process, which may cause wedges in the gate later.
 eventlet>=0.16.1
 Flask>=0.10,<1.0
+keystonemiddleware>=1.0.0
 python-ironicclient>=0.2.1
 python-keystoneclient>=1.1.0
 requests>=2.2.0,!=2.4.0

@@ -22,7 +22,6 @@ from oslo_utils import uuidutils
 import sys
 
 import flask
-from keystoneclient import exceptions
 
 from ironic_discoverd.common.i18n import _, _LE, _LW
 from ironic_discoverd import conf
@@ -35,21 +34,6 @@ from ironic_discoverd import utils
 
 app = flask.Flask(__name__)
 LOG = logging.getLogger('ironic_discoverd.main')
-
-
-def check_auth():
-    """Check whether request is properly authenticated."""
-    if not conf.getboolean('discoverd', 'authenticate'):
-        return
-
-    if not flask.request.headers.get('X-Auth-Token'):
-        LOG.error(_LE("No X-Auth-Token header, rejecting request"))
-        raise utils.Error(_('Authentication required'), code=401)
-    try:
-        utils.check_is_admin(token=flask.request.headers['X-Auth-Token'])
-    except exceptions.Unauthorized as exc:
-        LOG.error(_LE("Keystone denied access: %s, rejecting request"), exc)
-        raise utils.Error(_('Access denied'), code=403)
 
 
 def convert_exceptions(func):
@@ -76,7 +60,7 @@ def api_continue():
 @app.route('/v1/introspection/<uuid>', methods=['GET', 'POST'])
 @convert_exceptions
 def api_introspection(uuid):
-    check_auth()
+    utils.check_auth(flask.request)
 
     if not uuidutils.is_uuid_like(uuid):
         raise utils.Error(_('Invalid UUID value'), code=400)
@@ -105,7 +89,8 @@ def api_introspection(uuid):
 @app.route('/v1/discover', methods=['POST'])
 @convert_exceptions
 def api_discover():
-    check_auth()
+    utils.check_auth(flask.request)
+
     data = flask.request.get_json(force=True)
     LOG.debug("/v1/discover got JSON %s", data)
 
@@ -172,7 +157,9 @@ def config_shim(args):
 
 
 def init():
-    if not conf.getboolean('discoverd', 'authenticate'):
+    if conf.getboolean('discoverd', 'authenticate'):
+        utils.add_auth_middleware(app)
+    else:
         LOG.warning(_LW('Starting unauthenticated, please check'
                         ' configuration'))
 
@@ -204,9 +191,10 @@ def main():  # pragma: no cover
     debug = conf.getboolean('discoverd', 'debug')
 
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
-    logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
-    logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(
-        logging.WARNING)
+    for third_party in ('urllib3.connectionpool',
+                        'keystonemiddleware.auth_token',
+                        'requests.packages.urllib3.connectionpool'):
+        logging.getLogger(third_party).setLevel(logging.WARNING)
     logging.getLogger('ironicclient.common.http').setLevel(
         logging.INFO if debug else logging.ERROR)
 

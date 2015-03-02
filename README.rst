@@ -93,8 +93,9 @@ Configuration
 
 Copy ``example.conf`` to some permanent place
 (``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
-Fill in at least configuration values with names starting with *os_*.
-They configure how **ironic-discoverd** authenticates with Keystone.
+Fill in at least configuration values with names starting with ``os_`` and
+``identity_uri``.  They configure how **ironic-discoverd** authenticates
+with Keystone and checks authentication of clients.
 
 Also set *database* option to where you want **ironic-discoverd** SQLite
 database to be placed.
@@ -155,6 +156,7 @@ Here is *discoverd.conf* you may end up with::
 
     [discoverd]
     debug = false
+    identity_uri = http://127.0.0.1:35357
     os_auth_url = http://127.0.0.1:5000/v2.0
     os_username = admin
     os_password = password
@@ -385,6 +387,8 @@ See `1.1.0 release tracking page`_ for details.
   of ``interfaces``. It also raises exception if no valid interfaces were
   found after processing.
 
+* ``identity_uri`` parameter should be set to Keystone admin endpoint.
+
 **Major Features**
 
 * Default to only creating a port for the NIC that the ramdisk was PXE booted
@@ -411,6 +415,9 @@ See `1.1.0 release tracking page`_ for details.
   See `eDeploy blueprint`_ for details.
 
 * Plugin ``root_device_hint`` for in-band root device discovery.
+
+* Serious authentication issues were fixed, ``keystonemiddleware`` is a new
+  requirement.
 
 **Known Issues**
 

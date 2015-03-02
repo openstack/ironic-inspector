@@ -19,7 +19,8 @@ from six.moves import configparser
 # TODO(dtantsur): switch to oslo.db
 DEFAULTS = {
     # Keystone credentials
-    'admin_tenant_name': 'admin',
+    'os_auth_url': 'http://127.0.0.1:5000/v2.0',
+    'identity_uri': 'http://127.0.0.1:35357',
     # Ironic and Keystone connection settings
     'ironic_retry_attempts': '5',
     'ironic_retry_period': '5',
