@@ -257,22 +257,6 @@ class TestIntrospect(BaseTest):
         self.assertEqual(0, cli.node.update.call_count)
         self.assertFalse(add_mock.called)
 
-    def test_wrong_power_state(self, client_mock, add_mock, filters_mock):
-        self.node.power_state = 'power on'
-        cli = client_mock.return_value
-        cli.node.get.return_value = self.node
-
-        self.assertRaisesRegexp(
-            utils.Error,
-            'node %s with power state "power on"' % self.uuid,
-            introspect.introspect, self.uuid)
-
-        self.assertEqual(0, cli.node.list_ports.call_count)
-        self.assertEqual(0, filters_mock.call_count)
-        self.assertEqual(0, cli.node.set_power_state.call_count)
-        self.assertEqual(0, cli.node.update.call_count)
-        self.assertFalse(add_mock.called)
-
 
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
                    lambda f, *a, **kw: f(*a, **kw) and None)
