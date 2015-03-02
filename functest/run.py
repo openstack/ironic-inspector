@@ -125,7 +125,7 @@ class Test(base.NodeTest):
         self.assertEqual({'finished': True, 'error': None}, status)
 
 
-@mock.patch.object(utils, 'check_is_admin')
+@mock.patch.object(utils, 'check_auth')
 @mock.patch.object(utils, 'get_client')
 def run(client_mock, keystone_mock):
     d = tempfile.mkdtemp()

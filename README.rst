@@ -93,8 +93,9 @@ Configuration
 
 Copy ``example.conf`` to some permanent place
 (``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
-Fill in at least configuration values with names starting with *os_*.
-They configure how **ironic-discoverd** authenticates with Keystone.
+Fill in at least configuration values with names starting with ``os_`` and
+``identity_uri``.  They configure how **ironic-discoverd** authenticates
+with Keystone and checks authentication of clients.
 
 Also set *database* option to where you want **ironic-discoverd** SQLite
 database to be placed.
@@ -155,6 +156,7 @@ Here is *discoverd.conf* you may end up with::
 
     [discoverd]
     debug = false
+    identity_uri = http://127.0.0.1:35357
     os_auth_url = http://127.0.0.1:5000/v2.0
     os_username = admin
     os_password = password
@@ -327,6 +329,7 @@ Action required:
 * Fill in ``database`` option in the configuration file before upgrading.
 * Stop relying on **ironic-discoverd** setting maintenance mode itself.
 * Stop relying on ``discovery_timestamp`` node extra field.
+* Fill in ``identity_uri`` field in the configuration.
 
 Action recommended:
 

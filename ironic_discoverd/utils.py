@@ -17,8 +17,7 @@ import re
 import eventlet
 from ironicclient import client
 from ironicclient import exceptions
-from keystoneclient import exceptions as keystone_exc
-from keystoneclient.v2_0 import client as keystone
+from keystonemiddleware import auth_token
 import six
 
 from ironic_discoverd import conf
@@ -26,6 +25,8 @@ from ironic_discoverd import conf
 
 LOG = logging.getLogger('ironic_discoverd.utils')
 OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
+MIDDLEWARE_ARGS = ('admin_password', 'admin_user', 'auth_uri',
+                   'admin_tenant_name')
 RETRY_COUNT = 12
 RETRY_DELAY = 5
 
@@ -45,22 +46,32 @@ def get_client():  # pragma: no cover
     return client.get_client(1, **args)
 
 
-def check_is_admin(token):
-    """Check whether the token is from a user with the admin role.
+def add_auth_middleware(app):
+    """Add authentication middleware to Flask application.
 
-    :param token: Keystone authentication token.
-    :raises: keystoneclient.exceptions.Unauthorized if the user does not have
-        the admin role in the tenant provided in the admin_tenant_name option.
+    :param app: application.
     """
-    kc = keystone.Client(token=token,
-                         tenant_name=conf.get('discoverd',
-                                              'admin_tenant_name'),
-                         auth_url=conf.get('discoverd', 'os_auth_url'))
-    if "admin" not in [role.name
-                       for role in kc.roles.roles_for_user(
-                           kc.user_id,
-                           tenant=kc.tenant_id)]:
-        raise keystone_exc.Unauthorized()
+    auth_conf = {key: conf.get('discoverd', value)
+                 for (key, value) in zip(MIDDLEWARE_ARGS, OS_ARGS)}
+    auth_conf['delay_auth_decision'] = True
+    auth_conf['identity_uri'] = conf.get('discoverd', 'identity_uri')
+    app.wsgi_app = auth_token.AuthProtocol(app.wsgi_app, auth_conf)
+
+
+def check_auth(request):
+    """Check authentication on request.
+
+    :param request: Flask request
+    :raises: utils.Error if access is denied
+    """
+    if not conf.getboolean('discoverd', 'authenticate'):
+        return
+    if request.headers.get('X-Identity-Status').lower() == 'invalid':
+        raise Error('Authentication required', code=401)
+    roles = (request.headers.get('X-Roles') or '').split(',')
+    if 'admin' not in roles:
+        LOG.error('Role "admin" not in user role list %s', roles)
+        raise Error('Access denied', code=403)
 
 
 def is_valid_mac(address):

@@ -15,7 +15,6 @@ import json
 import unittest
 
 import eventlet
-from keystoneclient import exceptions as keystone_exc
 import mock
 
 from ironic_discoverd import conf
@@ -61,24 +60,16 @@ class TestApi(test_base.BaseTest):
         introspect_mock.assert_called_once_with("uuid1",
                                                 setup_ipmi_credentials=False)
 
-    @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_introspect_missing_authentication(self, introspect_mock):
-        conf.CONF.set('discoverd', 'authenticate', 'true')
-        res = self.app.post('/v1/introspection/uuid1')
-        self.assertEqual(401, res.status_code)
-        self.assertFalse(introspect_mock.called)
-
-    @mock.patch.object(utils, 'check_is_admin', autospec=True)
+    @mock.patch.object(utils, 'check_auth', autospec=True)
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_failed_authentication(self, introspect_mock,
-                                              keystone_mock):
+                                              auth_mock):
         conf.CONF.set('discoverd', 'authenticate', 'true')
-        keystone_mock.side_effect = keystone_exc.Unauthorized()
-        res = self.app.post('/v1/introspection/uuid1',
+        auth_mock.side_effect = utils.Error('Boom', code=403)
+        res = self.app.post('/v1/introspection/uuid',
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
         self.assertFalse(introspect_mock.called)
-        keystone_mock.assert_called_once_with(token='token')
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_discover(self, discover_mock):
