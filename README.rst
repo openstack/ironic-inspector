@@ -322,6 +322,14 @@ users are advised to upgrade.
 
 See `1.0.0 release tracking page`_ for details.
 
+**1.0.1 release**
+
+This maintenance fixed serious problem with authentication and unfortunately
+brought new upgrade requirements:
+
+* Dependency on *keystonemiddleware*;
+* New configuration option ``identity_uri``, defaulting to localhost.
+
 **Upgrade notes**
 
 Action required:
