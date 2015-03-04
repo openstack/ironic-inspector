@@ -7,3 +7,4 @@ include plugin-requirements.txt
 include tox.ini
 include *.rst
 recursive-include functest *
+recursive-include locale *
