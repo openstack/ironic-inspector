@@ -66,6 +66,14 @@ class TestIntrospect(unittest.TestCase):
             params={'new_ipmi_username': 'u', 'new_ipmi_password': 'p'}
         )
 
+    def test_none_ok(self, mock_post):
+        client.introspect(self.uuid)
+        mock_post.assert_called_once_with(
+            "http://127.0.0.1:5050/v1/introspection/%s" % self.uuid,
+            headers={},
+            params={'new_ipmi_username': None, 'new_ipmi_password': None}
+        )
+
 
 @mock.patch.object(client.requests, 'post', autospec=True)
 class TestDiscover(unittest.TestCase):

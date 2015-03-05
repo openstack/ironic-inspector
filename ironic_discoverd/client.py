@@ -24,14 +24,14 @@ _DEFAULT_URL = 'http://127.0.0.1:5050/v1'
 
 
 def _prepare(base_url, auth_token):
-    base_url = base_url.rstrip('/')
+    base_url = (base_url or _DEFAULT_URL).rstrip('/')
     if not base_url.endswith('v1'):
         base_url += '/v1'
-    headers = {'X-Auth-Token': auth_token}
+    headers = {'X-Auth-Token': auth_token} if auth_token else {}
     return base_url, headers
 
 
-def introspect(uuid, base_url=_DEFAULT_URL, auth_token='',
+def introspect(uuid, base_url=None, auth_token=None,
                new_ipmi_password=None, new_ipmi_username=None):
     """Start introspection for a node.
 
@@ -58,7 +58,7 @@ def introspect(uuid, base_url=_DEFAULT_URL, auth_token='',
     res.raise_for_status()
 
 
-def get_status(uuid, base_url=_DEFAULT_URL, auth_token=''):
+def get_status(uuid, base_url=None, auth_token=None):
     """Get introspection status for a node.
 
     New in ironic-discoverd version 1.0.0.
@@ -78,7 +78,7 @@ def get_status(uuid, base_url=_DEFAULT_URL, auth_token=''):
     return res.json()
 
 
-def discover(uuids, base_url=_DEFAULT_URL, auth_token=''):
+def discover(uuids, base_url=None, auth_token=None):
     """Post node UUID's for discovery.
 
     DEPRECATED. Use introspect instead.
