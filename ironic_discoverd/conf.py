@@ -34,7 +34,7 @@ DEFAULTS = {
     'timeout': '3600',
     'node_status_keep_time': '604800',
     'clean_up_period': '60',
-    'overwrite_existing': 'false',
+    'overwrite_existing': 'true',
     'enable_setting_ipmi_credentials': 'false',
     # HTTP settings
     'listen_address': '0.0.0.0',

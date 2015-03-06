@@ -303,8 +303,10 @@ class TestProcessNode(BaseTest):
         self.cached_node = node_cache.NodeInfo(uuid=self.uuid,
                                                started_at=self.started_at)
         self.patch_before = [
-            {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
-            {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
+            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
         ]  # scheduler hook
         self.patch_after = [
             {'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
@@ -354,13 +356,12 @@ class TestProcessNode(BaseTest):
                                             key=lambda p: p.address))
         finished_mock.assert_called_once_with(mock.ANY)
 
-    def test_overwrite(self, filters_mock, post_hook_mock):
-        conf.CONF.set('discoverd', 'overwrite_existing', 'true')
+    def test_overwrite_disabled(self, filters_mock, post_hook_mock):
+        conf.CONF.set('discoverd', 'overwrite_existing', 'false')
         patch = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
-            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}]
+            {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
+            {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
+        ]
 
         self.call()
 

@@ -392,6 +392,8 @@ See `1.1.0 release tracking page`_ for details.
 
 * ``identity_uri`` parameter should be set to Keystone admin endpoint.
 
+* ``overwrite_existing`` is now enabled by default.
+
 **Major Features**
 
 * Default to only creating a port for the NIC that the ramdisk was PXE booted
@@ -410,6 +412,9 @@ See `1.1.0 release tracking page`_ for details.
   for what changed since 1.0.0 (tl;dr: everything).
 
 * Proper CLI tool implemented as a plugin for OpenStackClient_.
+
+* The default value for ``overwrite_existing`` configuration option was
+  flipped, matching the default behavior for Ironic inspection.
 
 **Other Changes**
 
