@@ -13,6 +13,8 @@
 
 """OpenStackClient plugin for ironic-discoverd."""
 
+from __future__ import print_function
+
 import logging
 
 from cliff import command
@@ -59,6 +61,9 @@ class StartCommand(command.Command):
                           auth_token=auth_token,
                           new_ipmi_username=parsed_args.new_ipmi_username,
                           new_ipmi_password=parsed_args.new_ipmi_password)
+        if parsed_args.new_ipmi_password:
+            print('Setting IPMI credentials requested, please power on '
+                  'the machine manually')
 
 
 class StatusCommand(show.ShowOne):
