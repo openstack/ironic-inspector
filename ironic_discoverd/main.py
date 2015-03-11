@@ -14,22 +14,25 @@
 import eventlet
 eventlet.monkey_patch()
 
-import argparse
 import functools
 import json
 import logging
-from oslo_utils import uuidutils
 import sys
 
 import flask
+from oslo_config import cfg
+from oslo_utils import uuidutils
 
 from ironic_discoverd.common.i18n import _, _LE, _LW
-from ironic_discoverd import conf
+# Import configuration options
+from ironic_discoverd import conf  # noqa
 from ironic_discoverd import firewall
 from ironic_discoverd import introspect
 from ironic_discoverd import node_cache
 from ironic_discoverd import process
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 app = flask.Flask(__name__)
@@ -132,9 +135,9 @@ def check_ironic_available():
     2. Keystone has already started
     3. Ironic has already started
     """
-    attempts = conf.getint('discoverd', 'ironic_retry_attempts')
+    attempts = CONF.discoverd.ironic_retry_attempts
     assert attempts >= 0
-    retry_period = conf.getint('discoverd', 'ironic_retry_period')
+    retry_period = CONF.discoverd.ironic_retry_period
     LOG.debug('Trying to connect to Ironic')
     for i in range(attempts + 1):  # one attempt always required
         try:
@@ -150,14 +153,8 @@ def check_ironic_available():
         eventlet.greenthread.sleep(retry_period)
 
 
-def config_shim(args):
-    """Make new argument parsing method backwards compatible."""
-    if len(args) == 2 and args[1][0] != '-':
-        return ['--config-file', args[1]]
-
-
 def init():
-    if conf.getboolean('discoverd', 'authenticate'):
+    if CONF.discoverd.authenticate:
         utils.add_auth_middleware(app)
     else:
         LOG.warning(_LW('Starting unauthenticated, please check'
@@ -166,29 +163,21 @@ def init():
     node_cache.init()
     check_ironic_available()
 
-    if conf.getboolean('discoverd', 'manage_firewall'):
+    if CONF.discoverd.manage_firewall:
         firewall.init()
-        period = conf.getint('discoverd', 'firewall_update_period')
+        period = CONF.discoverd.firewall_update_period
         eventlet.greenthread.spawn_n(periodic_update, period)
 
-    if conf.getint('discoverd', 'timeout') > 0:
-        period = conf.getint('discoverd', 'clean_up_period')
+    if CONF.discoverd.timeout > 0:
+        period = CONF.discoverd.clean_up_period
         eventlet.greenthread.spawn_n(periodic_clean_up, period)
     else:
         LOG.warning(_LW('Timeout is disabled in configuration'))
 
 
-def main():  # pragma: no cover
-    old_args = config_shim(sys.argv)
-    parser = argparse.ArgumentParser(description='''Hardware introspection
-                                                 service for OpenStack Ironic.
-                                                 ''')
-    parser.add_argument('--config-file', dest='config', required=True)
-    # if parse_args is passed None it uses sys.argv instead.
-    args = parser.parse_args(old_args)
-
-    conf.read(args.config)
-    debug = conf.getboolean('discoverd', 'debug')
+def main(args=sys.argv[1:]):  # pragma: no cover
+    CONF(args, project='ironic-discoverd')
+    debug = CONF.discoverd.debug
 
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
     for third_party in ('urllib3.connectionpool',
@@ -198,12 +187,7 @@ def main():  # pragma: no cover
     logging.getLogger('ironicclient.common.http').setLevel(
         logging.INFO if debug else logging.ERROR)
 
-    if old_args:
-        LOG.warning(_LW('"ironic-discoverd <config-file>" syntax is deprecated'
-                        ' use "ironic-discoverd --config-file <config-file>"'
-                        ' instead'))
-
     init()
     app.run(debug=debug,
-            host=conf.get('discoverd', 'listen_address'),
-            port=conf.getint('discoverd', 'listen_port'))
+            host=CONF.discoverd.listen_address,
+            port=CONF.discoverd.listen_port)

@@ -17,22 +17,24 @@ import eventlet
 from ironicclient import exceptions
 from keystonemiddleware import auth_token
 import mock
+from oslo_config import cfg
 
-from ironic_discoverd import conf
 from ironic_discoverd.test import base
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 class TestCheckAuth(base.BaseTest):
     def setUp(self):
         super(TestCheckAuth, self).setUp()
-        conf.CONF.set('discoverd', 'authenticate', 'true')
+        CONF.set_override('authenticate', True, 'discoverd')
 
     @mock.patch.object(auth_token, 'AuthProtocol')
     def test_middleware(self, mock_auth):
-        conf.CONF.set('discoverd', 'os_username', 'admin')
-        conf.CONF.set('discoverd', 'os_tenant_name', 'admin')
-        conf.CONF.set('discoverd', 'os_password', 'password')
+        CONF.set_override('os_username', 'admin', 'discoverd')
+        CONF.set_override('os_tenant_name', 'admin', 'discoverd')
+        CONF.set_override('os_password', 'password', 'discoverd')
 
         app = mock.Mock(wsgi_app=mock.sentinel.app)
         utils.add_auth_middleware(app)
@@ -60,7 +62,7 @@ class TestCheckAuth(base.BaseTest):
         self.assertRaises(utils.Error, utils.check_auth, request)
 
     def test_disabled(self):
-        conf.CONF.set('discoverd', 'authenticate', 'false')
+        CONF.set_override('authenticate', False, 'discoverd')
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         utils.check_auth(request)
 

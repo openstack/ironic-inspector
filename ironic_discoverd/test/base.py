@@ -15,18 +15,31 @@ import tempfile
 import unittest
 
 import mock
+from oslo_config import cfg
 
 from ironic_discoverd.common import i18n
-from ironic_discoverd import conf
+# Import configuration options
+from ironic_discoverd import conf  # noqa
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
 
+CONF = cfg.CONF
+
 
 def init_test_conf():
-    db_file = tempfile.NamedTemporaryFile()
-    conf.init_conf()
-    conf.CONF.add_section('discoverd')
-    conf.CONF.set('discoverd', 'database', db_file.name)
+    try:
+        # Functional tests
+        CONF.reload_config_files()
+        # Unit tests
+    except Exception:
+        CONF.reset()
+    CONF.register_group(cfg.OptGroup('discoverd'))
+    if not CONF.discoverd.database:
+        # Might be set in functional tests
+        db_file = tempfile.NamedTemporaryFile()
+        CONF.set_override('database', db_file.name, 'discoverd')
+    else:
+        db_file = None
     node_cache._DB_NAME = None
     return db_file
 
@@ -36,7 +49,8 @@ class BaseTest(unittest.TestCase):
         super(BaseTest, self).setUp()
         self.db_file = init_test_conf()
         self.db = node_cache._db()
-        self.addCleanup(lambda: self.db_file.close())
+        if self.db_file:
+            self.addCleanup(lambda: self.db_file.close())
         plugins_base._HOOKS_MGR = None
         for name in ('_', '_LI', '_LW', '_LE', '_LC'):
             patch = mock.patch.object(i18n, name, lambda s: s)

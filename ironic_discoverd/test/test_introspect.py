@@ -14,13 +14,15 @@
 import eventlet
 from ironicclient import exceptions
 import mock
+from oslo_config import cfg
 
-from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import introspect
 from ironic_discoverd import node_cache
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 class BaseTest(test_base.NodeTest):
@@ -266,7 +268,7 @@ class TestIntrospect(BaseTest):
 class TestSetIpmiCredentials(BaseTest):
     def setUp(self):
         super(TestSetIpmiCredentials, self).setUp()
-        conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'true')
+        CONF.set_override('enable_setting_ipmi_credentials', True, 'discoverd')
         self.new_creds = ('user', 'password')
         self.cached_node.options['new_ipmi_credentials'] = self.new_creds
         self.node.maintenance = True
@@ -288,7 +290,8 @@ class TestSetIpmiCredentials(BaseTest):
             'new_ipmi_credentials', self.new_creds)
 
     def test_disabled(self, client_mock, add_mock, filters_mock):
-        conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'false')
+        CONF.set_override('enable_setting_ipmi_credentials', False,
+                          'discoverd')
         self._prepare(client_mock)
 
         self.assertRaisesRegexp(utils.Error, 'disabled',

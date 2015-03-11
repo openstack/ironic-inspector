@@ -335,6 +335,16 @@ See `1.1.0 release tracking page`_ for details.
 
 * ``overwrite_existing`` is now enabled by default.
 
+* Running the service as
+  ::
+
+    $ ironic-discoverd /path/to/config
+
+  is no longer supported, use
+  ::
+
+    $ ironic-discoverd --config-file /path/to/config
+
 **Major Features**
 
 * Default to only creating a port for the NIC that the ramdisk was PXE booted
@@ -356,6 +366,9 @@ See `1.1.0 release tracking page`_ for details.
 
 * The default value for ``overwrite_existing`` configuration option was
   flipped, matching the default behavior for Ironic inspection.
+
+* Switch to `oslo.config <http://docs.openstack.org/developer/oslo.config/>`_
+  for configuration management (many thanks to Yuiko Takada).
 
 **Other Changes**
 

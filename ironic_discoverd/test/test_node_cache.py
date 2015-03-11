@@ -17,11 +17,13 @@ import time
 import unittest
 
 import mock
+from oslo_config import cfg
 
-from ironic_discoverd import conf
 from ironic_discoverd import node_cache
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 class TestNodeCache(test_base.NodeTest):
@@ -156,7 +158,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                             'values(?, ?, ?)', (self.uuid, 'foo', 'bar'))
 
     def test_no_timeout(self):
-        conf.CONF.set('discoverd', 'timeout', '0')
+        CONF.set_override('timeout', 0, 'discoverd')
 
         self.assertFalse(node_cache.clean_up())
 
@@ -190,7 +192,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                             'values(?, ?, ?)', (self.uuid + '1',
                                                 self.started_at,
                                                 self.started_at + 60))
-        conf.CONF.set('discoverd', 'timeout', '99')
+        CONF.set_override('timeout', 99, 'discoverd')
         time_mock.return_value = self.started_at + 100
 
         self.assertEqual([self.uuid], node_cache.clean_up())
@@ -206,7 +208,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
             'select * from options').fetchall())
 
     def test_old_status(self):
-        conf.CONF.set('discoverd', 'node_status_keep_time', '42')
+        CONF.set_override('node_status_keep_time', 42, 'discoverd')
         with self.db:
             self.db.execute('update nodes set finished_at=?',
                             (time.time() - 100,))
@@ -270,13 +272,11 @@ class TestNodeInfoFinished(test_base.NodeTest):
 class TestInit(unittest.TestCase):
     def setUp(self):
         super(TestInit, self).setUp()
-        conf.init_conf()
-        conf.CONF.add_section('discoverd')
         node_cache._DB_NAME = None
 
     def test_ok(self):
         with tempfile.NamedTemporaryFile() as db_file:
-            conf.CONF.set('discoverd', 'database', db_file.name)
+            CONF.set_override('database', db_file.name, 'discoverd')
             node_cache.init()
 
             self.assertIsNotNone(node_cache._DB_NAME)
@@ -285,11 +285,12 @@ class TestInit(unittest.TestCase):
 
     def test_create_dir(self):
         temp = tempfile.mkdtemp()
-        conf.CONF.set('discoverd', 'database',
-                      os.path.join(temp, 'dir', 'file'))
+        CONF.set_override('database', os.path.join(temp, 'dir', 'file'),
+                          'discoverd')
         node_cache.init()
 
     def test_no_database(self):
+        CONF.set_override('database', '', 'discoverd')
         self.assertRaises(SystemExit, node_cache.init)
 
 

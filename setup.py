@@ -46,6 +46,10 @@ setup(
             "baremetal_introspection_start = ironic_discoverd.shell:StartCommand",
             "baremetal_introspection_status = ironic_discoverd.shell:StatusCommand",
         ],
+        'oslo.config.opts': [
+            "ironic_discoverd = ironic_discoverd.conf:list_opts",
+            "ironic_discoverd.plugins.edeploy = ironic_discoverd.plugins.edeploy:list_opts",
+        ],
     },
     classifiers = [
         'Development Status :: 5 - Production/Stable',

@@ -21,14 +21,31 @@ import logging
 
 from hardware import matcher
 from hardware import state
+from oslo_config import cfg
 
 from ironic_discoverd.common.i18n import _, _LW
-from ironic_discoverd import conf
 from ironic_discoverd.plugins import base
 from ironic_discoverd import utils
 
+CONF = cfg.CONF
+
 
 LOG = logging.getLogger('ironic_discoverd.plugins.edeploy')
+
+
+EDEPLOY_OPTS = [
+    cfg.StrOpt('lockname',
+               default='/var/lock/discoverd.lock'),
+    cfg.StrOpt('configdir',
+               default='/etc/edeploy'),
+]
+CONF.register_opts(EDEPLOY_OPTS, group='edeploy')
+
+
+def list_opts():
+    return [
+        ('edeploy', EDEPLOY_OPTS)
+    ]
 
 
 class eDeployHook(base.ProcessingHook):
@@ -60,9 +77,8 @@ class eDeployHook(base.ProcessingHook):
         sobj = None
 
         try:
-            sobj = state.State(lockname=conf.get('edeploy', 'lockname',
-                                                 '/var/lock/discoverd.lock'))
-            sobj.load(conf.get('edeploy', 'configdir', '/etc/edeploy'))
+            sobj = state.State(CONF.edeploy.lockname)
+            sobj.load(CONF.edeploy.configdir)
             prof, var = sobj.find_match(hw_items)
             var['profile'] = prof
 

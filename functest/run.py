@@ -29,7 +29,6 @@ import mock
 import requests
 
 from ironic_discoverd import client
-from ironic_discoverd import conf
 from ironic_discoverd import main
 from ironic_discoverd.test import base
 from ironic_discoverd import utils
@@ -41,8 +40,9 @@ os_auth_url = http://url
 os_username = user
 os_password = password
 os_tenant_name = tenant
-manage_firewall = false
-enable_setting_ipmi_credentials = true
+manage_firewall = False
+enable_setting_ipmi_credentials = True
+database = %(db_file)s
 """
 
 ROOT = './functest/env'
@@ -57,8 +57,6 @@ JQ = "https://stedolan.github.io/jq/download/linux64/jq"
 class Test(base.NodeTest):
     def setUp(self):
         super(Test, self).setUp()
-        conf.CONF.set('discoverd', 'manage_firewall', 'false')
-        conf.CONF.set('discoverd', 'enable_setting_ipmi_credentials', 'true')
         self.node.properties.clear()
 
         self.cli = utils.get_client()
@@ -172,12 +170,12 @@ def run(client_mock, keystone_mock):
     d = tempfile.mkdtemp()
     try:
         conf_file = os.path.join(d, 'test.conf')
+        db_file = os.path.join(d, 'test.db')
         with open(conf_file, 'wb') as fp:
-            fp.write(CONF)
-        sys.argv[1:] = ['--config-file', conf_file]
-        base.init_test_conf()
+            fp.write(CONF % {'db_file': db_file})
 
-        eventlet.greenthread.spawn_n(main.main)
+        eventlet.greenthread.spawn_n(main.main,
+                                     args=['--config-file', conf_file])
         eventlet.greenthread.sleep(1)
         suite = unittest.TestLoader().loadTestsFromTestCase(Test)
         res = unittest.TextTestRunner().run(suite)

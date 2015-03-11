@@ -18,12 +18,14 @@ import string
 
 import eventlet
 from ironicclient import exceptions
+from oslo_config import cfg
 
 from ironic_discoverd.common.i18n import _, _LI, _LW
-from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 LOG = logging.getLogger("ironic_discoverd.introspect")
@@ -34,7 +36,7 @@ PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
 
 def _validate_ipmi_credentials(node, new_ipmi_credentials):
-    if not conf.getboolean('discoverd', 'enable_setting_ipmi_credentials'):
+    if not CONF.discoverd.enable_setting_ipmi_credentials:
         raise utils.Error(
             _('IPMI credentials setup is disabled in configuration'))
 
@@ -156,4 +158,4 @@ def _background_introspect(ironic, cached_node):
         LOG.info(_LI('Introspection environment is ready for node %(node)s, '
                  'manual power on is required within %(timeout)d seconds') %
                  {'node': cached_node.uuid,
-                  'timeout': conf.getint('discoverd', 'timeout')})
+                  'timeout': CONF.discoverd.timeout})

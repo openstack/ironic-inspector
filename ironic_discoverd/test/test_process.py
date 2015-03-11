@@ -17,8 +17,8 @@ import time
 import eventlet
 from ironicclient import exceptions
 import mock
+from oslo_config import cfg
 
-from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import example as example_plugin
@@ -27,12 +27,15 @@ from ironic_discoverd import process
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
 
+CONF = cfg.CONF
+
 
 class BaseTest(test_base.NodeTest):
     def setUp(self):
         super(BaseTest, self).setUp()
-        conf.CONF.set('discoverd', 'processing_hooks',
-                      'ramdisk_error,scheduler,validate_interfaces')
+        CONF.set_override('processing_hooks',
+                          'ramdisk_error,scheduler,validate_interfaces',
+                          'discoverd')
         self.started_at = time.time()
         self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
         self.pxe_mac = self.macs[1]
@@ -139,7 +142,7 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_add_ports_active(self, cli, pop_mock, process_mock):
-        conf.CONF.set('discoverd', 'add_ports', 'active')
+        CONF.set_override('add_ports', 'active', 'discoverd')
 
         res = process.process(self.data)
 
@@ -159,7 +162,7 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_add_ports_all(self, cli, pop_mock, process_mock):
-        conf.CONF.set('discoverd', 'add_ports', 'all')
+        CONF.set_override('add_ports', 'all', 'discoverd')
 
         res = process.process(self.data)
 
@@ -196,8 +199,7 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_ports_for_inactive(self, cli, pop_mock, process_mock):
-        conf.CONF.set('discoverd', 'ports_for_inactive_interfaces', 'true')
-        conf.CONF.remove_option('discoverd', 'add_ports')
+        CONF.set_override('ports_for_inactive_interfaces', True, 'discoverd')
         del self.data['boot_interface']
 
         process.process(self.data)
@@ -317,8 +319,10 @@ class TestProcess(BaseTest):
 class TestProcessNode(BaseTest):
     def setUp(self):
         super(TestProcessNode, self).setUp()
-        conf.CONF.set('discoverd', 'processing_hooks',
-                      'ramdisk_error,scheduler,validate_interfaces,example')
+        CONF.set_override('processing_hooks',
+                          'ramdisk_error,scheduler,validate_interfaces,'
+                          'example',
+                          'discoverd')
         self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
         self.ports = self.all_ports
@@ -373,7 +377,7 @@ class TestProcessNode(BaseTest):
         finished_mock.assert_called_once_with(mock.ANY)
 
     def test_overwrite_disabled(self, filters_mock, post_hook_mock):
-        conf.CONF.set('discoverd', 'overwrite_existing', 'false')
+        CONF.set_override('overwrite_existing', False, 'discoverd')
         patch = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
@@ -508,5 +512,5 @@ class TestProcessNode(BaseTest):
 
 class TestValidateInterfacesHook(test_base.BaseTest):
     def test_wrong_add_ports(self):
-        conf.CONF.set('discoverd', 'add_ports', 'foobar')
+        CONF.set_override('add_ports', 'foobar', 'discoverd')
         self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)

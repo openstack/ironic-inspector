@@ -16,10 +16,14 @@
 import logging
 import sys
 
+from oslo_config import cfg
+
 from ironic_discoverd.common.i18n import _, _LC, _LI, _LW
 from ironic_discoverd import conf
 from ironic_discoverd.plugins import base
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 LOG = logging.getLogger('ironic_discoverd.plugins.standard')
@@ -44,7 +48,7 @@ class SchedulerHook(base.ProcessingHook):
 
     def before_update(self, node, ports, node_info):
         """Update node with scheduler properties."""
-        overwrite = conf.getboolean('discoverd', 'overwrite_existing')
+        overwrite = CONF.discoverd.overwrite_existing
         patch = [{'op': 'add', 'path': '/properties/%s' % key,
                   'value': str(node_info[key])}
                  for key in self.KEYS
@@ -52,27 +56,24 @@ class SchedulerHook(base.ProcessingHook):
         return patch, {}
 
 
-VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe')
-
-
 class ValidateInterfacesHook(base.ProcessingHook):
     """Hook to validate network interfaces."""
 
     def __init__(self):
-        if conf.get('discoverd', 'add_ports') not in VALID_ADD_PORTS_VALUES:
+        if CONF.discoverd.add_ports not in conf.VALID_ADD_PORTS_VALUES:
             LOG.critical(_LC('Accepted values for [discoverd]add_ports are '
                              '%(valid)s, got %(actual)s'),
-                         {'valid': VALID_ADD_PORTS_VALUES,
-                          'actual': conf.get('discoverd', 'add_ports')})
+                         {'valid': conf.VALID_ADD_PORTS_VALUES,
+                          'actual': CONF.discoverd.add_ports})
             sys.exit(1)
 
     def _ports_to_add(self):
-        if conf.getboolean('discoverd', 'ports_for_inactive_interfaces'):
+        if CONF.discoverd.ports_for_inactive_interfaces:
             LOG.warning(_LW('Using deprecated option '
                             '[discoverd]ports_for_inactive_interfaces'))
             return 'all'
         else:
-            return conf.get('discoverd', 'add_ports')
+            return CONF.discoverd.add_ports
 
     def before_processing(self, node_info):
         """Validate information about network interfaces."""

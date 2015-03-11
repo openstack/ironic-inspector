@@ -19,16 +19,15 @@ import eventlet
 from ironicclient import client
 from ironicclient import exceptions
 from keystonemiddleware import auth_token
+from oslo_config import cfg
 import six
 
 from ironic_discoverd.common.i18n import _, _LE, _LW
-from ironic_discoverd import conf
+
+CONF = cfg.CONF
 
 
 LOG = logging.getLogger('ironic_discoverd.utils')
-OS_ARGS = ('os_password', 'os_username', 'os_auth_url', 'os_tenant_name')
-MIDDLEWARE_ARGS = ('admin_password', 'admin_user', 'auth_uri',
-                   'admin_tenant_name')
 RETRY_COUNT = 12
 RETRY_DELAY = 5
 
@@ -44,7 +43,10 @@ class Error(Exception):
 
 def get_client():  # pragma: no cover
     """Get Ironic client instance."""
-    args = dict((k, conf.get('discoverd', k)) for k in OS_ARGS)
+    args = dict({'os_password': CONF.discoverd.os_password,
+                 'os_username': CONF.discoverd.os_username,
+                 'os_auth_url': CONF.discoverd.os_auth_url,
+                 'os_tenant_name': CONF.discoverd.os_tenant_name})
     return client.get_client(1, **args)
 
 
@@ -53,10 +55,12 @@ def add_auth_middleware(app):
 
     :param app: application.
     """
-    auth_conf = {key: conf.get('discoverd', value)
-                 for (key, value) in zip(MIDDLEWARE_ARGS, OS_ARGS)}
+    auth_conf = dict({'admin_password': CONF.discoverd.os_password,
+                      'admin_user': CONF.discoverd.os_username,
+                      'auth_uri': CONF.discoverd.os_auth_url,
+                      'admin_tenant_name': CONF.discoverd.os_tenant_name})
     auth_conf['delay_auth_decision'] = True
-    auth_conf['identity_uri'] = conf.get('discoverd', 'identity_uri')
+    auth_conf['identity_uri'] = CONF.discoverd.identity_uri
     app.wsgi_app = auth_token.AuthProtocol(app.wsgi_app, auth_conf)
 
 
@@ -66,7 +70,7 @@ def check_auth(request):
     :param request: Flask request
     :raises: utils.Error if access is denied
     """
-    if not conf.getboolean('discoverd', 'authenticate'):
+    if not CONF.discoverd.authenticate:
         return
     if request.headers.get('X-Identity-Status').lower() == 'invalid':
         raise Error(_('Authentication required'), code=401)

@@ -15,9 +15,9 @@ import logging
 import subprocess
 
 from eventlet import semaphore
+from oslo_config import cfg
 
 from ironic_discoverd.common.i18n import _LE
-from ironic_discoverd import conf
 from ironic_discoverd import node_cache
 from ironic_discoverd import utils
 
@@ -27,6 +27,7 @@ NEW_CHAIN = 'discovery_temp'
 CHAIN = 'discovery'
 INTERFACE = None
 LOCK = semaphore.BoundedSemaphore()
+CONF = cfg.CONF
 
 
 def _iptables(*args, **kwargs):
@@ -50,11 +51,11 @@ def init():
 
     Must be called one on start-up.
     """
-    if not conf.getboolean('discoverd', 'manage_firewall'):
+    if not CONF.discoverd.manage_firewall:
         return
 
     global INTERFACE
-    INTERFACE = conf.get('discoverd', 'dnsmasq_interface')
+    INTERFACE = CONF.discoverd.dnsmasq_interface
     _clean_up(CHAIN)
     # Not really needed, but helps to validate that we have access to iptables
     _iptables('-N', CHAIN)
@@ -86,7 +87,7 @@ def update_filters(ironic=None):
 
     :param ironic: Ironic client instance, optional.
     """
-    if not conf.getboolean('discoverd', 'manage_firewall'):
+    if not CONF.discoverd.manage_firewall:
         return
 
     assert INTERFACE is not None

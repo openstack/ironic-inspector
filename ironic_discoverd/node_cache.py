@@ -21,9 +21,12 @@ import sqlite3
 import sys
 import time
 
+from oslo_config import cfg
+
 from ironic_discoverd.common.i18n import _, _LC, _LE
-from ironic_discoverd import conf
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 LOG = logging.getLogger("ironic_discoverd.node_cache")
@@ -128,7 +131,7 @@ def init():
     """Initialize the database."""
     global _DB_NAME
 
-    _DB_NAME = conf.get('discoverd', 'database', default='').strip()
+    _DB_NAME = CONF.discoverd.database.strip()
     if not _DB_NAME:
         LOG.critical(_LC('Configuration option discoverd.database'
                          ' should be set'))
@@ -262,13 +265,13 @@ def clean_up():
     :return: list of timed out node UUID's
     """
     status_keep_threshold = (time.time() -
-                             conf.getint('discoverd', 'node_status_keep_time'))
+                             CONF.discoverd.node_status_keep_time)
 
     with _db() as db:
         db.execute('delete from nodes where finished_at < ?',
                    (status_keep_threshold,))
 
-    timeout = conf.getint('discoverd', 'timeout')
+    timeout = CONF.discoverd.timeout
     if timeout <= 0:
         return []
 

@@ -16,11 +16,13 @@ import os
 from hardware import cmdb
 from hardware import state
 import mock
+from oslo_config import cfg
 
-from ironic_discoverd import conf
 from ironic_discoverd.plugins import edeploy
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
+
+CONF = cfg.CONF
 
 
 def fake_load(obj, cfg_dir):
@@ -36,11 +38,10 @@ class TestEdeploy(test_base.NodeTest):
 
     def setUp(self):
         super(TestEdeploy, self).setUp()
-        conf.init_conf()
-        conf.CONF.add_section('edeploy')
         basedir = os.path.dirname(os.path.abspath(__file__))
-        conf.CONF.set('edeploy', 'configdir', os.path.join(basedir,
-                                                           'edeploy_conf'))
+        CONF.set_override('configdir',
+                          os.path.join(basedir, 'edeploy_conf'),
+                          'edeploy')
 
     def test_hook(self):
         hook = edeploy.eDeployHook()

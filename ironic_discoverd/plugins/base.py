@@ -15,10 +15,12 @@
 
 import abc
 
+from oslo_config import cfg
 import six
 from stevedore import named
 
-from ironic_discoverd import conf
+
+CONF = cfg.CONF
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -72,7 +74,7 @@ def processing_hooks_manager(*args):
     global _HOOKS_MGR
     if _HOOKS_MGR is None:
         names = [x.strip()
-                 for x in conf.get('discoverd', 'processing_hooks').split(',')
+                 for x in CONF.discoverd.processing_hooks.split(',')
                  if x.strip()]
         _HOOKS_MGR = named.NamedExtensionManager('ironic_discoverd.hooks',
                                                  names=names,
