@@ -6,7 +6,7 @@ from setuptools import setup
 try:
     # Distributions have to delete *requirements.txt
     with open('requirements.txt', 'r') as fp:
-        install_requires = [re.split(r'[<>=]', line)[0]
+        install_requires = [re.split(r'[<>=~]', line)[0]
                             for line in fp if line.strip()]
 except EnvironmentError:
     print("No requirements.txt, not handling dependencies")
