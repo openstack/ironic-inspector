@@ -13,6 +13,7 @@
 
 import os
 
+from hardware import cmdb
 from hardware import state
 import mock
 
@@ -84,3 +85,49 @@ class TestEdeploy(test_base.NodeTest):
         node_info = {'data': []}
         hook.before_processing(node_info)
         self.assertTrue(mock_log.warning.called)
+
+    @mock.patch.object(cmdb, 'load_cmdb')
+    def test_raid_configuration_passed(self, mock_load_cmdb):
+        hook = edeploy.eDeployHook()
+        mock_load_cmdb.return_value = [
+            {'logical_disks': (
+                {'disk_type': 'hdd',
+                 'interface_type': 'sas',
+                 'is_root_volume': 'true',
+                 'raid_level': '1+0',
+                 'size_gb': 50,
+                 'volume_name': 'root_volume'},
+                {'disk_type': 'hdd',
+                 'interface_type': 'sas',
+                 'number_of_physical_disks': 3,
+                 'raid_level': '5',
+                 'size_gb': 100,
+                 'volume_name': 'data_volume'})}]
+        node_info = {'data': [
+            ['network', 'eth0', 'serial', '99:99:99:99:99:99'],
+            ['network', 'eth0', 'ipv4', '192.168.100.12'],
+        ]}
+
+        hook.before_processing(node_info)
+        self.assertIn('target_raid_configuration', node_info)
+
+        node_patches, _ = hook.before_update(self.node, None, node_info)
+        self.assertEqual('/extra/target_raid_configuration',
+                         node_patches[2]['path'])
+
+    @mock.patch.object(cmdb, 'load_cmdb')
+    def test_bios_configuration_passed(self, mock_load_cmdb):
+        hook = edeploy.eDeployHook()
+        mock_load_cmdb.return_value = [
+            {'bios_settings': {'ProcVirtualization': 'Disabled'}}]
+        node_info = {'data': [
+            ['network', 'eth0', 'serial', '99:99:99:99:99:99'],
+            ['network', 'eth0', 'ipv4', '192.168.100.12'],
+        ]}
+
+        hook.before_processing(node_info)
+        self.assertIn('bios_settings', node_info)
+
+        node_patches, _ = hook.before_update(self.node, None, node_info)
+        self.assertEqual('/extra/bios_settings',
+                         node_patches[2]['path'])

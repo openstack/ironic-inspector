@@ -65,7 +65,16 @@ class eDeployHook(base.ProcessingHook):
             sobj.load(conf.get('edeploy', 'configdir', '/etc/edeploy'))
             prof, var = sobj.find_match(hw_items)
             var['profile'] = prof
+
+            if 'logical_disks' in var:
+                node_info['target_raid_configuration'] = {
+                    'logical_disks': var.pop('logical_disks')}
+
+            if 'bios_settings' in var:
+                node_info['bios_settings'] = var.pop('bios_settings')
+
             node_info['hardware'] = var
+
         except Exception as excpt:
             LOG.warning(_LW(
                 'Unable to find a matching hardware profile: %s'), excpt)
@@ -100,16 +109,31 @@ class eDeployHook(base.ProcessingHook):
     def before_update(self, node, ports, node_info):
         """Store the hardware data from what has been discovered."""
 
+        patches = []
+
         if 'hardware' in node_info:
             capabilities_dict = utils.capabilities_to_dict(
                 node.properties.get('capabilities'))
             capabilities_dict['profile'] = node_info['hardware']['profile']
 
-            return [
-                {'op': 'add',
-                 'path': '/extra/configdrive_metadata',
-                 'value': {'hardware': node_info['hardware']}},
+            patches.append({'op': 'add',
+                            'path': '/extra/configdrive_metadata',
+                            'value': {'hardware': node_info['hardware']}})
+            patches.append(
                 {'op': 'add',
                  'path': '/properties/capabilities',
-                 'value': utils.dict_to_capabilities(capabilities_dict)}
-            ], {}
+                 'value': utils.dict_to_capabilities(capabilities_dict)})
+
+            if 'target_raid_configuration' in node_info:
+                patches.append(
+                    {'op': 'add',
+                     'path': '/extra/target_raid_configuration',
+                     'value': node_info['target_raid_configuration']})
+
+            if 'bios_settings' in node_info:
+                patches.append(
+                    {'op': 'add',
+                     'path': '/extra/bios_settings',
+                     'value': node_info['bios_settings']})
+
+        return patches, {}
