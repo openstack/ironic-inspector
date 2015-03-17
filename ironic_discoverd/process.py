@@ -14,13 +14,11 @@
 """Handling introspection data from the ramdisk."""
 
 import logging
-import time
 
 import eventlet
 from ironicclient import exceptions
 
 from ironic_discoverd.common.i18n import _, _LI, _LW
-from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
@@ -31,7 +29,6 @@ LOG = logging.getLogger("ironic_discoverd.process")
 
 _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
-_POWER_OFF_CHECK_PERIOD = 5
 
 
 def process(node_info):
@@ -158,7 +155,7 @@ def _finish_set_ipmi_credentials(ironic, node, cached_node, node_info,
     raise utils.Error(msg)
 
 
-def _force_power_off(ironic, cached_node):
+def _finish(ironic, cached_node):
     LOG.debug('Forcing power off of node %s', cached_node.uuid)
     try:
         utils.retry_on_conflict(ironic.node.set_power_state,
@@ -170,29 +167,11 @@ def _force_power_off(ironic, cached_node):
         cached_node.finished(error=msg)
         raise utils.Error(msg)
 
-    deadline = cached_node.started_at + conf.getint('discoverd', 'timeout')
-    while time.time() < deadline:
-        node = ironic.node.get(cached_node.uuid)
-        if (node.power_state or '').lower() == 'power off':
-            return
-        LOG.info(_LI('Waiting for node %(node)s to power off,'
-                     ' current state is %(power_state)s') %
-                 {'node': cached_node.uuid, 'power_state': node.power_state})
-        eventlet.greenthread.sleep(_POWER_OFF_CHECK_PERIOD)
-
-    msg = (_('Timeout waiting for node %s to power off after introspection') %
-           cached_node.uuid)
-    cached_node.finished(error=msg)
-    raise utils.Error(msg)
-
-
-def _finish(ironic, cached_node):
-    _force_power_off(ironic, cached_node)
+    cached_node.finished()
 
     patch = [{'op': 'add', 'path': '/extra/newly_discovered', 'value': 'true'},
              {'op': 'remove', 'path': '/extra/on_discovery'}]
     utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
 
-    cached_node.finished()
     LOG.info(_LI('Introspection finished successfully for node %s'),
              cached_node.uuid)
