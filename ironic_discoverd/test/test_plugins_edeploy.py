@@ -54,6 +54,9 @@ class TestEdeploy(test_base.NodeTest):
         self.assertEqual('192.168.100.12', node_info['hardware']['ipv4'])
         self.assertEqual('99:99:99:99:99:99',
                          node_info['interfaces']['eth0']['mac'])
+        self.assertEqual([('network', 'eth0', 'serial', '99:99:99:99:99:99'),
+                          ('network', 'eth0', 'ipv4', '192.168.100.12')],
+                         node_info['edeploy_facts'])
         node_patches, _ = hook.before_update(self.node, None, node_info)
         self.assertEqual('/extra/configdrive_metadata',
                          node_patches[0]['path'])
@@ -63,11 +66,15 @@ class TestEdeploy(test_base.NodeTest):
                          node_patches[1]['path'])
         self.assertEqual('profile:hw1',
                          node_patches[1]['value'])
+        self.assertEqual('/extra/edeploy_facts',
+                         node_patches[2]['path'])
+        self.assertEqual(('network', 'eth0', 'serial', '99:99:99:99:99:99'),
+                         node_patches[2]['value'][0])
 
     def test_hook_multiple_capabilities(self):
         hook = edeploy.eDeployHook()
         self.node.properties['capabilities'] = 'cat:meow,profile:robin'
-        node_info = {'hardware': {'profile': 'batman'}}
+        node_info = {'hardware': {'profile': 'batman'}, 'edeploy_facts': []}
         node_patches, _ = hook.before_update(self.node,  None, node_info)
         self.assertIn('cat:meow', node_patches[1]['value'])
         self.assertIn('profile:batman', node_patches[1]['value'])
@@ -113,7 +120,7 @@ class TestEdeploy(test_base.NodeTest):
 
         node_patches, _ = hook.before_update(self.node, None, node_info)
         self.assertEqual('/extra/target_raid_configuration',
-                         node_patches[2]['path'])
+                         node_patches[3]['path'])
 
     @mock.patch.object(cmdb, 'load_cmdb')
     def test_bios_configuration_passed(self, mock_load_cmdb):
@@ -130,4 +137,4 @@ class TestEdeploy(test_base.NodeTest):
 
         node_patches, _ = hook.before_update(self.node, None, node_info)
         self.assertEqual('/extra/bios_settings',
-                         node_patches[2]['path'])
+                         node_patches[3]['path'])

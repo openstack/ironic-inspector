@@ -74,6 +74,7 @@ class eDeployHook(base.ProcessingHook):
                 node_info['bios_settings'] = var.pop('bios_settings')
 
             node_info['hardware'] = var
+            node_info['edeploy_facts'] = hw_items
 
         except Exception as excpt:
             LOG.warning(_LW(
@@ -123,6 +124,11 @@ class eDeployHook(base.ProcessingHook):
                 {'op': 'add',
                  'path': '/properties/capabilities',
                  'value': utils.dict_to_capabilities(capabilities_dict)})
+
+            patches.append(
+                {'op': 'add',
+                 'path': '/extra/edeploy_facts',
+                 'value': node_info['edeploy_facts']})
 
             if 'target_raid_configuration' in node_info:
                 patches.append(
