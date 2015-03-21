@@ -39,7 +39,7 @@ def _validate_ipmi_credentials(node, new_ipmi_credentials):
             _('IPMI credentials setup is disabled in configuration'))
 
     if not node.maintenance:
-        # Otherwise Ironic is going to interfer
+        # Otherwise Ironic is going to interfere
         raise utils.Error(_('Node should be in maintenance mode to set '
                             'IPMI credentials on it'))
 

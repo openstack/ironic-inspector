@@ -330,7 +330,7 @@ is as follows:
   allows **ironic-discoverd** to distinguish nodes.
 
 * Set maintenance mode on nodes. That's an important step, otherwise Ironic
-  might interfer with introspection process.
+  might interfere with introspection process.
 
 * Start introspection with providing additional parameters:
 
