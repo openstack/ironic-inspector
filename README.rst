@@ -339,7 +339,7 @@ See `1.1.0 release tracking page`_ for details.
 
 * Default to only creating a port for the NIC that the ramdisk was PXE booted
   from, if such information is provided by ramdisk as ``boot_interface`` field.
-  Adjustable by ``only_pxe_booting_port`` option.
+  Adjustable by ``add_ports`` option.
 
   See `better-boot-interface-detection blueprint
   <https://blueprints.launchpad.net/ironic-discoverd/+spec/better-boot-interface-detection>`_
@@ -358,6 +358,9 @@ See `1.1.0 release tracking page`_ for details.
   flipped, matching the default behavior for Ironic inspection.
 
 **Other Changes**
+
+* New option ``add_ports`` allows precise control over which ports to add,
+  replacing deprecated ``ports_for_inactive_interfaces``.
 
 * Experimental plugin ``edeploy`` to use with `eDeploy hardware detection and
   classification utilities`_.

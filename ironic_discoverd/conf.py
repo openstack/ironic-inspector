@@ -29,8 +29,7 @@ DEFAULTS = {
     'dnsmasq_interface': 'br-ctlplane',
     'firewall_update_period': '15',
     # Introspection process settings
-    'ports_for_inactive_interfaces': 'false',
-    'only_pxe_booting_port': 'true',
+    'add_ports': 'pxe',
     'timeout': '3600',
     'node_status_keep_time': '604800',
     'clean_up_period': '60',

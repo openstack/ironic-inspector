@@ -22,6 +22,7 @@ from ironic_discoverd import conf
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import example as example_plugin
+from ironic_discoverd.plugins import standard as std_plugins
 from ironic_discoverd import process
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
@@ -137,18 +138,39 @@ class TestProcess(BaseTest):
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
-    def test_non_pxe_interfaces(self, cli, pop_mock, process_mock):
-        conf.CONF.set('discoverd', 'only_pxe_booting_port', 'false')
+    def test_add_ports_active(self, cli, pop_mock, process_mock):
+        conf.CONF.set('discoverd', 'add_ports', 'active')
+
+        res = process.process(self.data)
+
+        self.assertEqual(self.fake_result_json, res)
+
+        self.assertEqual(['em1', 'em2'],
+                         sorted(self.data['interfaces']))
+        self.assertEqual(['em1', 'em2', 'em3'],
+                         sorted(self.data['all_interfaces']))
+        self.assertEqual(self.macs, sorted(self.data['macs']))
+
+        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
+                                         mac=self.data['macs'])
+        cli.node.get.assert_called_once_with(self.uuid)
+        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+                                             self.data, pop_mock.return_value)
+
+    @prepare_mocks
+    def test_add_ports_all(self, cli, pop_mock, process_mock):
+        conf.CONF.set('discoverd', 'add_ports', 'all')
 
         res = process.process(self.data)
 
         self.assertEqual(self.fake_result_json, res)
 
         # By default interfaces w/o IP are dropped
-        self.assertEqual(['em1', 'em2'], sorted(self.data['interfaces']))
+        self.assertEqual(['em1', 'em2', 'em3'],
+                         sorted(self.data['interfaces']))
         self.assertEqual(['em1', 'em2', 'em3'],
                          sorted(self.data['all_interfaces']))
-        self.assertEqual(self.macs, sorted(self.data['macs']))
+        self.assertEqual(self.all_macs, sorted(self.data['macs']))
 
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
@@ -175,6 +197,7 @@ class TestProcess(BaseTest):
     @prepare_mocks
     def test_ports_for_inactive(self, cli, pop_mock, process_mock):
         conf.CONF.set('discoverd', 'ports_for_inactive_interfaces', 'true')
+        conf.CONF.remove_option('discoverd', 'add_ports')
         del self.data['boot_interface']
 
         process.process(self.data)
@@ -481,3 +504,9 @@ class TestProcessNode(BaseTest):
             mock.ANY,
             error='Failed to power off node %s, check it\'s power management'
             ' configuration: boom' % self.uuid)
+
+
+class TestValidateInterfacesHook(test_base.BaseTest):
+    def test_wrong_add_ports(self):
+        conf.CONF.set('discoverd', 'add_ports', 'foobar')
+        self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)

@@ -14,8 +14,9 @@
 """Standard set of plugins."""
 
 import logging
+import sys
 
-from ironic_discoverd.common.i18n import _, _LI, _LW
+from ironic_discoverd.common.i18n import _, _LC, _LI, _LW
 from ironic_discoverd import conf
 from ironic_discoverd.plugins import base
 from ironic_discoverd import utils
@@ -51,8 +52,27 @@ class SchedulerHook(base.ProcessingHook):
         return patch, {}
 
 
+VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe')
+
+
 class ValidateInterfacesHook(base.ProcessingHook):
     """Hook to validate network interfaces."""
+
+    def __init__(self):
+        if conf.get('discoverd', 'add_ports') not in VALID_ADD_PORTS_VALUES:
+            LOG.critical(_LC('Accepted values for [discoverd]add_ports are '
+                             '%(valid)s, got %(actual)s'),
+                         {'valid': VALID_ADD_PORTS_VALUES,
+                          'actual': conf.get('discoverd', 'add_ports')})
+            sys.exit(1)
+
+    def _ports_to_add(self):
+        if conf.getboolean('discoverd', 'ports_for_inactive_interfaces'):
+            LOG.warning(_LW('Using deprecated option '
+                            '[discoverd]ports_for_inactive_interfaces'))
+            return 'all'
+        else:
+            return conf.get('discoverd', 'add_ports')
 
     def before_processing(self, node_info):
         """Validate information about network interfaces."""
@@ -65,12 +85,10 @@ class ValidateInterfacesHook(base.ProcessingHook):
             if utils.is_valid_mac(iface.get('mac'))
         }
 
-        ports_for_inactive = conf.getboolean('discoverd',
-                                             'ports_for_inactive_interfaces')
-        only_pxe = conf.getboolean('discoverd', 'only_pxe_booting_port')
+        ports_to_add = self._ports_to_add()
         pxe_mac = node_info.get('boot_interface')
 
-        if only_pxe and pxe_mac:
+        if ports_to_add == 'pxe' and pxe_mac:
             LOG.info(_LI('PXE boot interface was %s'), pxe_mac)
             if '-' in pxe_mac:
                 # pxelinux format: 01-aa-bb-cc-dd-ee-ff
@@ -81,7 +99,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                 n: iface for n, iface in valid_interfaces.items()
                 if iface['mac'].lower() == pxe_mac
             }
-        elif not ports_for_inactive:
+        elif ports_to_add != 'all':
             valid_interfaces = {
                 n: iface for n, iface in valid_interfaces.items()
                 if iface.get('ip')
