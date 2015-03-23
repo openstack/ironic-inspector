@@ -18,7 +18,7 @@ Basics
 * Note the branch you're proposing changes to. ``master`` is the current focus
   of development, use ``stable/VERSION`` for proposing an urgent fix, where
   ``VERSION`` is the current stable series. E.g. at the moment of writing the
-  stable branch is ``stable/0.2``.
+  stable branch is ``stable/1.0``.
 
 * Please file a launchpad_ blueprint for any significant code change and a bug
   for any significant bug fix.
@@ -41,7 +41,7 @@ Next checkout and create environments::
     tox
 
 Repeat *tox* command each time you need to run tests. If you don't have Python
-interpreter of one of supported versions (currently 2.7 and 3.3), use
+interpreter of one of supported versions (currently 2.7 and 3.4), use
 ``-e`` flag to select only some environments, e.g.
 
 ::
@@ -63,6 +63,10 @@ Run the service with::
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
+
+You can develop and test **ironic-discoverd** using
+`DevStack <http://docs.openstack.org/developer/devstack/>`_ plugin - see
+https://etherpad.openstack.org/p/DiscoverdDevStack for the current status.
 
 Writing a Plugin
 ~~~~~~~~~~~~~~~~

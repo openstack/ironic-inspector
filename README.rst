@@ -40,7 +40,7 @@ Usual hardware introspection flow is as follows:
   at this step.
 
 * Operator sends nodes on introspection either manually using
-  **ironic-discoverd** `HTTP API`_ or again via `Tuskar UI`_.
+  **ironic-discoverd** API (see Usage_) or again via `Tuskar UI`_.
 
 * On receiving node UUID **ironic-discoverd**:
 
@@ -59,46 +59,58 @@ Usual hardware introspection flow is as follows:
     case of SSH driver),
   * fills missing node properties with received data and creates missing ports.
 
-* Separate `HTTP API`_ can be used to query introspection results for a given
-  node.
+* Separate API (see Usage_) can be used to query introspection results
+  for a given node.
 
 Starting DHCP server and configuring PXE boot environment is not part of this
 package and should be done separately.
 
-.. _instack-undercloud: https://openstack.redhat.com/Deploying_an_RDO_Undercloud_with_Instack
+.. _instack-undercloud: https://www.rdoproject.org/Deploying_an_RDO_Undercloud_with_Instack
 
 Installation
 ------------
 
 **ironic-discoverd** is available as an RPM from Fedora 22 repositories or from
-Juno RDO_ for Fedora 20, 21 and EPEL 7. It will be installed and preconfigured
-if you used instack-undercloud_ to build your undercloud.
+Juno (and later) `RDO <https://www.rdoproject.org/>`_ for Fedora 20, 21
+and EPEL 7.  It will be installed and preconfigured if you used
+instack-undercloud_ to build your undercloud.
 Otherwise after enabling required repositories install it using::
 
     yum install openstack-ironic-discoverd
+
+To install only Python packages (including the client), use::
+
+    yum install python-ironic-discoverd
 
 Alternatively (e.g. if you need the latest version), you can install package
 from PyPI_ (you may want to use virtualenv to isolate your environment)::
 
     pip install ironic-discoverd
 
-The third way for RPM-based distros is to use `ironic-discoverd copr`_ which
-contains **unstable** git snapshots of **ironic-discoverd**.
-
-.. _RDO: https://openstack.redhat.com/
-.. _ironic-discoverd copr: https://copr.fedoraproject.org/coprs/divius/ironic-discoverd/
+Finally, there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
+plugin for **ironic-discoverd** - see
+https://etherpad.openstack.org/p/DiscoverdDevStack for the current status.
 
 Configuration
 ~~~~~~~~~~~~~
 
 Copy ``example.conf`` to some permanent place
 (``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
-Fill in at least configuration values with names starting with ``os_`` and
-``identity_uri``.  They configure how **ironic-discoverd** authenticates
-with Keystone and checks authentication of clients.
+Fill in at least these configuration values:
 
-Also set *database* option to where you want **ironic-discoverd** SQLite
-database to be placed.
+* ``os_username``, ``os_password``, ``os_tenant_name`` - Keystone credentials
+  to use when accessing other services and check client authentication tokens;
+
+* ``os_auth_url``, ``identity_uri`` - Keystone endpoints for validating
+  authentication tokens and checking user roles;
+
+* ``database`` - where you want **ironic-discoverd** SQLite database
+  to be placed;
+
+* ``dnsmasq_interface`` - interface on which ``dnsmasq`` (or another DHCP
+  service) listens for PXE boot requests (defaults to ``br-ctlplane`` which is
+  a sane default for TripleO_ based installations but is unlikely to work for
+  other cases).
 
 See comments inside `example.conf
 <https://github.com/stackforge/ironic-discoverd/blob/master/example.conf>`_
@@ -118,7 +130,8 @@ As for PXE boot environment, you'll need:
 
     ramdisk-image-create -o discovery fedora ironic-discoverd-ramdisk
 
-  You need diskimage-builder_ 0.1.38 or newer to do it.
+  You need diskimage-builder_ 0.1.38 or newer to do it (using the latest one
+  is always advised).
 
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   **ironic-discoverd**. Don't do any firewall configuration:
@@ -215,6 +228,11 @@ CLI tool is based on OpenStackClient_ with prefix
 
     $ openstack baremetal introspection start UUID [--new-ipmi-password=PWD [--new-ipmi-username=USER]]
 
+  * ``uuid`` - Ironic node UUID;
+  * ``new_ipmi_username`` and ``new_ipmi_password`` - if these are set,
+    **ironic-discoverd** will switch to manual power on and assigning IPMI
+    credentials on introspection. See `Setting IPMI Credentials`_ for details.
+
 * **Query introspection status**:
 
   ``get_status(uuid)``
@@ -223,96 +241,13 @@ CLI tool is based on OpenStackClient_ with prefix
 
     $ openstack baremetal introspection status UUID
 
+  * ``uuid`` - Ironic node UUID.
+
+Refer to HTTP-API.rst_ for information on the HTTP API.
+
 .. _OpenStackClient: http://docs.openstack.org/developer/python-openstackclient/
-
-HTTP API
-~~~~~~~~
-
-By default **ironic-discoverd** listens on ``0.0.0.0:5050``, port
-can be changed in configuration. Protocol is JSON over HTTP.
-
-The HTTP API consist of these endpoints:
-
-* ``POST /v1/introspection/<UUID>`` initiate hardware discovery for node
-  ``<UUID>``. All power management configuration for this node needs to be done
-  prior to calling the endpoint.
-
-  Requires X-Auth-Token header with Keystone token for authentication.
-
-  Optional parameters:
-
-  * ``new_ipmi_password`` if set, **ironic-discoverd** will try to set IPMI
-    password on the machine to this value. Power credentials validation will be
-    skipped and manual power on will be required. See `Setting IPMI
-    credentials`_ for details.
-
-  * ``new_ipmi_username`` provides new IPMI user name in addition to password
-    set by ``new_ipmi_password``. Defaults to current ``ipmi_username`` in
-    node ``driver_info`` field.
-
-  Response:
-
-  * 202 - accepted discovery request
-  * 400 - bad request
-  * 401, 403 - missing or invalid authentication
-  * 404 - node cannot be found
-
-* ``GET /v1/introspection/<UUID>`` get hardware discovery status.
-
-  Requires X-Auth-Token header with Keystone token for authentication.
-
-  Response:
-
-  * 200 - OK
-  * 400 - bad request
-  * 401, 403 - missing or invalid authentication
-  * 404 - node cannot be found
-
-  Response body: JSON dictionary with keys:
-
-  * ``finished`` (boolean) whether discovery is finished
-  * ``error`` error string or ``null``
-
-* ``POST /v1/continue`` internal endpoint for the discovery ramdisk to post
-  back discovered data. Should not be used for anything other than implementing
-  the ramdisk. Request body: JSON dictionary with at least these keys:
-
-  * ``cpus`` number of CPU
-  * ``cpu_arch`` architecture of the CPU
-  * ``memory_mb`` RAM in MiB
-  * ``local_gb`` hard drive size in GiB
-  * ``interfaces`` dictionary filled with data from all NIC's, keys being
-    interface names, values being dictionaries with keys:
-
-    * ``mac`` MAC address
-    * ``ip`` IP address
-
-  * ``boot_interface`` optional MAC address of the NIC that the machine
-    PXE booted from either in standard format ``11:22:33:44:55:66`` or
-    in *PXELinux* ``BOOTIF`` format ``01-11-22-33-44-55-66``.
-
-  * ``block_devices`` optional block devices information for
-    ``root_device_hint`` plugin, dictionary with keys:
-
-    * ``serials`` list of serial numbers of block devices.
-
-  .. note::
-        This list highly depends on enabled plugins, provided above are
-        expected keys for the default set of plugins. See Plugins_ for details.
-
-  Response:
-
-  * 200 - OK
-  * 400 - bad request
-  * 403 - node is not on introspection
-  * 404 - node cannot be found or multiple nodes found
-
-  Response body: JSON dictionary. If `Setting IPMI Credentials`_ is requested,
-  body will contain the following keys:
-
-  * ``ipmi_setup_credentials`` boolean ``True``
-  * ``ipmi_username`` new IPMI user name
-  * ``ipmi_password`` new IPMI password
+.. _HTTP-API.rst: https://github.com/stackforge/ironic-discoverd/blob/master/HTTP-API.rst
+.. _HTTP API: https://github.com/stackforge/ironic-discoverd/blob/master/HTTP-API.rst
 
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -373,8 +308,14 @@ Here are some plugins that can be additionally enabled:
 ``root_device_hint``
     gathers block devices from ramdisk and exposes root device in multiple
     runs.
+``edeploy``
+    plugin for `eDeploy hardware detection and classification utilities`_,
+    requires a `special ramdisk`__.
 
 Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
+
+.. _eDeploy hardware detection and classification utilities: https://pypi.python.org/pypi/hardware
+__ https://github.com/rdo-management/instack-undercloud/tree/master/elements/ironic-discoverd-ramdisk-instack
 
 Release Notes
 -------------
@@ -418,9 +359,8 @@ See `1.1.0 release tracking page`_ for details.
 
 **Other Changes**
 
-* Experimental plugin ``edeploy`` to use with
-  `eDeploy hardware detection and classification utilities
-  <https://pypi.python.org/pypi/hardware>`_.
+* Experimental plugin ``edeploy`` to use with `eDeploy hardware detection and
+  classification utilities`_.
 
   See `eDeploy blueprint`_ for details.
 
@@ -428,6 +368,8 @@ See `1.1.0 release tracking page`_ for details.
 
 * Serious authentication issues were fixed, ``keystonemiddleware`` is a new
   requirement.
+
+* Basic support for i18n via oslo.i18n.
 
 **Known Issues**
 
@@ -442,6 +384,14 @@ to follow standard OpenStack processes from the beginning. All 0.2 series
 users are advised to upgrade.
 
 See `1.0.0 release tracking page`_ for details.
+
+**1.0.1 release**
+
+This maintenance fixed serious problem with authentication and unfortunately
+brought new upgrade requirements:
+
+* Dependency on *keystonemiddleware*;
+* New configuration option ``identity_uri``, defaulting to localhost.
 
 **Upgrade notes**
 
@@ -530,29 +480,7 @@ Action recommended:
 ~~~~~~~~~~
 
 0.2 series is designed to work with OpenStack Juno release.
-The major changes are:
-
-**API**
-
-* Authentication via Keystone for ``/v1/discover``.
-* Expect ``interfaces`` instead of ``macs`` in post-back from the ramdisk
-  **[version 0.2.1]**.
-* If ``interfaces`` is present, only add ports for NIC's with IP address set
-  **[version 0.2.1]**.
-* ``/v1/discover`` now does some sync sanity checks **[version 0.2.2]**.
-* Nodes will be always put into maintenance mode before discovery
-  **[version 0.2.1]**.
-
-**Configuration**
-
-* Periodic firewall update is now configurable.
-* On each start-up make several attempts to check that Ironic is available
-  **[version 0.2.2]**.
-
-**Misc**
-
-* Simple client in ``ironic_discoverd.client``.
-* Preliminary supported for Python 3.3 (real support depends on Eventlet).
+Not supported any more.
 
 0.1 Series
 ~~~~~~~~~~
