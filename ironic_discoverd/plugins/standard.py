@@ -67,6 +67,13 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           'actual': CONF.discoverd.add_ports})
             sys.exit(1)
 
+        if CONF.discoverd.keep_ports not in conf.VALID_KEEP_PORTS_VALUES:
+            LOG.critical(_LC('Accepted values for [discoverd]keep_ports are '
+                             '%(valid)s, got %(actual)s'),
+                         {'valid': conf.VALID_KEEP_PORTS_VALUES,
+                          'actual': CONF.discoverd.keep_ports})
+            sys.exit(1)
+
     def _ports_to_add(self):
         if CONF.discoverd.ports_for_inactive_interfaces:
             LOG.warning(_LW('Using deprecated option '
@@ -126,6 +133,28 @@ class ValidateInterfacesHook(base.ProcessingHook):
         node_info['interfaces'] = valid_interfaces
         valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
         node_info['macs'] = valid_macs
+
+    def before_update(self, node, ports, node_info):
+        """Drop ports that are not present in the data."""
+        if CONF.discoverd.keep_ports == 'present':
+            expected_macs = {iface['mac']
+                             for iface in node_info['all_interfaces'].values()}
+        elif CONF.discoverd.keep_ports == 'added':
+            expected_macs = set(node_info['macs'])
+        else:
+            return
+
+        ironic = utils.get_client()
+        for port in ironic.node.list_ports(node.uuid, limit=0):
+            if port.address not in expected_macs:
+                LOG.info(_LI("Deleting port %(port)s as its MAC %(mac)s is "
+                             "not in expected MAC list %(expected)s for node "
+                             "%(node)s"),
+                         {'port': port.uuid,
+                          'mac': port.address,
+                          'expected': list(sorted(expected_macs)),
+                          'node': node.uuid})
+                ironic.port.delete(port.uuid)
 
 
 class RamdiskErrorHook(base.ProcessingHook):

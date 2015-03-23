@@ -15,6 +15,7 @@ from oslo_config import cfg
 
 
 VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe')
+VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
 
 SERVICE_OPTS = [
     cfg.StrOpt('os_auth_url',
@@ -61,6 +62,14 @@ SERVICE_OPTS = [
                'from, falls back to "active" if PXE MAC is not supplied '
                'by the ramdisk).',
                choices=VALID_ADD_PORTS_VALUES),
+    cfg.StrOpt('keep_ports',
+               default='all',
+               help='Which ports (already present on a node) to keep after '
+               'introspection. Possible values: '
+               'all (do not delete anything), present (keep ports which MACs '
+               'were present in introspection data), added (keep only MACs '
+               'that we added during introspection).',
+               choices=VALID_KEEP_PORTS_VALUES),
     cfg.IntOpt('timeout',
                default=3600,
                help='Timeout after which introspection is considered failed, '

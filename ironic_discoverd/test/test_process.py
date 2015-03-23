@@ -325,6 +325,7 @@ class TestProcessNode(BaseTest):
                           'discoverd')
         self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
+        self.data['all_interfaces'] = self.data['interfaces']
         self.ports = self.all_ports
         self.cached_node = node_cache.NodeInfo(uuid=self.uuid,
                                                started_at=self.started_at)
@@ -509,8 +510,53 @@ class TestProcessNode(BaseTest):
             error='Failed to power off node %s, check it\'s power management'
             ' configuration: boom' % self.uuid)
 
+    @mock.patch.object(utils, 'get_client')
+    def test_keep_ports_present(self, client_mock, filters_mock,
+                                post_hook_mock):
+        CONF.set_override('keep_ports', 'present', 'discoverd')
+
+        # 2 MACs valid, one invalid, one not present in data
+        all_macs = self.all_macs + ['01:09:02:08:03:07']
+        all_ports = [
+            mock.Mock(uuid='port_uuid%d' % i, address=mac)
+            for i, mac in enumerate(all_macs)
+        ]
+
+        client_mock.return_value = self.cli
+        self.cli.node.list_ports.return_value = all_ports
+
+        self.call()
+
+        self.cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+        self.cli.port.delete.assert_called_once_with(all_ports[-1].uuid)
+
+    @mock.patch.object(utils, 'get_client')
+    def test_keep_ports_added(self, client_mock, filters_mock, post_hook_mock):
+        CONF.set_override('keep_ports', 'added', 'discoverd')
+
+        # 2 MACs valid, one invalid, one not present in data
+        all_macs = self.all_macs + ['01:09:02:08:03:07']
+        all_ports = [
+            mock.Mock(uuid='port_uuid%d' % i, address=mac)
+            for i, mac in enumerate(all_macs)
+        ]
+
+        client_mock.return_value = self.cli
+        self.cli.node.list_ports.return_value = all_ports
+
+        self.call()
+
+        self.cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+        for port in all_ports[2:]:
+            self.cli.port.delete.assert_any_call(port.uuid)
+        self.assertEqual(2, self.cli.port.delete.call_count)
+
 
 class TestValidateInterfacesHook(test_base.BaseTest):
     def test_wrong_add_ports(self):
         CONF.set_override('add_ports', 'foobar', 'discoverd')
+        self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
+
+    def test_wrong_keep_ports(self):
+        CONF.set_override('keep_ports', 'foobar', 'discoverd')
         self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
