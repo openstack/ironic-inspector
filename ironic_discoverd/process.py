@@ -99,6 +99,9 @@ def _process_node(ironic, node, node_info, cached_node):
                         {'mac': mac, 'node': node.uuid})
 
     node_patches, port_patches = _run_post_hooks(node, ports, node_info)
+    # Invalidate cache in case of hooks modifying options
+    cached_node.invalidate_cache()
+
     node = utils.retry_on_conflict(ironic.node.update, node.uuid, node_patches)
     for mac, patches in port_patches.items():
         utils.retry_on_conflict(ironic.port.update, ports[mac].uuid, patches)

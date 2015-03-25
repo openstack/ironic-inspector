@@ -58,7 +58,7 @@ class NodeInfo(object):
         self.started_at = started_at
         self.finished_at = finished_at
         self.error = error
-        self._options = None
+        self.invalidate_cache()
 
     @property
     def options(self):
@@ -125,6 +125,10 @@ class NodeInfo(object):
         fields = {key: row[key]
                   for key in ('uuid', 'started_at', 'finished_at', 'error')}
         return cls(**fields)
+
+    def invalidate_cache(self):
+        """Clear all cached info, so that it's reloaded next time."""
+        self._options = None
 
 
 def init():

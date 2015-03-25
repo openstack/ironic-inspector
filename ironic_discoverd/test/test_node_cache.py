@@ -309,6 +309,11 @@ class TestNodeInfoOptions(test_base.NodeTest):
         self.assertEqual({'foo': 'bar'}, self.node_info.options)
         # should be cached
         self.assertIs(self.node_info.options, self.node_info.options)
+        # invalidate cache
+        old_options = self.node_info.options
+        self.node_info.invalidate_cache()
+        self.assertIsNot(old_options, self.node_info.options)
+        self.assertEqual(old_options, self.node_info.options)
 
     def test_set(self):
         data = {'s': 'value', 'b': True, 'i': 42}
