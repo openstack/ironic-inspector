@@ -30,7 +30,7 @@ CONF = cfg.CONF
 
 LOG = logging.getLogger("ironic_discoverd.introspect")
 # See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
-VALID_STATES = {'enroll', 'manageable', 'inspecting'}
+VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
 PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
 PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
