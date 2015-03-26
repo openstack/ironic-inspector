@@ -69,6 +69,15 @@ def _clean_up(chain):
     _iptables('-X', chain, ignore=True)
 
 
+def clean_up():
+    """Clean up everything before exiting."""
+    if not CONF.discoverd.manage_firewall:
+        return
+
+    _clean_up(CHAIN)
+    _clean_up(NEW_CHAIN)
+
+
 def update_filters(ironic=None):
     """Update firewall filter rules for introspection.
 

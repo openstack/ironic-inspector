@@ -188,6 +188,9 @@ def main(args=sys.argv[1:]):  # pragma: no cover
         logging.INFO if debug else logging.ERROR)
 
     init()
-    app.run(debug=debug,
-            host=CONF.discoverd.listen_address,
-            port=CONF.discoverd.listen_port)
+    try:
+        app.run(debug=debug,
+                host=CONF.discoverd.listen_address,
+                port=CONF.discoverd.listen_port)
+    finally:
+        firewall.clean_up()
