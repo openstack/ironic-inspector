@@ -19,7 +19,8 @@ from oslo_utils import uuidutils
 from ironic_discoverd import client
 
 
-@mock.patch.object(client.requests, 'post', autospec=True)
+@mock.patch.object(client.requests, 'post', autospec=True,
+                   **{'return_value.status_code': 200})
 class TestIntrospect(unittest.TestCase):
     def setUp(self):
         super(TestIntrospect, self).setUp()
@@ -74,8 +75,15 @@ class TestIntrospect(unittest.TestCase):
             params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
 
+    def test_failed(self, mock_post):
+        mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b"boom"
+        self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.introspect, self.uuid)
 
-@mock.patch.object(client.requests, 'post', autospec=True)
+
+@mock.patch.object(client.requests, 'post', autospec=True,
+                   **{'return_value.status_code': 200})
 class TestDiscover(unittest.TestCase):
     def setUp(self):
         super(TestDiscover, self).setUp()
@@ -97,8 +105,15 @@ class TestDiscover(unittest.TestCase):
         self.assertRaises(TypeError, client.discover, 42)
         self.assertRaises(TypeError, client.discover, [42])
 
+    def test_failed(self, mock_post):
+        mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b"boom"
+        self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.discover, [self.uuid])
 
-@mock.patch.object(client.requests, 'get', autospec=True)
+
+@mock.patch.object(client.requests, 'get', autospec=True,
+                   **{'return_value.status_code': 200})
 class TestGetStatus(unittest.TestCase):
     def setUp(self):
         super(TestGetStatus, self).setUp()
@@ -116,3 +131,9 @@ class TestGetStatus(unittest.TestCase):
 
     def test_invalid_input(self, _):
         self.assertRaises(TypeError, client.get_status, 42)
+
+    def test_failed(self, mock_post):
+        mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b"boom"
+        self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.get_status, self.uuid)
