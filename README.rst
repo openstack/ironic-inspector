@@ -364,6 +364,10 @@ See `1.1.0 release tracking page`_ for details.
 
 * Proper CLI tool implemented as a plugin for OpenStackClient_.
 
+  Also client now properly sets error message from the server in its exception.
+  This might be a breaking change, if you relied on exception message
+  previously.
+
 * The default value for ``overwrite_existing`` configuration option was
   flipped, matching the default behavior for Ironic inspection.
 

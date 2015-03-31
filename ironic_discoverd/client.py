@@ -19,8 +19,11 @@ import json
 import requests
 import six
 
+from ironic_discoverd.common.i18n import _
+
 
 _DEFAULT_URL = 'http://127.0.0.1:5050/v1'
+_ERROR_ENCODING = 'utf-8'
 
 
 def _prepare(base_url, auth_token):
@@ -29,6 +32,20 @@ def _prepare(base_url, auth_token):
         base_url += '/v1'
     headers = {'X-Auth-Token': auth_token} if auth_token else {}
     return base_url, headers
+
+
+class ClientError(requests.HTTPError):
+    """Error returned from a server."""
+    def __init__(self, response):
+        # discoverd returns error message in body
+        msg = response.content.decode(_ERROR_ENCODING)
+        super(ClientError, self).__init__(msg, response=response)
+
+    @classmethod
+    def raise_if_needed(cls, response):
+        """Raise exception if response contains error."""
+        if response.status_code >= 400:
+            raise cls(response)
 
 
 def introspect(uuid, base_url=None, auth_token=None,
@@ -46,16 +63,16 @@ def introspect(uuid, base_url=None, auth_token=None,
                               driver_info.
     """
     if not isinstance(uuid, six.string_types):
-        raise TypeError("Expected string for uuid argument, got %r" % uuid)
+        raise TypeError(_("Expected string for uuid argument, got %r") % uuid)
     if new_ipmi_username and not new_ipmi_password:
-        raise ValueError("Setting IPMI user name requires a new password")
+        raise ValueError(_("Setting IPMI user name requires a new password"))
 
     base_url, headers = _prepare(base_url, auth_token)
     params = {'new_ipmi_username': new_ipmi_username,
               'new_ipmi_password': new_ipmi_password}
     res = requests.post("%s/introspection/%s" % (base_url, uuid),
                         headers=headers, params=params)
-    res.raise_for_status()
+    ClientError.raise_if_needed(res)
 
 
 def get_status(uuid, base_url=None, auth_token=None):
@@ -69,12 +86,12 @@ def get_status(uuid, base_url=None, auth_token=None):
     :raises: *requests* library HTTP errors.
     """
     if not isinstance(uuid, six.string_types):
-        raise TypeError("Expected string for uuid argument, got %r" % uuid)
+        raise TypeError(_("Expected string for uuid argument, got %r") % uuid)
 
     base_url, headers = _prepare(base_url, auth_token)
     res = requests.get("%s/introspection/%s" % (base_url, uuid),
                        headers=headers)
-    res.raise_for_status()
+    ClientError.raise_if_needed(res)
     return res.json()
 
 
@@ -84,14 +101,14 @@ def discover(uuids, base_url=None, auth_token=None):
     DEPRECATED. Use introspect instead.
     """
     if not all(isinstance(s, six.string_types) for s in uuids):
-        raise TypeError("Expected list of strings for uuids argument, got %s" %
-                        uuids)
+        raise TypeError(_("Expected list of strings for uuids argument, "
+                          "got %s") % uuids)
 
     base_url, headers = _prepare(base_url, auth_token)
     headers['Content-Type'] = 'application/json'
     res = requests.post(base_url + "/discover",
                         data=json.dumps(uuids), headers=headers)
-    res.raise_for_status()
+    ClientError.raise_if_needed(res)
 
 
 if __name__ == '__main__':  # pragma: no cover
