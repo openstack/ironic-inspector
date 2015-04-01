@@ -38,6 +38,8 @@ function discoverd_iniset {
 
 function install_discoverd {
     setup_develop $IRONIC_DISCOVERD_DIR
+    # NOTE(dtantsur): required for tests
+    install_package jq
 }
 
 function install_discoverd_dhcp {
