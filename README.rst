@@ -293,6 +293,8 @@ introspection data. Note that order does matter in this option.
 These are plugins that are enabled by default and should not be disabled,
 unless you understand what you're doing:
 
+``ramdisk_error``
+    reports error, if ``error`` field is set by the ramdisk.
 ``scheduler``
     validates and updates basic hardware scheduling properties: CPU number and
     architecture, memory and disk size.
@@ -301,8 +303,6 @@ unless you understand what you're doing:
 
 Here are some plugins that can be additionally enabled:
 
-``ramdisk_error``
-    reports error, if ``error`` field is set by the ramdisk.
 ``example``
     example plugin logging it's input and output.
 ``root_device_hint``
@@ -385,6 +385,8 @@ See `1.1.0 release tracking page`_ for details.
   See `eDeploy blueprint`_ for details.
 
 * Plugin ``root_device_hint`` for in-band root device discovery.
+
+* Plugin ``ramdisk_error`` is now enabled by default.
 
 * Serious authentication issues were fixed, ``keystonemiddleware`` is a new
   requirement.

@@ -73,6 +73,9 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
   PXE booted from either in standard format ``11:22:33:44:55:66`` or
   in *PXELinux* ``BOOTIF`` format ``01-11-22-33-44-55-66``.
 
+* ``error`` optional error happened during ramdisk run, interpreted by
+  ``ramdisk_error`` plugin
+
 * ``block_devices`` optional block devices information for
   ``root_device_hint`` plugin, dictionary with keys:
 

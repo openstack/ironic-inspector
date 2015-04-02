@@ -33,9 +33,6 @@ CONF = cfg.CONF
 class BaseTest(test_base.NodeTest):
     def setUp(self):
         super(BaseTest, self).setUp()
-        CONF.set_override('processing_hooks',
-                          'ramdisk_error,scheduler,validate_interfaces',
-                          'discoverd')
         self.started_at = time.time()
         self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
         self.pxe_mac = self.macs[1]
