@@ -76,6 +76,8 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
 * ``error`` optional error happened during ramdisk run, interpreted by
   ``ramdisk_error`` plugin
 
+* ``logs`` optional base64-encoded logs from the ramdisk
+
 * ``block_devices`` optional block devices information for
   ``root_device_hint`` plugin, dictionary with keys:
 

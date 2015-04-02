@@ -242,15 +242,6 @@ class TestProcess(BaseTest):
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
-    def test_error(self, cli, pop_mock, process_mock):
-        self.data['error'] = 'BOOM'
-
-        self.assertRaisesRegexp(utils.Error,
-                                'BOOM',
-                                process.process, self.data)
-        self.assertFalse(process_mock.called)
-
-    @prepare_mocks
     def test_missing_required(self, cli, pop_mock, process_mock):
         del self.data['cpus']
 

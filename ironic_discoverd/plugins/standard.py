@@ -13,7 +13,10 @@
 
 """Standard set of plugins."""
 
+import base64
+import datetime
 import logging
+import os
 import sys
 
 from oslo_config import cfg
@@ -160,8 +163,31 @@ class ValidateInterfacesHook(base.ProcessingHook):
 class RamdiskErrorHook(base.ProcessingHook):
     """Hook to process error send from the ramdisk."""
 
+    DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
+
     def before_processing(self, node_info):
         if not node_info.get('error'):
             return
 
+        logs = node_info.get('logs')
+        if logs:
+            self._store_logs(logs, node_info)
+
         raise utils.Error(_('Ramdisk reported error: %s') % node_info['error'])
+
+    def _store_logs(self, logs, node_info):
+        if not CONF.discoverd.ramdisk_logs_dir:
+            LOG.warn(_LW('Failed to store logs received from the discovery '
+                         'ramdisk because ramdisk_logs_dir configuration '
+                         'option is not set'))
+            return
+
+        if not os.path.exists(CONF.discoverd.ramdisk_logs_dir):
+            os.makedirs(CONF.discoverd.ramdisk_logs_dir)
+
+        time_fmt = datetime.datetime.utcnow().strftime(self.DATETIME_FORMAT)
+        bmc_address = node_info.get('ipmi_address', 'unknown')
+        file_name = 'bmc_%s_%s' % (bmc_address, time_fmt)
+        with open(os.path.join(CONF.discoverd.ramdisk_logs_dir, file_name),
+                  'wb') as fp:
+            fp.write(base64.b64decode(logs))
