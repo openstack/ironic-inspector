@@ -294,7 +294,8 @@ These are plugins that are enabled by default and should not be disabled,
 unless you understand what you're doing:
 
 ``ramdisk_error``
-    reports error, if ``error`` field is set by the ramdisk.
+    reports error, if ``error`` field is set by the ramdisk, also optionally
+    stores logs from ``logs`` field, see `HTTP API`_ for details.
 ``scheduler``
     validates and updates basic hardware scheduling properties: CPU number and
     architecture, memory and disk size.
