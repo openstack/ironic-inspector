@@ -109,7 +109,7 @@ SERVICE_OPTS = [
                help='SQLite3 database to store nodes under introspection, '
                     'required. Do not use :memory: here, it won\'t work.'),
     cfg.StrOpt('processing_hooks',
-               default='scheduler,validate_interfaces',
+               default='ramdisk_error,scheduler,validate_interfaces',
                help='Comma-separated list of enabled hooks for processing '
                     'pipeline. Hook \'scheduler\' updates the node with the '
                     'minimum properties required by the Nova scheduler. '
