@@ -16,13 +16,14 @@ from __future__ import print_function
 import argparse
 import json
 
+from oslo_utils import netutils
 import requests
 import six
 
 from ironic_discoverd.common.i18n import _
 
 
-_DEFAULT_URL = 'http://127.0.0.1:5050/v1'
+_DEFAULT_URL = 'http://' + netutils.get_my_ipv4() + ':5050/v1'
 _ERROR_ENCODING = 'utf-8'
 
 
@@ -54,7 +55,7 @@ def introspect(uuid, base_url=None, auth_token=None,
 
     :param uuid: node uuid
     :param base_url: *ironic-discoverd* URL in form: http://host:port[/ver],
-                     defaults to ``http://127.0.0.1:5050/v1``.
+                     defaults to ``http://<current host>:5050/v1``.
     :param auth_token: Keystone authentication token.
     :param new_ipmi_password: if set, *ironic-discoverd* will update IPMI
                               password to this value.
@@ -81,7 +82,7 @@ def get_status(uuid, base_url=None, auth_token=None):
     New in ironic-discoverd version 1.0.0.
     :param uuid: node uuid.
     :param base_url: *ironic-discoverd* URL in form: http://host:port[/ver],
-                     defaults to ``http://127.0.0.1:5050/v1``.
+                     defaults to ``http://<current host>:5050/v1``.
     :param auth_token: Keystone authentication token.
     :raises: *requests* library HTTP errors.
     """

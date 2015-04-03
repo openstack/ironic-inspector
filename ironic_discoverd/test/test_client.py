@@ -14,6 +14,7 @@
 import unittest
 
 import mock
+from oslo_utils import netutils
 from oslo_utils import uuidutils
 
 from ironic_discoverd import client
@@ -25,6 +26,7 @@ class TestIntrospect(unittest.TestCase):
     def setUp(self):
         super(TestIntrospect, self).setUp()
         self.uuid = uuidutils.generate_uuid()
+        self.my_ip = 'http://' + netutils.get_my_ipv4() + ':5050/v1'
 
     def test(self, mock_post):
         client.introspect(self.uuid, base_url="http://host:port",
@@ -52,7 +54,8 @@ class TestIntrospect(unittest.TestCase):
     def test_default_url(self, mock_post):
         client.introspect(self.uuid, auth_token="token")
         mock_post.assert_called_once_with(
-            "http://127.0.0.1:5050/v1/introspection/%s" % self.uuid,
+            "%(my_ip)s/introspection/%(uuid)s" %
+            {'my_ip': self.my_ip, 'uuid': self.uuid},
             headers={'X-Auth-Token': 'token'},
             params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
@@ -70,7 +73,8 @@ class TestIntrospect(unittest.TestCase):
     def test_none_ok(self, mock_post):
         client.introspect(self.uuid)
         mock_post.assert_called_once_with(
-            "http://127.0.0.1:5050/v1/introspection/%s" % self.uuid,
+            "%(my_ip)s/introspection/%(uuid)s" %
+            {'my_ip': self.my_ip, 'uuid': self.uuid},
             headers={},
             params={'new_ipmi_username': None, 'new_ipmi_password': None}
         )
@@ -118,6 +122,7 @@ class TestGetStatus(unittest.TestCase):
     def setUp(self):
         super(TestGetStatus, self).setUp()
         self.uuid = uuidutils.generate_uuid()
+        self.my_ip = 'http://' + netutils.get_my_ipv4() + ':5050/v1'
 
     def test(self, mock_get):
         mock_get.return_value.json.return_value = 'json'
@@ -125,7 +130,8 @@ class TestGetStatus(unittest.TestCase):
         client.get_status(self.uuid, auth_token='token')
 
         mock_get.assert_called_once_with(
-            "http://127.0.0.1:5050/v1/introspection/%s" % self.uuid,
+            "%(my_ip)s/introspection/%(uuid)s" %
+            {'my_ip': self.my_ip, 'uuid': self.uuid},
             headers={'X-Auth-Token': 'token'}
         )
 
