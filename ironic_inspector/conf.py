@@ -20,26 +20,36 @@ VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
 
 IRONIC_OPTS = [
     cfg.StrOpt('os_auth_url',
-               default='http://127.0.0.1:5000/v2.0',
-               help='Keystone authentication endpoint.',
+               default='',
+               help='Keystone authentication endpoint for accessing Ironic '
+                    'API. Use [keystone_authtoken]/auth_uri for keystone '
+                    'authentication.',
                deprecated_group='discoverd'),
     cfg.StrOpt('os_username',
                default='',
-               help='User name for accessing Keystone and Ironic API.',
+               help='User name for accessing Ironic API. '
+                    'Use [keystone_authtoken]/admin_user for keystone '
+                    'authentication.',
                deprecated_group='discoverd'),
     cfg.StrOpt('os_password',
                default='',
-               help='Password for accessing Keystone and Ironic API.',
+               help='Password for accessing Ironic API. '
+                    'Use [keystone_authtoken]/admin_password for keystone '
+                    'authentication.',
                secret=True,
                deprecated_group='discoverd'),
     cfg.StrOpt('os_tenant_name',
                default='',
-               help='Tenant name for accessing Keystone and Ironic API.',
+               help='Tenant name for accessing Ironic API. '
+                    'Use [keystone_authtoken]/admin_tenant_name for keystone '
+                    'authentication.',
                deprecated_group='discoverd'),
     cfg.StrOpt('identity_uri',
-               default='http://127.0.0.1:35357',
-               help='Keystone admin endpoint.',
-               deprecated_group='discoverd'),
+               default='',
+               help='Keystone admin endpoint. '
+                    'DEPRECATED: use [keystone_authtoken]/identity_uri.',
+               deprecated_group='discoverd',
+               deprecated_for_removal=True),
     cfg.IntOpt('ironic_retry_attempts',
                default=5,
                help='Number of attempts to do when trying to connect to '
