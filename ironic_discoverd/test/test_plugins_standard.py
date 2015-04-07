@@ -18,6 +18,7 @@ import tempfile
 
 from oslo_config import cfg
 
+from ironic_discoverd.plugins import standard as std_plugins
 from ironic_discoverd import process
 from ironic_discoverd.test import base as test_base
 from ironic_discoverd import utils
@@ -81,3 +82,31 @@ class TestRamdiskError(test_base.BaseTest):
 
         files = os.listdir(self.tempdir)
         self.assertEqual(1, len(files))
+
+    def test_logs_without_error(self):
+        log = b'log contents'
+        del self.data['error']
+        self.data['logs'] = base64.b64encode(log)
+
+        std_plugins.RamdiskErrorHook().before_processing(self.data)
+
+        files = os.listdir(self.tempdir)
+        self.assertFalse(files)
+
+    def test_always_store_logs(self):
+        CONF.set_override('always_store_ramdisk_logs', True, 'discoverd')
+
+        log = b'log contents'
+        del self.data['error']
+        self.data['logs'] = base64.b64encode(log)
+
+        std_plugins.RamdiskErrorHook().before_processing(self.data)
+
+        files = os.listdir(self.tempdir)
+        self.assertEqual(1, len(files))
+        filename = files[0]
+        self.assertTrue(filename.startswith('bmc_%s_' % self.bmc_address),
+                        '%s does not start with bmc_%s'
+                        % (filename, self.bmc_address))
+        with open(os.path.join(self.tempdir, filename), 'rb') as fp:
+            self.assertEqual(log, fp.read())

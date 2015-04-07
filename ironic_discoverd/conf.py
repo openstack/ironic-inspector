@@ -122,7 +122,12 @@ SERVICE_OPTS = [
                 help='Debug mode enabled/disabled.'),
     cfg.StrOpt('ramdisk_logs_dir',
                help='If set, logs from ramdisk will be stored in this '
-               'directory'),
+               'directory.'),
+    cfg.BoolOpt('always_store_ramdisk_logs',
+                default=False,
+                help='Whether to store ramdisk logs even if it did not return '
+                'an error message (dependent upon "ramdisk_logs_dir" option '
+                'being set).'),
     cfg.BoolOpt('ports_for_inactive_interfaces',
                 default=False,
                 help='DEPRECATED: use add_ports.'),

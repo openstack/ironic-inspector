@@ -166,14 +166,14 @@ class RamdiskErrorHook(base.ProcessingHook):
     DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
 
     def before_processing(self, node_info):
-        if not node_info.get('error'):
-            return
-
+        error = node_info.get('error')
         logs = node_info.get('logs')
-        if logs:
+
+        if logs and (error or CONF.discoverd.always_store_ramdisk_logs):
             self._store_logs(logs, node_info)
 
-        raise utils.Error(_('Ramdisk reported error: %s') % node_info['error'])
+        if error:
+            raise utils.Error(_('Ramdisk reported error: %s') % error)
 
     def _store_logs(self, logs, node_info):
         if not CONF.discoverd.ramdisk_logs_dir:
