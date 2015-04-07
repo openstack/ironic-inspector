@@ -69,6 +69,7 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
   * ``mac`` MAC address
   * ``ip`` IP address
 
+* ``ipmi_address`` IP address of BMC, may be missing on VM
 * ``boot_interface`` optional MAC address of the NIC that the machine
   PXE booted from either in standard format ``11:22:33:44:55:66`` or
   in *PXELinux* ``BOOTIF`` format ``01-11-22-33-44-55-66``.
