@@ -18,6 +18,7 @@ import eventlet
 import mock
 from oslo_utils import uuidutils
 
+from ironic_discoverd import firewall
 from ironic_discoverd import introspect
 from ironic_discoverd import main
 from ironic_discoverd import node_cache
@@ -188,3 +189,58 @@ class TestPlugins(unittest.TestCase):
     def test_manager_is_cached(self):
         self.assertIs(plugins_base.processing_hooks_manager(),
                       plugins_base.processing_hooks_manager())
+
+
+@mock.patch.object(eventlet.greenthread, 'spawn_n')
+@mock.patch.object(firewall, 'init')
+@mock.patch.object(utils, 'add_auth_middleware')
+@mock.patch.object(utils, 'get_client')
+@mock.patch.object(node_cache, 'init')
+class TestInit(test_base.BaseTest):
+    def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
+                mock_firewall, mock_spawn_n):
+        CONF.set_override('authenticate', True, 'discoverd')
+        main.init()
+        mock_auth.assert_called_once_with(main.app)
+        mock_node_cache.assert_called_once_with()
+        mock_firewall.assert_called_once_with()
+
+        spawn_n_expected_args = [
+            (main.periodic_update, CONF.discoverd.firewall_update_period),
+            (main.periodic_clean_up, CONF.discoverd.clean_up_period)]
+        spawn_n_call_args_list = mock_spawn_n.call_args_list
+
+        for (args, call) in zip(spawn_n_expected_args,
+                                spawn_n_call_args_list):
+            self.assertEqual(args, call[0])
+
+    def test_init_without_authenticate(self, mock_node_cache, mock_get_client,
+                                       mock_auth, mock_firewall, mock_spawn_n):
+        CONF.set_override('authenticate', False, 'discoverd')
+        main.init()
+        self.assertFalse(mock_auth.called)
+
+    def test_init_without_manage_firewall(self, mock_node_cache,
+                                          mock_get_client, mock_auth,
+                                          mock_firewall, mock_spawn_n):
+        CONF.set_override('manage_firewall', False, 'discoverd')
+        main.init()
+        self.assertFalse(mock_firewall.called)
+        spawn_n_expected_args = [
+            (main.periodic_clean_up, CONF.discoverd.clean_up_period)]
+        spawn_n_call_args_list = mock_spawn_n.call_args_list
+        for (args, call) in zip(spawn_n_expected_args,
+                                spawn_n_call_args_list):
+            self.assertEqual(args, call[0])
+
+    def test_init_with_timeout_0(self, mock_node_cache, mock_get_client,
+                                 mock_auth, mock_firewall, mock_spawn_n):
+        CONF.set_override('timeout', 0, 'discoverd')
+        main.init()
+        spawn_n_expected_args = [
+            (main.periodic_update, CONF.discoverd.firewall_update_period)]
+        spawn_n_call_args_list = mock_spawn_n.call_args_list
+
+        for (args, call) in zip(spawn_n_expected_args,
+                                spawn_n_call_args_list):
+            self.assertEqual(args, call[0])
