@@ -306,8 +306,8 @@ Node States
     ironic node-update <UUID> replace maintenance=false
 
   .. note::
-    Due to how Ironic Nova driver works, you should wait up to 1 minute before
-    Nova becomes aware of available nodes after issuing these commands.
+    Due to how Nova interacts with Ironic driver, you should wait 1 minute
+    before Nova becomes aware of available nodes after issuing these commands.
 
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -384,21 +384,21 @@ Troubleshooting
 Errors when starting introspection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``Refusing to introspect node <UUID> with provision state "available"
-and maintenance mode off``
+* *Refusing to introspect node <UUID> with provision state "available"
+  and maintenance mode off*
 
-    In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
-    defaults to reporting provision state ``AVAILABLE`` for newly enrolled
-    nodes.  **ironic-discoverd** will refuse to conduct introspection in
-    this state, as such nodes are supposed to be used by Nova for scheduling.
-    See `Node States`_ for instructions on how to put nodes into
-    the correct state.
+  In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
+  defaults to reporting provision state ``AVAILABLE`` for newly enrolled
+  nodes.  **ironic-discoverd** will refuse to conduct introspection in
+  this state, as such nodes are supposed to be used by Nova for scheduling.
+  See `Node States`_ for instructions on how to put nodes into
+  the correct state.
 
 Introspection times out
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 There may be 3 reasons why introspection can time out after some time
-(defaulting to 30 minutes):
+(defaulting to 60 minutes, altered by ``timeout`` configuration option):
 
 #. Fatal failure in processing chain before node was found in the local cache.
    See `Troubleshooting data processing`_ for the hints.
@@ -412,9 +412,13 @@ There may be 3 reasons why introspection can time out after some time
 Troubleshooting data processing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 In this case **ironic-discoverd** logs should give a good idea what went wrong.
-E.g. for Red Hat systems the following command will output the full log::
+E.g. for RDO or Fedora the following command will output the full log::
 
     sudo journalctl -u openstack-ironic-discoverd
+
+.. note::
+    Service name and specific command might be different for other Linux
+    distributions.
 
 If ``ramdisk_error`` plugin is enabled and ``ramdisk_logs_dir`` configuration
 option is set, **ironic-discoverd** will store logs received from the ramdisk
@@ -429,6 +433,20 @@ several physical networks. If the hardware vendor provides a remote console
 (e.g. iDRAC for DELL), use it to connect to the machine and see what is going
 on. You may need to restart introspection.
 
+Another source of information is DHCP and TFTP server logs. Their location
+depends on how the servers were installed and run. For RDO or Fedora use::
+
+    $ sudo journalctl -u openstack-ironic-discoverd-dnsmasq
+
+The last resort is ``tcpdump`` utility. Use something like
+::
+
+    $ sudo tcpdump -i any port 67 or port 68 or port 69
+
+to watch both DHCP and TFTP traffic going through your machine. Replace
+``any`` with a specific network interface to check that DHCP and TFTP
+requests really reach it.
+
 If you see node not attempting PXE boot or attempting PXE boot on the wrong
 network, reboot the machine into BIOS settings and make sure that only one
 relevant NIC is allowed to PXE boot.
@@ -439,7 +457,8 @@ sure that:
 #. network switches configuration does not prevent PXE boot requests from
    propagating,
 
-#. there is no additional firewall rules preventing access to port 67.
+#. there is no additional firewall rules preventing access to port 67 on the
+   machine where *ironic-discoverd* and its DHCP server are installed.
 
 If you see node receiving DHCP address and then failing to get kernel and/or
 ramdisk or to boot them, make sure that:
