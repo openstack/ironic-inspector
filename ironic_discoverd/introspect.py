@@ -29,8 +29,6 @@ CONF = cfg.CONF
 
 
 LOG = logging.getLogger("ironic_discoverd.introspect")
-# See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
-VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
 PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
 PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
@@ -84,16 +82,7 @@ def introspect(uuid, new_ipmi_credentials=None):
         raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
                           {'node': uuid, 'exc': exc})
 
-    if not node.maintenance:
-        provision_state = node.provision_state
-        if provision_state and provision_state.lower() not in VALID_STATES:
-            msg = _('Refusing to introspect node %(node)s with provision state'
-                    ' "%(state)s" and maintenance mode off')
-            raise utils.Error(msg % {'node': node.uuid,
-                                     'state': provision_state})
-    else:
-        LOG.info(_LI('Node %s is in maintenance mode, skipping'
-                     ' provision states check'), node.uuid)
+    utils.check_provision_state(node)
 
     if new_ipmi_credentials:
         new_ipmi_credentials = (

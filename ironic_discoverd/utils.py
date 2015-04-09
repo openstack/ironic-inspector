@@ -22,9 +22,12 @@ from keystonemiddleware import auth_token
 from oslo_config import cfg
 import six
 
-from ironic_discoverd.common.i18n import _, _LE, _LW
+from ironic_discoverd.common.i18n import _, _LE, _LI, _LW
 
 CONF = cfg.CONF
+
+# See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
+VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
 
 
 LOG = logging.getLogger('ironic_discoverd.utils')
@@ -116,6 +119,18 @@ def retry_on_conflict(call, *args, **kwargs):
             eventlet.greenthread.sleep(RETRY_DELAY)
 
     raise RuntimeError('unreachable code')  # pragma: no cover
+
+
+def check_provision_state(node):
+    if not node.maintenance:
+        provision_state = node.provision_state
+        if provision_state and provision_state.lower() not in VALID_STATES:
+            msg = _('Refusing to introspect node %(node)s with provision state'
+                    ' "%(state)s" and maintenance mode off')
+            raise Error(msg % {'node': node.uuid, 'state': provision_state})
+    else:
+        LOG.info(_LI('Node %s is in maintenance mode, skipping'
+                     ' provision states check'), node.uuid)
 
 
 def capabilities_to_dict(caps):
