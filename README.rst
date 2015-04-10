@@ -39,6 +39,9 @@ Usual hardware introspection flow is as follows:
   to `Tuskar UI`_. Power management credentials should be provided to Ironic
   at this step.
 
+* Nodes are put in the correct state for introspection as described in
+  `Node States`_.
+
 * Operator sends nodes on introspection either manually using
   **ironic-discoverd** API (see Usage_) or again via `Tuskar UI`_.
 
@@ -59,13 +62,36 @@ Usual hardware introspection flow is as follows:
     case of SSH driver),
   * fills missing node properties with received data and creates missing ports.
 
+  .. note::
+    **ironic-discoverd** is responsible to create Ironic ports for some or all
+    NIC's found on the node. **ironic-discoverd** is also capable of
+    deleting ports that should not be present. There are two important
+    configuration options that affect this behavior: ``add_ports`` and
+    ``keep_ports`` (please refer to ``example.conf`` for detailed explanation).
+
+    Default values as of **ironic-discoverd** 1.1.0 are ``add_ports=pxe``,
+    ``keep_ports=all``, which means that only one port will be added, which is
+    associated with NIC the ramdisk PXE booted from. No ports will be deleted.
+    This setting ensures that deploying on introspected nodes will succeed
+    despite `Ironic bug 1405131
+    <https://bugs.launchpad.net/ironic/+bug/1405131>`_.
+
+    Ironic inspection feature by default requires different settings:
+    ``add_ports=all``, ``keep_ports=present``, which means that ports will be
+    created for all detected NIC's, and all other ports will be deleted.
+    Refer to the `Ironic inspection documentation`_ for details.
+
 * Separate API (see Usage_) can be used to query introspection results
   for a given node.
+
+* Nodes are put in the correct state for deploying as described in
+  `Node States`_.
 
 Starting DHCP server and configuring PXE boot environment is not part of this
 package and should be done separately.
 
 .. _instack-undercloud: https://www.rdoproject.org/Deploying_an_RDO_Undercloud_with_Instack
+.. _Ironic inspection documentation: http://docs.openstack.org/developer/ironic/deploy/install-guide.html#hardware-inspection
 
 Installation
 ------------
@@ -249,6 +275,40 @@ Refer to HTTP-API.rst_ for information on the HTTP API.
 .. _HTTP-API.rst: https://github.com/stackforge/ironic-discoverd/blob/master/HTTP-API.rst
 .. _HTTP API: https://github.com/stackforge/ironic-discoverd/blob/master/HTTP-API.rst
 
+Using from Ironic API
+~~~~~~~~~~~~~~~~~~~~~
+
+Ironic Kilo introduced support for hardware introspection under name of
+"inspection". **ironic-discoverd** introspection is supported for some generic
+drivers, please refer to `Ironic inspection documentation`_ for details.
+
+Node States
+~~~~~~~~~~~
+
+* As of Ironic Kilo release the nodes should be moved to ``MANAGEABLE``
+  provision state before introspection (requires *python-ironicclient*
+  of version 0.5.0 or newer)::
+
+    ironic node-set-provision-state <UUID> manage
+
+  With Juno release and/or older *python-ironicclient* it's recommended
+  to set maintenance mode, so that nodes are not taken by Nova for deploying::
+
+    ironic node-update <UUID> replace maintenance=true
+
+* After successful introspection and before deploying nodes should be made
+  available to Nova, either by moving them to ``AVAILABLE`` state (Kilo)::
+
+    ironic node-set-provision-state <UUID> provide
+
+  or by removing maintenance mode (Juno and/or older client)::
+
+    ironic node-update <UUID> replace maintenance=false
+
+  .. note::
+    Due to how Ironic Nova driver works, you should wait up to 1 minute before
+    Nova becomes aware of available nodes after issuing these commands.
+
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -318,194 +378,85 @@ Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
 .. _eDeploy hardware detection and classification utilities: https://pypi.python.org/pypi/hardware
 __ https://github.com/rdo-management/instack-undercloud/tree/master/elements/ironic-discoverd-ramdisk-instack
 
-Release Notes
--------------
+Troubleshooting
+---------------
 
-1.1 Series
-~~~~~~~~~~
+Errors when starting introspection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See `1.1.0 release tracking page`_ for details.
+``Refusing to introspect node <UUID> with provision state "available"
+and maintenance mode off``
 
-**Upgrade Notes**
+    In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
+    defaults to reporting provision state ``AVAILABLE`` for newly enrolled
+    nodes.  **ironic-discoverd** will refuse to conduct introspection in
+    this state, as such nodes are supposed to be used by Nova for scheduling.
+    See `Node States`_ for instructions on how to put nodes into
+    the correct state.
 
-* This version no longer supports ancient ramdisks that sent ``macs`` instead
-  of ``interfaces``. It also raises exception if no valid interfaces were
-  found after processing.
+Introspection times out
+~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``identity_uri`` parameter should be set to Keystone admin endpoint.
+There may be 3 reasons why introspection can time out after some time
+(defaulting to 30 minutes):
 
-* ``overwrite_existing`` is now enabled by default.
+#. Fatal failure in processing chain before node was found in the local cache.
+   See `Troubleshooting data processing`_ for the hints.
 
-* Running the service as
-  ::
+#. Failure to load discovery ramdisk on the target node. See `Troubleshooting
+   PXE boot`_ for the hints.
 
-    $ ironic-discoverd /path/to/config
+#. Failure during ramdisk run. See `Troubleshooting ramdisk run`_ for the
+   hints.
 
-  is no longer supported, use
-  ::
+Troubleshooting data processing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In this case **ironic-discoverd** logs should give a good idea what went wrong.
+E.g. for Red Hat systems the following command will output the full log::
 
-    $ ironic-discoverd --config-file /path/to/config
+    sudo journalctl -u openstack-ironic-discoverd
 
-**Major Features**
+If ``ramdisk_error`` plugin is enabled and ``ramdisk_logs_dir`` configuration
+option is set, **ironic-discoverd** will store logs received from the ramdisk
+to the ``ramdisk_logs_dir`` directory. This depends, however, on the ramdisk
+implementation.
 
-* Default to only creating a port for the NIC that the ramdisk was PXE booted
-  from, if such information is provided by ramdisk as ``boot_interface`` field.
-  Adjustable by ``add_ports`` option.
+Troubleshooting PXE boot
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-  See `better-boot-interface-detection blueprint
-  <https://blueprints.launchpad.net/ironic-discoverd/+spec/better-boot-interface-detection>`_
-  for details.
+PXE booting most often becomes a problem for bare metal environments with
+several physical networks. If the hardware vendor provides a remote console
+(e.g. iDRAC for DELL), use it to connect to the machine and see what is going
+on. You may need to restart introspection.
 
-* `Setting IPMI Credentials`_ feature is considered stable now and is exposed
-  in the client. It still needs to be enabled via configuration.
+If you see node not attempting PXE boot or attempting PXE boot on the wrong
+network, reboot the machine into BIOS settings and make sure that only one
+relevant NIC is allowed to PXE boot.
 
-  See `setup-ipmi-credentials-take2 blueprint
-  <https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials-take2>`_
-  for what changed since 1.0.0 (tl;dr: everything).
+If you see node attempting PXE boot using the correct NIC but failing, make
+sure that:
 
-* Proper CLI tool implemented as a plugin for OpenStackClient_.
+#. network switches configuration does not prevent PXE boot requests from
+   propagating,
 
-  Also client now properly sets error message from the server in its exception.
-  This might be a breaking change, if you relied on exception message
-  previously.
+#. there is no additional firewall rules preventing access to port 67.
 
-* The default value for ``overwrite_existing`` configuration option was
-  flipped, matching the default behavior for Ironic inspection.
+If you see node receiving DHCP address and then failing to get kernel and/or
+ramdisk or to boot them, make sure that:
 
-* Switch to `oslo.config <http://docs.openstack.org/developer/oslo.config/>`_
-  for configuration management (many thanks to Yuiko Takada).
+#. TFTP server is running and accessible (use ``tftp`` utility to verify),
 
-**Other Changes**
+#. no firewall rules prevent access to TFTP port,
 
-* New option ``add_ports`` allows precise control over which ports to add,
-  replacing deprecated ``ports_for_inactive_interfaces``.
+#. DHCP server is correctly set to point to the TFTP server,
 
-* Experimental plugin ``edeploy`` to use with `eDeploy hardware detection and
-  classification utilities`_.
+#. ``pxelinux.cfg/default`` within TFTP root contains correct reference to the
+   kernel and ramdisk.
 
-  See `eDeploy blueprint`_ for details.
+Troubleshooting ramdisk run
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* Plugin ``root_device_hint`` for in-band root device discovery.
-
-* Plugin ``ramdisk_error`` is now enabled by default.
-
-* Serious authentication issues were fixed, ``keystonemiddleware`` is a new
-  requirement.
-
-* Basic support for i18n via oslo.i18n.
-
-**Known Issues**
-
-.. _1.1.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.1.0
-.. _eDeploy blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/edeploy
-
-1.0 Series
-~~~~~~~~~~
-
-1.0 is the first feature-complete release series. It's also the first series
-to follow standard OpenStack processes from the beginning. All 0.2 series
-users are advised to upgrade.
-
-See `1.0.0 release tracking page`_ for details.
-
-**1.0.1 release**
-
-This maintenance fixed serious problem with authentication and unfortunately
-brought new upgrade requirements:
-
-* Dependency on *keystonemiddleware*;
-* New configuration option ``identity_uri``, defaulting to localhost.
-
-**Upgrade notes**
-
-Action required:
-
-* Fill in ``database`` option in the configuration file before upgrading.
-* Stop relying on **ironic-discoverd** setting maintenance mode itself.
-* Stop relying on ``discovery_timestamp`` node extra field.
-
-Action recommended:
-
-* Switch your init scripts to use ``ironic-discoverd --config-file <path>``
-  instead of just ``ironic-discoverd <path>``.
-
-* Stop relying on ``on_discovery`` and ``newly_discovered`` being set in node
-  ``extra`` field during and after introspection. Use new get status HTTP
-  endpoint and client API instead.
-
-* Switch from ``discover`` to ``introspect`` HTTP endpoint and client API.
-
-**Major features**
-
-* Introspection now times out by default, set ``timeout`` option to alter.
-
-* New API ``GET /v1/introspection/<uuid>`` and ``client.get_status`` for
-  getting discovery status.
-
-  See `get-status-api blueprint`_ for details.
-
-* New API ``POST /v1/introspection/<uuid>`` and ``client.introspect``
-  is now used to initiate discovery, ``/v1/discover`` is deprecated.
-
-  See `v1 API reform blueprint`_ for details.
-
-* ``/v1/continue`` is now sync:
-
-  * Errors are properly returned to the caller
-  * This call now returns value as a JSON dict (currently empty)
-
-* Add support for plugins that hook into data processing pipeline. Refer to
-  Plugins_ for information on bundled plugins and to CONTRIBUTING.rst_ for
-  information on how to write your own.
-
-  See `plugin-architecture blueprint`_ for details.
-
-* Support for OpenStack Kilo release and new Ironic state machine -
-  see `Kilo state machine blueprint`_.
-
-  As a side effect, no longer depend on maintenance mode for introspection.
-  Stop putting node in maintenance mode before introspection.
-
-* Cache nodes under introspection in a local SQLite database.
-  ``database`` configuration option sets where to place this database.
-  Improves performance by making less calls to Ironic API and makes possible
-  to get results of introspection.
-
-**Other Changes**
-
-* Firewall management can be disabled completely via ``manage_firewall``
-  option.
-
-* Experimental support for updating IPMI credentials from within ramdisk.
-
-  Enable via configuration option ``enable_setting_ipmi_credentials``.
-  Beware that this feature lacks proper testing, is not supported
-  officially yet and is subject to changes without keeping backward
-  compatibility.
-
-  See `setup-ipmi-credentials blueprint`_ for details.
-
-**Known Issues**
-
-* `bug 1415040 <https://bugs.launchpad.net/ironic-discoverd/+bug/1415040>`_
-  it is required to set IP addresses instead of host names in
-  ``ipmi_address``/``ilo_address``/``drac_host`` node ``driver_info`` field
-  for **ironic-discoverd** to work properly.
-
-.. _1.0.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.0.0
-.. _setup-ipmi-credentials blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/setup-ipmi-credentials
-.. _plugin-architecture blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/plugin-architecture
-.. _get-status-api blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/get-status-api
-.. _Kilo state machine blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/kilo-state-machine
-.. _v1 API reform blueprint: https://blueprints.launchpad.net/ironic-discoverd/+spec/v1-api-reform
-
-0.2 Series
-~~~~~~~~~~
-
-0.2 series is designed to work with OpenStack Juno release.
-Not supported any more.
-
-0.1 Series
-~~~~~~~~~~
-
-First stable release series. Not supported any more.
+Connect to the remote console as described in `Troubleshooting PXE boot`_ to
+see what is going on with the ramdisk. The ramdisk drops into emergency shell
+on failure, which you can use to look around. There should be file called
+``logs`` with the current ramdisk logs.
