@@ -18,7 +18,7 @@ import logging
 import eventlet
 from ironicclient import exceptions
 
-from ironic_discoverd.common.i18n import _, _LI, _LW
+from ironic_discoverd.common.i18n import _, _LE, _LI, _LW
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
 from ironic_discoverd.plugins import base as plugins_base
@@ -37,12 +37,50 @@ def process(node_info):
     This function heavily relies on the hooks to do the actual data processing.
     """
     hooks = plugins_base.processing_hooks_manager()
+    failures = []
     for hook_ext in hooks:
-        hook_ext.obj.before_processing(node_info)
+        # NOTE(dtantsur): catch exceptions, so that we have changes to update
+        # node introspection status after look up
+        try:
+            hook_ext.obj.before_processing(node_info)
+        except utils.Error as exc:
+            LOG.error(_LE('Hook %(hook)s failed, delaying error report '
+                          'until node look up: %(error)s'),
+                      {'hook': hook_ext.name, 'error': exc})
+            failures.append('Preprocessing hook %(hook)s: %(error)s' %
+                            {'hook': hook_ext.name, 'error': exc})
+        except Exception as exc:
+            LOG.exception(_LE('Hook %(hook)s failed, delaying error report '
+                              'until node look up: %(error)s'),
+                          {'hook': hook_ext.name, 'error': exc})
+            failures.append(_('Unexpected exception during preprocessing '
+                              'in hook %s') % hook_ext.name)
 
-    cached_node = node_cache.find_node(
-        bmc_address=node_info.get('ipmi_address'),
-        mac=node_info.get('macs'))
+    try:
+        cached_node = node_cache.find_node(
+            bmc_address=node_info.get('ipmi_address'),
+            mac=node_info.get('macs'))
+    except utils.Error as exc:
+        if failures:
+            failures.append(_('Look up error: %s') % exc)
+            cached_node = None
+        else:
+            raise
+
+    if failures and cached_node:
+        msg = _('The following failures happened during running '
+                'pre-processing hooks for node %(uuid)s:\n%(failures)s') % {
+            'uuid': cached_node.uuid,
+            'failures': '\n'.join(failures)
+        }
+        cached_node.finished(error=_('Data pre-processing failed'))
+        raise utils.Error(msg)
+    elif failures:
+        msg = _('The following failures happened during running '
+                'pre-processing hooks for unknown node:\n%(failures)s') % {
+            'failures': '\n'.join(failures)
+        }
+        raise utils.Error(msg)
 
     ironic = utils.get_client()
     try:

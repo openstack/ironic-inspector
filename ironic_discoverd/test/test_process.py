@@ -21,6 +21,7 @@ from oslo_config import cfg
 
 from ironic_discoverd import firewall
 from ironic_discoverd import node_cache
+from ironic_discoverd.plugins import base as plugins_base
 from ironic_discoverd.plugins import example as example_plugin
 from ironic_discoverd.plugins import standard as std_plugins
 from ironic_discoverd import process
@@ -71,7 +72,7 @@ class TestProcess(BaseTest):
             pop_mock.return_value = node_cache.NodeInfo(
                 uuid=self.node.uuid,
                 started_at=self.started_at)
-            cli.port.create.side_effect = self.ports
+            pop_mock.return_value.finished = mock.Mock()
             cli.node.get.return_value = self.node
             process_mock.return_value = self.fake_result_json
 
@@ -269,34 +270,56 @@ class TestProcess(BaseTest):
                                 process.process, self.data)
         cli.node.get.assert_called_once_with(self.uuid)
         self.assertFalse(process_mock.called)
+        pop_mock.return_value.finished.assert_called_once_with(error=mock.ANY)
 
-    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
-    def test_expected_exception(self, finished_mock, client_mock, pop_mock,
-                                process_mock):
-        pop_mock.return_value = node_cache.NodeInfo(
-            uuid=self.node.uuid,
-            started_at=self.started_at)
+    @prepare_mocks
+    def test_expected_exception(self, cli, pop_mock, process_mock):
         process_mock.side_effect = utils.Error('boom')
 
         self.assertRaisesRegexp(utils.Error, 'boom',
                                 process.process, self.data)
 
-        finished_mock.assert_called_once_with(mock.ANY, error='boom')
+        pop_mock.return_value.finished.assert_called_once_with(error='boom')
 
-    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
-    def test_unexpected_exception(self, finished_mock, client_mock, pop_mock,
-                                  process_mock):
-        pop_mock.return_value = node_cache.NodeInfo(
-            uuid=self.node.uuid,
-            started_at=self.started_at)
+    @prepare_mocks
+    def test_unexpected_exception(self, cli, pop_mock, process_mock):
         process_mock.side_effect = RuntimeError('boom')
 
         self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
                                 process.process, self.data)
 
-        finished_mock.assert_called_once_with(
-            mock.ANY,
+        pop_mock.return_value.finished.assert_called_once_with(
             error='Unexpected exception during processing')
+
+    @prepare_mocks
+    def test_hook_unexpected_exceptions(self, cli, pop_mock, process_mock):
+        for ext in plugins_base.processing_hooks_manager():
+            patcher = mock.patch.object(ext.obj, 'before_processing',
+                                        side_effect=RuntimeError('boom'))
+            patcher.start()
+            self.addCleanup(lambda p=patcher: p.stop())
+
+        self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
+                                process.process, self.data)
+
+        pop_mock.return_value.finished.assert_called_once_with(
+            error='Data pre-processing failed')
+
+    @prepare_mocks
+    def test_hook_unexpected_exceptions_no_node(self, cli, pop_mock,
+                                                process_mock):
+        # Check that error from hooks is raised, not "not found"
+        pop_mock.side_effect = utils.Error('not found')
+        for ext in plugins_base.processing_hooks_manager():
+            patcher = mock.patch.object(ext.obj, 'before_processing',
+                                        side_effect=RuntimeError('boom'))
+            patcher.start()
+            self.addCleanup(lambda p=patcher: p.stop())
+
+        self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
+                                process.process, self.data)
+
+        self.assertFalse(pop_mock.return_value.finished.called)
 
 
 @mock.patch.object(eventlet.greenthread, 'spawn_n',
