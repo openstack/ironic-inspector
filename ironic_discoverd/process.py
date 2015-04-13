@@ -125,6 +125,9 @@ def _run_post_hooks(node, ports, node_info):
 
 
 def _process_node(ironic, node, node_info, cached_node):
+    # NOTE(dtantsur): repeat the check in case something changed
+    utils.check_provision_state(node)
+
     ports = {}
     for mac in (node_info.get('macs') or ()):
         try:

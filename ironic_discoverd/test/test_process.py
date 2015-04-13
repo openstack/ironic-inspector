@@ -368,6 +368,11 @@ class TestProcessNode(BaseTest):
         return process._process_node(self.cli, self.node, self.data,
                                      self.cached_node)
 
+    def test_wrong_provision_state(self, filters_mock, post_hook_mock):
+        self.node.provision_state = 'active'
+        self.assertRaises(utils.Error, self.call)
+        self.assertFalse(post_hook_mock.called)
+
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_ok(self, finished_mock, filters_mock, post_hook_mock):
         self.call()
