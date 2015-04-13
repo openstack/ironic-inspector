@@ -23,12 +23,13 @@ import flask
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
-from ironic_discoverd.common.i18n import _, _LE, _LW
+from ironic_discoverd.common.i18n import _, _LC, _LE, _LI, _LW
 # Import configuration options
 from ironic_discoverd import conf  # noqa
 from ironic_discoverd import firewall
 from ironic_discoverd import introspect
 from ironic_discoverd import node_cache
+from ironic_discoverd.plugins import base as plugins_base
 from ironic_discoverd import process
 from ironic_discoverd import utils
 
@@ -162,6 +163,15 @@ def init():
 
     node_cache.init()
     check_ironic_available()
+
+    try:
+        hooks = [ext.name for ext in plugins_base.processing_hooks_manager()]
+    except KeyError as exc:
+        # stevedore raises KeyError on missing hook
+        LOG.critical(_LC('Hook %s failed to load or was not found'), str(exc))
+        sys.exit(1)
+
+    LOG.info(_LI('Enabled processing hooks: %s'), hooks)
 
     if CONF.discoverd.manage_firewall:
         firewall.init()

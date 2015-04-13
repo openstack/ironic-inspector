@@ -244,3 +244,13 @@ class TestInit(test_base.BaseTest):
         for (args, call) in zip(spawn_n_expected_args,
                                 spawn_n_call_args_list):
             self.assertEqual(args, call[0])
+
+    @mock.patch.object(main.LOG, 'critical')
+    def test_init_failed_processing_hook(self, mock_log, mock_node_cache,
+                                         mock_get_client, mock_auth,
+                                         mock_firewall, mock_spawn_n):
+        CONF.set_override('processing_hooks', 'foo!', 'discoverd')
+        plugins_base._HOOKS_MGR = None
+
+        self.assertRaises(SystemExit, main.init)
+        mock_log.assert_called_once_with(mock.ANY, "'foo!'")
