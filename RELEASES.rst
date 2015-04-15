@@ -1,6 +1,21 @@
 Release Notes
 -------------
 
+1.2 Series
+~~~~~~~~~~
+
+See `1.2.0 release tracking page`_ for details.
+
+**Upgrade Notes**
+
+**Major Features**
+
+**Other Changes**
+
+**Known Issues**
+
+.. _1.2.0 release tracking page: https://bugs.launchpad.net/ironic-discoverd/+milestone/1.2.0
+
 1.1 Series
 ~~~~~~~~~~
 
