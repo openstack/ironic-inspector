@@ -28,6 +28,9 @@ LOG = logging.getLogger('ironic_discoverd.shell')
 API_NAME = 'baremetal-introspection'
 API_VERSION_OPTION = 'discoverd_api_version'
 DEFAULT_VERSION = '1'
+API_VERSIONS = {
+    "1": "ironic_discoverd.shell",
+}
 
 
 def build_option_parser(parser):
