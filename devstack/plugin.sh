@@ -135,7 +135,7 @@ function configure_inspector {
 
     inspector_iniset firewall manage_firewall $IRONIC_INSPECTOR_MANAGE_FIREWALL
     inspector_iniset firewall dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
-    inspector_iniset DEFAULT database $IRONIC_INSPECTOR_DATA_DIR/inspector.sqlite
+    inspector_iniset database connection sqlite:///$IRONIC_INSPECTOR_DATA_DIR/inspector.sqlite
 
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI

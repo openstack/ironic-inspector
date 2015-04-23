@@ -11,15 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import tempfile
 import unittest
 
 import mock
 from oslo_config import cfg
+from oslo_db import options as db_opts
 
 from ironic_inspector.common import i18n
 # Import configuration options
 from ironic_inspector import conf  # noqa
+from ironic_inspector import models
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 
@@ -35,23 +36,24 @@ def init_test_conf():
         CONF.reset()
     for group in ('firewall', 'processing', 'ironic'):
         CONF.register_group(cfg.OptGroup(group))
-    if not CONF.database:
+    db_opts.set_defaults(CONF)
+    CONF.set_default('slave_connection', False, group='database')
+    CONF.set_default('max_retries', 10, group='database')
+    if not CONF.database.connection:
         # Might be set in functional tests
-        db_file = tempfile.NamedTemporaryFile()
-        CONF.set_override('database', db_file.name)
-    else:
-        db_file = None
-    node_cache._DB_NAME = None
-    return db_file
+        db_opts.set_defaults(CONF,
+                             connection='sqlite:///')
 
 
 class BaseTest(unittest.TestCase):
     def setUp(self):
         super(BaseTest, self).setUp()
-        self.db_file = init_test_conf()
-        self.db = node_cache._db()
-        if self.db_file:
-            self.addCleanup(lambda: self.db_file.close())
+        init_test_conf()
+        self.session = node_cache.get_session()
+        engine = node_cache.get_engine()
+        models.Base.metadata.create_all(engine)
+        engine.connect()
+        self.addCleanup(node_cache.get_engine().dispose)
         plugins_base._HOOKS_MGR = None
         for name in ('_', '_LI', '_LW', '_LE', '_LC'):
             patch = mock.patch.object(i18n, name, lambda s: s)

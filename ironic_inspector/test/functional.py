@@ -41,8 +41,9 @@ manage_firewall = False
 [processing]
 enable_setting_ipmi_credentials = True
 [DEFAULT]
-database = %(db_file)s
 debug = True
+[database]
+connection = sqlite:///%(db_file)s
 """
 
 
