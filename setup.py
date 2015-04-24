@@ -25,8 +25,11 @@ setup(
     author_email = "dtantsur@redhat.com",
     url = "https://pypi.python.org/pypi/ironic-discoverd",
     packages = ['ironic_discoverd', 'ironic_discoverd.plugins',
-                'ironic_discoverd.test', 'ironic_discoverd.common'],
+                'ironic_discoverd.test', 'ironic_discoverd.common',
+                'ironic_discoverd_ramdisk', 'ironic_discoverd_ramdisk.test'],
     install_requires = install_requires,
+    # because entry points don't work with multiple packages
+    scripts = ['bin/ironic-discoverd-ramdisk'],
     entry_points = {
         'console_scripts': [
             "ironic-discoverd = ironic_discoverd.main:main",
