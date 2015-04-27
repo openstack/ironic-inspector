@@ -241,7 +241,14 @@ def collect_logs(args):
 
 
 def setup_ipmi_credentials(resp):
-    pass  # TODO(dtantsur): implement
+    user, password = resp['ipmi_username'], resp['ipmi_password']
+    if try_call('ipmitool', 'user', 'set', 'name', '2', user) is None:
+        raise RuntimeError('failed to set IPMI user name to %s', user)
+    if try_call('ipmitool', 'user', 'set', 'password', '2', password) is None:
+        raise RuntimeError('failed to set IPMI password')
+    try_call('ipmitool', 'user', 'enable', '2')
+    try_call('ipmitool', 'channel', 'setaccess', '1', '2',
+             'link=on', 'ipmi=on', 'callin=on', 'privilege=4')
 
 
 def fork_and_serve_logs(args):

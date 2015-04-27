@@ -334,3 +334,45 @@ class TestCollectLogs(unittest.TestCase):
         self.assertEqual(
             list(sorted((name[1:], len(name)) for name in files[:2])),
             members)
+
+
+@mock.patch.object(discover, 'try_call', autospec=True)
+class TestSetupIpmiCredentials(unittest.TestCase):
+    def setUp(self):
+        super(TestSetupIpmiCredentials, self).setUp()
+        self.resp = {'ipmi_username': 'user',
+                     'ipmi_password': 'pwd'}
+
+    def test_ok(self, mock_call):
+        mock_call.return_value = ""
+
+        discover.setup_ipmi_credentials(self.resp)
+
+        mock_call.assert_any_call('ipmitool', 'user', 'set', 'name',
+                                  '2', 'user')
+        mock_call.assert_any_call('ipmitool', 'user', 'set', 'password',
+                                  '2', 'pwd')
+        mock_call.assert_any_call('ipmitool', 'user', 'enable', '2')
+        mock_call.assert_any_call('ipmitool', 'channel', 'setaccess', '1', '2',
+                                  'link=on', 'ipmi=on', 'callin=on',
+                                  'privilege=4')
+
+    def test_user_failed(self, mock_call):
+        mock_call.return_value = None
+
+        self.assertRaises(RuntimeError, discover.setup_ipmi_credentials,
+                          self.resp)
+
+        mock_call.assert_called_once_with('ipmitool', 'user', 'set', 'name',
+                                          '2', 'user')
+
+    def test_password_failed(self, mock_call):
+        mock_call.side_effect = iter(("", None))
+
+        self.assertRaises(RuntimeError, discover.setup_ipmi_credentials,
+                          self.resp)
+
+        mock_call.assert_any_call('ipmitool', 'user', 'set', 'name',
+                                  '2', 'user')
+        mock_call.assert_any_call('ipmitool', 'user', 'set', 'password',
+                                  '2', 'pwd')
