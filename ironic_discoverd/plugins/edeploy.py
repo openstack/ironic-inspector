@@ -19,143 +19,25 @@ details on how to use it. Note that this plugin requires a special ramdisk.
 
 import logging
 
-from hardware import matcher
-from hardware import state
-from oslo_config import cfg
-
-from ironic_discoverd.common.i18n import _, _LW
+from ironic_discoverd.common.i18n import _LW
 from ironic_discoverd.plugins import base
-from ironic_discoverd import utils
-
-CONF = cfg.CONF
-
 
 LOG = logging.getLogger('ironic_discoverd.plugins.edeploy')
-
-
-EDEPLOY_OPTS = [
-    cfg.StrOpt('lockname',
-               default='/var/lock/discoverd.lock'),
-    cfg.StrOpt('configdir',
-               default='/etc/edeploy'),
-]
-CONF.register_opts(EDEPLOY_OPTS, group='edeploy')
-
-
-def list_opts():
-    return [
-        ('edeploy', EDEPLOY_OPTS)
-    ]
 
 
 class eDeployHook(base.ProcessingHook):
     """Interact with eDeploy ramdisk for discovery data processing hooks."""
 
-    def before_processing(self, node_info):
-        """Hook to run before data processing.
-
-        Finds matching profile in the database.
-
-        :param node_info: raw information sent by the ramdisk, may be modified
-                          by the hook.
-        :raises: Error if node_info does not contain extended information
-        :returns: nothing.
-        """
-
-        if 'data' not in node_info:
-            raise utils.Error(
-                _('edeploy plugin: no "data" key in the received JSON'))
-
-        LOG.debug('before_processing: %s', node_info['data'])
-
-        hw_items = []
-        for info in node_info['data']:
-            hw_items.append(tuple(info))
-
-        hw_copy = list(hw_items)
-        self._process_data_for_discoverd(hw_copy, node_info)
-        sobj = None
-
-        try:
-            sobj = state.State(CONF.edeploy.lockname)
-            sobj.load(CONF.edeploy.configdir)
-            prof, var = sobj.find_match(hw_items)
-            var['profile'] = prof
-
-            if 'logical_disks' in var:
-                node_info['target_raid_configuration'] = {
-                    'logical_disks': var.pop('logical_disks')}
-
-            if 'bios_settings' in var:
-                node_info['bios_settings'] = var.pop('bios_settings')
-
-            node_info['hardware'] = var
-            node_info['edeploy_facts'] = hw_items
-
-        except Exception as excpt:
-            LOG.warning(_LW(
-                'Unable to find a matching hardware profile: %s'), excpt)
-        finally:
-            if sobj:
-                sobj.save()
-                sobj.unlock()
-        del node_info['data']
-
-    def _process_data_for_discoverd(self, hw_items, node_info):
-        matcher.match_spec(('memory', 'total', 'size', '$memory_mb'),
-                           hw_items, node_info)
-        matcher.match_spec(('cpu', 'logical', 'number', '$cpus'),
-                           hw_items, node_info)
-        matcher.match_spec(('system', 'kernel', 'arch', '$cpu_arch'),
-                           hw_items, node_info)
-        matcher.match_spec(('disk', '$disk', 'size', '$local_gb'),
-                           hw_items, node_info)
-        matcher.match_spec(('ipmi', 'lan', 'ip-address', '$ipmi_address'),
-                           hw_items, node_info)
-        node_info['interfaces'] = {}
-        while True:
-            info = {'ipv4': 'none'}
-            if not matcher.match_spec(('network', '$iface', 'serial', '$mac'),
-                                      hw_items, info):
-                break
-            matcher.match_spec(('network', info['iface'], 'ipv4', '$ipv4'),
-                               hw_items, info)
-            node_info['interfaces'][info['iface']] = {'mac': info['mac'],
-                                                      'ip': info['ipv4']}
-
     def before_update(self, node, ports, node_info):
         """Store the hardware data from what has been discovered."""
 
-        patches = []
-
-        if 'hardware' in node_info:
-            capabilities_dict = utils.capabilities_to_dict(
-                node.properties.get('capabilities'))
-            capabilities_dict['profile'] = node_info['hardware']['profile']
-
-            patches.append({'op': 'add',
-                            'path': '/extra/configdrive_metadata',
-                            'value': {'hardware': node_info['hardware']}})
-            patches.append(
-                {'op': 'add',
-                 'path': '/properties/capabilities',
-                 'value': utils.dict_to_capabilities(capabilities_dict)})
-
-            patches.append(
-                {'op': 'add',
+        if 'data' not in node_info:
+            LOG.warning(_LW('No eDeploy data was received from the ramdisk'))
+            return [], {}
+        # (trown) it is useful for the edeploy report tooling to have the node
+        # uuid stored with the other edeploy_facts
+        node_info['data'].append(['system', 'product',
+                                  'ironic_uuid', node.uuid])
+        return [{'op': 'add',
                  'path': '/extra/edeploy_facts',
-                 'value': node_info['edeploy_facts']})
-
-            if 'target_raid_configuration' in node_info:
-                patches.append(
-                    {'op': 'add',
-                     'path': '/extra/target_raid_configuration',
-                     'value': node_info['target_raid_configuration']})
-
-            if 'bios_settings' in node_info:
-                patches.append(
-                    {'op': 'add',
-                     'path': '/extra/bios_settings',
-                     'value': node_info['bios_settings']})
-
-        return patches, {}
+                 'value': node_info['data']}], {}
