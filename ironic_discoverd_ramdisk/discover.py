@@ -255,7 +255,3 @@ def setup_ipmi_credentials(resp):
     try_call('ipmitool', 'user', 'enable', '2')
     try_call('ipmitool', 'channel', 'setaccess', '1', '2',
              'link=on', 'ipmi=on', 'callin=on', 'privilege=4')
-
-
-def fork_and_serve_logs(args):
-    pass  # TODO(dtantsur): implement

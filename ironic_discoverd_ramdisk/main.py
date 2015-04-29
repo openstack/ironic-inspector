@@ -25,16 +25,11 @@ LOG = logging.getLogger('ironic-discoverd-ramdisk')
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description='Detect present hardware.')
-    parser.add_argument('-p', '--port', type=int, default=8080,
-                        help='Port to serve logs over HTTP')
     parser.add_argument('-L', '--system-log-file', action='append',
                         help='System log file to be sent to discoverd, may be '
                         'specified multiple times')
     parser.add_argument('-l', '--log-file', default='discovery-logs',
                         help='Path to log file, defaults to ./discovery-logs')
-    parser.add_argument('-d', '--daemonize-on-failure', action='store_true',
-                        help='In case of failure, fork off, continue running '
-                        'and serve logs via port set by --port')
     parser.add_argument('--bootif', help='PXE boot interface')
     # Support for edeploy plugin
     parser.add_argument('--use-hardware-detect', action='store_true',
@@ -95,6 +90,4 @@ def main():
             call_error = True
 
     if failures or call_error:
-        if args.daemonize_on_failure:
-            discover.fork_and_serve_logs(args)
         sys.exit(1)
