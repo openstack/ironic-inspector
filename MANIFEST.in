@@ -6,6 +6,7 @@ include test-requirements.txt
 include plugin-requirements.txt
 include tox.ini
 include *.rst
+include babel.cfg
 recursive-include functest *
 recursive-include locale *
 recursive-include devstack *
