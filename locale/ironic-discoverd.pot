@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ironic-discoverd 1.1.0\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2015-03-02 02:49+0000\n"
+"POT-Creation-Date: 2015-04-29 13:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,67 +18,67 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 1.3\n"
 
-#: ironic_discoverd/introspect.py:40
+#: ironic_discoverd/client.py:67 ironic_discoverd/client.py:90
+#, python-format
+msgid "Expected string for uuid argument, got %r"
+msgstr ""
+
+#: ironic_discoverd/client.py:69
+msgid "Setting IPMI user name requires a new password"
+msgstr ""
+
+#: ironic_discoverd/client.py:105
+#, python-format
+msgid "Expected list of strings for uuids argument, got %s"
+msgstr ""
+
+#: ironic_discoverd/introspect.py:39
 msgid "IPMI credentials setup is disabled in configuration"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:44
+#: ironic_discoverd/introspect.py:43
 msgid "Node should be in maintenance mode to set IPMI credentials on it"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:51
+#: ironic_discoverd/introspect.py:50
 #, python-format
 msgid ""
 "Setting IPMI credentials requested for node %s, but neither new user name"
 " nor driver_info[ipmi_username] are provided"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:58
+#: ironic_discoverd/introspect.py:57
 #, python-format
 msgid ""
 "Forbidden characters encountered in new IPMI password for node %(node)s: "
 "\"%(chars)s\"; use only letters and numbers"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:63
+#: ironic_discoverd/introspect.py:62
 #, python-format
 msgid "IPMI password length should be > 0 and <= %d"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:81
+#: ironic_discoverd/introspect.py:80
 #, python-format
 msgid "Cannot find node %s"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:83
+#: ironic_discoverd/introspect.py:82
 #, python-format
 msgid "Cannot get node %(node)s: %(exc)s"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:89
-#, python-format
-msgid ""
-"Refusing to introspect node %(node)s with provision state \"%(state)s\" "
-"and maintenance mode off"
-msgstr ""
-
-#: ironic_discoverd/introspect.py:96
-#, python-format
-msgid ""
-"Refusing to introspect node %(node)s with power state \"%(state)s\" and "
-"maintenance mode off"
-msgstr ""
-
-#: ironic_discoverd/introspect.py:109
+#: ironic_discoverd/introspect.py:93
 #, python-format
 msgid "Failed validation of power interface for node %(node)s, reason: %(reason)s"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:124
+#: ironic_discoverd/introspect.py:108
 msgid "Unexpected exception in background introspection thread"
 msgstr ""
 
-#: ironic_discoverd/introspect.py:158
+#: ironic_discoverd/introspect.py:142
 #, python-format
 msgid ""
 "Failed to power on node %(node)s, check it's power management "
@@ -86,95 +86,127 @@ msgid ""
 "%(exc)s"
 msgstr ""
 
-#: ironic_discoverd/main.py:46
-msgid "Authentication required"
+#: ironic_discoverd/main.py:70 ironic_discoverd/main.py:103
+msgid "Invalid UUID value"
 msgstr ""
 
-#: ironic_discoverd/main.py:51
-msgid "Access denied"
-msgstr ""
-
-#: ironic_discoverd/node_cache.py:115
+#: ironic_discoverd/node_cache.py:118
 #, python-format
 msgid "Some or all of %(name)s's %(value)s are already on introspection"
 msgstr ""
 
-#: ironic_discoverd/node_cache.py:202
+#: ironic_discoverd/node_cache.py:209
 #, python-format
 msgid "Could not find node %s in cache"
 msgstr ""
 
-#: ironic_discoverd/node_cache.py:233
+#: ironic_discoverd/node_cache.py:240
 #, python-format
 msgid "Could not find a node for attributes %s"
 msgstr ""
 
-#: ironic_discoverd/node_cache.py:236
+#: ironic_discoverd/node_cache.py:243
 #, python-format
 msgid "Multiple matching nodes found for attributes %(attr)s: %(found)s"
 msgstr ""
 
-#: ironic_discoverd/node_cache.py:244
+#: ironic_discoverd/node_cache.py:251
 #, python-format
 msgid ""
 "Could not find node %s in introspection cache, probably it's not on "
 "introspection now"
 msgstr ""
 
-#: ironic_discoverd/node_cache.py:249
+#: ironic_discoverd/node_cache.py:256
 #, python-format
 msgid "Introspection for node %(node)s already finished on %(finish)s"
 msgstr ""
 
-#: ironic_discoverd/process.py:54
+#: ironic_discoverd/process.py:56
+#, python-format
+msgid "Unexpected exception during preprocessing in hook %s"
+msgstr ""
+
+#: ironic_discoverd/process.py:65
+#, python-format
+msgid "Look up error: %s"
+msgstr ""
+
+#: ironic_discoverd/process.py:71
+#, python-format
+msgid ""
+"The following failures happened during running pre-processing hooks for "
+"node %(uuid)s:\n"
+"%(failures)s"
+msgstr ""
+
+#: ironic_discoverd/process.py:76
+msgid "Data pre-processing failed"
+msgstr ""
+
+#: ironic_discoverd/process.py:79
+#, python-format
+msgid ""
+"The following failures happened during running pre-processing hooks for "
+"unknown node:\n"
+"%(failures)s"
+msgstr ""
+
+#: ironic_discoverd/process.py:89
 #, python-format
 msgid "Node UUID %s was found in cache, but is not found in Ironic"
 msgstr ""
 
-#: ironic_discoverd/process.py:65
+#: ironic_discoverd/process.py:100
 msgid "Unexpected exception during processing"
 msgstr ""
 
-#: ironic_discoverd/process.py:155
+#: ironic_discoverd/process.py:196
 #, python-format
 msgid ""
 "Failed to validate updated IPMI credentials for node %s, node might "
 "require maintenance"
 msgstr ""
 
-#: ironic_discoverd/process.py:167
+#: ironic_discoverd/process.py:208
 #, python-format
 msgid ""
 "Failed to power off node %(node)s, check it's power management "
 "configuration: %(exc)s"
 msgstr ""
 
-#: ironic_discoverd/process.py:183
+#: ironic_discoverd/utils.py:79
+msgid "Authentication required"
+msgstr ""
+
+#: ironic_discoverd/utils.py:83
+msgid "Access denied"
+msgstr ""
+
+#: ironic_discoverd/utils.py:128
 #, python-format
-msgid "Timeout waiting for node %s to power off after introspection"
+msgid ""
+"Refusing to introspect node %(node)s with provision state \"%(state)s\" "
+"and maintenance mode off"
 msgstr ""
 
-#: ironic_discoverd/plugins/edeploy.py:50
-msgid "edeploy plugin: no \"data\" key in the received JSON"
-msgstr ""
-
-#: ironic_discoverd/plugins/standard.py:37
+#: ironic_discoverd/plugins/standard.py:45
 #, python-format
 msgid "The following required parameters are missing: %s"
 msgstr ""
 
-#: ironic_discoverd/plugins/standard.py:61
+#: ironic_discoverd/plugins/standard.py:92
 msgid "No interfaces supplied by the ramdisk"
 msgstr ""
 
-#: ironic_discoverd/plugins/standard.py:91
+#: ironic_discoverd/plugins/standard.py:120
 #, python-format
 msgid ""
 "No valid interfaces found for node with BMC %(ipmi_address)s, got "
 "%(interfaces)s"
 msgstr ""
 
-#: ironic_discoverd/plugins/standard.py:119
+#: ironic_discoverd/plugins/standard.py:176
 #, python-format
 msgid "Ramdisk reported error: %s"
 msgstr ""
