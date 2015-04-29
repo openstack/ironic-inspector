@@ -230,11 +230,17 @@ def collect_logs(args):
     files = {args.log_file} | set(args.system_log_file or ())
     with tempfile.TemporaryFile() as fp:
         with tarfile.open(fileobj=fp, mode='w:gz') as tar:
+            with tempfile.NamedTemporaryFile() as jrnl_fp:
+                if try_shell("journalctl > '%s'" % jrnl_fp.name) is not None:
+                    tar.add(jrnl_fp.name, arcname='journal')
+                else:
+                    LOG.warn('failed to get system journal')
+
             for fname in files:
                 if os.path.exists(fname):
                     tar.add(fname)
                 else:
-                    LOG.warn('Log file %s does not exist', fname)
+                    LOG.warn('log file %s does not exist', fname)
 
         fp.seek(0)
         return base64.b64encode(fp.read())

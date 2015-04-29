@@ -312,27 +312,51 @@ class TestCallDiscoverd(unittest.TestCase):
         mock_post.return_value.raise_for_status.assert_called_once_with()
 
 
+@mock.patch.object(discover, 'try_shell')
 class TestCollectLogs(unittest.TestCase):
-    def test(self):
+    def _fake_journal_write(self, shell):
+        file_name = shell.rsplit(' ', 1)[1].strip("'")
+        with open(file_name, 'wb') as fp:
+            fp.write(b'journal contents')
+        return ""
+
+    def setUp(self):
+        super(TestCollectLogs, self).setUp()
         temp_dir = tempfile.mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
-        files = [os.path.join(temp_dir, fname)
-                 for fname in ('main', 'log_1', 'log_2')]
-        for fname in files[:2]:
+        self.files = [os.path.join(temp_dir, fname)
+                      for fname in ('main', 'log_1', 'log_2')]
+        for fname in self.files[:2]:
             with open(fname, 'wb') as fp:
                 fp.write(fname.encode())
 
-        fake_args = get_fake_args()
-        fake_args.log_file = files[0]
-        fake_args.system_log_file = files[1:]
+        self.fake_args = get_fake_args()
+        self.fake_args.log_file = self.files[0]
+        self.fake_args.system_log_file = self.files[1:]
 
-        res = discover.collect_logs(fake_args)
+    def test(self, mock_shell):
+        mock_shell.side_effect = self._fake_journal_write
+
+        res = discover.collect_logs(self.fake_args)
         res = io.BytesIO(base64.b64decode(res))
 
         with tarfile.open(fileobj=res) as tar:
             members = list(sorted((m.name, m.size) for m in tar))
         self.assertEqual(
-            list(sorted((name[1:], len(name)) for name in files[:2])),
+            [('journal', 16)] +
+            list(sorted((name[1:], len(name)) for name in self.files[:2])),
+            members)
+
+    def test_no_journal(self, mock_shell):
+        mock_shell.return_value = None
+
+        res = discover.collect_logs(self.fake_args)
+        res = io.BytesIO(base64.b64decode(res))
+
+        with tarfile.open(fileobj=res) as tar:
+            members = list(sorted((m.name, m.size) for m in tar))
+        self.assertEqual(
+            list(sorted((name[1:], len(name)) for name in self.files[:2])),
             members)
 
 
