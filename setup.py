@@ -13,44 +13,44 @@ except EnvironmentError:
     install_requires = []
 
 
-with open('ironic_discoverd/__init__.py', 'rb') as fp:
+with open('ironic_inspector/__init__.py', 'rb') as fp:
     exec(fp.read())
 
 
 setup(
-    name = "ironic-discoverd",
+    name = "ironic-inspector",
     version = __version__,
     description = open('README.rst', 'r').readline().strip(),
     author = "Dmitry Tantsur",
     author_email = "dtantsur@redhat.com",
     url = "https://pypi.python.org/pypi/ironic-discoverd",
-    packages = ['ironic_discoverd', 'ironic_discoverd.plugins',
-                'ironic_discoverd.test', 'ironic_discoverd.common',
-                'ironic_discoverd_ramdisk', 'ironic_discoverd_ramdisk.test'],
+    packages = ['ironic_inspector', 'ironic_inspector.plugins',
+                'ironic_inspector.test', 'ironic_inspector.common',
+                'ironic_inspector_ramdisk', 'ironic_inspector_ramdisk.test'],
     install_requires = install_requires,
     # because entry points don't work with multiple packages
-    scripts = ['bin/ironic-discoverd-ramdisk'],
+    scripts = ['bin/ironic-inspector-ramdisk'],
     entry_points = {
         'console_scripts': [
-            "ironic-discoverd = ironic_discoverd.main:main",
+            "ironic-inspector = ironic_inspector.main:main",
         ],
-        'ironic_discoverd.hooks': [
-            "scheduler = ironic_discoverd.plugins.standard:SchedulerHook",
-            "validate_interfaces = ironic_discoverd.plugins.standard:ValidateInterfacesHook",
-            "ramdisk_error = ironic_discoverd.plugins.standard:RamdiskErrorHook",
-            "example = ironic_discoverd.plugins.example:ExampleProcessingHook",
-            "edeploy = ironic_discoverd.plugins.edeploy:eDeployHook",
-            "root_device_hint = ironic_discoverd.plugins.root_device_hint:RootDeviceHintHook",
+        'ironic_inspector.hooks': [
+            "scheduler = ironic_inspector.plugins.standard:SchedulerHook",
+            "validate_interfaces = ironic_inspector.plugins.standard:ValidateInterfacesHook",
+            "ramdisk_error = ironic_inspector.plugins.standard:RamdiskErrorHook",
+            "example = ironic_inspector.plugins.example:ExampleProcessingHook",
+            "edeploy = ironic_inspector.plugins.edeploy:eDeployHook",
+            "root_device_hint = ironic_inspector.plugins.root_device_hint:RootDeviceHintHook",
         ],
         'openstack.cli.extension': [
-            'baremetal-introspection = ironic_discoverd.shell',
+            'baremetal-introspection = ironic_inspector.shell',
         ],
         'openstack.baremetal_introspection.v1': [
-            "baremetal_introspection_start = ironic_discoverd.shell:StartCommand",
-            "baremetal_introspection_status = ironic_discoverd.shell:StatusCommand",
+            "baremetal_introspection_start = ironic_inspector.shell:StartCommand",
+            "baremetal_introspection_status = ironic_inspector.shell:StatusCommand",
         ],
         'oslo.config.opts': [
-            "ironic_discoverd = ironic_discoverd.conf:list_opts",
+            "ironic_inspector = ironic_inspector.conf:list_opts",
         ],
     },
     classifiers = [

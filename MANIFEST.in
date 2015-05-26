@@ -1,6 +1,6 @@
 include example.conf
 include LICENSE
-include ironic-discoverd.8
+include ironic-inspector.8
 include requirements.txt
 include test-requirements.txt
 include plugin-requirements.txt

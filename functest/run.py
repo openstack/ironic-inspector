@@ -28,20 +28,23 @@ import unittest
 import mock
 import requests
 
-from ironic_discoverd import client
-from ironic_discoverd import main
-from ironic_discoverd.test import base
-from ironic_discoverd import utils
+from ironic_inspector import client
+from ironic_inspector import main
+from ironic_inspector.test import base
+from ironic_inspector import utils
 
 
 CONF = """
-[discoverd]
+[ironic]
 os_auth_url = http://url
 os_username = user
 os_password = password
 os_tenant_name = tenant
+[firewall]
 manage_firewall = False
+[processing]
 enable_setting_ipmi_credentials = True
+[DEFAULT]
 database = %(db_file)s
 """
 

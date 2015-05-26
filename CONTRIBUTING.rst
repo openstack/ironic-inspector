@@ -59,22 +59,22 @@ Github::
 
 Run the service with::
 
-    .tox/py27/bin/ironic-discoverd --config-file example.conf
+    .tox/py27/bin/ironic-inspector --config-file example.conf
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
 
-You can develop and test **ironic-discoverd** using
+You can develop and test **ironic-inspector** using
 `DevStack <http://docs.openstack.org/developer/devstack/>`_ plugin - see
 https://etherpad.openstack.org/p/DiscoverdDevStack for the current status.
 
 Writing a Plugin
 ~~~~~~~~~~~~~~~~
 
-**ironic-discoverd** allows to hook your code into data processing chain after
+**ironic-inspector** allows to hook your code into data processing chain after
 introspection. Inherit ``ProcessingHook`` class defined in
-`ironic_discoverd.plugins.base
-<https://github.com/stackforge/ironic-discoverd/blob/master/ironic_discoverd/plugins/base.py>`_
+`ironic_inspector.plugins.base
+<https://github.com/stackforge/ironic-discoverd/blob/master/ironic_inspector/plugins/base.py>`_
 module and overwrite any or both of the following methods:
 
 ``before_processing(node_info)``

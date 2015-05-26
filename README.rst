@@ -7,14 +7,14 @@ properties discovery is a process of getting hardware parameters required for
 scheduling from a bare metal node, given it's power management credentials
 (e.g. IPMI address, user name and password).
 
-A special *discovery ramdisk* is required to collect the information on a
+A special ramdisk is required to collect the information on a
 node. The default one can be built using diskimage-builder_ and
 `ironic-discoverd-ramdisk element`_ (see Configuration_ below).
 
-Support for **ironic-discoverd** is present in `Tuskar UI`_ --
+Support for **ironic-inspector** is present in `Tuskar UI`_ --
 OpenStack Horizon plugin for TripleO_.
 
-**ironic-discoverd** requires OpenStack Juno (2014.2) release or newer.
+**ironic-inspector** requires OpenStack Kilo (2015.1) release or newer.
 
 Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
 downloads and accessing the released version of this README. Refer to
@@ -27,12 +27,15 @@ CONTRIBUTING.rst_ for instructions on how to contribute.
 .. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
 .. _CONTRIBUTING.rst: https://github.com/stackforge/ironic-discoverd/blob/master/CONTRIBUTING.rst
 
+.. note::
+    **ironic-inspector** was called *ironic-discoverd* before version 2.0.0.
+
 Workflow
 --------
 
 Usual hardware introspection flow is as follows:
 
-* Operator installs undercloud with **ironic-discoverd**
+* Operator installs undercloud with **ironic-inspector**
   (e.g. using instack-undercloud_).
 
 * Operator enrolls nodes into Ironic either manually or by uploading CSV file
@@ -43,19 +46,18 @@ Usual hardware introspection flow is as follows:
   `Node States`_.
 
 * Operator sends nodes on introspection either manually using
-  **ironic-discoverd** API (see Usage_) or again via `Tuskar UI`_.
+  **ironic-inspector** API (see Usage_) or again via `Tuskar UI`_.
 
-* On receiving node UUID **ironic-discoverd**:
+* On receiving node UUID **ironic-inspector**:
 
   * validates node power credentials, current power and provisioning states,
   * allows firewall access to PXE boot service for the nodes,
-  * issues reboot command for the nodes, so that they boot the
-    discovery ramdisk.
+  * issues reboot command for the nodes, so that they boot the ramdisk.
 
-* The discovery ramdisk collects the required information and posts it back
-  to **ironic-discoverd**.
+* The ramdisk collects the required information and posts it back to
+  **ironic-inspector**.
 
-* On receiving data from the discovery ramdisk, **ironic-discoverd**:
+* On receiving data from the ramdisk, **ironic-inspector**:
 
   * validates received data,
   * finds the node in Ironic database using it's BMC address (MAC address in
@@ -63,13 +65,13 @@ Usual hardware introspection flow is as follows:
   * fills missing node properties with received data and creates missing ports.
 
   .. note::
-    **ironic-discoverd** is responsible to create Ironic ports for some or all
-    NIC's found on the node. **ironic-discoverd** is also capable of
+    **ironic-inspector** is responsible to create Ironic ports for some or all
+    NIC's found on the node. **ironic-inspector** is also capable of
     deleting ports that should not be present. There are two important
     configuration options that affect this behavior: ``add_ports`` and
     ``keep_ports`` (please refer to ``example.conf`` for detailed explanation).
 
-    Default values as of **ironic-discoverd** 1.1.0 are ``add_ports=pxe``,
+    Default values as of **ironic-inspector** 1.1.0 are ``add_ports=pxe``,
     ``keep_ports=all``, which means that only one port will be added, which is
     associated with NIC the ramdisk PXE booted from. No ports will be deleted.
     This setting ensures that deploying on introspected nodes will succeed
@@ -96,32 +98,23 @@ package and should be done separately.
 Installation
 ------------
 
-**ironic-discoverd** is available as an RPM from Fedora 22 repositories or from
-Juno (and later) `RDO <https://www.rdoproject.org/>`_ for Fedora 20, 21
-and EPEL 7.  It will be installed and preconfigured if you used
-instack-undercloud_ to build your undercloud.
-Otherwise after enabling required repositories install it using::
+Install from PyPI_ (you may want to use virtualenv to isolate your
+environment)::
 
-    yum install openstack-ironic-discoverd
+    pip install ironic-inspector
 
-To install only Python packages (including the client), use::
-
-    yum install python-ironic-discoverd
-
-Alternatively (e.g. if you need the latest version), you can install package
-from PyPI_ (you may want to use virtualenv to isolate your environment)::
-
-    pip install ironic-discoverd
-
-Finally, there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
-plugin for **ironic-discoverd** - see
+Also there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
+plugin for **ironic-inspector** - see
 https://etherpad.openstack.org/p/DiscoverdDevStack for the current status.
+
+Finally, some distributions (e.g. Fedora) provide **ironic-inspector**
+packaged, some of them - under its old name *ironic-discoverd*.
 
 Configuration
 ~~~~~~~~~~~~~
 
 Copy ``example.conf`` to some permanent place
-(``/etc/ironic-discoverd/discoverd.conf`` is what is used in the RPM).
+(e.g. ``/etc/ironic-inspector/inspector.conf``).
 Fill in at least these configuration values:
 
 * ``os_username``, ``os_password``, ``os_tenant_name`` - Keystone credentials
@@ -130,7 +123,7 @@ Fill in at least these configuration values:
 * ``os_auth_url``, ``identity_uri`` - Keystone endpoints for validating
   authentication tokens and checking user roles;
 
-* ``database`` - where you want **ironic-discoverd** SQLite database
+* ``database`` - where you want **ironic-inspector** SQLite database
   to be placed;
 
 * ``dnsmasq_interface`` - interface on which ``dnsmasq`` (or another DHCP
@@ -160,8 +153,8 @@ As for PXE boot environment, you'll need:
   is always advised).
 
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
-  **ironic-discoverd**. Don't do any firewall configuration:
-  **ironic-discoverd** will handle it for you. In **ironic-discoverd**
+  **ironic-inspector**. Don't do any firewall configuration:
+  **ironic-inspector** will handle it for you. In **ironic-inspector**
   configuration file set ``dnsmasq_interface`` to the interface your
   PXE boot server listens on. Here is an example *dnsmasq.conf*::
 
@@ -191,15 +184,17 @@ As for PXE boot environment, you'll need:
     instead of ``discoverd_callback_url``. Modify ``pxelinux.cfg/default``
     accordingly if you have one of these.
 
-Here is *discoverd.conf* you may end up with::
+Here is *inspector.conf* you may end up with::
 
-    [discoverd]
+    [DEFAULT]
     debug = false
+    [ironic]
     identity_uri = http://127.0.0.1:35357
     os_auth_url = http://127.0.0.1:5000/v2.0
     os_username = admin
     os_password = password
     os_tenant_name = admin
+    [firewall]
     dnsmasq_interface = br-ctlplane
 
 .. note::
@@ -211,40 +206,41 @@ Here is *discoverd.conf* you may end up with::
 Running
 ~~~~~~~
 
-If you installed **ironic-discoverd** from the RPM, you already have
+If you installed **ironic-inspector** from the RPM, you might already have
 a *systemd* unit, so you can::
 
-    systemctl enable openstack-ironic-discoverd
-    systemctl start openstack-ironic-discoverd
+    systemctl enable openstack-ironic-inspector
+    systemctl start openstack-ironic-inspector
 
 Otherwise run as ``root``::
 
-    ironic-discoverd --config-file /etc/ironic-discoverd/discoverd.conf
+    ironic-inspector --config-file /etc/ironic-inspector/inspector.conf
 
 .. note::
-    Running as ``root`` is not required if **ironic-discoverd** does not
+    Running as ``root`` is not required if **ironic-inspector** does not
     manage the firewall (i.e. ``manage_firewall`` is set to ``false`` in the
     configuration file).
 
 A good starting point for writing your own *systemd* unit should be `one used
-in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/plain/openstack-ironic-discoverd.service>`_.
+in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/plain/openstack-ironic-discoverd.service>`_
+(note usage of old name).
 
 Usage
 -----
 
-**ironic-discoverd** has a simple client library for Python and a CLI tool
+**ironic-inspector** has a simple client library for Python and a CLI tool
 bundled with it.
 
-Client library is in module ``ironic_discoverd.client``, every call
+Client library is in module ``ironic_inspector.client``, every call
 accepts additional optional arguments:
 
-* ``base_url`` **ironic-discoverd** API endpoint, defaults to
+* ``base_url`` **ironic-inspector** API endpoint, defaults to
   ``127.0.0.1:5050``,
 * ``auth_token`` Keystone authentication token.
 
 CLI tool is based on OpenStackClient_ with prefix
 ``openstack baremetal introspection``. Accepts optional argument
-``--discoverd-url`` with the **ironic-discoverd** API endpoint.
+``--inspector-url`` with the **ironic-inspector** API endpoint.
 
 * **Start introspection on a node**:
 
@@ -256,7 +252,7 @@ CLI tool is based on OpenStackClient_ with prefix
 
   * ``uuid`` - Ironic node UUID;
   * ``new_ipmi_username`` and ``new_ipmi_password`` - if these are set,
-    **ironic-discoverd** will switch to manual power on and assigning IPMI
+    **ironic-inspector** will switch to manual power on and assigning IPMI
     credentials on introspection. See `Setting IPMI Credentials`_ for details.
 
 * **Query introspection status**:
@@ -279,7 +275,7 @@ Using from Ironic API
 ~~~~~~~~~~~~~~~~~~~~~
 
 Ironic Kilo introduced support for hardware introspection under name of
-"inspection". **ironic-discoverd** introspection is supported for some generic
+"inspection". **ironic-inspector** introspection is supported for some generic
 drivers, please refer to `Ironic inspection documentation`_ for details.
 
 Node States
@@ -312,17 +308,17 @@ Node States
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you have physical access to your nodes, you can use **ironic-discoverd** to
+If you have physical access to your nodes, you can use **ironic-inspector** to
 set IPMI credentials for them without knowing the original ones. The workflow
 is as follows:
 
 * Ensure nodes will PXE boot on the right network by default.
 
-* Set ``enable_setting_ipmi_credentials = true`` in the **ironic-discoverd**
+* Set ``enable_setting_ipmi_credentials = true`` in the **ironic-inspector**
   configuration file.
 
 * Enroll nodes in Ironic with setting their ``ipmi_address`` only. This step
-  allows **ironic-discoverd** to distinguish nodes.
+  allows **ironic-inspector** to distinguish nodes.
 
 * Set maintenance mode on nodes. That's an important step, otherwise Ironic
   might interfere with introspection process.
@@ -336,16 +332,16 @@ is as follows:
 * Manually power on the nodes and wait.
 
 * After introspection is finished (watch nodes power state or use
-  **ironic-discoverd** status API) you can turn maintenance mode off.
+  **ironic-inspector** status API) you can turn maintenance mode off.
 
 Note that due to various limitations on password value in different BMC,
-**ironic-discoverd** will only accept passwords with length between 1 and 20
+**ironic-inspector** will only accept passwords with length between 1 and 20
 consisting only of letters and numbers.
 
 Plugins
 ~~~~~~~
 
-**ironic-discoverd** heavily relies on plugins for data processing. Even the
+**ironic-inspector** heavily relies on plugins for data processing. Even the
 standard functionality is largely based on plugins. Set ``processing_hooks``
 option in the configuration file to change the set of plugins to be run on
 introspection data. Note that order does matter in this option.
@@ -389,7 +385,7 @@ Errors when starting introspection
 
   In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
   defaults to reporting provision state ``AVAILABLE`` for newly enrolled
-  nodes.  **ironic-discoverd** will refuse to conduct introspection in
+  nodes.  **ironic-inspector** will refuse to conduct introspection in
   this state, as such nodes are supposed to be used by Nova for scheduling.
   See `Node States`_ for instructions on how to put nodes into
   the correct state.
@@ -403,7 +399,7 @@ There may be 3 reasons why introspection can time out after some time
 #. Fatal failure in processing chain before node was found in the local cache.
    See `Troubleshooting data processing`_ for the hints.
 
-#. Failure to load discovery ramdisk on the target node. See `Troubleshooting
+#. Failure to load the ramdisk on the target node. See `Troubleshooting
    PXE boot`_ for the hints.
 
 #. Failure during ramdisk run. See `Troubleshooting ramdisk run`_ for the
@@ -411,17 +407,19 @@ There may be 3 reasons why introspection can time out after some time
 
 Troubleshooting data processing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-In this case **ironic-discoverd** logs should give a good idea what went wrong.
+In this case **ironic-inspector** logs should give a good idea what went wrong.
 E.g. for RDO or Fedora the following command will output the full log::
 
-    sudo journalctl -u openstack-ironic-discoverd
+    sudo journalctl -u openstack-ironic-inspector
+
+(use ``openstack-ironic-discoverd`` for version < 2.0.0).
 
 .. note::
     Service name and specific command might be different for other Linux
-    distributions.
+    distributions (and for old version of **ironic-inspector**).
 
 If ``ramdisk_error`` plugin is enabled and ``ramdisk_logs_dir`` configuration
-option is set, **ironic-discoverd** will store logs received from the ramdisk
+option is set, **ironic-inspector** will store logs received from the ramdisk
 to the ``ramdisk_logs_dir`` directory. This depends, however, on the ramdisk
 implementation.
 
@@ -436,7 +434,9 @@ on. You may need to restart introspection.
 Another source of information is DHCP and TFTP server logs. Their location
 depends on how the servers were installed and run. For RDO or Fedora use::
 
-    $ sudo journalctl -u openstack-ironic-discoverd-dnsmasq
+    $ sudo journalctl -u openstack-ironic-inspector-dnsmasq
+
+(use ``openstack-ironic-discoverd-dnsmasq`` for version < 2.0.0).
 
 The last resort is ``tcpdump`` utility. Use something like
 ::
@@ -458,7 +458,7 @@ sure that:
    propagating,
 
 #. there is no additional firewall rules preventing access to port 67 on the
-   machine where *ironic-discoverd* and its DHCP server are installed.
+   machine where *ironic-inspector* and its DHCP server are installed.
 
 If you see node receiving DHCP address and then failing to get kernel and/or
 ramdisk or to boot them, make sure that:

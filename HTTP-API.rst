@@ -1,7 +1,7 @@
 HTTP API
 --------
 
-By default **ironic-discoverd** listens on ``0.0.0.0:5050``, port
+By default **ironic-inspector** listens on ``0.0.0.0:5050``, port
 can be changed in configuration. Protocol is JSON over HTTP.
 
 The HTTP API consist of these endpoints:
@@ -17,7 +17,7 @@ Requires X-Auth-Token header with Keystone token for authentication.
 
 Optional parameters:
 
-* ``new_ipmi_password`` if set, **ironic-discoverd** will try to set IPMI
+* ``new_ipmi_password`` if set, **ironic-inspector** will try to set IPMI
   password on the machine to this value. Power credentials validation will be
   skipped and manual power on will be required. See `Setting IPMI
   credentials`_ for details.
@@ -28,7 +28,7 @@ Optional parameters:
 
 Response:
 
-* 202 - accepted discovery request
+* 202 - accepted introspection request
 * 400 - bad request
 * 401, 403 - missing or invalid authentication
 * 404 - node cannot be found
@@ -36,7 +36,7 @@ Response:
 Get Introspection Status
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-``GET /v1/introspection/<UUID>`` get hardware discovery status.
+``GET /v1/introspection/<UUID>`` get hardware introspection status.
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
@@ -49,14 +49,14 @@ Response:
 
 Response body: JSON dictionary with keys:
 
-* ``finished`` (boolean) whether discovery is finished
+* ``finished`` (boolean) whether introspection is finished
 * ``error`` error string or ``null``
 
 Ramdisk Callback
 ~~~~~~~~~~~~~~~~
 
-``POST /v1/continue`` internal endpoint for the discovery ramdisk to post
-back discovered data. Should not be used for anything other than implementing
+``POST /v1/continue`` internal endpoint for the ramdisk to post back
+discovered data. Should not be used for anything other than implementing
 the ramdisk. Request body: JSON dictionary with at least these keys:
 
 * ``cpus`` number of CPU
