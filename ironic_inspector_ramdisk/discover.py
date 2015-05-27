@@ -156,14 +156,14 @@ def discover_scheduling_properties(data, failures):
         data['memory_mb'] = total_ram
         LOG.info('total RAM: %s MiB', total_ram)
     else:
-        failures.add('failed to get RAM information')
+        LOG.warn('failed to get RAM information')
 
     for key in ('cpus', 'local_gb', 'memory_mb'):
         try:
             data[key] = int(data[key])
         except (KeyError, ValueError, TypeError):
-            failures.add('value for %s is missing or malformed: %s',
-                         key, data.get(key))
+            LOG.warn('value for %s is missing or malformed: %s',
+                     key, data.get(key))
             data[key] = None
 
     # FIXME(dtantsur): -1 is required to give Ironic some spacing for
@@ -171,7 +171,7 @@ def discover_scheduling_properties(data, failures):
     if data['local_gb']:
         data['local_gb'] = data['local_gb'] / 1024 / 1024 / 1024 - 1
         if data['local_gb'] < 1:
-            failures.add('local_gb is less than 1 GiB')
+            LOG.warn('local_gb is less than 1 GiB')
             data['local_gb'] = None
 
 
