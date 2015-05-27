@@ -21,6 +21,18 @@ class TestRootDeviceHint(test_base.NodeTest):
         super(TestRootDeviceHint, self).setUp()
         self.hook = root_device_hint.RootDeviceHintHook()
 
+    def test_missing_local_gb(self):
+        node_info = {}
+        self.hook.before_processing(node_info)
+
+        self.assertEqual(1, node_info['local_gb'])
+
+    def test_local_gb_not_changes(self):
+        node_info = {'local_gb': 42}
+        self.hook.before_processing(node_info)
+
+        self.assertEqual(42, node_info['local_gb'])
+
     def test_no_previous_block_devices(self):
         node_info = {'block_devices': {'serials': ['foo', 'bar']}}
         node_patches, _ = self.hook.before_update(self.node, None, node_info)

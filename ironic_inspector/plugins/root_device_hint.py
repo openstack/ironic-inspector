@@ -37,7 +37,19 @@ class RootDeviceHintHook(base.ProcessingHook):
     information about the created RAID disks. Using this plugin immediately
     before and after creating the root RAID device will solve the issue of root
     device hints.
+
+    In cases where there's no RAID volume on the node, the standard plugin will
+    fail due to the missing local_gb value. This plugin fakes the missing
+    value, until it's corrected during later runs. Note, that for this to work
+    the plugin needs to take precedence over the standard plugin.
     """
+
+    def before_processing(self, node_info):
+        """Adds fake local_gb value if it's missing from node_info."""
+        if not node_info.get('local_gb'):
+            LOG.info(_LI('No volume is found on the node. Adding a fake '
+                         'value for "local_gb"'))
+            node_info['local_gb'] = 1
 
     def before_update(self, node, ports, node_info):
         if 'block_devices' not in node_info:
