@@ -169,6 +169,15 @@ SERVICE_OPTS = [
                help='Amount of time in seconds, after which repeat clean up '
                     'of timed out nodes and old nodes status information.',
                deprecated_group='discoverd'),
+    cfg.BoolOpt('use_ssl',
+                default=False,
+                help='SSL Enabled/Disabled'),
+    cfg.StrOpt('ssl_cert_path',
+               default='',
+               help='Path to SSL certificate'),
+    cfg.StrOpt('ssl_key_path',
+               default='',
+               help='Path to SSL key'),
 ]
 
 
