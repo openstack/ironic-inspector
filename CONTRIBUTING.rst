@@ -64,9 +64,78 @@ Run the service with::
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
 
-You can develop and test **ironic-inspector** using
-`DevStack <http://docs.openstack.org/developer/devstack/>`_ plugin - see
-https://etherpad.openstack.org/p/DiscoverdDevStack for the current status.
+You can develop and test **ironic-inspector** using DevStack - see
+`DevStack Support`_ for the current status.
+
+DevStack Support
+~~~~~~~~~~~~~~~~
+
+`DevStack <http://docs.openstack.org/developer/devstack/>`_ provides a way to
+quickly build full OpenStack development environment with requested
+components. There is a plugin for installing **ironic-inspector** on DevStack.
+
+Example local.conf
+------------------
+
+::
+
+    [[local|localrc]]
+    enable_service ironic ir-api ir-cond
+    disable_service n-net n-novnc
+    enable_service neutron q-svc q-agt q-dhcp q-l3 q-meta
+    disable_service heat h-api h-api-cfn h-api-cw h-eng
+
+    enable_plugin ironic-inspector https://github.com/stackforge/ironic-discoverd
+
+    IRONIC_BAREMETAL_BASIC_OPS=True
+    IRONIC_VM_COUNT=2
+    IRONIC_VM_SPECS_RAM=1024
+    IRONIC_DEPLOY_FLAVOR="fedora deploy-ironic"
+
+    IRONIC_INSPECTOR_RAMDISK_FLAVOR="fedora ironic-discoverd-ramdisk"
+
+    VIRT_DRIVER=ironic
+
+    LOGDAYS=1
+    LOGFILE=~/logs/stack.sh.log
+    SCREEN_LOGDIR=~/logs/screen
+
+    DEFAULT_INSTANCE_TYPE=baremetal
+    TEMPEST_ALLOW_TENANT_ISOLATION=False
+
+Notes
+-----
+
+* Replace "fedora" with whatever you have
+
+* You need at least 1G of RAM for VMs, default value of 512 MB won't work
+
+* Network configuration is pretty sensitive, better not to touch it
+  without deep understanding
+
+* Before restarting stack.sh::
+
+    rm -rf /opt/stack/ironic-inspector
+
+Test
+----
+
+There is a test script included::
+
+    source devstack/openrc admin admin
+    /opt/stack/ironic-inspector/functest/devstack-test.sh
+
+Usage
+-----
+
+Start introspection for a node manually::
+
+    source devstack/openrc admin admin
+    openstack baremetal introspection start <UUID>
+
+Then check status via API::
+
+    openstack baremetal introspection status <UUID>
 
 Writing a Plugin
 ~~~~~~~~~~~~~~~~

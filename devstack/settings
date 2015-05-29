@@ -1,1 +1,1 @@
-enable_service ironic-discoverd ironic-discoverd-dhcp
+enable_service ironic-inspector ironic-inspector-dhcp

@@ -104,8 +104,7 @@ environment)::
     pip install ironic-inspector
 
 Also there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
-plugin for **ironic-inspector** - see
-https://etherpad.openstack.org/p/DiscoverdDevStack for the current status.
+plugin for **ironic-inspector** - see CONTRIBUTING.rst_ for the current status.
 
 Finally, some distributions (e.g. Fedora) provide **ironic-inspector**
 packaged, some of them - under its old name *ironic-discoverd*.
