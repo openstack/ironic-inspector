@@ -48,7 +48,7 @@ class BaseTest(test_base.NodeTest):
 
 
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
-@mock.patch.object(eventlet.greenthread, 'spawn_n',
+@mock.patch.object(utils, 'spawn_n',
                    lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
@@ -244,7 +244,7 @@ class TestIntrospect(BaseTest):
         self.assertFalse(add_mock.called)
 
 
-@mock.patch.object(eventlet.greenthread, 'spawn_n',
+@mock.patch.object(utils, 'spawn_n',
                    lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)

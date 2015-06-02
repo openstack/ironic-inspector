@@ -178,6 +178,9 @@ SERVICE_OPTS = [
     cfg.StrOpt('ssl_key_path',
                default='',
                help='Path to SSL key'),
+    cfg.IntOpt('max_concurrency',
+               default=1000,
+               help='The green thread pool size.')
 ]
 
 

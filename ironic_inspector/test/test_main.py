@@ -181,7 +181,7 @@ class TestPlugins(unittest.TestCase):
                       plugins_base.processing_hooks_manager())
 
 
-@mock.patch.object(eventlet.greenthread, 'spawn_n')
+@mock.patch.object(utils, 'spawn_n')
 @mock.patch.object(firewall, 'init')
 @mock.patch.object(utils, 'add_auth_middleware')
 @mock.patch.object(utils, 'get_client')
