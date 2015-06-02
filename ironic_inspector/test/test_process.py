@@ -347,6 +347,17 @@ class TestProcessNode(BaseTest):
         return process._process_node(self.cli, self.node, self.data,
                                      self.cached_node)
 
+    def test_return_includes_uuid(self, filters_mock, post_hook_mock):
+        ret_val = self.call()
+        self.assertEqual(self.uuid, ret_val.get('uuid'))
+
+    def test_return_includes_uuid_with_ipmi_creds(self, filters_mock,
+                                                  post_hook_mock):
+        self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
+        ret_val = self.call()
+        self.assertEqual(self.uuid, ret_val.get('uuid'))
+        self.assertTrue(ret_val.get('ipmi_setup_credentials'))
+
     def test_wrong_provision_state(self, filters_mock, post_hook_mock):
         self.node.provision_state = 'active'
         self.assertRaises(utils.Error, self.call)

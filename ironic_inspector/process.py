@@ -153,18 +153,21 @@ def _process_node(ironic, node, node_info, cached_node):
 
     firewall.update_filters(ironic)
 
+    resp = {'uuid': node.uuid}
+
     if cached_node.options.get('new_ipmi_credentials'):
         new_username, new_password = (
             cached_node.options.get('new_ipmi_credentials'))
         utils.spawn_n(_finish_set_ipmi_credentials,
                       ironic, node, cached_node, node_info,
                       new_username, new_password)
-        return {'ipmi_setup_credentials': True,
-                'ipmi_username': new_username,
-                'ipmi_password': new_password}
+        resp['ipmi_setup_credentials'] = True
+        resp['ipmi_username'] = new_username
+        resp['ipmi_password'] = new_password
     else:
         utils.spawn_n(_finish, ironic, cached_node)
-        return {}
+
+    return resp
 
 
 def _finish_set_ipmi_credentials(ironic, node, cached_node, node_info,
