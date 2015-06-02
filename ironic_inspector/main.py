@@ -17,6 +17,7 @@ eventlet.monkey_patch()
 import functools
 import json
 import logging
+import ssl
 import sys
 
 import flask
@@ -168,6 +169,37 @@ def init():
         LOG.warning(_LW('Timeout is disabled in configuration'))
 
 
+def create_ssl_context():
+    if not CONF.use_ssl:
+        return
+
+    MIN_VERSION = (2, 7, 9)
+
+    if sys.version_info < MIN_VERSION:
+        LOG.warning(_LW('Unable to use SSL in this version of Python: '
+                        '%{current}, please ensure your version of Python is '
+                        'greater than %{min} to enable this feature.'),
+                    {'current': '.'.join(map(str, sys.version_info[:3])),
+                     'min': '.'.join(map(str, MIN_VERSION))})
+        return
+
+    context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+    if CONF.ssl_cert_path and CONF.ssl_key_path:
+        try:
+            context.load_cert_chain(CONF.ssl_cert_path, CONF.ssl_key_path)
+        except IOError as exc:
+            LOG.warning(_LW('Failed to load certificate or key from defined '
+                            'locations: %{cert} and %{key}, will continue to '
+                            'run with the default settings: %{exc}'),
+                        {'cert': CONF.ssl_cert_path, 'key': CONF.ssl_key_path,
+                         'exc': exc})
+        except ssl.SSLError as exc:
+            LOG.warning(_LW('There was a problem with the loaded certificate '
+                            'and key, will continue to run with the default '
+                            'settings: %s'), exc)
+    return context
+
+
 def main(args=sys.argv[1:]):  # pragma: no cover
     CONF(args, project='ironic-inspector')
     debug = CONF.debug
@@ -180,10 +212,16 @@ def main(args=sys.argv[1:]):  # pragma: no cover
     logging.getLogger('ironicclient.common.http').setLevel(
         logging.INFO if debug else logging.ERROR)
 
+    app_kwargs = {'debug': debug,
+                  'host': CONF.listen_address,
+                  'port': CONF.listen_port}
+
+    context = create_ssl_context()
+    if context:
+        app_kwargs['ssl_context'] = context
+
     init()
     try:
-        app.run(debug=debug,
-                host=CONF.listen_address,
-                port=CONF.listen_port)
+        app.run(**app_kwargs)
     finally:
         firewall.clean_up()

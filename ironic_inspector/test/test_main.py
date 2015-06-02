@@ -12,6 +12,8 @@
 # limitations under the License.
 
 import json
+import ssl
+import sys
 import unittest
 
 import eventlet
@@ -242,3 +244,86 @@ class TestInit(test_base.BaseTest):
 
         self.assertRaises(SystemExit, main.init)
         mock_log.assert_called_once_with(mock.ANY, "'foo!'")
+
+
+class TestCreateSSLContext(test_base.BaseTest):
+
+    def test_use_ssl_false(self):
+        CONF.set_override('use_ssl', False)
+        con = main.create_ssl_context()
+        self.assertIsNone(con)
+
+    @mock.patch.object(sys, 'version_info')
+    def test_old_python_returns_none(self, mock_version_info):
+        mock_version_info.__lt__.return_value = True
+        CONF.set_override('use_ssl', True)
+        con = main.create_ssl_context()
+        self.assertIsNone(con)
+
+    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
+                     'This feature is unsupported in this version of python '
+                     'so the tests will be skipped')
+    @mock.patch.object(ssl, 'create_default_context', autospec=True)
+    def test_use_ssl_true(self, mock_cdc):
+        CONF.set_override('use_ssl', True)
+        m_con = mock_cdc()
+        con = main.create_ssl_context()
+        self.assertEqual(m_con, con)
+
+    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
+                     'This feature is unsupported in this version of python '
+                     'so the tests will be skipped')
+    @mock.patch.object(ssl, 'create_default_context', autospec=True)
+    def test_only_key_path_provided(self, mock_cdc):
+        CONF.set_override('use_ssl', True)
+        CONF.set_override('ssl_key_path', '/some/fake/path')
+        mock_context = mock_cdc()
+        con = main.create_ssl_context()
+        self.assertEqual(mock_context, con)
+        self.assertFalse(mock_context.load_cert_chain.called)
+
+    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
+                     'This feature is unsupported in this version of python '
+                     'so the tests will be skipped')
+    @mock.patch.object(ssl, 'create_default_context', autospec=True)
+    def test_only_cert_path_provided(self, mock_cdc):
+        CONF.set_override('use_ssl', True)
+        CONF.set_override('ssl_cert_path', '/some/fake/path')
+        mock_context = mock_cdc()
+        con = main.create_ssl_context()
+        self.assertEqual(mock_context, con)
+        self.assertFalse(mock_context.load_cert_chain.called)
+
+    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
+                     'This feature is unsupported in this version of python '
+                     'so the tests will be skipped')
+    @mock.patch.object(ssl, 'create_default_context', autospec=True)
+    def test_both_paths_provided(self, mock_cdc):
+        key_path = '/some/fake/path/key'
+        cert_path = '/some/fake/path/cert'
+        CONF.set_override('use_ssl', True)
+        CONF.set_override('ssl_key_path', key_path)
+        CONF.set_override('ssl_cert_path', cert_path)
+        mock_context = mock_cdc()
+        con = main.create_ssl_context()
+        self.assertEqual(mock_context, con)
+        mock_context.load_cert_chain.assert_called_once_with(cert_path,
+                                                             key_path)
+
+    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
+                     'This feature is unsupported in this version of python '
+                     'so the tests will be skipped')
+    @mock.patch.object(ssl, 'create_default_context', autospec=True)
+    def test_load_cert_chain_fails(self, mock_cdc):
+        CONF.set_override('use_ssl', True)
+        key_path = '/some/fake/path/key'
+        cert_path = '/some/fake/path/cert'
+        CONF.set_override('use_ssl', True)
+        CONF.set_override('ssl_key_path', key_path)
+        CONF.set_override('ssl_cert_path', cert_path)
+        mock_context = mock_cdc()
+        mock_context.load_cert_chain.side_effect = IOError('Boom!')
+        con = main.create_ssl_context()
+        self.assertEqual(mock_context, con)
+        mock_context.load_cert_chain.assert_called_once_with(cert_path,
+                                                             key_path)
