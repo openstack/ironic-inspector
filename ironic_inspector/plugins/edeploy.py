@@ -13,7 +13,7 @@
 
 """eDeploy hardware detection and classification plugin.
 
-See https://blueprints.launchpad.net/ironic-discoverd/+spec/edeploy for
+See https://blueprints.launchpad.net/ironic-inspector/+spec/edeploy for
 details on how to use it. Note that this plugin requires a special ramdisk.
 """
 

@@ -23,7 +23,7 @@ CONTRIBUTING.rst_ for instructions on how to contribute.
 .. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
 .. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
 .. _TripleO: https://wiki.openstack.org/wiki/TripleO
-.. _launchpad: https://bugs.launchpad.net/ironic-discoverd
+.. _launchpad: https://bugs.launchpad.net/ironic-inspector
 .. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
 .. _CONTRIBUTING.rst: https://github.com/stackforge/ironic-discoverd/blob/master/CONTRIBUTING.rst
 
