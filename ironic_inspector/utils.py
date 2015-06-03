@@ -46,10 +46,15 @@ class Error(Exception):
 
 def get_client():  # pragma: no cover
     """Get Ironic client instance."""
-    args = dict({'os_password': CONF.ironic.os_password,
-                 'os_username': CONF.ironic.os_username,
-                 'os_auth_url': CONF.ironic.os_auth_url,
-                 'os_tenant_name': CONF.ironic.os_tenant_name})
+    # NOTE: To support standalone ironic without keystone
+    if CONF.ironic.auth_strategy == 'noauth':
+        args = dict({'os_auth_token': 'noauth',
+                     'ironic_url': CONF.ironic.ironic_url})
+    else:
+        args = dict({'os_password': CONF.ironic.os_password,
+                     'os_username': CONF.ironic.os_username,
+                     'os_auth_url': CONF.ironic.os_auth_url,
+                     'os_tenant_name': CONF.ironic.os_tenant_name})
     return client.get_client(1, **args)
 
 

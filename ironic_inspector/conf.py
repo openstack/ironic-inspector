@@ -50,6 +50,15 @@ IRONIC_OPTS = [
                help='Amount of time between attempts to connect to Ironic '
                     'on start up.',
                deprecated_group='discoverd'),
+    cfg.StrOpt('auth_strategy',
+               default='keystone',
+               choices=('keystone', 'noauth'),
+               help='Method to use for authentication: noauth or keystone.'),
+    cfg.StrOpt('ironic_url',
+               default='http://localhost:6385/',
+               help='Ironic API URL, used to set Ironic API URL when '
+                    'auth_strategy option is noauth to work with standalone '
+                    'Ironic without keystone.'),
 ]
 
 
