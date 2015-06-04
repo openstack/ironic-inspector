@@ -16,7 +16,6 @@
 import logging
 import string
 
-import eventlet
 from ironicclient import exceptions
 from oslo_config import cfg
 
@@ -109,7 +108,7 @@ def introspect(uuid, new_ipmi_credentials=None):
             LOG.exception(msg)
             cached_node.finished(error=msg)
 
-    eventlet.greenthread.spawn_n(_handle_exceptions)
+    utils.spawn_n(_handle_exceptions)
 
 
 def _background_introspect(ironic, cached_node):

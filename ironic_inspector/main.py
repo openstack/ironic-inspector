@@ -160,11 +160,11 @@ def init():
     if CONF.firewall.manage_firewall:
         firewall.init()
         period = CONF.firewall.firewall_update_period
-        eventlet.greenthread.spawn_n(periodic_update, period)
+        utils.spawn_n(periodic_update, period)
 
     if CONF.timeout > 0:
         period = CONF.clean_up_period
-        eventlet.greenthread.spawn_n(periodic_clean_up, period)
+        utils.spawn_n(periodic_clean_up, period)
     else:
         LOG.warning(_LW('Timeout is disabled in configuration'))
 

@@ -16,11 +16,15 @@ import unittest
 import eventlet
 from ironicclient import exceptions
 from keystonemiddleware import auth_token
-import mock
 from oslo_config import cfg
 
 from ironic_inspector.test import base
 from ironic_inspector import utils
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 CONF = cfg.CONF
 
@@ -124,3 +128,24 @@ class TestCapabilities(unittest.TestCase):
         output = utils.dict_to_capabilities(capabilities_dict)
         self.assertIn('cat:meow', output)
         self.assertIn('dog:wuff', output)
+
+
+class TestSpawnN(unittest.TestCase):
+
+    def setUp(self):
+        super(TestSpawnN, self).setUp()
+        utils.GREEN_POOL = None
+
+    @mock.patch('eventlet.greenpool.GreenPool', autospec=True)
+    def test_spawn_n(self, mock_green_pool):
+        greenpool = mock_green_pool.return_value
+        func = lambda x: x
+
+        utils.spawn_n(func, "hello")
+        self.assertEqual(greenpool, utils.GREEN_POOL)
+        greenpool.spawn_n.assert_called_with(func, "hello")
+
+        utils.spawn_n(func, "goodbye")
+        greenpool.spawn_n.assert_called_with(func, "goodbye")
+
+        mock_green_pool.assert_called_once_with(CONF.max_concurrency)

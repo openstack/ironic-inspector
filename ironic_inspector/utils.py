@@ -34,6 +34,8 @@ LOG = logging.getLogger('ironic_inspector.utils')
 RETRY_COUNT = 12
 RETRY_DELAY = 5
 
+GREEN_POOL = None
+
 
 class Error(Exception):
     """Inspector exception."""
@@ -42,6 +44,13 @@ class Error(Exception):
         super(Error, self).__init__(msg)
         LOG.error(msg)
         self.http_code = code
+
+
+def spawn_n(*args, **kwargs):
+    global GREEN_POOL
+    if not GREEN_POOL:
+        GREEN_POOL = eventlet.greenpool.GreenPool(CONF.max_concurrency)
+    return GREEN_POOL.spawn_n(*args, **kwargs)
 
 
 def get_client():  # pragma: no cover

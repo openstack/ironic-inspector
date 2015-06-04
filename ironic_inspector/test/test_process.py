@@ -305,7 +305,7 @@ class TestProcess(BaseTest):
         self.assertFalse(pop_mock.return_value.finished.called)
 
 
-@mock.patch.object(eventlet.greenthread, 'spawn_n',
+@mock.patch.object(utils, 'spawn_n',
                    lambda f, *a: f(*a) and None)
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
