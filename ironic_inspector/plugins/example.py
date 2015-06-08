@@ -22,8 +22,10 @@ LOG = logging.getLogger('ironic_inspector.plugins.example')
 
 
 class ExampleProcessingHook(base.ProcessingHook):  # pragma: no cover
-    def before_processing(self, introspection_data):
+    def before_processing(self, introspection_data, **kwargs):
         LOG.debug('before_processing: %s', introspection_data)
 
-    def before_update(self, node, ports, introspection_data):
-        LOG.debug('before_update: %s (node %s)', introspection_data, node.uuid)
+    def before_update(self, introspection_data, node_info, node_patches,
+                      ports_patches, **kwargs):
+        LOG.debug('before_update: %s (node %s)', introspection_data,
+                  node_info.uuid)

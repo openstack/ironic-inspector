@@ -75,3 +75,6 @@ class NodeTest(BaseTest):
                               extra={},
                               instance_uuid=None,
                               maintenance=False)
+        self.ports = []
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
+                                             node=self.node, ports=self.ports)

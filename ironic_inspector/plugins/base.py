@@ -27,39 +27,46 @@ CONF = cfg.CONF
 class ProcessingHook(object):  # pragma: no cover
     """Abstract base class for introspection data processing hooks."""
 
-    def before_processing(self, introspection_data):
+    def before_processing(self, introspection_data, **kwargs):
         """Hook to run before any other data processing.
 
         This hook is run even before sanity checks.
 
         :param introspection_data: raw information sent by the ramdisk,
                                    may be modified by the hook.
+        :param kwargs: used for extensibility without breaking existing hooks
         :returns: nothing.
         """
 
-    def before_update(self, node, ports, introspection_data):
+    def before_update(self, introspection_data, node_info, node_patches,
+                      ports_patches, **kwargs):
         """Hook to run before Ironic node update.
 
         This hook is run after node is found and ports are created,
         just before the node is updated with the data.
 
-        :param node: Ironic node as returned by the Ironic client, should not
-                     be modified directly by the hook.
-        :param ports: Ironic ports created by inspector, also should not be
-                      updated directly.
+        To update node and/or ports use *node_patches* and *ports_patches*
+        arguments.
+
         :param introspection_data: processed data from the ramdisk.
-        :returns: tuple (node patches, port patches) where
-                  *node_patches* is a list of JSON patches [RFC 6902] to apply
-                  to the node, *port_patches* is a dict where keys are
-                  port MAC's, values are lists of JSON patches, e.g.
-                  ::
-                      (
-                       [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}],
-                       {'11:22:33:44:55:55': [
-                            {'op': 'add', 'path': '/extra/foo', 'value': 'bar'}
-                        ]}
-                      )
-                  [RFC 6902] - http://tools.ietf.org/html/rfc6902
+        :param node_info: NodeInfo instance.
+        :param node_patches: list of JSON patches [RFC 6902] to apply
+                             to the node, e.g.
+                             ::
+                               [{'op': 'add',
+                                 'path': '/extra/foo',
+                                 'value': 'bar'}]
+        :param ports_patches: dict where keys are port MAC's,
+                              values are lists of JSON patches, e.g.
+                              ::
+                                {'11:22:33:44:55:55': [
+                                  {'op': 'add', 'path': '/extra/foo',
+                                  'value': 'bar'}
+                                ]}
+        :param kwargs: used for extensibility without breaking existing hooks
+        :returns: nothing.
+
+        [RFC 6902] - http://tools.ietf.org/html/rfc6902
         """
 
 

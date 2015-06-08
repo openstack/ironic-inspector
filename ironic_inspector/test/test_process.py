@@ -305,6 +305,7 @@ class TestProcess(BaseTest):
         self.assertFalse(pop_mock.return_value.finished.called)
 
 
+@mock.patch.object(node_cache.NodeInfo, 'invalidate_cache', lambda self: None)
 @mock.patch.object(utils, 'spawn_n',
                    lambda f, *a: f(*a) and None)
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
@@ -322,7 +323,8 @@ class TestProcessNode(BaseTest):
         self.data['all_interfaces'] = self.data['interfaces']
         self.ports = self.all_ports
         self.node_info = node_cache.NodeInfo(uuid=self.uuid,
-                                             started_at=self.started_at)
+                                             started_at=self.started_at,
+                                             node=self.node)
         self.patch_props = [
             {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
@@ -378,11 +380,8 @@ class TestProcessNode(BaseTest):
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
 
-        post_hook_mock.assert_called_once_with(self.node, mock.ANY,
-                                               self.data)
-        # List is built from a dict - order is undefined
-        self.assertEqual(self.ports, sorted(post_hook_mock.call_args[0][1],
-                                            key=lambda p: p.address))
+        post_hook_mock.assert_called_once_with(self.data, self.node_info,
+                                               self.patch_props, {})
         finished_mock.assert_called_once_with(mock.ANY)
 
     def test_overwrite_disabled(self, filters_mock, post_hook_mock):
@@ -436,14 +435,15 @@ class TestProcessNode(BaseTest):
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_props)
 
-        post_hook_mock.assert_called_once_with(self.node, self.ports[1:],
-                                               self.data)
-
     def test_hook_patches(self, filters_mock, post_hook_mock):
         node_patches = ['node patch1', 'node patch2']
         port_patch = ['port patch']
-        post_hook_mock.return_value = (node_patches,
-                                       {self.macs[1]: port_patch})
+
+        def fake_hook(data, node_info, node_p, ports_p):
+            node_p.extend(node_patches)
+            ports_p.setdefault(self.macs[1], []).extend(port_patch)
+
+        post_hook_mock.side_effect = fake_hook
 
         self.call()
 

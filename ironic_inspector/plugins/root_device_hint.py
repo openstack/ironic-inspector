@@ -44,21 +44,24 @@ class RootDeviceHintHook(base.ProcessingHook):
     the plugin needs to take precedence over the standard plugin.
     """
 
-    def before_processing(self, introspection_data):
+    def before_processing(self, introspection_data, **kwargs):
         """Adds fake local_gb value if it's missing from introspection_data."""
         if not introspection_data.get('local_gb'):
             LOG.info(_LI('No volume is found on the node. Adding a fake '
                          'value for "local_gb"'))
             introspection_data['local_gb'] = 1
 
-    def before_update(self, node, ports, introspection_data):
+    def before_update(self, introspection_data, node_info, node_patches,
+                      ports_patches, **kwargs):
         if 'block_devices' not in introspection_data:
             LOG.warning(_LW('No block device was received from ramdisk'))
-            return [], {}
+            return
+
+        node = node_info.node()
 
         if 'root_device' in node.properties:
             LOG.info(_LI('Root device is already known for the node'))
-            return [], {}
+            return
 
         if 'block_devices' in node.extra:
             # Compare previously discovered devices with the current ones
@@ -70,24 +73,22 @@ class RootDeviceHintHook(base.ProcessingHook):
             if len(new_devices) > 1:
                 LOG.warning(_LW('Root device cannot be identified because '
                             'multiple new devices were found'))
-                return [], {}
+                return
             elif len(new_devices) == 0:
                 LOG.warning(_LW('No new devices were found'))
-                return [], {}
+                return
 
-            return [
+            node_patches.extend([
                 {'op': 'remove',
                  'path': '/extra/block_devices'},
                 {'op': 'add',
                  'path': '/properties/root_device',
                  'value': {'serial': new_devices[0]}}
-            ], {}
+            ])
 
         else:
             # No previously discovered devices - save the inspector block
             # devices in node.extra
-            return [
-                {'op': 'add',
-                 'path': '/extra/block_devices',
-                 'value': introspection_data['block_devices']}
-            ], {}
+            node_patches.append({'op': 'add',
+                                 'path': '/extra/block_devices',
+                                 'value': introspection_data['block_devices']})

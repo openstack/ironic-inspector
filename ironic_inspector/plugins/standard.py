@@ -37,7 +37,7 @@ class SchedulerHook(base.ProcessingHook):
 
     KEYS = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb')
 
-    def before_processing(self, introspection_data):
+    def before_processing(self, introspection_data, **kwargs):
         """Validate that required properties are provided by the ramdisk."""
         missing = [key for key in self.KEYS if not introspection_data.get(key)]
         if missing:
@@ -49,14 +49,15 @@ class SchedulerHook(base.ProcessingHook):
                      'memory %(memory_mb)s MiB, disk %(local_gb)s GiB'),
                  {key: introspection_data.get(key) for key in self.KEYS})
 
-    def before_update(self, node, ports, introspection_data):
+    def before_update(self, introspection_data, node_info, node_patches,
+                      ports_patches, **kwargs):
         """Update node with scheduler properties."""
         overwrite = CONF.processing.overwrite_existing
-        patch = [{'op': 'add', 'path': '/properties/%s' % key,
-                  'value': str(introspection_data[key])}
-                 for key in self.KEYS
-                 if overwrite or not node.properties.get(key)]
-        return patch, {}
+        patches = [{'op': 'add', 'path': '/properties/%s' % key,
+                    'value': str(introspection_data[key])}
+                   for key in self.KEYS
+                   if overwrite or not node_info.node().properties.get(key)]
+        node_patches.extend(patches)
 
 
 class ValidateInterfacesHook(base.ProcessingHook):
@@ -77,7 +78,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           'actual': CONF.processing.keep_ports})
             sys.exit(1)
 
-    def before_processing(self, introspection_data):
+    def before_processing(self, introspection_data, **kwargs):
         """Validate information about network interfaces."""
         bmc_address = introspection_data.get('ipmi_address')
         if not introspection_data.get('interfaces'):
@@ -128,7 +129,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
         valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
         introspection_data['macs'] = valid_macs
 
-    def before_update(self, node, ports, introspection_data):
+    def before_update(self, introspection_data, node_info, node_patches,
+                      ports_patches, **kwargs):
         """Drop ports that are not present in the data."""
         if CONF.processing.keep_ports == 'present':
             expected_macs = {
@@ -141,7 +143,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
             return
 
         ironic = utils.get_client()
-        for port in ironic.node.list_ports(node.uuid, limit=0):
+        for port in node_info.ports():
             if port.address not in expected_macs:
                 LOG.info(_LI("Deleting port %(port)s as its MAC %(mac)s is "
                              "not in expected MAC list %(expected)s for node "
@@ -149,7 +151,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                          {'port': port.uuid,
                           'mac': port.address,
                           'expected': list(sorted(expected_macs)),
-                          'node': node.uuid})
+                          'node': node_info.uuid})
                 ironic.port.delete(port.uuid)
 
 
@@ -158,7 +160,7 @@ class RamdiskErrorHook(base.ProcessingHook):
 
     DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
 
-    def before_processing(self, introspection_data):
+    def before_processing(self, introspection_data, **kwargs):
         error = introspection_data.get('error')
         logs = introspection_data.get('logs')
 

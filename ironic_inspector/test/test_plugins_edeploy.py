@@ -21,14 +21,21 @@ class TestEdeploy(test_base.NodeTest):
         super(TestEdeploy, self).setUp()
         self.hook = edeploy.eDeployHook()
 
+    def _before_update(self, introspection_data):
+        node_patches = []
+        ports_patches = {}
+        self.hook.before_update(introspection_data, self.node_info,
+                                node_patches, ports_patches)
+        self.assertFalse(ports_patches)
+        return node_patches
+
     def test_data_recieved(self):
         introspection_data = {
             'data': [['memory', 'total', 'size', '4294967296'],
                      ['cpu', 'physical', 'number', '1'],
                      ['cpu', 'logical', 'number', '1']]}
         self.hook.before_processing(introspection_data)
-        node_patches, _ = self.hook.before_update(self.node, None,
-                                                  introspection_data)
+        node_patches = self._before_update(introspection_data)
 
         expected_value = [['memory', 'total', 'size', '4294967296'],
                           ['cpu', 'physical', 'number', '1'],
@@ -44,6 +51,5 @@ class TestEdeploy(test_base.NodeTest):
     def test_no_data_recieved(self):
         introspection_data = {'cats': 'meow'}
         self.hook.before_processing(introspection_data)
-        node_patches, _ = self.hook.before_update(self.node, None,
-                                                  introspection_data)
-        self.assertEqual(0, len(node_patches))
+        node_patches = self._before_update(introspection_data)
+        self.assertFalse(node_patches)

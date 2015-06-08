@@ -103,24 +103,18 @@ def process(introspection_data):
         raise utils.Error(msg)
 
 
-def _run_post_hooks(node, ports, introspection_data):
+def _run_post_hooks(node_info, introspection_data):
     hooks = plugins_base.processing_hooks_manager()
-    port_instances = list(ports.values())
 
     node_patches = []
     port_patches = {}
     for hook_ext in hooks:
-        hook_patch = hook_ext.obj.before_update(node, port_instances,
-                                                introspection_data)
-        if not hook_patch:
-            continue
-
-        node_patches.extend(hook_patch[0])
-        port_patches.update(hook_patch[1])
+        hook_ext.obj.before_update(introspection_data, node_info,
+                                   node_patches, port_patches)
 
     node_patches = [p for p in node_patches if p]
     port_patches = {mac: patch for (mac, patch) in port_patches.items()
-                    if mac in ports and patch}
+                    if patch}
     return node_patches, port_patches
 
 
@@ -129,7 +123,6 @@ def _process_node(ironic, node, introspection_data, node_info):
     utils.check_provision_state(node)
 
     ports = {}
-    ironic = utils.get_client()
     for mac in (introspection_data.get('macs') or ()):
         try:
             port = ironic.port.create(node_uuid=node.uuid, address=mac)
@@ -140,10 +133,10 @@ def _process_node(ironic, node, introspection_data, node_info):
                             'database - skipping') %
                         {'mac': mac, 'node': node.uuid})
 
-    node_patches, port_patches = _run_post_hooks(node, ports,
-                                                 introspection_data)
-    # Invalidate cache in case of hooks modifying options
+    # NOTE(dtanstur): make sure plugins get the latest information
     node_info.invalidate_cache()
+    node_patches, port_patches = _run_post_hooks(node_info,
+                                                 introspection_data)
 
     node = utils.retry_on_conflict(ironic.node.update, node.uuid, node_patches)
     for mac, patches in port_patches.items():
