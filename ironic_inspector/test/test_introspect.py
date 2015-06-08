@@ -37,8 +37,8 @@ class BaseTest(test_base.NodeTest):
                                      power_state='power on',
                                      provision_state='foobar')
         self.ports = [mock.Mock(address=m) for m in self.macs]
-        self.cached_node = mock.Mock(uuid=self.uuid, options={})
-        self.cached_node.ports.return_value = self.ports
+        self.node_info = mock.Mock(uuid=self.uuid, options={})
+        self.node_info.ports.return_value = self.ports
 
     def _prepare(self, client_mock):
         cli = client_mock.return_value
@@ -56,7 +56,7 @@ class BaseTest(test_base.NodeTest):
 class TestIntrospect(BaseTest):
     def test_ok(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
 
         introspect.introspect(self.node.uuid)
 
@@ -65,9 +65,9 @@ class TestIntrospect(BaseTest):
 
         add_mock.assert_called_once_with(self.uuid,
                                          bmc_address=self.bmc_address)
-        self.cached_node.ports.assert_called_once_with(cli)
-        self.cached_node.add_attribute.assert_called_once_with('mac',
-                                                               self.macs)
+        self.node_info.ports.assert_called_once_with(cli)
+        self.node_info.add_attribute.assert_called_once_with('mac',
+                                                             self.macs)
         filters_mock.assert_called_with(cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
@@ -79,7 +79,7 @@ class TestIntrospect(BaseTest):
 
     def test_ok_ilo_and_drac(self, client_mock, add_mock, filters_mock):
         self._prepare(client_mock)
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
 
         for name in ('ilo_address', 'drac_host'):
             self.node.driver_info = {name: self.bmc_address}
@@ -96,13 +96,13 @@ class TestIntrospect(BaseTest):
                                                 None]
         cli.node.set_power_state.side_effect = [exceptions.Conflict,
                                                 None]
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
 
         introspect.introspect(self.node.uuid)
 
         cli.node.get.assert_called_once_with(self.uuid)
         cli.node.validate.assert_called_with(self.uuid)
-        self.cached_node.ports.assert_called_once_with(cli)
+        self.node_info.ports.assert_called_once_with(cli)
 
         add_mock.assert_called_once_with(self.uuid,
                                          bmc_address=self.bmc_address)
@@ -117,7 +117,7 @@ class TestIntrospect(BaseTest):
         cli = self._prepare(client_mock)
         cli.node.set_boot_device.side_effect = exceptions.BadRequest()
         cli.node.set_power_state.side_effect = exceptions.BadRequest()
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
 
         introspect.introspect(self.node.uuid)
 
@@ -135,7 +135,7 @@ class TestIntrospect(BaseTest):
 
     def test_unexpected_error(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
         filters_mock.side_effect = RuntimeError()
 
         introspect.introspect(self.node.uuid)
@@ -176,15 +176,15 @@ class TestIntrospect(BaseTest):
     def test_no_macs(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
         self.ports[:] = []
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
 
         introspect.introspect(self.node.uuid)
 
-        self.cached_node.ports.assert_called_once_with(cli)
+        self.node_info.ports.assert_called_once_with(cli)
 
         add_mock.assert_called_once_with(self.uuid,
                                          bmc_address=self.bmc_address)
-        self.assertFalse(self.cached_node.add_attribute.called)
+        self.assertFalse(self.node_info.add_attribute.called)
         self.assertFalse(filters_mock.called)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
@@ -204,7 +204,7 @@ class TestIntrospect(BaseTest):
                                 'Cannot get node',
                                 introspect.introspect, self.uuid)
 
-        self.assertEqual(0, self.cached_node.ports.call_count)
+        self.assertEqual(0, self.node_info.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)
@@ -222,7 +222,7 @@ class TestIntrospect(BaseTest):
             introspect.introspect, self.uuid)
 
         cli.node.validate.assert_called_once_with(self.uuid)
-        self.assertEqual(0, self.cached_node.ports.call_count)
+        self.assertEqual(0, self.node_info.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)
@@ -237,7 +237,7 @@ class TestIntrospect(BaseTest):
             'node %s with provision state "active"' % self.uuid,
             introspect.introspect, self.uuid)
 
-        self.assertEqual(0, self.cached_node.ports.call_count)
+        self.assertEqual(0, self.node_info.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)
@@ -254,12 +254,12 @@ class TestSetIpmiCredentials(BaseTest):
         CONF.set_override('enable_setting_ipmi_credentials', True,
                           'processing')
         self.new_creds = ('user', 'password')
-        self.cached_node.options['new_ipmi_credentials'] = self.new_creds
+        self.node_info.options['new_ipmi_credentials'] = self.new_creds
         self.node.maintenance = True
 
     def test_ok(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
 
         introspect.introspect(self.uuid, new_ipmi_credentials=self.new_creds)
 
@@ -289,7 +289,7 @@ class TestSetIpmiCredentials(BaseTest):
 
     def test_default_username(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
-        add_mock.return_value = self.cached_node
+        add_mock.return_value = self.node_info
         self.node.driver_info['ipmi_username'] = self.new_creds[0]
 
         introspect.introspect(self.uuid,

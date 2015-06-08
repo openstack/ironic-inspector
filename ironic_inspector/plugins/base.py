@@ -27,17 +27,17 @@ CONF = cfg.CONF
 class ProcessingHook(object):  # pragma: no cover
     """Abstract base class for introspection data processing hooks."""
 
-    def before_processing(self, node_info):
+    def before_processing(self, introspection_data):
         """Hook to run before any other data processing.
 
         This hook is run even before sanity checks.
 
-        :param node_info: raw information sent by the ramdisk, may be modified
-                          by the hook.
+        :param introspection_data: raw information sent by the ramdisk,
+                                   may be modified by the hook.
         :returns: nothing.
         """
 
-    def before_update(self, node, ports, node_info):
+    def before_update(self, node, ports, introspection_data):
         """Hook to run before Ironic node update.
 
         This hook is run after node is found and ports are created,
@@ -47,7 +47,7 @@ class ProcessingHook(object):  # pragma: no cover
                      be modified directly by the hook.
         :param ports: Ironic ports created by inspector, also should not be
                       updated directly.
-        :param node_info: processed data from the ramdisk.
+        :param introspection_data: processed data from the ramdisk.
         :returns: tuple (node patches, port patches) where
                   *node_patches* is a list of JSON patches [RFC 6902] to apply
                   to the node, *port_patches* is a dict where keys are
@@ -76,9 +76,10 @@ def processing_hooks_manager(*args):
         names = [x.strip()
                  for x in CONF.processing.processing_hooks.split(',')
                  if x.strip()]
-        _HOOKS_MGR = named.NamedExtensionManager('ironic_inspector.hooks',
-                                                 names=names,
-                                                 invoke_on_load=True,
-                                                 invoke_args=args,
-                                                 name_order=True)
+        _HOOKS_MGR = named.NamedExtensionManager(
+            'ironic_inspector.hooks.processing',
+            names=names,
+            invoke_on_load=True,
+            invoke_args=args,
+            name_order=True)
     return _HOOKS_MGR

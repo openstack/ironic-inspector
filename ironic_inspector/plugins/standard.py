@@ -37,9 +37,9 @@ class SchedulerHook(base.ProcessingHook):
 
     KEYS = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb')
 
-    def before_processing(self, node_info):
+    def before_processing(self, introspection_data):
         """Validate that required properties are provided by the ramdisk."""
-        missing = [key for key in self.KEYS if not node_info.get(key)]
+        missing = [key for key in self.KEYS if not introspection_data.get(key)]
         if missing:
             raise utils.Error(
                 _('The following required parameters are missing: %s') %
@@ -47,13 +47,13 @@ class SchedulerHook(base.ProcessingHook):
 
         LOG.info(_LI('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
                      'memory %(memory_mb)s MiB, disk %(local_gb)s GiB'),
-                 {key: node_info.get(key) for key in self.KEYS})
+                 {key: introspection_data.get(key) for key in self.KEYS})
 
-    def before_update(self, node, ports, node_info):
+    def before_update(self, node, ports, introspection_data):
         """Update node with scheduler properties."""
         overwrite = CONF.processing.overwrite_existing
         patch = [{'op': 'add', 'path': '/properties/%s' % key,
-                  'value': str(node_info[key])}
+                  'value': str(introspection_data[key])}
                  for key in self.KEYS
                  if overwrite or not node.properties.get(key)]
         return patch, {}
@@ -77,18 +77,18 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           'actual': CONF.processing.keep_ports})
             sys.exit(1)
 
-    def before_processing(self, node_info):
+    def before_processing(self, introspection_data):
         """Validate information about network interfaces."""
-        bmc_address = node_info.get('ipmi_address')
-        if not node_info.get('interfaces'):
+        bmc_address = introspection_data.get('ipmi_address')
+        if not introspection_data.get('interfaces'):
             raise utils.Error(_('No interfaces supplied by the ramdisk'))
 
         valid_interfaces = {
-            n: iface for n, iface in node_info['interfaces'].items()
+            n: iface for n, iface in introspection_data['interfaces'].items()
             if utils.is_valid_mac(iface.get('mac'))
         }
 
-        pxe_mac = node_info.get('boot_interface')
+        pxe_mac = introspection_data.get('boot_interface')
 
         if CONF.processing.add_ports == 'pxe' and pxe_mac:
             LOG.info(_LI('PXE boot interface was %s'), pxe_mac)
@@ -111,30 +111,32 @@ class ValidateInterfacesHook(base.ProcessingHook):
             raise utils.Error(_('No valid interfaces found for node with '
                                 'BMC %(ipmi_address)s, got %(interfaces)s') %
                               {'ipmi_address': bmc_address,
-                               'interfaces': node_info['interfaces']})
-        elif valid_interfaces != node_info['interfaces']:
+                               'interfaces': introspection_data['interfaces']})
+        elif valid_interfaces != introspection_data['interfaces']:
+            invalid = {n: iface
+                       for n, iface in introspection_data['interfaces'].items()
+                       if n not in valid_interfaces}
             LOG.warning(_LW(
                 'The following interfaces were invalid or not eligible in '
                 'introspection data for node with BMC %(ipmi_address)s and '
                 'were excluded: %(invalid)s'),
-                {'invalid': {n: iface
-                             for n, iface in node_info['interfaces'].items()
-                             if n not in valid_interfaces},
-                 'ipmi_address': bmc_address})
+                {'invalid': invalid, 'ipmi_address': bmc_address})
             LOG.info(_LI('Eligible interfaces are %s'), valid_interfaces)
 
-        node_info['all_interfaces'] = node_info['interfaces']
-        node_info['interfaces'] = valid_interfaces
+        introspection_data['all_interfaces'] = introspection_data['interfaces']
+        introspection_data['interfaces'] = valid_interfaces
         valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
-        node_info['macs'] = valid_macs
+        introspection_data['macs'] = valid_macs
 
-    def before_update(self, node, ports, node_info):
+    def before_update(self, node, ports, introspection_data):
         """Drop ports that are not present in the data."""
         if CONF.processing.keep_ports == 'present':
-            expected_macs = {iface['mac']
-                             for iface in node_info['all_interfaces'].values()}
+            expected_macs = {
+                iface['mac']
+                for iface in introspection_data['all_interfaces'].values()
+            }
         elif CONF.processing.keep_ports == 'added':
-            expected_macs = set(node_info['macs'])
+            expected_macs = set(introspection_data['macs'])
         else:
             return
 
@@ -156,17 +158,17 @@ class RamdiskErrorHook(base.ProcessingHook):
 
     DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
 
-    def before_processing(self, node_info):
-        error = node_info.get('error')
-        logs = node_info.get('logs')
+    def before_processing(self, introspection_data):
+        error = introspection_data.get('error')
+        logs = introspection_data.get('logs')
 
         if logs and (error or CONF.processing.always_store_ramdisk_logs):
-            self._store_logs(logs, node_info)
+            self._store_logs(logs, introspection_data)
 
         if error:
             raise utils.Error(_('Ramdisk reported error: %s') % error)
 
-    def _store_logs(self, logs, node_info):
+    def _store_logs(self, logs, introspection_data):
         if not CONF.processing.ramdisk_logs_dir:
             LOG.warn(_LW('Failed to store logs received from the ramdisk '
                          'because ramdisk_logs_dir configuration option '
@@ -177,7 +179,7 @@ class RamdiskErrorHook(base.ProcessingHook):
             os.makedirs(CONF.processing.ramdisk_logs_dir)
 
         time_fmt = datetime.datetime.utcnow().strftime(self.DATETIME_FORMAT)
-        bmc_address = node_info.get('ipmi_address', 'unknown')
+        bmc_address = introspection_data.get('ipmi_address', 'unknown')
         file_name = 'bmc_%s_%s' % (bmc_address, time_fmt)
         with open(os.path.join(CONF.processing.ramdisk_logs_dir, file_name),
                   'wb') as fp:

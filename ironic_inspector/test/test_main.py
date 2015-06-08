@@ -170,11 +170,11 @@ class TestPlugins(unittest.TestCase):
         plugins_base._HOOKS_MGR = None
         CONF.set_override('processing_hooks', 'example', 'processing')
         mgr = plugins_base.processing_hooks_manager()
-        mgr.map_method('before_processing', 'node_info')
-        mock_pre.assert_called_once_with(mock.ANY, 'node_info')
-        mgr.map_method('before_update', 'node', ['port'], 'node_info')
+        mgr.map_method('before_processing', 'introspection_data')
+        mock_pre.assert_called_once_with(mock.ANY, 'introspection_data')
+        mgr.map_method('before_update', 'node', ['port'], 'introspection_data')
         mock_post.assert_called_once_with(mock.ANY, 'node', ['port'],
-                                          'node_info')
+                                          'introspection_data')
 
     def test_manager_is_cached(self):
         self.assertIs(plugins_base.processing_hooks_manager(),

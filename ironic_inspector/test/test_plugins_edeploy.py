@@ -22,11 +22,13 @@ class TestEdeploy(test_base.NodeTest):
         self.hook = edeploy.eDeployHook()
 
     def test_data_recieved(self):
-        node_info = {'data': [['memory', 'total', 'size', '4294967296'],
-                              ['cpu', 'physical', 'number', '1'],
-                              ['cpu', 'logical', 'number', '1']]}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {
+            'data': [['memory', 'total', 'size', '4294967296'],
+                     ['cpu', 'physical', 'number', '1'],
+                     ['cpu', 'logical', 'number', '1']]}
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         expected_value = [['memory', 'total', 'size', '4294967296'],
                           ['cpu', 'physical', 'number', '1'],
@@ -40,7 +42,8 @@ class TestEdeploy(test_base.NodeTest):
                          node_patches[0]['value'])
 
     def test_no_data_recieved(self):
-        node_info = {'cats': 'meow'}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {'cats': 'meow'}
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
         self.assertEqual(0, len(node_patches))

@@ -28,16 +28,16 @@ LOG = logging.getLogger('ironic_inspector.plugins.edeploy')
 class eDeployHook(base.ProcessingHook):
     """Processing hook for saving additional data from eDeploy ramdisk."""
 
-    def before_update(self, node, ports, node_info):
+    def before_update(self, node, ports, introspection_data):
         """Store the hardware data from what has been discovered."""
 
-        if 'data' not in node_info:
+        if 'data' not in introspection_data:
             LOG.warning(_LW('No eDeploy data was received from the ramdisk'))
             return [], {}
         # (trown) it is useful for the edeploy report tooling to have the node
         # uuid stored with the other edeploy_facts
-        node_info['data'].append(['system', 'product',
-                                  'ironic_uuid', node.uuid])
+        introspection_data['data'].append(['system', 'product',
+                                           'ironic_uuid', node.uuid])
         return [{'op': 'add',
                  'path': '/extra/edeploy_facts',
-                 'value': node_info['data']}], {}
+                 'value': introspection_data['data']}], {}

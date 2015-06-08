@@ -22,33 +22,35 @@ class TestRootDeviceHint(test_base.NodeTest):
         self.hook = root_device_hint.RootDeviceHintHook()
 
     def test_missing_local_gb(self):
-        node_info = {}
-        self.hook.before_processing(node_info)
+        introspection_data = {}
+        self.hook.before_processing(introspection_data)
 
-        self.assertEqual(1, node_info['local_gb'])
+        self.assertEqual(1, introspection_data['local_gb'])
 
     def test_local_gb_not_changes(self):
-        node_info = {'local_gb': 42}
-        self.hook.before_processing(node_info)
+        introspection_data = {'local_gb': 42}
+        self.hook.before_processing(introspection_data)
 
-        self.assertEqual(42, node_info['local_gb'])
+        self.assertEqual(42, introspection_data['local_gb'])
 
     def test_no_previous_block_devices(self):
-        node_info = {'block_devices': {'serials': ['foo', 'bar']}}
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {'block_devices': {'serials': ['foo', 'bar']}}
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         self.assertEqual('add',
                          node_patches[0]['op'])
         self.assertEqual('/extra/block_devices',
                          node_patches[0]['path'])
-        self.assertEqual(node_info['block_devices'],
+        self.assertEqual(introspection_data['block_devices'],
                          node_patches[0]['value'])
 
     def test_root_device_found(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
-        node_info = {'block_devices': {'serials': ['foo', 'baz']}}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {'block_devices': {'serials': ['foo', 'baz']}}
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         self.assertEqual('remove',
                          node_patches[0]['op'])
@@ -63,31 +65,37 @@ class TestRootDeviceHint(test_base.NodeTest):
 
     def test_root_device_already_exposed(self):
         self.node.properties['root_device'] = {'serial': 'foo'}
-        node_info = {'block_devices': {'serials': ['foo', 'baz']}}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {'block_devices': {'serials': ['foo', 'baz']}}
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         self.assertEqual(0, len(node_patches))
 
     def test_multiple_new_devices(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
-        node_info = {'block_devices': {'serials': ['foo', 'baz', 'qux']}}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {
+            'block_devices': {'serials': ['foo', 'baz', 'qux']}
+        }
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         self.assertEqual(0, len(node_patches))
 
     def test_no_new_devices(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
-        node_info = {'block_devices': {'serials': ['foo', 'bar']}}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {'block_devices': {'serials': ['foo', 'bar']}}
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         self.assertEqual(0, len(node_patches))
 
     def test_no_block_devices_from_ramdisk(self):
-        node_info = {}
-        self.hook.before_processing(node_info)
-        node_patches, _ = self.hook.before_update(self.node, None, node_info)
+        introspection_data = {}
+        self.hook.before_processing(introspection_data)
+        node_patches, _ = self.hook.before_update(self.node, None,
+                                                  introspection_data)
 
         self.assertEqual(0, len(node_patches))

@@ -321,8 +321,8 @@ class TestProcessNode(BaseTest):
         self.data['macs'] = self.macs  # validate_interfaces hook
         self.data['all_interfaces'] = self.data['interfaces']
         self.ports = self.all_ports
-        self.cached_node = node_cache.NodeInfo(uuid=self.uuid,
-                                               started_at=self.started_at)
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid,
+                                             started_at=self.started_at)
         self.patch_props = [
             {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
@@ -347,7 +347,7 @@ class TestProcessNode(BaseTest):
     def call(self, mock_cli):
         mock_cli.return_value = self.cli
         return process._process_node(self.cli, self.node, self.data,
-                                     self.cached_node)
+                                     self.node_info)
 
     def test_return_includes_uuid(self, filters_mock, post_hook_mock):
         ret_val = self.call()
@@ -355,7 +355,7 @@ class TestProcessNode(BaseTest):
 
     def test_return_includes_uuid_with_ipmi_creds(self, filters_mock,
                                                   post_hook_mock):
-        self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
+        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
         ret_val = self.call()
         self.assertEqual(self.uuid, ret_val.get('uuid'))
         self.assertTrue(ret_val.get('ipmi_setup_credentials'))
@@ -454,7 +454,7 @@ class TestProcessNode(BaseTest):
                                                      port_patch)
 
     def test_set_ipmi_credentials(self, filters_mock, post_hook_mock):
-        self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
+        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
 
         self.call()
 
@@ -466,7 +466,7 @@ class TestProcessNode(BaseTest):
 
     def test_set_ipmi_credentials_no_address(self, filters_mock,
                                              post_hook_mock):
-        self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
+        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
         del self.node.driver_info['ipmi_address']
         self.patch_credentials.append({'op': 'add',
                                        'path': '/driver_info/ipmi_address',
@@ -483,7 +483,7 @@ class TestProcessNode(BaseTest):
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_set_ipmi_credentials_timeout(self, finished_mock,
                                           filters_mock, post_hook_mock):
-        self.cached_node.set_option('new_ipmi_credentials', self.new_creds)
+        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
         self.cli.node.get_boot_device.side_effect = RuntimeError('boom')
 
         self.assertRaisesRegexp(utils.Error, 'Failed to validate',

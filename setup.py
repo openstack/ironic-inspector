@@ -34,7 +34,7 @@ setup(
         'console_scripts': [
             "ironic-inspector = ironic_inspector.main:main",
         ],
-        'ironic_inspector.hooks': [
+        'ironic_inspector.hooks.processing': [
             "scheduler = ironic_inspector.plugins.standard:SchedulerHook",
             "validate_interfaces = ironic_inspector.plugins.standard:ValidateInterfacesHook",
             "ramdisk_error = ironic_inspector.plugins.standard:RamdiskErrorHook",

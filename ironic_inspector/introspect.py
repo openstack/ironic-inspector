@@ -94,52 +94,52 @@ def introspect(uuid, new_ipmi_credentials=None):
             raise utils.Error(msg % {'node': node.uuid,
                                      'reason': validation.power['reason']})
 
-    cached_node = node_cache.add_node(node.uuid,
-                                      bmc_address=utils.get_ipmi_address(node))
-    cached_node.set_option('new_ipmi_credentials', new_ipmi_credentials)
+    node_info = node_cache.add_node(node.uuid,
+                                    bmc_address=utils.get_ipmi_address(node))
+    node_info.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
     def _handle_exceptions():
         try:
-            _background_introspect(ironic, cached_node)
+            _background_introspect(ironic, node_info)
         except utils.Error as exc:
-            cached_node.finished(error=str(exc))
+            node_info.finished(error=str(exc))
         except Exception as exc:
             msg = _('Unexpected exception in background introspection thread')
             LOG.exception(msg)
-            cached_node.finished(error=msg)
+            node_info.finished(error=msg)
 
     utils.spawn_n(_handle_exceptions)
 
 
-def _background_introspect(ironic, cached_node):
+def _background_introspect(ironic, node_info):
     # TODO(dtantsur): pagination
-    macs = [p.address for p in cached_node.ports(ironic)]
+    macs = [p.address for p in node_info.ports(ironic)]
     if macs:
-        cached_node.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
+        node_info.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
         LOG.info(_LI('Whitelisting MAC\'s %(macs)s for node %(node)s on the'
                      ' firewall') %
-                 {'macs': macs, 'node': cached_node.uuid})
+                 {'macs': macs, 'node': node_info.uuid})
         firewall.update_filters(ironic)
 
-    if not cached_node.options.get('new_ipmi_credentials'):
+    if not node_info.options.get('new_ipmi_credentials'):
         try:
             utils.retry_on_conflict(ironic.node.set_boot_device,
-                                    cached_node.uuid, 'pxe', persistent=False)
+                                    node_info.uuid, 'pxe', persistent=False)
         except Exception as exc:
             LOG.warning(_LW('Failed to set boot device to PXE for'
                             ' node %(node)s: %(exc)s') %
-                        {'node': cached_node.uuid, 'exc': exc})
+                        {'node': node_info.uuid, 'exc': exc})
 
         try:
             utils.retry_on_conflict(ironic.node.set_power_state,
-                                    cached_node.uuid, 'reboot')
+                                    node_info.uuid, 'reboot')
         except Exception as exc:
             raise utils.Error(_('Failed to power on node %(node)s,'
                                 ' check it\'s power '
                                 'management configuration:\n%(exc)s')
-                              % {'node': cached_node.uuid, 'exc': exc})
+                              % {'node': node_info.uuid, 'exc': exc})
     else:
         LOG.info(_LI('Introspection environment is ready for node %(node)s, '
                  'manual power on is required within %(timeout)d seconds') %
-                 {'node': cached_node.uuid,
+                 {'node': node_info.uuid,
                   'timeout': CONF.timeout})

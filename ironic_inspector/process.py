@@ -31,7 +31,7 @@ _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
 
 
-def process(node_info):
+def process(introspection_data):
     """Process data from the ramdisk.
 
     This function heavily relies on the hooks to do the actual data processing.
@@ -42,7 +42,7 @@ def process(node_info):
         # NOTE(dtantsur): catch exceptions, so that we have changes to update
         # node introspection status after look up
         try:
-            hook_ext.obj.before_processing(node_info)
+            hook_ext.obj.before_processing(introspection_data)
         except utils.Error as exc:
             LOG.error(_LE('Hook %(hook)s failed, delaying error report '
                           'until node look up: %(error)s'),
@@ -57,23 +57,23 @@ def process(node_info):
                               'in hook %s') % hook_ext.name)
 
     try:
-        cached_node = node_cache.find_node(
-            bmc_address=node_info.get('ipmi_address'),
-            mac=node_info.get('macs'))
+        node_info = node_cache.find_node(
+            bmc_address=introspection_data.get('ipmi_address'),
+            mac=introspection_data.get('macs'))
     except utils.Error as exc:
         if failures:
             failures.append(_('Look up error: %s') % exc)
-            cached_node = None
+            node_info = None
         else:
             raise
 
-    if failures and cached_node:
+    if failures and node_info:
         msg = _('The following failures happened during running '
                 'pre-processing hooks for node %(uuid)s:\n%(failures)s') % {
-            'uuid': cached_node.uuid,
+            'uuid': node_info.uuid,
             'failures': '\n'.join(failures)
         }
-        cached_node.finished(error=_('Data pre-processing failed'))
+        node_info.finished(error=_('Data pre-processing failed'))
         raise utils.Error(msg)
     elif failures:
         msg = _('The following failures happened during running '
@@ -84,26 +84,26 @@ def process(node_info):
 
     ironic = utils.get_client()
     try:
-        node = cached_node.node(ironic)
+        node = node_info.node(ironic)
     except exceptions.NotFound:
         msg = (_('Node UUID %s was found in cache, but is not found in Ironic')
-               % cached_node.uuid)
-        cached_node.finished(error=msg)
+               % node_info.uuid)
+        node_info.finished(error=msg)
         raise utils.Error(msg, code=404)
 
     try:
-        return _process_node(ironic, node, node_info, cached_node)
+        return _process_node(ironic, node, introspection_data, node_info)
     except utils.Error as exc:
-        cached_node.finished(error=str(exc))
+        node_info.finished(error=str(exc))
         raise
     except Exception as exc:
         msg = _('Unexpected exception during processing')
         LOG.exception(msg)
-        cached_node.finished(error=msg)
+        node_info.finished(error=msg)
         raise utils.Error(msg)
 
 
-def _run_post_hooks(node, ports, node_info):
+def _run_post_hooks(node, ports, introspection_data):
     hooks = plugins_base.processing_hooks_manager()
     port_instances = list(ports.values())
 
@@ -111,7 +111,7 @@ def _run_post_hooks(node, ports, node_info):
     port_patches = {}
     for hook_ext in hooks:
         hook_patch = hook_ext.obj.before_update(node, port_instances,
-                                                node_info)
+                                                introspection_data)
         if not hook_patch:
             continue
 
@@ -124,12 +124,13 @@ def _run_post_hooks(node, ports, node_info):
     return node_patches, port_patches
 
 
-def _process_node(ironic, node, node_info, cached_node):
+def _process_node(ironic, node, introspection_data, node_info):
     # NOTE(dtantsur): repeat the check in case something changed
     utils.check_provision_state(node)
 
     ports = {}
-    for mac in (node_info.get('macs') or ()):
+    ironic = utils.get_client()
+    for mac in (introspection_data.get('macs') or ()):
         try:
             port = ironic.port.create(node_uuid=node.uuid, address=mac)
             ports[mac] = port
@@ -139,9 +140,10 @@ def _process_node(ironic, node, node_info, cached_node):
                             'database - skipping') %
                         {'mac': mac, 'node': node.uuid})
 
-    node_patches, port_patches = _run_post_hooks(node, ports, node_info)
+    node_patches, port_patches = _run_post_hooks(node, ports,
+                                                 introspection_data)
     # Invalidate cache in case of hooks modifying options
-    cached_node.invalidate_cache()
+    node_info.invalidate_cache()
 
     node = utils.retry_on_conflict(ironic.node.update, node.uuid, node_patches)
     for mac, patches in port_patches.items():
@@ -155,65 +157,66 @@ def _process_node(ironic, node, node_info, cached_node):
 
     resp = {'uuid': node.uuid}
 
-    if cached_node.options.get('new_ipmi_credentials'):
+    if node_info.options.get('new_ipmi_credentials'):
         new_username, new_password = (
-            cached_node.options.get('new_ipmi_credentials'))
+            node_info.options.get('new_ipmi_credentials'))
         utils.spawn_n(_finish_set_ipmi_credentials,
-                      ironic, node, cached_node, node_info,
+                      ironic, node, node_info, introspection_data,
                       new_username, new_password)
         resp['ipmi_setup_credentials'] = True
         resp['ipmi_username'] = new_username
         resp['ipmi_password'] = new_password
     else:
-        utils.spawn_n(_finish, ironic, cached_node)
+        utils.spawn_n(_finish, ironic, node_info)
 
     return resp
 
 
-def _finish_set_ipmi_credentials(ironic, node, cached_node, node_info,
+def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
                                  new_username, new_password):
     patch = [{'op': 'add', 'path': '/driver_info/ipmi_username',
               'value': new_username},
              {'op': 'add', 'path': '/driver_info/ipmi_password',
               'value': new_password}]
-    if not utils.get_ipmi_address(node) and node_info.get('ipmi_address'):
+    if (not utils.get_ipmi_address(node) and
+            introspection_data.get('ipmi_address')):
         patch.append({'op': 'add', 'path': '/driver_info/ipmi_address',
-                      'value': node_info['ipmi_address']})
-    utils.retry_on_conflict(ironic.node.update, cached_node.uuid, patch)
+                      'value': introspection_data['ipmi_address']})
+    utils.retry_on_conflict(ironic.node.update, node_info.uuid, patch)
 
     for attempt in range(_CREDENTIALS_WAIT_RETRIES):
         try:
             # We use this call because it requires valid credentials.
             # We don't care about boot device, obviously.
-            ironic.node.get_boot_device(cached_node.uuid)
+            ironic.node.get_boot_device(node_info.uuid)
         except Exception as exc:
             LOG.info(_LI('Waiting for credentials update on node %(node)s,'
                          ' attempt %(attempt)d current error is %(exc)s') %
-                     {'node': cached_node.uuid,
+                     {'node': node_info.uuid,
                       'attempt': attempt, 'exc': exc})
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
         else:
-            _finish(ironic, cached_node)
+            _finish(ironic, node_info)
             return
 
     msg = (_('Failed to validate updated IPMI credentials for node '
-             '%s, node might require maintenance') % cached_node.uuid)
-    cached_node.finished(error=msg)
+             '%s, node might require maintenance') % node_info.uuid)
+    node_info.finished(error=msg)
     raise utils.Error(msg)
 
 
-def _finish(ironic, cached_node):
-    LOG.debug('Forcing power off of node %s', cached_node.uuid)
+def _finish(ironic, node_info):
+    LOG.debug('Forcing power off of node %s', node_info.uuid)
     try:
         utils.retry_on_conflict(ironic.node.set_power_state,
-                                cached_node.uuid, 'off')
+                                node_info.uuid, 'off')
     except Exception as exc:
         msg = (_('Failed to power off node %(node)s, check it\'s power '
                  'management configuration: %(exc)s') %
-               {'node': cached_node.uuid, 'exc': exc})
-        cached_node.finished(error=msg)
+               {'node': node_info.uuid, 'exc': exc})
+        node_info.finished(error=msg)
         raise utils.Error(msg)
 
-    cached_node.finished()
+    node_info.finished()
     LOG.info(_LI('Introspection finished successfully for node %s'),
-             cached_node.uuid)
+             node_info.uuid)

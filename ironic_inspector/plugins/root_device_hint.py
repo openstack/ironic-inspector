@@ -44,15 +44,15 @@ class RootDeviceHintHook(base.ProcessingHook):
     the plugin needs to take precedence over the standard plugin.
     """
 
-    def before_processing(self, node_info):
-        """Adds fake local_gb value if it's missing from node_info."""
-        if not node_info.get('local_gb'):
+    def before_processing(self, introspection_data):
+        """Adds fake local_gb value if it's missing from introspection_data."""
+        if not introspection_data.get('local_gb'):
             LOG.info(_LI('No volume is found on the node. Adding a fake '
                          'value for "local_gb"'))
-            node_info['local_gb'] = 1
+            introspection_data['local_gb'] = 1
 
-    def before_update(self, node, ports, node_info):
-        if 'block_devices' not in node_info:
+    def before_update(self, node, ports, introspection_data):
+        if 'block_devices' not in introspection_data:
             LOG.warning(_LW('No block device was received from ramdisk'))
             return [], {}
 
@@ -63,7 +63,7 @@ class RootDeviceHintHook(base.ProcessingHook):
         if 'block_devices' in node.extra:
             # Compare previously discovered devices with the current ones
             previous_devices = node.extra['block_devices']['serials']
-            current_devices = node_info['block_devices']['serials']
+            current_devices = introspection_data['block_devices']['serials']
             new_devices = [device for device in current_devices
                            if device not in previous_devices]
 
@@ -89,5 +89,5 @@ class RootDeviceHintHook(base.ProcessingHook):
             return [
                 {'op': 'add',
                  'path': '/extra/block_devices',
-                 'value': node_info['block_devices']}
+                 'value': introspection_data['block_devices']}
             ], {}
