@@ -1,0 +1,2 @@
+# required for edeploy plugin
+python-swiftclient>=2.2.0

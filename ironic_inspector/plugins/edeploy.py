@@ -17,10 +17,17 @@ See https://blueprints.launchpad.net/ironic-inspector/+spec/edeploy for
 details on how to use it. Note that this plugin requires a special ramdisk.
 """
 
+import json
 import logging
 
+from oslo_config import cfg
+
 from ironic_inspector.common.i18n import _LW
+from ironic_inspector.common import swift
 from ironic_inspector.plugins import base
+
+CONF = cfg.CONF
+
 
 LOG = logging.getLogger('ironic_inspector.plugins.edeploy')
 
@@ -28,16 +35,30 @@ LOG = logging.getLogger('ironic_inspector.plugins.edeploy')
 class eDeployHook(base.ProcessingHook):
     """Processing hook for saving additional data from eDeploy ramdisk."""
 
+    def _store_extra_hardware(self, name, data):
+        """Handles storing the extra hardware data from the ramdisk"""
+        swift_api = swift.SwiftAPI()
+        swift_api.create_object(name, data)
+
     def before_update(self, introspection_data, node_info, node_patches,
                       ports_patches, **kwargs):
-        """Store the hardware data from what has been discovered."""
+        """Stores the 'data' key from introspection_data in Swift.
+
+        If the 'data' key exists, updates Ironic extra column
+        'hardware_swift_object' key to the name of the Swift object, and stores
+        the data in the 'inspector' container in Swift.
+
+        Otherwise, it does nothing.
+        """
         if 'data' not in introspection_data:
-            LOG.warning(_LW('No eDeploy data was received from the ramdisk'))
+            LOG.warning(_LW('No extra hardware information was received from '
+                            'the ramdisk'))
             return
-        # (trown) it is useful for the edeploy report tooling to have the node
-        # uuid stored with the other edeploy_facts
-        introspection_data['data'].append(['system', 'product',
-                                           'ironic_uuid', node_info.uuid])
+
+        name = 'extra_hardware-%s' % node_info.uuid
+        self._store_extra_hardware(name,
+                                   json.dumps(introspection_data['data']))
+
         node_patches.append({'op': 'add',
-                             'path': '/extra/edeploy_facts',
-                             'value': introspection_data['data']})
+                             'path': '/extra/hardware_swift_object',
+                             'value': name})

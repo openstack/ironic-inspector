@@ -11,10 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
 from ironic_inspector.plugins import edeploy
 from ironic_inspector.test import base as test_base
 
 
+@mock.patch.object(edeploy.swift, 'SwiftAPI', autospec=True)
 class TestEdeploy(test_base.NodeTest):
 
     def setUp(self):
@@ -29,7 +36,7 @@ class TestEdeploy(test_base.NodeTest):
         self.assertFalse(ports_patches)
         return node_patches
 
-    def test_data_recieved(self):
+    def test_data_recieved(self, swift_mock):
         introspection_data = {
             'data': [['memory', 'total', 'size', '4294967296'],
                      ['cpu', 'physical', 'number', '1'],
@@ -37,19 +44,21 @@ class TestEdeploy(test_base.NodeTest):
         self.hook.before_processing(introspection_data)
         node_patches = self._before_update(introspection_data)
 
-        expected_value = [['memory', 'total', 'size', '4294967296'],
-                          ['cpu', 'physical', 'number', '1'],
-                          ['cpu', 'logical', 'number', '1'],
-                          ['system', 'product', 'ironic_uuid', self.node.uuid]]
+        swift_conn = swift_mock.return_value
+        name = 'extra_hardware-%s' % self.uuid
+        data = json.dumps(introspection_data['data'])
+        swift_conn.create_object.assert_called_once_with(name, data)
         self.assertEqual('add',
                          node_patches[0]['op'])
-        self.assertEqual('/extra/edeploy_facts',
+        self.assertEqual('/extra/hardware_swift_object',
                          node_patches[0]['path'])
-        self.assertEqual(expected_value,
+        self.assertEqual(name,
                          node_patches[0]['value'])
 
-    def test_no_data_recieved(self):
+    def test_no_data_recieved(self, swift_mock):
         introspection_data = {'cats': 'meow'}
+        swift_conn = swift_mock.return_value
         self.hook.before_processing(introspection_data)
         node_patches = self._before_update(introspection_data)
         self.assertFalse(node_patches)
+        self.assertFalse(swift_conn.create_object.called)
