@@ -113,8 +113,7 @@ def introspect(uuid, new_ipmi_credentials=None):
 
 def _background_introspect(ironic, cached_node):
     # TODO(dtantsur): pagination
-    macs = [p.address for p in ironic.node.list_ports(cached_node.uuid,
-                                                      limit=0)]
+    macs = [p.address for p in cached_node.ports(ironic)]
     if macs:
         cached_node.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
         LOG.info(_LI('Whitelisting MAC\'s %(macs)s for node %(node)s on the'

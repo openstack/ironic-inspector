@@ -53,12 +53,15 @@ MACS_ATTRIBUTE = 'mac'
 class NodeInfo(object):
     """Record about a node in the cache."""
 
-    def __init__(self, uuid, started_at, finished_at=None, error=None):
+    def __init__(self, uuid, started_at, finished_at=None, error=None,
+                 node=None, ports=None):
         self.uuid = uuid
         self.started_at = started_at
         self.finished_at = finished_at
         self.error = error
         self.invalidate_cache()
+        self._node = node
+        self._ports = ports
 
     @property
     def options(self):
@@ -129,6 +132,22 @@ class NodeInfo(object):
     def invalidate_cache(self):
         """Clear all cached info, so that it's reloaded next time."""
         self._options = None
+        self._node = None
+        self._ports = None
+
+    def node(self, ironic=None):
+        """Get Ironic node object associated with the cached node record."""
+        if self._node is None:
+            ironic = utils.get_client() if ironic is None else ironic
+            self._node = ironic.node.get(self.uuid)
+        return self._node
+
+    def ports(self, ironic=None):
+        """Get Ironic port objects associated with the cached node record."""
+        if self._ports is None:
+            ironic = utils.get_client() if ironic is None else ironic
+            self._ports = ironic.node.list_ports(self.uuid, limit=0)
+        return self._ports
 
 
 def init():

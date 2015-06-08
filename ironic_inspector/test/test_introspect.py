@@ -38,12 +38,12 @@ class BaseTest(test_base.NodeTest):
                                      provision_state='foobar')
         self.ports = [mock.Mock(address=m) for m in self.macs]
         self.cached_node = mock.Mock(uuid=self.uuid, options={})
+        self.cached_node.ports.return_value = self.ports
 
     def _prepare(self, client_mock):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node
         cli.node.validate.return_value = mock.Mock(power={'result': True})
-        cli.node.list_ports.return_value = self.ports
         return cli
 
 
@@ -62,10 +62,10 @@ class TestIntrospect(BaseTest):
 
         cli.node.get.assert_called_once_with(self.uuid)
         cli.node.validate.assert_called_once_with(self.uuid)
-        cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
 
         add_mock.assert_called_once_with(self.uuid,
                                          bmc_address=self.bmc_address)
+        self.cached_node.ports.assert_called_once_with(cli)
         self.cached_node.add_attribute.assert_called_once_with('mac',
                                                                self.macs)
         filters_mock.assert_called_with(cli)
@@ -102,7 +102,7 @@ class TestIntrospect(BaseTest):
 
         cli.node.get.assert_called_once_with(self.uuid)
         cli.node.validate.assert_called_with(self.uuid)
-        cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+        self.cached_node.ports.assert_called_once_with(cli)
 
         add_mock.assert_called_once_with(self.uuid,
                                          bmc_address=self.bmc_address)
@@ -152,16 +152,15 @@ class TestIntrospect(BaseTest):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node_compat
         cli.node.validate.return_value = mock.Mock(power={'result': True})
-        cli.node.list_ports.return_value = self.ports
         add_mock.return_value = mock.Mock(uuid=self.node_compat.uuid,
                                           options={})
+        add_mock.return_value.ports.return_value = self.ports
 
         introspect.introspect(self.node_compat.uuid)
 
         cli.node.get.assert_called_once_with(self.node_compat.uuid)
         cli.node.validate.assert_called_once_with(self.node_compat.uuid)
-        cli.node.list_ports.assert_called_once_with(self.node_compat.uuid,
-                                                    limit=0)
+        add_mock.return_value.ports.assert_called_once_with(cli)
 
         add_mock.assert_called_once_with(self.node_compat.uuid,
                                          bmc_address=None)
@@ -176,12 +175,12 @@ class TestIntrospect(BaseTest):
 
     def test_no_macs(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
-        cli.node.list_ports.return_value = []
+        self.ports[:] = []
         add_mock.return_value = self.cached_node
 
         introspect.introspect(self.node.uuid)
 
-        cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
+        self.cached_node.ports.assert_called_once_with(cli)
 
         add_mock.assert_called_once_with(self.uuid,
                                          bmc_address=self.bmc_address)
@@ -205,7 +204,7 @@ class TestIntrospect(BaseTest):
                                 'Cannot get node',
                                 introspect.introspect, self.uuid)
 
-        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, self.cached_node.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)
@@ -223,7 +222,7 @@ class TestIntrospect(BaseTest):
             introspect.introspect, self.uuid)
 
         cli.node.validate.assert_called_once_with(self.uuid)
-        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, self.cached_node.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)
@@ -238,7 +237,7 @@ class TestIntrospect(BaseTest):
             'node %s with provision state "active"' % self.uuid,
             introspect.introspect, self.uuid)
 
-        self.assertEqual(0, cli.node.list_ports.call_count)
+        self.assertEqual(0, self.cached_node.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)

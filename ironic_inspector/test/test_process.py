@@ -343,7 +343,9 @@ class TestProcessNode(BaseTest):
         self.cli.port.create.side_effect = self.ports
         self.cli.node.update.return_value = self.node
 
-    def call(self):
+    @mock.patch.object(utils, 'get_client')
+    def call(self, mock_cli):
+        mock_cli.return_value = self.cli
         return process._process_node(self.cli, self.node, self.data,
                                      self.cached_node)
 

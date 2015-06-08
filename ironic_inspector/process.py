@@ -84,7 +84,7 @@ def process(node_info):
 
     ironic = utils.get_client()
     try:
-        node = ironic.node.get(cached_node.uuid)
+        node = cached_node.node(ironic)
     except exceptions.NotFound:
         msg = (_('Node UUID %s was found in cache, but is not found in Ironic')
                % cached_node.uuid)

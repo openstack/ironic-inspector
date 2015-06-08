@@ -321,3 +321,64 @@ class TestNodeInfoOptions(test_base.NodeTest):
 
         new = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
         self.assertEqual(data, new.options['name'])
+
+
+@mock.patch.object(utils, 'get_client')
+class TestNodeCacheIronicObjects(unittest.TestCase):
+    def test_node_provided(self, mock_ironic):
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
+                                        node=mock.sentinel.node)
+        self.assertIs(mock.sentinel.node, node_info.node())
+        self.assertIs(mock.sentinel.node, node_info.node(ironic='ironic'))
+        self.assertFalse(mock_ironic.called)
+
+    def test_node_not_provided(self, mock_ironic):
+        mock_ironic.return_value.node.get.return_value = mock.sentinel.node
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
+
+        self.assertIs(mock.sentinel.node, node_info.node())
+        self.assertIs(node_info.node(), node_info.node())
+
+        mock_ironic.assert_called_once_with()
+        mock_ironic.return_value.node.get.assert_called_once_with('uuid')
+
+    def test_node_ironic_arg(self, mock_ironic):
+        ironic2 = mock.Mock()
+        ironic2.node.get.return_value = mock.sentinel.node
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
+
+        self.assertIs(mock.sentinel.node, node_info.node(ironic=ironic2))
+        self.assertIs(node_info.node(), node_info.node(ironic=ironic2))
+
+        self.assertFalse(mock_ironic.called)
+        ironic2.node.get.assert_called_once_with('uuid')
+
+    def test_ports_provided(self, mock_ironic):
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
+                                        ports=mock.sentinel.ports)
+        self.assertIs(mock.sentinel.ports, node_info.ports())
+        self.assertIs(mock.sentinel.ports, node_info.ports(ironic='ironic'))
+        self.assertFalse(mock_ironic.called)
+
+    def test_ports_not_provided(self, mock_ironic):
+        mock_ironic.return_value.node.list_ports.return_value = (
+            mock.sentinel.ports)
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
+
+        self.assertIs(mock.sentinel.ports, node_info.ports())
+        self.assertIs(node_info.ports(), node_info.ports())
+
+        mock_ironic.assert_called_once_with()
+        mock_ironic.return_value.node.list_ports.assert_called_once_with(
+            'uuid', limit=0)
+
+    def test_ports_ironic_arg(self, mock_ironic):
+        ironic2 = mock.Mock()
+        ironic2.node.list_ports.return_value = mock.sentinel.ports
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
+
+        self.assertIs(mock.sentinel.ports, node_info.ports(ironic=ironic2))
+        self.assertIs(node_info.ports(), node_info.ports(ironic=ironic2))
+
+        self.assertFalse(mock_ironic.called)
+        ironic2.node.list_ports.assert_called_once_with('uuid', limit=0)
