@@ -211,9 +211,19 @@ class TestDiscoverSchedulingProperties(BaseDiscoverTest):
 
         discover.discover_scheduling_properties(self.data, self.failures)
 
-        self.assertIn('failed to get RAM', self.failures.get_error())
+        self.assertFalse(self.failures)
         self.assertEqual({'cpus': 2, 'cpu_arch': 'x86_64', 'local_gb': 4,
                           'memory_mb': None}, self.data)
+
+    def test_no_local_gb(self, mock_shell):
+        mock_shell.side_effect = iter(('2', 'x86_64', None,
+                                       '1024\n1024\nno\n2048\n'))
+
+        discover.discover_scheduling_properties(self.data, self.failures)
+
+        self.assertFalse(self.failures)
+        self.assertEqual({'cpus': 2, 'cpu_arch': 'x86_64', 'local_gb': None,
+                          'memory_mb': 4096}, self.data)
 
     def test_local_gb_too_small(self, mock_shell):
         mock_shell.side_effect = iter(('2', 'x86_64', '42',
@@ -221,7 +231,7 @@ class TestDiscoverSchedulingProperties(BaseDiscoverTest):
 
         discover.discover_scheduling_properties(self.data, self.failures)
 
-        self.assertIn('local_gb is less than 1 GiB', self.failures.get_error())
+        self.assertFalse(self.failures)
         self.assertEqual({'cpus': 2, 'cpu_arch': 'x86_64', 'local_gb': None,
                           'memory_mb': 4096}, self.data)
 
