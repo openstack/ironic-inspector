@@ -39,7 +39,7 @@ setup(
             "validate_interfaces = ironic_inspector.plugins.standard:ValidateInterfacesHook",
             "ramdisk_error = ironic_inspector.plugins.standard:RamdiskErrorHook",
             "example = ironic_inspector.plugins.example:ExampleProcessingHook",
-            "edeploy = ironic_inspector.plugins.edeploy:eDeployHook",
+            "extra_hardware = ironic_inspector.plugins.extra_hardware:ExtraHardwareHook",
             "root_device_hint = ironic_inspector.plugins.root_device_hint:RootDeviceHintHook",
         ],
         'openstack.cli.extension': [

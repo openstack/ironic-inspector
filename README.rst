@@ -364,14 +364,11 @@ Here are some plugins that can be additionally enabled:
 ``root_device_hint``
     gathers block devices from ramdisk and exposes root device in multiple
     runs.
-``edeploy``
-    plugin for `eDeploy hardware detection and classification utilities`_,
-    requires a `special ramdisk`__.
+``extra_hardware``
+    stores the value of the 'data' key returned by the ramdisk as a JSON
+    encoded string in a Swift object.
 
 Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
-
-.. _eDeploy hardware detection and classification utilities: https://pypi.python.org/pypi/hardware
-__ https://github.com/rdo-management/instack-undercloud/tree/master/elements/ironic-discoverd-ramdisk-instack
 
 Troubleshooting
 ---------------

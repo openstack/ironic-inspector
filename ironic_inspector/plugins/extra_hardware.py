@@ -11,10 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""eDeploy hardware detection and classification plugin.
+"""Plugin to store extra hardware information in Swift.
 
-See https://blueprints.launchpad.net/ironic-inspector/+spec/edeploy for
-details on how to use it. Note that this plugin requires a special ramdisk.
+Stores the value of the 'data' key returned by the ramdisk as a JSON encoded
+string in a Swift object. The object is named 'extra_hardware-<node uuid>' and
+is stored in the 'inspector' container.
 """
 
 import json
@@ -29,11 +30,11 @@ from ironic_inspector.plugins import base
 CONF = cfg.CONF
 
 
-LOG = logging.getLogger('ironic_inspector.plugins.edeploy')
+LOG = logging.getLogger('ironic_inspector.plugins.extra_hardware')
 
 
-class eDeployHook(base.ProcessingHook):
-    """Processing hook for saving additional data from eDeploy ramdisk."""
+class ExtraHardwareHook(base.ProcessingHook):
+    """Processing hook for saving extra hardware information in Swift."""
 
     def _store_extra_hardware(self, name, data):
         """Handles storing the extra hardware data from the ramdisk"""
