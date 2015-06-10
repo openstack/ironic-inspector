@@ -42,6 +42,9 @@ setup(
             "extra_hardware = ironic_inspector.plugins.extra_hardware:ExtraHardwareHook",
             "root_device_hint = ironic_inspector.plugins.root_device_hint:RootDeviceHintHook",
         ],
+        'ironic_inspector.hooks.node_not_found': [
+            "example = ironic_inspector.plugins.example:example_not_found_hook",
+        ],
         'openstack.cli.extension': [
             'baremetal-introspection = ironic_inspector.shell',
         ],

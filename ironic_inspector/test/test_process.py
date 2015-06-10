@@ -304,6 +304,54 @@ class TestProcess(BaseTest):
 
         self.assertFalse(pop_mock.return_value.finished.called)
 
+    @prepare_mocks
+    def test_error_if_node_not_found_hook(self, cli, pop_mock, process_mock):
+        plugins_base._NOT_FOUND_HOOK_MGR = None
+        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        self.assertRaisesRegexp(utils.Error,
+                                'Look up error: BOOM',
+                                process.process, self.data)
+
+    @prepare_mocks
+    def test_node_not_found_hook_run_ok(self, cli, pop_mock, process_mock):
+        CONF.set_override('node_not_found_hook', 'example', 'processing')
+        plugins_base._NOT_FOUND_HOOK_MGR = None
+        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        with mock.patch.object(example_plugin,
+                               'example_not_found_hook') as hook_mock:
+            hook_mock.return_value = node_cache.NodeInfo(
+                uuid=self.node.uuid,
+                started_at=self.started_at)
+            res = process.process(self.data)
+            self.assertEqual(self.fake_result_json, res)
+            hook_mock.assert_called_once_with(self.data)
+
+    @prepare_mocks
+    def test_node_not_found_hook_run_none(self, cli, pop_mock, process_mock):
+        CONF.set_override('node_not_found_hook', 'example', 'processing')
+        plugins_base._NOT_FOUND_HOOK_MGR = None
+        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        with mock.patch.object(example_plugin,
+                               'example_not_found_hook') as hook_mock:
+            hook_mock.return_value = None
+            self.assertRaisesRegexp(utils.Error,
+                                    'Node not found hook returned nothing',
+                                    process.process, self.data)
+            hook_mock.assert_called_once_with(self.data)
+
+    @prepare_mocks
+    def test_node_not_found_hook_exception(self, cli, pop_mock, process_mock):
+        CONF.set_override('node_not_found_hook', 'example', 'processing')
+        plugins_base._NOT_FOUND_HOOK_MGR = None
+        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        with mock.patch.object(example_plugin,
+                               'example_not_found_hook') as hook_mock:
+            hook_mock.side_effect = Exception('Hook Error')
+            self.assertRaisesRegexp(utils.Error,
+                                    'Node not found hook failed: Hook Error',
+                                    process.process, self.data)
+            hook_mock.assert_called_once_with(self.data)
+
 
 @mock.patch.object(node_cache.NodeInfo, 'invalidate_cache', lambda self: None)
 @mock.patch.object(utils, 'spawn_n',

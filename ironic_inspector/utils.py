@@ -46,6 +46,13 @@ class Error(Exception):
         self.http_code = code
 
 
+class NotFoundInCacheError(Error):
+    """Exception when node was not found in cache during processing."""
+
+    def __init__(self, msg, code=404):
+        super(NotFoundInCacheError, self).__init__(msg, code)
+
+
 def spawn_n(*args, **kwargs):
     global GREEN_POOL
     if not GREEN_POOL:

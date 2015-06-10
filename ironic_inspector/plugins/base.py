@@ -17,6 +17,7 @@ import abc
 
 from oslo_config import cfg
 import six
+from stevedore import driver
 from stevedore import named
 
 
@@ -71,6 +72,7 @@ class ProcessingHook(object):  # pragma: no cover
 
 
 _HOOKS_MGR = None
+_NOT_FOUND_HOOK_MGR = None
 
 
 def processing_hooks_manager(*args):
@@ -90,3 +92,15 @@ def processing_hooks_manager(*args):
             invoke_args=args,
             name_order=True)
     return _HOOKS_MGR
+
+
+def node_not_found_hook_manager(*args):
+    global _NOT_FOUND_HOOK_MGR
+    if _NOT_FOUND_HOOK_MGR is None:
+        name = CONF.processing.node_not_found_hook
+        if name:
+            _NOT_FOUND_HOOK_MGR = driver.DriverManager(
+                'ironic_inspector.hooks.node_not_found',
+                name=name)
+
+    return _NOT_FOUND_HOOK_MGR

@@ -31,6 +31,31 @@ _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
 
 
+def _find_node_info(introspection_data, failures):
+    try:
+        return node_cache.find_node(
+            bmc_address=introspection_data.get('ipmi_address'),
+            mac=introspection_data.get('macs'))
+    except utils.NotFoundInCacheError as exc:
+        not_found_hook = plugins_base.node_not_found_hook_manager()
+        if not_found_hook is None:
+            failures.append(_('Look up error: %s') % exc)
+            return
+        # NOTE(sambetts): If not_found_hook is not none it means that we were
+        # unable to find the node in the node cache and there is a node not
+        # found hook defined so we should try to send the introspection data
+        # to that hook to generate the node info before bubbling up the error.
+        try:
+            node_info = not_found_hook.driver(introspection_data)
+            if node_info:
+                return node_info
+            failures.append(_("Node not found hook returned nothing"))
+        except Exception as exc:
+            failures.append(_("Node not found hook failed: %s") % exc)
+    except utils.Error as exc:
+        failures.append(_('Look up error: %s') % exc)
+
+
 def process(introspection_data):
     """Process data from the ramdisk.
 
@@ -56,16 +81,7 @@ def process(introspection_data):
             failures.append(_('Unexpected exception during preprocessing '
                               'in hook %s') % hook_ext.name)
 
-    try:
-        node_info = node_cache.find_node(
-            bmc_address=introspection_data.get('ipmi_address'),
-            mac=introspection_data.get('macs'))
-    except utils.Error as exc:
-        if failures:
-            failures.append(_('Look up error: %s') % exc)
-            node_info = None
-        else:
-            raise
+    node_info = _find_node_info(introspection_data, failures)
 
     if failures and node_info:
         msg = _('The following failures happened during running '
@@ -75,7 +91,7 @@ def process(introspection_data):
         }
         node_info.finished(error=_('Data pre-processing failed'))
         raise utils.Error(msg)
-    elif failures:
+    elif not node_info:
         msg = _('The following failures happened during running '
                 'pre-processing hooks for unknown node:\n%(failures)s') % {
             'failures': '\n'.join(failures)

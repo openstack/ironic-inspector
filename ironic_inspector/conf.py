@@ -145,6 +145,11 @@ PROCESSING_OPTS = [
                 'an error message (dependent upon "ramdisk_logs_dir" option '
                 'being set).',
                 deprecated_group='discoverd'),
+    cfg.StrOpt('node_not_found_hook',
+               default=None,
+               help='The name of the hook to run when inspector receives '
+                    'inspection information from a node it isn\'t already '
+                    'aware of. This hook is ignored by default.')
 ]
 
 

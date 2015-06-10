@@ -256,8 +256,8 @@ def find_node(**attributes):
             found.update(item[0] for item in rows)
 
     if not found:
-        raise utils.Error(_(
-            'Could not find a node for attributes %s') % attributes, code=404)
+        raise utils.NotFoundInCacheError(_(
+            'Could not find a node for attributes %s') % attributes)
     elif len(found) > 1:
         raise utils.Error(_(
             'Multiple matching nodes found for attributes %(attr)s: %(found)s')
