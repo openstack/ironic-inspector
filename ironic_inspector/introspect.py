@@ -64,14 +64,15 @@ def _validate_ipmi_credentials(node, new_ipmi_credentials):
     return new_username, new_password
 
 
-def introspect(uuid, new_ipmi_credentials=None):
+def introspect(uuid, new_ipmi_credentials=None, token=None):
     """Initiate hardware properties introspection for a given node.
 
     :param uuid: node uuid
     :param new_ipmi_credentials: tuple (new username, new password) or None
+    :param token: authentication token
     :raises: Error
     """
-    ironic = utils.get_client()
+    ironic = utils.get_client(token)
 
     try:
         node = ironic.node.get(uuid)
