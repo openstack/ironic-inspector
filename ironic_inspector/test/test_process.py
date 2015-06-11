@@ -305,7 +305,6 @@ class TestProcess(BaseTest):
         self.assertFalse(pop_mock.return_value.finished.called)
 
 
-@mock.patch.object(node_cache.NodeInfo, 'invalidate_cache', lambda self: None)
 @mock.patch.object(utils, 'spawn_n',
                    lambda f, *a: f(*a) and None)
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
@@ -344,6 +343,7 @@ class TestProcessNode(BaseTest):
             [RuntimeError()] * self.validate_attempts + [None])
         self.cli.port.create.side_effect = self.ports
         self.cli.node.update.return_value = self.node
+        self.cli.node.list_ports.return_value = []
 
     @mock.patch.object(utils, 'get_client')
     def call(self, mock_cli):
@@ -424,7 +424,8 @@ class TestProcessNode(BaseTest):
         self.assertEqual(2, self.cli.node.set_power_state.call_count)
 
     def test_port_failed(self, filters_mock, post_hook_mock):
-        self.ports[0] = exceptions.Conflict()
+        self.cli.port.create.side_effect = (
+            [exceptions.Conflict()] + self.ports[1:])
 
         self.call()
 

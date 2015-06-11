@@ -143,7 +143,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
             return
 
         ironic = utils.get_client()
-        for port in node_info.ports():
+        for port in node_info.ports(ironic).values():
             if port.address not in expected_macs:
                 LOG.info(_LI("Deleting port %(port)s as its MAC %(mac)s is "
                              "not in expected MAC list %(expected)s for node "

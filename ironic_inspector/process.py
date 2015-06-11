@@ -18,7 +18,7 @@ import logging
 import eventlet
 from ironicclient import exceptions
 
-from ironic_inspector.common.i18n import _, _LE, _LI, _LW
+from ironic_inspector.common.i18n import _, _LE, _LI
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -114,7 +114,7 @@ def _run_post_hooks(node_info, introspection_data):
 
     node_patches = [p for p in node_patches if p]
     port_patches = {mac: patch for (mac, patch) in port_patches.items()
-                    if patch}
+                    if patch and mac in node_info.ports()}
     return node_patches, port_patches
 
 
@@ -122,25 +122,15 @@ def _process_node(ironic, node, introspection_data, node_info):
     # NOTE(dtantsur): repeat the check in case something changed
     utils.check_provision_state(node)
 
-    ports = {}
-    for mac in (introspection_data.get('macs') or ()):
-        try:
-            port = ironic.port.create(node_uuid=node.uuid, address=mac)
-            ports[mac] = port
-        except exceptions.Conflict:
-            LOG.warning(_LW('MAC %(mac)s appeared in introspection data for '
-                            'node %(node)s, but already exists in '
-                            'database - skipping') %
-                        {'mac': mac, 'node': node.uuid})
+    node_info.create_ports(introspection_data.get('macs') or (), ironic=ironic)
 
-    # NOTE(dtanstur): make sure plugins get the latest information
-    node_info.invalidate_cache()
     node_patches, port_patches = _run_post_hooks(node_info,
                                                  introspection_data)
 
     node = utils.retry_on_conflict(ironic.node.update, node.uuid, node_patches)
     for mac, patches in port_patches.items():
-        utils.retry_on_conflict(ironic.port.update, ports[mac].uuid, patches)
+        port = node_info.ports(ironic)[mac]
+        utils.retry_on_conflict(ironic.port.update, port.uuid, patches)
 
     LOG.debug('Node %s was updated with data from introspection process, '
               'patches %s, port patches %s',
