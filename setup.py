@@ -51,6 +51,7 @@ setup(
         ],
         'oslo.config.opts': [
             "ironic_inspector = ironic_inspector.conf:list_opts",
+            "ironic_inspector.common.swift = ironic_inspector.common.swift:list_opts"
         ],
     },
     classifiers = [
