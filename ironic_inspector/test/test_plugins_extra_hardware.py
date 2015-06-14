@@ -17,16 +17,15 @@ try:
 except ImportError:
     import mock
 
-from ironic_inspector.plugins import edeploy
+from ironic_inspector.plugins import extra_hardware
 from ironic_inspector.test import base as test_base
 
 
-@mock.patch.object(edeploy.swift, 'SwiftAPI', autospec=True)
-class TestEdeploy(test_base.NodeTest):
-
+@mock.patch.object(extra_hardware.swift, 'SwiftAPI', autospec=True)
+class TestExtraHardware(test_base.NodeTest):
     def setUp(self):
-        super(TestEdeploy, self).setUp()
-        self.hook = edeploy.eDeployHook()
+        super(TestExtraHardware, self).setUp()
+        self.hook = extra_hardware.ExtraHardwareHook()
 
     def _before_update(self, introspection_data):
         node_patches = []
