@@ -105,11 +105,16 @@ function configure_inspector {
 
     cp "$IRONIC_INSPECTOR_DIR/example.conf" "$IRONIC_INSPECTOR_CONF_FILE"
     inspector_iniset DEFAULT debug $IRONIC_INSPECTOR_DEBUG
-    inspector_iniset ironic identity_uri "$KEYSTONE_AUTH_URI"
     inspector_iniset ironic os_auth_url "$KEYSTONE_SERVICE_URI/v2.0"
     inspector_iniset ironic os_username $IRONIC_INSPECTOR_ADMIN_USER
     inspector_iniset ironic os_password $SERVICE_PASSWORD
     inspector_iniset ironic os_tenant_name $SERVICE_TENANT_NAME
+
+    inspector_iniset keystone_authtoken identity_uri "$KEYSTONE_AUTH_URI"
+    inspector_iniset keystone_authtoken auth_uri "$KEYSTONE_SERVICE_URI/v2.0"
+    inspector_iniset keystone_authtoken admin_user $IRONIC_INSPECTOR_ADMIN_USER
+    inspector_iniset keystone_authtoken admin_password $SERVICE_PASSWORD
+    inspector_iniset keystone_authtoken admin_tenant_name $SERVICE_TENANT_NAME
 
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT
     inspector_iniset DEFAULT listen_address 0.0.0.0  # do not change
