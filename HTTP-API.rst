@@ -102,5 +102,5 @@ body will contain the following keys:
 * ``ipmi_username`` new IPMI user name
 * ``ipmi_password`` new IPMI password
 
-.. _Setting IPMI Credentials: https://github.com/stackforge/ironic-discoverd#setting-ipmi-credentials
-.. _Plugins: https://github.com/stackforge/ironic-discoverd#plugins
+.. _Setting IPMI Credentials: https://github.com/openstack/ironic-inspector#setting-ipmi-credentials
+.. _Plugins: https://github.com/openstack/ironic-inspector#plugins
