@@ -5,7 +5,7 @@ How To Contribute
 Basics
 ~~~~~~
 
-* Our source code is hosted on StackForge_ GitHub, but please do not send pull
+* Our source code is hosted on `OpenStack GitHub`_, but please do not send pull
   requests there.
 
 * Please follow usual OpenStack `Gerrit Workflow`_ to submit a patch.
@@ -23,7 +23,7 @@ Basics
 * Please file a launchpad_ blueprint for any significant code change and a bug
   for any significant bug fix.
 
-.. _StackForge: https://github.com/stackforge/ironic-discoverd
+.. _OpenStack GitHub: https://github.com/openstack/ironic-inspector
 .. _Gerrit Workflow: http://docs.openstack.org/infra/manual/developers.html#development-workflow
 .. _launchpad: https://bugs.launchpad.net/ironic-inspector
 
@@ -36,8 +36,8 @@ from PyPI.
 
 Next checkout and create environments::
 
-    git clone https://github.com/stackforge/ironic-discoverd.git
-    cd ironic-discoverd
+    git clone https://github.com/openstack/ironic-inspector.git
+    cd ironic-inspector
     tox
 
 Repeat *tox* command each time you need to run tests. If you don't have Python
@@ -85,7 +85,7 @@ Example local.conf
     enable_service neutron q-svc q-agt q-dhcp q-l3 q-meta
     disable_service heat h-api h-api-cfn h-api-cw h-eng
 
-    enable_plugin ironic-inspector https://github.com/stackforge/ironic-discoverd
+    enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
 
     IRONIC_BAREMETAL_BASIC_OPS=True
     IRONIC_VM_COUNT=2
@@ -143,7 +143,7 @@ Writing a Plugin
 **ironic-inspector** allows to hook your code into data processing chain after
 introspection. Inherit ``ProcessingHook`` class defined in
 `ironic_inspector.plugins.base
-<https://github.com/stackforge/ironic-discoverd/blob/master/ironic_inspector/plugins/base.py>`_
+<https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py>`_
 module and overwrite any or both of the following methods:
 
 ``before_processing(node_info)``

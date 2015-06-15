@@ -23,7 +23,7 @@ setup(
     description = open('README.rst', 'r').readline().strip(),
     author = "Dmitry Tantsur",
     author_email = "dtantsur@redhat.com",
-    url = "https://pypi.python.org/pypi/ironic-discoverd",
+    url = "https://pypi.python.org/pypi/ironic-inspector",
     packages = ['ironic_inspector', 'ironic_inspector.plugins',
                 'ironic_inspector.test', 'ironic_inspector.common',
                 'ironic_inspector_ramdisk', 'ironic_inspector_ramdisk.test'],

@@ -24,8 +24,8 @@ CONTRIBUTING.rst_ for instructions on how to contribute.
 .. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
 .. _TripleO: https://wiki.openstack.org/wiki/TripleO
 .. _launchpad: https://bugs.launchpad.net/ironic-inspector
-.. _PyPI: https://pypi.python.org/pypi/ironic-discoverd
-.. _CONTRIBUTING.rst: https://github.com/stackforge/ironic-discoverd/blob/master/CONTRIBUTING.rst
+.. _PyPI: https://pypi.python.org/pypi/ironic-inspector
+.. _CONTRIBUTING.rst: https://github.com/openstack/ironic-inspector/blob/master/CONTRIBUTING.rst
 
 .. note::
     **ironic-inspector** was called *ironic-discoverd* before version 2.0.0.
@@ -131,7 +131,7 @@ Fill in at least these configuration values:
   other cases).
 
 See comments inside `example.conf
-<https://github.com/stackforge/ironic-discoverd/blob/master/example.conf>`_
+<https://github.com/openstack/ironic-inspector/blob/master/example.conf>`_
 for the other possible configuration options.
 
 .. note::
@@ -205,13 +205,7 @@ Here is *inspector.conf* you may end up with::
 Running
 ~~~~~~~
 
-If you installed **ironic-inspector** from the RPM, you might already have
-a *systemd* unit, so you can::
-
-    systemctl enable openstack-ironic-inspector
-    systemctl start openstack-ironic-inspector
-
-Otherwise run as ``root``::
+Run as ``root``::
 
     ironic-inspector --config-file /etc/ironic-inspector/inspector.conf
 
@@ -267,8 +261,8 @@ CLI tool is based on OpenStackClient_ with prefix
 Refer to HTTP-API.rst_ for information on the HTTP API.
 
 .. _OpenStackClient: http://docs.openstack.org/developer/python-openstackclient/
-.. _HTTP-API.rst: https://github.com/stackforge/ironic-discoverd/blob/master/HTTP-API.rst
-.. _HTTP API: https://github.com/stackforge/ironic-discoverd/blob/master/HTTP-API.rst
+.. _HTTP-API.rst: https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst
+.. _HTTP API: https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst
 
 Using from Ironic API
 ~~~~~~~~~~~~~~~~~~~~~
