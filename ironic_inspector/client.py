@@ -11,6 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import logging
+
 from oslo_utils import netutils
 import requests
 import six
@@ -20,6 +23,7 @@ from ironic_inspector.common.i18n import _
 
 _DEFAULT_URL = 'http://' + netutils.get_my_ipv4() + ':5050/v1'
 _ERROR_ENCODING = 'utf-8'
+LOG = logging.getLogger('ironic_inspector_client')
 
 
 def _prepare(base_url, auth_token):
@@ -35,6 +39,13 @@ class ClientError(requests.HTTPError):
     def __init__(self, response):
         # inspector returns error message in body
         msg = response.content.decode(_ERROR_ENCODING)
+        try:
+            msg = json.loads(msg)['error']['message']
+        except ValueError:
+            LOG.debug('Old style error response returned, assuming '
+                      'ironic-discoverd')
+        except (KeyError, TypeError):
+            LOG.exception('Bad error response from ironic-inspector')
         super(ClientError, self).__init__(msg, response=response)
 
     @classmethod

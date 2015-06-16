@@ -81,8 +81,20 @@ class TestIntrospect(unittest.TestCase):
 
     def test_failed(self, mock_post):
         mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b'{"error":{"message":"boom"}}'
+        self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.introspect, self.uuid)
+
+    def test_failed_discoverd_style(self, mock_post):
+        mock_post.return_value.status_code = 404
         mock_post.return_value.content = b"boom"
         self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.introspect, self.uuid)
+
+    def test_failed_bad_json(self, mock_post):
+        mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b'42'
+        self.assertRaisesRegexp(client.ClientError, "42",
                                 client.introspect, self.uuid)
 
 
@@ -110,6 +122,18 @@ class TestGetStatus(unittest.TestCase):
 
     def test_failed(self, mock_post):
         mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b'{"error":{"message":"boom"}}'
+        self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.get_status, self.uuid)
+
+    def test_failed_discoverd_style(self, mock_post):
+        mock_post.return_value.status_code = 404
         mock_post.return_value.content = b"boom"
         self.assertRaisesRegexp(client.ClientError, "boom",
+                                client.get_status, self.uuid)
+
+    def test_failed_bad_json(self, mock_post):
+        mock_post.return_value.status_code = 404
+        mock_post.return_value.content = b'42'
+        self.assertRaisesRegexp(client.ClientError, "42",
                                 client.get_status, self.uuid)

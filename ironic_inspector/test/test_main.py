@@ -75,7 +75,9 @@ class TestApi(test_base.BaseTest):
         introspect_mock.side_effect = utils.Error("boom")
         res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(400, res.status_code)
-        self.assertEqual(b"boom", res.data)
+        self.assertEqual(
+            'boom',
+            json.loads(res.data.decode('utf-8'))['error']['message'])
         introspect_mock.assert_called_once_with(
             self.uuid,
             new_ipmi_credentials=None)
@@ -113,7 +115,9 @@ class TestApi(test_base.BaseTest):
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(400, res.status_code)
         process_mock.assert_called_once_with("JSON")
-        self.assertEqual(b'boom', res.data)
+        self.assertEqual(
+            'boom',
+            json.loads(res.data.decode('utf-8'))['error']['message'])
 
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_in_progress(self, get_mock):

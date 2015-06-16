@@ -41,13 +41,21 @@ app = flask.Flask(__name__)
 LOG = logging.getLogger('ironic_inspector.main')
 
 
+def error_response(exc, code=500):
+    res = flask.jsonify(error={'message': str(exc)})
+    res.status_code = code
+    return res
+
+
 def convert_exceptions(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except utils.Error as exc:
-            return str(exc), exc.http_code
+            return error_response(exc, exc.http_code)
+        except Exception as exc:
+            return error_response(exc)
 
     return wrapper
 
