@@ -325,6 +325,11 @@ class TestNodeInfoOptions(test_base.NodeTest):
 
 @mock.patch.object(utils, 'get_client')
 class TestNodeCacheIronicObjects(unittest.TestCase):
+    def setUp(self):
+        super(TestNodeCacheIronicObjects, self).setUp()
+        self.ports = {'mac1': mock.Mock(address='mac1', spec=['address']),
+                      'mac2': mock.Mock(address='mac2', spec=['address'])}
+
     def test_node_provided(self, mock_ironic):
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
                                         node=mock.sentinel.node)
@@ -355,17 +360,24 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
 
     def test_ports_provided(self, mock_ironic):
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
-                                        ports=mock.sentinel.ports)
-        self.assertIs(mock.sentinel.ports, node_info.ports())
-        self.assertIs(mock.sentinel.ports, node_info.ports(ironic='ironic'))
+                                        ports=self.ports)
+        self.assertIs(self.ports, node_info.ports())
+        self.assertIs(self.ports, node_info.ports(ironic='ironic'))
+        self.assertFalse(mock_ironic.called)
+
+    def test_ports_provided_list(self, mock_ironic):
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
+                                        ports=list(self.ports.values()))
+        self.assertEqual(self.ports, node_info.ports())
+        self.assertEqual(self.ports, node_info.ports(ironic='ironic'))
         self.assertFalse(mock_ironic.called)
 
     def test_ports_not_provided(self, mock_ironic):
-        mock_ironic.return_value.node.list_ports.return_value = (
-            mock.sentinel.ports)
+        mock_ironic.return_value.node.list_ports.return_value = list(
+            self.ports.values())
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
 
-        self.assertIs(mock.sentinel.ports, node_info.ports())
+        self.assertEqual(self.ports, node_info.ports())
         self.assertIs(node_info.ports(), node_info.ports())
 
         mock_ironic.assert_called_once_with()
@@ -374,10 +386,10 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
 
     def test_ports_ironic_arg(self, mock_ironic):
         ironic2 = mock.Mock()
-        ironic2.node.list_ports.return_value = mock.sentinel.ports
+        ironic2.node.list_ports.return_value = list(self.ports.values())
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
 
-        self.assertIs(mock.sentinel.ports, node_info.ports(ironic=ironic2))
+        self.assertEqual(self.ports, node_info.ports(ironic=ironic2))
         self.assertIs(node_info.ports(), node_info.ports(ironic=ironic2))
 
         self.assertFalse(mock_ironic.called)

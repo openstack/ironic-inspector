@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
+
 import eventlet
 from ironicclient import exceptions
 import mock
@@ -37,8 +39,10 @@ class BaseTest(test_base.NodeTest):
                                      power_state='power on',
                                      provision_state='foobar')
         self.ports = [mock.Mock(address=m) for m in self.macs]
+        self.ports_dict = collections.OrderedDict((p.address, p)
+                                                  for p in self.ports)
         self.node_info = mock.Mock(uuid=self.uuid, options={})
-        self.node_info.ports.return_value = self.ports
+        self.node_info.ports.return_value = self.ports_dict
 
     def _prepare(self, client_mock):
         cli = client_mock.return_value
@@ -154,7 +158,8 @@ class TestIntrospect(BaseTest):
         cli.node.validate.return_value = mock.Mock(power={'result': True})
         add_mock.return_value = mock.Mock(uuid=self.node_compat.uuid,
                                           options={})
-        add_mock.return_value.ports.return_value = self.ports
+        add_mock.return_value.ports.return_value = collections.OrderedDict(
+            (p.address, p) for p in self.ports)
 
         introspect.introspect(self.node_compat.uuid)
 
@@ -175,7 +180,7 @@ class TestIntrospect(BaseTest):
 
     def test_no_macs(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
-        self.ports[:] = []
+        self.node_info.ports.return_value = []
         add_mock.return_value = self.node_info
 
         introspect.introspect(self.node.uuid)

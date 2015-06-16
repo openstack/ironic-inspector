@@ -21,9 +21,10 @@ import sqlite3
 import sys
 import time
 
+from ironicclient import exceptions
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LC, _LE
+from ironic_inspector.common.i18n import _, _LC, _LE, _LW
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -61,6 +62,8 @@ class NodeInfo(object):
         self.error = error
         self.invalidate_cache()
         self._node = node
+        if ports is not None and not isinstance(ports, dict):
+            ports = {p.address: p for p in ports}
         self._ports = ports
 
     @property
@@ -142,12 +145,43 @@ class NodeInfo(object):
             self._node = ironic.node.get(self.uuid)
         return self._node
 
+    def create_ports(self, macs, ironic=None):
+        """Create one or several ports for this node.
+
+        A warning is issued if port already exists on a node.
+        """
+        ironic = utils.get_client() if ironic is None else ironic
+        for mac in macs:
+            if mac not in self.ports():
+                self._create_port(mac, ironic)
+            else:
+                LOG.warn(_LW('Port %(mac)s already exists for node %(uuid)s, '
+                             'skipping'), {'mac': mac, 'uuid': self.uuid})
+
     def ports(self, ironic=None):
-        """Get Ironic port objects associated with the cached node record."""
+        """Get Ironic port objects associated with the cached node record.
+
+        This value is cached as well, use invalidate_cache() to clean.
+
+        :return: dict MAC -> port object
+        """
         if self._ports is None:
             ironic = utils.get_client() if ironic is None else ironic
-            self._ports = ironic.node.list_ports(self.uuid, limit=0)
+            self._ports = {p.address: p
+                           for p in ironic.node.list_ports(self.uuid, limit=0)}
         return self._ports
+
+    def _create_port(self, mac, ironic):
+        try:
+            port = ironic.port.create(node_uuid=self.uuid, address=mac)
+        except exceptions.Conflict:
+            LOG.warn(_LW('Port %(mac)s already exists for node %(uuid)s, '
+                         'skipping'), {'mac': mac, 'uuid': self.uuid})
+            # NOTE(dtantsur): we didn't get port object back, so we have to
+            # reload ports on next access
+            self._ports = None
+        else:
+            self._ports[mac] = port
 
 
 def init():
