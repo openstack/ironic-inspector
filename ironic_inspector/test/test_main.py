@@ -16,7 +16,6 @@ import ssl
 import sys
 import unittest
 
-import eventlet
 import mock
 from oslo_utils import uuidutils
 
@@ -134,31 +133,6 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(200, res.status_code)
         self.assertEqual({'finished': True, 'error': 'boom'},
                          json.loads(res.data.decode('utf-8')))
-
-
-@mock.patch.object(eventlet.greenthread, 'sleep', autospec=True)
-@mock.patch.object(utils, 'get_client')
-class TestCheckIronicAvailable(test_base.BaseTest):
-    def test_ok(self, client_mock, sleep_mock):
-        main.check_ironic_available()
-        client_mock.return_value.driver.list.assert_called_once_with()
-        self.assertFalse(sleep_mock.called)
-
-    def test_2_attempts(self, client_mock, sleep_mock):
-        cli = mock.Mock()
-        client_mock.side_effect = [Exception(), cli]
-        main.check_ironic_available()
-        self.assertEqual(2, client_mock.call_count)
-        cli.driver.list.assert_called_once_with()
-        sleep_mock.assert_called_once_with(
-            CONF.ironic.ironic_retry_period)
-
-    def test_failed(self, client_mock, sleep_mock):
-        attempts = CONF.ironic.ironic_retry_attempts
-        client_mock.side_effect = RuntimeError()
-        self.assertRaises(RuntimeError, main.check_ironic_available)
-        self.assertEqual(1 + attempts, client_mock.call_count)
-        self.assertEqual(attempts, sleep_mock.call_count)
 
 
 class TestPlugins(unittest.TestCase):

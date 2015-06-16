@@ -112,32 +112,6 @@ def periodic_clean_up(period):  # pragma: no cover
         eventlet.greenthread.sleep(period)
 
 
-def check_ironic_available():
-    """Try to make sure we can reach Ironic.
-
-    Ensure that:
-    1. Keystone access is configured properly
-    2. Keystone has already started
-    3. Ironic has already started
-    """
-    attempts = CONF.ironic.ironic_retry_attempts
-    assert attempts >= 0
-    retry_period = CONF.ironic.ironic_retry_period
-    LOG.debug('Trying to connect to Ironic')
-    for i in range(attempts + 1):  # one attempt always required
-        try:
-            utils.get_client().driver.list()
-        except Exception as exc:
-            if i == attempts:
-                raise
-            LOG.warning(_LW('Unable to connect to Ironic or Keystone, retrying'
-                            ' %(count)d times more: %(exc)s') %
-                        {'count': attempts - i, 'exc': exc})
-        else:
-            break
-        eventlet.greenthread.sleep(retry_period)
-
-
 def init():
     if CONF.authenticate:
         utils.add_auth_middleware(app)
@@ -146,7 +120,6 @@ def init():
                         ' configuration'))
 
     node_cache.init()
-    check_ironic_available()
 
     try:
         hooks = [ext.name for ext in plugins_base.processing_hooks_manager()]
