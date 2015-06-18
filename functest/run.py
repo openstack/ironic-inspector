@@ -25,10 +25,10 @@ import sys
 import tempfile
 import unittest
 
+import ironic_inspector_client as client
 import mock
 import requests
 
-from ironic_inspector import client
 from ironic_inspector import main
 from ironic_inspector.test import base
 from ironic_inspector import utils
