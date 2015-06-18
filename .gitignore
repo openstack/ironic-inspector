@@ -6,3 +6,5 @@ dist/
 *.egg-info/
 .coverage
 *~
+AUTHORS
+ChangeLog
