@@ -50,16 +50,6 @@ IRONIC_OPTS = [
                     'DEPRECATED: use [keystone_authtoken]/identity_uri.',
                deprecated_group='discoverd',
                deprecated_for_removal=True),
-    cfg.IntOpt('ironic_retry_attempts',
-               default=5,
-               help='Number of attempts to do when trying to connect to '
-                    'Ironic on start up.',
-               deprecated_group='discoverd'),
-    cfg.IntOpt('ironic_retry_period',
-               default=5,
-               help='Amount of time between attempts to connect to Ironic '
-                    'on start up.',
-               deprecated_group='discoverd'),
     cfg.StrOpt('auth_strategy',
                default='keystone',
                choices=('keystone', 'noauth'),
