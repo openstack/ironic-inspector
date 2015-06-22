@@ -1,0 +1,91 @@
+# Translations template for ironic-inspector.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the ironic-inspector
+# project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2015.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ironic-inspector 2.0.0.dev155.g419d353\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-06-22 14:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 1.3\n"
+
+#: ironic_inspector/introspect.py:129
+#, python-format
+msgid "Failed to set boot device to PXE for node %(node)s: %(exc)s"
+msgstr ""
+
+#: ironic_inspector/main.py:127
+msgid "Starting unauthenticated, please check configuration"
+msgstr ""
+
+#: ironic_inspector/main.py:150
+msgid "Timeout is disabled in configuration"
+msgstr ""
+
+#: ironic_inspector/main.py:160
+msgid ""
+"Unable to use SSL in this version of Python: %{current}, please ensure "
+"your version of Python is greater than %{min} to enable this feature."
+msgstr ""
+
+#: ironic_inspector/main.py:172
+msgid ""
+"Failed to load certificate or key from defined locations: %{cert} and "
+"%{key}, will continue to run with the default settings: %{exc}"
+msgstr ""
+
+#: ironic_inspector/main.py:178
+#, python-format
+msgid ""
+"There was a problem with the loaded certificate and key, will continue to"
+" run with the default settings: %s"
+msgstr ""
+
+#: ironic_inspector/node_cache.py:158 ironic_inspector/node_cache.py:178
+#, python-format
+msgid "Port %(mac)s already exists for node %(uuid)s, skipping"
+msgstr ""
+
+#: ironic_inspector/utils.py:152
+#, python-format
+msgid "Conflict on calling %(call)s: %(exc)s, retry attempt %(count)d"
+msgstr ""
+
+#: ironic_inspector/plugins/extra_hardware.py:55
+msgid "No extra hardware information was received from the ramdisk"
+msgstr ""
+
+#: ironic_inspector/plugins/root_device_hint.py:57
+msgid "No block device was received from ramdisk"
+msgstr ""
+
+#: ironic_inspector/plugins/root_device_hint.py:74
+msgid "Root device cannot be identified because multiple new devices were found"
+msgstr ""
+
+#: ironic_inspector/plugins/root_device_hint.py:78
+msgid "No new devices were found"
+msgstr ""
+
+#: ironic_inspector/plugins/standard.py:120
+#, python-format
+msgid ""
+"The following interfaces were invalid or not eligible in introspection "
+"data for node with BMC %(ipmi_address)s and were excluded: %(invalid)s"
+msgstr ""
+
+#: ironic_inspector/plugins/standard.py:175
+msgid ""
+"Failed to store logs received from the ramdisk because ramdisk_logs_dir "
+"configuration option is not set"
+msgstr ""
+

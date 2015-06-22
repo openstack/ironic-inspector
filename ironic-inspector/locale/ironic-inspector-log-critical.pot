@@ -1,0 +1,39 @@
+# Translations template for ironic-inspector.
+# Copyright (C) 2015 ORGANIZATION
+# This file is distributed under the same license as the ironic-inspector
+# project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2015.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: ironic-inspector 2.0.0.dev155.g419d353\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2015-06-22 14:04+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 1.3\n"
+
+#: ironic_inspector/main.py:136
+#, python-format
+msgid "Hook %s failed to load or was not found"
+msgstr ""
+
+#: ironic_inspector/node_cache.py:193
+msgid "Configuration option inspector.database should be set"
+msgstr ""
+
+#: ironic_inspector/plugins/standard.py:68
+#, python-format
+msgid "Accepted values for [processing]add_ports are %(valid)s, got %(actual)s"
+msgstr ""
+
+#: ironic_inspector/plugins/standard.py:75
+#, python-format
+msgid "Accepted values for [processing]keep_ports are %(valid)s, got %(actual)s"
+msgstr ""
+
