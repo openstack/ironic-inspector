@@ -22,6 +22,10 @@ IRONIC_INSPECTOR_INTERFACE=${IRONIC_INSPECTOR_INTERFACE:-br-inspector}
 IRONIC_INSPECTOR_INTERNAL_URI="http://$IRONIC_INSPECTOR_INTERNAL_IP:$IRONIC_INSPECTOR_PORT"
 IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET=$IRONIC_INSPECTOR_INTERNAL_IP/$IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE
 
+GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
+GITREPO["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_REPO:-${GIT_BASE}/openstack/python-ironic-inspector-client.git}
+GITBRANCH["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_BRANCH:-master}
+
 ### Utilities
 
 function mkdir_chown_stack {
@@ -45,6 +49,16 @@ function install_inspector {
 
 function install_inspector_dhcp {
     install_package dnsmasq
+}
+
+function install_inspector_client {
+    if use_library_from_git python-ironic-inspector-client; then
+        git_clone_by_name python-ironic-inspector-client
+        setup_dev_lib python-ironic-inspector-client
+    else
+        # TODO(dtantsur): switch to pip_install_gr
+        pip_install python-ironic-inspector-client
+    fi
 }
 
 function start_inspector {
@@ -183,6 +197,7 @@ if [[ "$1" == "stack" && "$2" == "install" ]]; then
         install_inspector_dhcp
     fi
     install_inspector
+    install_inspector_client
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
     echo_summary "Configuring ironic-inspector"
     cleanup_inspector

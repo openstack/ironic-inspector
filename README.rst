@@ -221,48 +221,13 @@ in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/pla
 Usage
 -----
 
-**ironic-inspector** has a simple client library for Python and a CLI tool
-bundled with it.
-
-Client library is in module ``ironic_inspector.client``, every call
-accepts additional optional arguments:
-
-* ``base_url`` **ironic-inspector** API endpoint, defaults to
-  ``127.0.0.1:5050``,
-* ``auth_token`` Keystone authentication token.
-
-CLI tool is based on OpenStackClient_ with prefix
-``openstack baremetal introspection``. Accepts optional argument
-``--inspector-url`` with the **ironic-inspector** API endpoint.
-
-* **Start introspection on a node**:
-
-  ``introspect(uuid, new_ipmi_username=None, new_ipmi_password=None)``
-
-  ::
-
-    $ openstack baremetal introspection start UUID [--new-ipmi-password=PWD [--new-ipmi-username=USER]]
-
-  * ``uuid`` - Ironic node UUID;
-  * ``new_ipmi_username`` and ``new_ipmi_password`` - if these are set,
-    **ironic-inspector** will switch to manual power on and assigning IPMI
-    credentials on introspection. See `Setting IPMI Credentials`_ for details.
-
-* **Query introspection status**:
-
-  ``get_status(uuid)``
-
-  ::
-
-    $ openstack baremetal introspection status UUID
-
-  * ``uuid`` - Ironic node UUID.
-
 Refer to HTTP-API.rst_ for information on the HTTP API.
+Refer to the `client page`_ for information on how to use CLI and Python
+library.
 
-.. _OpenStackClient: http://docs.openstack.org/developer/python-openstackclient/
 .. _HTTP-API.rst: https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst
 .. _HTTP API: https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst
+.. _client page: https://pypi.python.org/pypi/python-ironic-inspector-client
 
 Using from Ironic API
 ~~~~~~~~~~~~~~~~~~~~~
