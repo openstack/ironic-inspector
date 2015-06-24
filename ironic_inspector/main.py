@@ -121,7 +121,7 @@ def periodic_clean_up(period):  # pragma: no cover
 
 
 def init():
-    if CONF.authenticate:
+    if utils.get_auth_strategy() != 'noauth':
         utils.add_auth_middleware(app)
     else:
         LOG.warning(_LW('Starting unauthenticated, please check'

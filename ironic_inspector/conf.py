@@ -152,12 +152,17 @@ SERVICE_OPTS = [
                default=5050,
                help='Port to listen on.',
                deprecated_group='discoverd'),
+    cfg.StrOpt('auth_strategy',
+               default='keystone',
+               choices=('keystone', 'noauth'),
+               help='Authentication method used on the ironic-inspector '
+                    'API. Either "noauth" or "keystone" are currently valid '
+                    'options. "noauth" will disable all authentication.'),
     cfg.BoolOpt('authenticate',
-                default=True,
-                help='Whether to authenticate with Keystone on public HTTP '
-                     'endpoints. Note that introspection ramdisk postback '
-                     'endpoint is never authenticated.',
-                deprecated_group='discoverd'),
+                default=None,
+                help='DEPRECATED: use auth_strategy.',
+                deprecated_group='discoverd',
+                deprecated_for_removal=True),
     cfg.StrOpt('database',
                default='',
                help='SQLite3 database to store nodes under introspection, '

@@ -32,7 +32,7 @@ CONF = cfg.CONF
 class TestCheckAuth(base.BaseTest):
     def setUp(self):
         super(TestCheckAuth, self).setUp()
-        CONF.set_override('authenticate', True)
+        CONF.set_override('auth_strategy', 'keystone')
 
     @mock.patch.object(auth_token, 'AuthProtocol')
     def test_middleware(self, mock_auth):
@@ -103,7 +103,7 @@ class TestCheckAuth(base.BaseTest):
         self.assertRaises(utils.Error, utils.check_auth, request)
 
     def test_disabled(self):
-        CONF.set_override('authenticate', False)
+        CONF.set_override('auth_strategy', 'noauth')
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         utils.check_auth(request)
 

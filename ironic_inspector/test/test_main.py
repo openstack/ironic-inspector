@@ -38,12 +38,12 @@ class TestApi(test_base.BaseTest):
         super(TestApi, self).setUp()
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
-        CONF.set_override('authenticate', False)
+        CONF.set_override('auth_strategy', 'noauth')
         self.uuid = uuidutils.generate_uuid()
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_no_authentication(self, introspect_mock):
-        CONF.set_override('authenticate', False)
+        CONF.set_override('auth_strategy', 'noauth')
         res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with(self.uuid,
@@ -51,7 +51,6 @@ class TestApi(test_base.BaseTest):
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials(self, introspect_mock):
-        CONF.set_override('authenticate', False)
         res = self.app.post('/v1/introspection/%s?new_ipmi_username=user&'
                             'new_ipmi_password=password' % self.uuid)
         self.assertEqual(202, res.status_code)
@@ -61,7 +60,6 @@ class TestApi(test_base.BaseTest):
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials_no_user(self, introspect_mock):
-        CONF.set_override('authenticate', False)
         res = self.app.post('/v1/introspection/%s?'
                             'new_ipmi_password=password' % self.uuid)
         self.assertEqual(202, res.status_code)
@@ -85,7 +83,7 @@ class TestApi(test_base.BaseTest):
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_failed_authentication(self, introspect_mock,
                                               auth_mock):
-        CONF.set_override('authenticate', True)
+        CONF.set_override('auth_strategy', 'keystone')
         auth_mock.side_effect = utils.Error('Boom', code=403)
         res = self.app.post('/v1/introspection/%s' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
@@ -101,7 +99,7 @@ class TestApi(test_base.BaseTest):
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue(self, process_mock):
         # should be ignored
-        CONF.set_override('authenticate', True)
+        CONF.set_override('auth_strategy', 'keystone')
         process_mock.return_value = [42]
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(200, res.status_code)
@@ -166,7 +164,7 @@ class TestPlugins(unittest.TestCase):
 class TestInit(test_base.BaseTest):
     def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
                 mock_firewall, mock_spawn_n):
-        CONF.set_override('authenticate', True)
+        CONF.set_override('auth_strategy', 'keystone')
         main.init()
         mock_auth.assert_called_once_with(main.app)
         mock_node_cache.assert_called_once_with()
@@ -183,7 +181,7 @@ class TestInit(test_base.BaseTest):
 
     def test_init_without_authenticate(self, mock_node_cache, mock_get_client,
                                        mock_auth, mock_firewall, mock_spawn_n):
-        CONF.set_override('authenticate', False)
+        CONF.set_override('auth_strategy', 'noauth')
         main.init()
         self.assertFalse(mock_auth.called)
 

@@ -113,7 +113,7 @@ def check_auth(request):
     :param request: Flask request
     :raises: utils.Error if access is denied
     """
-    if not CONF.authenticate:
+    if get_auth_strategy() == 'noauth':
         return
     if request.headers.get('X-Identity-Status').lower() == 'invalid':
         raise Error(_('Authentication required'), code=401)
@@ -128,6 +128,12 @@ def is_valid_mac(address):
     m = "[0-9a-f]{2}(:[0-9a-f]{2}){5}$"
     return (isinstance(address, six.string_types)
             and re.match(m, address.lower()))
+
+
+def get_auth_strategy():
+    if CONF.authenticate is not None:
+        return 'keystone' if CONF.authenticate else 'noauth'
+    return CONF.auth_strategy
 
 
 def get_ipmi_address(node):
