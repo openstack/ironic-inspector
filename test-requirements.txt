@@ -5,3 +5,4 @@ coverage>=3.6
 doc8 # Apache-2.0
 hacking<0.11,>=0.10.0
 mock>=1.0
+python-ironic-inspector-client>=1.0.1
