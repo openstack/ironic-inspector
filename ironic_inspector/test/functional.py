@@ -57,6 +57,7 @@ class Base(base.NodeTest):
         self.cli.reset_mock()
         self.cli.node.get.return_value = self.node
         self.cli.node.update.return_value = self.node
+        self.cli.node.list.return_value = [self.node]
 
         # https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst  # noqa
         self.data = {

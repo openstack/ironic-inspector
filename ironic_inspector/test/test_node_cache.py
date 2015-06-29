@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import time
 import unittest
 
@@ -56,6 +57,41 @@ class TestNodeCache(test_base.NodeTest):
                           ('mac', self.macs[1], self.uuid)],
                          [(row.name, row.value, row.uuid) for row in res])
 
+    def test__delete_node(self):
+        session = db.get_session()
+        with session.begin():
+            db.Node(uuid=self.node.uuid).save(session)
+            db.Attribute(name='mac', value='11:22:11:22:11:22',
+                         uuid=self.uuid).save(session)
+            data = {'s': 'value', 'b': True, 'i': 42}
+            encoded = json.dumps(data)
+            db.Option(uuid=self.uuid, name='name', value=encoded).save(
+                session)
+
+        node_cache._delete_node(self.uuid)
+        session = db.get_session()
+        row_node = db.model_query(db.Node).filter_by(
+            uuid=self.uuid).first()
+        self.assertIsNone(row_node)
+        row_attribute = db.model_query(db.Attribute).filter_by(
+            uuid=self.uuid).first()
+        self.assertIsNone(row_attribute)
+        row_option = db.model_query(db.Option).filter_by(
+            uuid=self.uuid).first()
+        self.assertIsNone(row_option)
+
+    @mock.patch.object(node_cache, '_list_node_uuids')
+    @mock.patch.object(node_cache, '_delete_node')
+    def test_delete_nodes_not_in_list(self, mock__delete_node,
+                                      mock__list_node_uuids):
+        uuid2 = 'uuid2'
+        uuids = {self.uuid}
+        mock__list_node_uuids.return_value = {self.uuid, uuid2}
+        session = db.get_session()
+        with session.begin():
+            node_cache.delete_nodes_not_in_list(uuids)
+        mock__delete_node.assert_called_once_with(uuid2)
+
     def test_add_node_duplicate_mac(self):
         session = db.get_session()
         with session.begin():
@@ -77,6 +113,15 @@ class TestNodeCache(test_base.NodeTest):
                              uuid=value[2]).save(session)
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
                          node_cache.active_macs())
+
+    def test__list_node_uuids(self):
+        session = db.get_session()
+        with session.begin():
+            db.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid='uuid2').save(session)
+
+        node_uuid_list = node_cache._list_node_uuids()
+        self.assertEqual({self.uuid, 'uuid2'}, node_uuid_list)
 
     def test_add_attribute(self):
         session = db.get_session()

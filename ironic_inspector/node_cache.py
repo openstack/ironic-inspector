@@ -183,13 +183,7 @@ def add_node(uuid, **attributes):
     """
     started_at = time.time()
     with db.ensure_transaction() as session:
-        (db.model_query(db.Node, session=session).filter_by(uuid=uuid).
-            delete())
-        (db.model_query(db.Attribute, session=session).filter_by(uuid=uuid).
-            delete(synchronize_session=False))
-        (db.model_query(db.Option, session=session).filter_by(uuid=uuid).
-            delete())
-
+        _delete_node(uuid)
         db.Node(uuid=uuid, started_at=started_at).save(session)
 
         node_info = NodeInfo(uuid=uuid, started_at=started_at)
@@ -201,10 +195,44 @@ def add_node(uuid, **attributes):
     return node_info
 
 
+def delete_nodes_not_in_list(uuids):
+    """Delete nodes which don't exist in Ironic node UUIDs.
+
+    :param uuids: Ironic node UUIDs
+    """
+    inspector_uuids = _list_node_uuids()
+    for uuid in inspector_uuids - uuids:
+        LOG.warn(_LW('Node %s was deleted from Ironic, dropping from Ironic '
+                     'Inspector database'), uuid)
+        _delete_node(uuid)
+
+
+def _delete_node(uuid, session=None):
+    """Delete information about a node.
+
+    :param uuid: Ironic node UUID
+    """
+    with db.ensure_transaction(session) as session:
+        (db.model_query(db.Node, session=session).filter_by(uuid=uuid).
+            delete())
+        (db.model_query(db.Attribute, session=session).filter_by(uuid=uuid).
+            delete(synchronize_session=False))
+        (db.model_query(db.Option, session=session).filter_by(uuid=uuid).
+            delete())
+
+
 def active_macs():
     """List all MAC's that are on introspection right now."""
     return ({x.value for x in db.model_query(db.Attribute.value).
             filter_by(name=MACS_ATTRIBUTE)})
+
+
+def _list_node_uuids():
+    """Get all nodes' uuid from cache.
+
+    :returns: Set of nodes' uuid.
+    """
+    return {x.uuid for x in db.model_query(db.Node.uuid)}
 
 
 def get_node(uuid):
