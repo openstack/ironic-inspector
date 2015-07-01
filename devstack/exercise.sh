@@ -8,6 +8,8 @@ EXPECTED_CPUS=${EXPECTED_CPUS:-1}
 EXPECTED_MIN_LOCAL_GB=${EXPECTED_MIN_LOCAL_GB:-1}
 EXPECTED_MIN_MEMORY_MB=${EXPECTED_MIN_MEMORY_MB:-512}
 
+export IRONIC_API_VERSION=${IRONIC_API_VERSION:-latest}
+
 ironic_url=$(keystone endpoint-get --service baremetal | tail -n +4 | head -n -1 | tr '|' ' ' | awk '{ print $2; }')
 if [ -z "$ironic_url" ]; then
     echo "Cannot find Ironic URL"
@@ -24,11 +26,15 @@ for uuid in $nodes; do
     for p in cpus cpu_arch memory_mb local_gb; do
         ironic node-update $uuid remove properties/$p > /dev/null || true
     done
+    ironic node-set-provision-state $uuid manage
 done
 
 for uuid in $nodes; do
-    # TODO(dtantsur): use Ironic API instead
-    openstack baremetal introspection start $uuid
+    ironic node-set-provision-state $uuid inspect
+    # FIXME(dtantsur): virtual machines PXE often behaves weirdly when a lot of
+    # machines DHCP at the same time, inserting sleep helps. It does not affect
+    # bare metal environment AFAIK.
+    sleep 5
 done
 
 current_nodes=$nodes
@@ -67,6 +73,7 @@ function curl_ir {
 for uuid in $nodes; do
     node_json=$(curl_ir GET v1/nodes/$uuid)
     properties=$(echo $node_json | jq '.properties')
+
     echo Properties for $uuid: $properties
     if [ "$(echo $properties | jq -r '.cpu_arch')" != "$EXPECTED_CPU_ARCH" ]; then
         echo "Expected $EXPECTED_CPU_ARCH"
@@ -84,6 +91,21 @@ for uuid in $nodes; do
         echo "Expected at least $EXPECTED_MIN_MEMORY_MB"
         exit 1
     fi
+
+    for attempt in {1..12}; do
+        node_json=$(curl_ir GET v1/nodes/$uuid)
+        provision_state=$(echo $node_json | jq -r '.provision_state')
+
+        if [ "$provision_state" != "manageable" ]; then
+            if [ "$attempt" -eq 12 ]; then
+                echo "Expected provision_state manageable, got $provision_state"
+                exit 1
+            fi
+        else
+            break
+        fi
+        sleep 10
+    done
 done
 
 echo "Validation passed"
