@@ -11,16 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-
 import eventlet
 eventlet.monkey_patch()
 
+import json
 import os
-import re
 import shutil
-import stat
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -46,86 +42,63 @@ manage_firewall = False
 enable_setting_ipmi_credentials = True
 [DEFAULT]
 database = %(db_file)s
+debug = True
 """
 
-ROOT = './functest/env'
 
-RAMDISK = ("https://raw.githubusercontent.com/openstack/diskimage-builder/"
-           "master/elements/ironic-discoverd-ramdisk/"
-           "init.d/80-ironic-discoverd-ramdisk")
-
-JQ = "https://stedolan.github.io/jq/download/linux64/jq"
+DEFAULT_SLEEP = 2
 
 
 class Test(base.NodeTest):
     def setUp(self):
         super(Test, self).setUp()
-        self.node.properties.clear()
 
         self.cli = utils.get_client()
         self.cli.reset_mock()
         self.cli.node.get.return_value = self.node
         self.cli.node.update.return_value = self.node
 
-        self.temp = tempfile.mkdtemp()
-        self.addCleanup(lambda: shutil.rmtree(self.temp))
-        self.env = os.path.join(self.temp, 'env')
-        shutil.copytree(ROOT, self.env)
-        net_ifaces = os.path.join(self.env, 'net')
-        os.mkdir(net_ifaces)
-        for fname in ('lo', 'em1', 'em2', 'em3'):
-            open(os.path.join(net_ifaces, fname), 'wb').close()
-
-        ramdisk_url = os.environ.get('RAMDISK_SOURCE', RAMDISK)
-        if re.match(r'^https?://', ramdisk_url):
-            ramdisk = requests.get(ramdisk_url).content
-        else:
-            with open(ramdisk_url, 'rb') as f:
-                ramdisk = f.read()
-        ramdisk = ramdisk.replace('/proc/cpuinfo', os.path.join(self.env,
-                                                                'cpuinfo.txt'))
-        ramdisk = ramdisk.replace('/sys/class/net', net_ifaces)
-        self.ramdisk_sh = os.path.join(self.env, 'ramdisk')
-        with open(self.ramdisk_sh, 'wb') as f:
-            f.write(ramdisk)
-
-        # jq is not on gate slaves
-        jq_path = os.path.join(self.env, 'jq')
-        with open(jq_path, 'wb') as f:
-            jq = requests.get(JQ, stream=True).raw
-            shutil.copyfileobj(jq, f)
-        os.chmod(jq_path, stat.S_IRWXU)
-
-        old_wd = os.getcwd()
-        os.chdir(self.temp)
-        self.addCleanup(lambda: os.chdir(old_wd))
-
-        # These properties come from fake tools in functest/env
+        # https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst  # noqa
+        self.data = {
+            'cpus': 4,
+            'cpu_arch': 'x86_64',
+            'memory_mb': 12288,
+            'local_gb': 464,
+            'interfaces': {
+                'eth1': {'mac': self.macs[0], 'ip': '1.2.1.2'},
+                'eth2': {'mac': '12:12:21:12:21:12'},
+                'eth3': {'mac': self.macs[1], 'ip': '1.2.1.1'},
+            },
+            'boot_interface': '01-' + self.macs[0].replace(':', '-'),
+            'ipmi_address': self.bmc_address,
+        }
         self.patch = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '12288'},
             {'path': '/properties/local_gb', 'value': '464', 'op': 'add'}
         ]
+
         self.node.power_state = 'power off'
 
     def call_ramdisk(self):
-        env = os.environ.copy()
-        env['PATH'] = self.env + ':' + env.get('PATH', '')
-
-        subprocess.check_call(['/bin/bash', '-eux', self.ramdisk_sh], env=env)
+        res = requests.post('http://127.0.0.1:5050/v1/continue',
+                            data=json.dumps(self.data))
+        res.raise_for_status()
+        return res
 
     def test_bmc(self):
         client.introspect(self.uuid, auth_token='token')
-        eventlet.greenthread.sleep(1)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                               'reboot')
 
         status = client.get_status(self.uuid, auth_token='token')
         self.assertEqual({'finished': False, 'error': None}, status)
 
-        self.call_ramdisk()
-        eventlet.greenthread.sleep(1)
+        res = self.call_ramdisk()
+        self.assertEqual({'uuid': self.uuid}, res.json())
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch)
         self.cli.port.create.assert_called_once_with(
@@ -144,14 +117,18 @@ class Test(base.NodeTest):
         self.node.maintenance = True
         client.introspect(self.uuid, auth_token='token',
                           new_ipmi_username='admin', new_ipmi_password='pwd')
-        eventlet.greenthread.sleep(1)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.assertFalse(self.cli.node.set_power_state.called)
 
         status = client.get_status(self.uuid, auth_token='token')
         self.assertEqual({'finished': False, 'error': None}, status)
 
-        self.call_ramdisk()
-        eventlet.greenthread.sleep(1)
+        res = self.call_ramdisk()
+        res_json = res.json()
+        self.assertEqual('admin', res_json['ipmi_username'])
+        self.assertEqual('pwd', res_json['ipmi_password'])
+        self.assertTrue(res_json['ipmi_setup_credentials'])
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch)
         self.cli.node.update.assert_any_call(self.uuid, patch_credentials)
@@ -160,11 +137,6 @@ class Test(base.NodeTest):
 
         status = client.get_status(self.uuid, auth_token='token')
         self.assertEqual({'finished': True, 'error': None}, status)
-
-        with open(os.path.join(self.temp, 'ipmi_calls.txt'), 'rb') as f:
-            lines = f.readlines()
-            self.assertIn('user set name 2 admin\n', lines)
-            self.assertIn('user set password 2 pwd\n', lines)
 
 
 @mock.patch.object(utils, 'check_auth')
@@ -178,14 +150,28 @@ def run(client_mock, keystone_mock):
             fp.write(CONF % {'db_file': db_file})
 
         eventlet.greenthread.spawn_n(main.main,
-                                     args=['--config-file', conf_file])
+                                     args=['--config-file', conf_file],
+                                     in_functional_test=True)
         eventlet.greenthread.sleep(1)
+        # Wait for service to start up to 30 seconds
+        for i in range(10):
+            try:
+                requests.get('http://127.0.0.1:5050/v1')
+            except requests.ConnectionError:
+                if i == 9:
+                    raise
+                print('Service did not start yet')
+                eventlet.greenthread.sleep(3)
+            else:
+                break
         suite = unittest.TestLoader().loadTestsFromTestCase(Test)
         res = unittest.TextTestRunner().run(suite)
-        sys.exit(0 if res.wasSuccessful() else 1)
+        # Make sure all processes finished executing
+        eventlet.greenthread.sleep(1)
+        return 0 if res.wasSuccessful() else 1
     finally:
         shutil.rmtree(d)
 
 
 if __name__ == '__main__':
-    run()
+    sys.exit(run())
