@@ -123,7 +123,7 @@ Test
 There is a test script included::
 
     source devstack/openrc admin admin
-    /opt/stack/ironic-inspector/functest/devstack-test.sh
+    /opt/stack/ironic-inspector/devstack/exercise.sh
 
 Usage
 -----
