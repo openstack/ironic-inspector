@@ -84,6 +84,7 @@ Example local.conf
     disable_service n-net n-novnc
     enable_service neutron q-svc q-agt q-dhcp q-l3 q-meta
     disable_service heat h-api h-api-cfn h-api-cw h-eng
+    disable_service cinder c-sch c-api c-vol
 
     enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
 
@@ -112,6 +113,9 @@ Notes
 
 * Network configuration is pretty sensitive, better not to touch it
   without deep understanding
+
+* This configuration disables Heat and Cinder, adjust it if you need these
+  services
 
 * Before restarting stack.sh::
 
