@@ -4,6 +4,8 @@ set -eux
 
 INTROSPECTION_SLEEP=${INTROSPECTION_SLEEP:-30}
 export IRONIC_API_VERSION=${IRONIC_API_VERSION:-latest}
+# Copied from devstack
+PRIVATE_NETWORK_NAME=${PRIVATE_NETWORK_NAME:-"private"}
 
 expected_cpus=$(openstack flavor show baremetal -f value -c vcpus)
 expected_memory_mb=$(openstack flavor show baremetal -f value -c ram)
@@ -109,6 +111,47 @@ for uuid in $nodes; do
         fi
         sleep 10
     done
+
+    ironic node-set-provision-state $uuid provide
 done
+
+echo "Wait until nova becomes aware of bare metal instances"
+
+for attempt in {1..24}; do
+    if [ $(nova hypervisor-stats | grep ' vcpus ' | head -n1 | awk '{ print $4; }') -ge $expected_cpus ]; then
+        break
+    elif [ "$attempt" -eq 24 ]; then
+        echo "Timeout while waiting for nova hypervisor-stats"
+        exit 1
+    fi
+    sleep 5
+done
+
+echo "Try nova boot for one instance"
+
+image=$(glance image-list | grep ami | head -n1 | awk '{ print $4 }')
+net_id=$(neutron net-list | egrep "$PRIVATE_NETWORK_NAME"'[^-]' | awk '{ print $2 }')
+nova boot --flavor baremetal --nic net-id=$net_id --image $image testing
+
+for attempt in {1..30}; do
+    status=$(nova list | grep testing | awk '{ print $6; }')
+    if [ "$status" = "ERROR" ]; then
+        echo "Instance failed to boot"
+        # Some debug output
+        nova show testing
+        nova hypervisor-stats
+        exit 1
+    elif [ "$status" != "ACTIVE" ]; then
+        if [ "$attempt" -eq 30 ]; then
+            echo "Instance didn't become ACTIVE, status is $status"
+            exit 1
+        fi
+    else
+        break
+    fi
+    sleep 30
+done
+
+nova delete testing
 
 echo "Validation passed"
