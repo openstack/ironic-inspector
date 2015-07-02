@@ -3,12 +3,15 @@
 set -eux
 
 INTROSPECTION_SLEEP=${INTROSPECTION_SLEEP:-30}
-EXPECTED_CPU_ARCH=${EXPECTED_CPU_ARCH:-x86_64}
-EXPECTED_CPUS=${EXPECTED_CPUS:-1}
-EXPECTED_MIN_LOCAL_GB=${EXPECTED_MIN_LOCAL_GB:-1}
-EXPECTED_MIN_MEMORY_MB=${EXPECTED_MIN_MEMORY_MB:-512}
-
 export IRONIC_API_VERSION=${IRONIC_API_VERSION:-latest}
+
+expected_cpus=$(openstack flavor show baremetal -f value -c vcpus)
+expected_memory_mb=$(openstack flavor show baremetal -f value -c ram)
+expected_cpu_arch=$(openstack flavor show baremetal -f value -c properties | sed "s/.*cpu_arch='\([^']*\)'.*/\1/")
+
+disk_size=$(openstack flavor show baremetal -f value -c disk)
+ephemeral_size=$(openstack flavor show baremetal -f value -c "OS-FLV-EXT-DATA:ephemeral")
+expected_local_gb=$(($disk_size + $ephemeral_size))
 
 ironic_url=$(keystone endpoint-get --service baremetal | tail -n +4 | head -n -1 | tr '|' ' ' | awk '{ print $2; }')
 if [ -z "$ironic_url" ]; then
@@ -75,20 +78,20 @@ for uuid in $nodes; do
     properties=$(echo $node_json | jq '.properties')
 
     echo Properties for $uuid: $properties
-    if [ "$(echo $properties | jq -r '.cpu_arch')" != "$EXPECTED_CPU_ARCH" ]; then
-        echo "Expected $EXPECTED_CPU_ARCH"
+    if [ "$(echo $properties | jq -r '.cpu_arch')" != "$expected_cpu_arch" ]; then
+        echo "Expected CPU architecture: $expected_cpu_arch"
         exit 1
     fi
-    if [ "$(echo $properties | jq -r '.cpus')" != "$EXPECTED_CPUS" ]; then
-        echo "Expected $EXPECTED_CPUS"
+    if [ "$(echo $properties | jq -r '.cpus')" != "$expected_cpus" ]; then
+        echo "Expected number of CPUS: $expected_cpus"
         exit 1
     fi
-    if [ "$(echo $properties | jq -r '.local_gb')" -lt "$EXPECTED_MIN_LOCAL_GB" ]; then
-        echo "Expected at least $EXPECTED_MIN_LOCAL_GB"
+    if [ "$(echo $properties | jq -r '.local_gb')" != "$expected_local_gb" ]; then
+        echo "Expected disk: $expected_local_gb"
         exit 1
     fi
-    if [ "$(echo $properties | jq -r '.memory_mb')" -lt "$EXPECTED_MIN_MEMORY_MB" ]; then
-        echo "Expected at least $EXPECTED_MIN_MEMORY_MB"
+    if [ "$(echo $properties | jq -r '.memory_mb')" != "$expected_memory_mb" ]; then
+        echo "Expected memory: $expected_memory_mb"
         exit 1
     fi
 
