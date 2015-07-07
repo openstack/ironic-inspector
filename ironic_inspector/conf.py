@@ -115,15 +115,22 @@ PROCESSING_OPTS = [
                      'introspection. This is an experimental and not well '
                      'tested feature, use at your own risk.',
                 deprecated_group='discoverd'),
-    cfg.StrOpt('processing_hooks',
+    cfg.StrOpt('default_processing_hooks',
                default='ramdisk_error,scheduler,validate_interfaces',
-               help='Comma-separated list of enabled hooks for processing '
+               help='Comma-separated list of default hooks for processing '
                     'pipeline. Hook \'scheduler\' updates the node with the '
                     'minimum properties required by the Nova scheduler. '
                     'Hook \'validate_interfaces\' ensures that valid NIC '
                     'data was provided by the ramdisk.'
                     'Do not exclude these two unless you really know what '
-                    'you\'re doing.',
+                    'you\'re doing.'),
+    cfg.StrOpt('processing_hooks',
+               default='$default_processing_hooks',
+               help='Comma-separated list of enabled hooks for processing '
+                    'pipeline. The default for this is '
+                    '$default_processing_hooks, hooks can be added before '
+                    'or after the defaults like this: '
+                    '"prehook,$default_processing_hooks,posthook".',
                deprecated_group='discoverd'),
     cfg.StrOpt('ramdisk_logs_dir',
                help='If set, logs from ramdisk will be stored in this '
