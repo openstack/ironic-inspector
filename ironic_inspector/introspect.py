@@ -138,6 +138,8 @@ def _background_introspect(ironic, node_info):
                                 ' check it\'s power '
                                 'management configuration:\n%(exc)s')
                               % {'node': node_info.uuid, 'exc': exc})
+        LOG.info(_LI('Introspection started successfully for node %s'),
+                 node_info.uuid)
     else:
         LOG.info(_LI('Introspection environment is ready for node %(node)s, '
                  'manual power on is required within %(timeout)d seconds') %
