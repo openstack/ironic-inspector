@@ -131,14 +131,14 @@ echo "Try nova boot for one instance"
 
 image=$(glance image-list | grep ami | head -n1 | awk '{ print $4 }')
 net_id=$(neutron net-list | egrep "$PRIVATE_NETWORK_NAME"'[^-]' | awk '{ print $2 }')
-nova boot --flavor baremetal --nic net-id=$net_id --image $image testing
+uuid=$(nova boot --flavor baremetal --nic net-id=$net_id --image $image testing | grep " id " | awk '{ print $4 }')
 
 for attempt in {1..30}; do
-    status=$(nova list | grep testing | awk '{ print $6; }')
+    status=$(nova show $uuid | grep " status " | awk '{ print $4 }')
     if [ "$status" = "ERROR" ]; then
         echo "Instance failed to boot"
         # Some debug output
-        nova show testing
+        nova show $uuid
         nova hypervisor-stats
         exit 1
     elif [ "$status" != "ACTIVE" ]; then
@@ -152,6 +152,6 @@ for attempt in {1..30}; do
     sleep 30
 done
 
-nova delete testing
+nova delete $uuid
 
 echo "Validation passed"
