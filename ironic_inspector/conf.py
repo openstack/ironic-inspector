@@ -150,6 +150,15 @@ PROCESSING_OPTS = [
 ]
 
 
+DISCOVERD_OPTS = [
+    cfg.StrOpt('database',
+               default='',
+               help='SQLite3 database to store nodes under introspection, '
+                    'required. Do not use :memory: here, it won\'t work. '
+                    'DEPRECATED: use [database]/connection.',
+               deprecated_for_removal=True),
+]
+
 SERVICE_OPTS = [
     cfg.StrOpt('listen_address',
                default='0.0.0.0',
@@ -170,11 +179,6 @@ SERVICE_OPTS = [
                 help='DEPRECATED: use auth_strategy.',
                 deprecated_group='discoverd',
                 deprecated_for_removal=True),
-    cfg.StrOpt('database',
-               default='',
-               help='SQLite3 database to store nodes under introspection, '
-                    'required. Do not use :memory: here, it won\'t work.',
-               deprecated_group='discoverd'),
     cfg.BoolOpt('debug',
                 default=False,
                 help='Debug mode enabled/disabled.',
@@ -214,6 +218,7 @@ cfg.CONF.register_opts(SERVICE_OPTS)
 cfg.CONF.register_opts(FIREWALL_OPTS, group='firewall')
 cfg.CONF.register_opts(PROCESSING_OPTS, group='processing')
 cfg.CONF.register_opts(IRONIC_OPTS, group='ironic')
+cfg.CONF.register_opts(DISCOVERD_OPTS, group='discoverd')
 
 
 def list_opts():
@@ -222,4 +227,5 @@ def list_opts():
         ('firewall', FIREWALL_OPTS),
         ('ironic', IRONIC_OPTS),
         ('processing', PROCESSING_OPTS),
+        ('discoverd', DISCOVERD_OPTS),
     ]
