@@ -236,7 +236,7 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_not_found_in_cache(self, cli, pop_mock, process_mock):
-        pop_mock.side_effect = utils.Error('not found')
+        pop_mock.side_effect = iter([utils.Error('not found')])
 
         self.assertRaisesRegexp(utils.Error,
                                 'not found',
@@ -257,7 +257,7 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_expected_exception(self, cli, pop_mock, process_mock):
-        process_mock.side_effect = utils.Error('boom')
+        process_mock.side_effect = iter([utils.Error('boom')])
 
         self.assertRaisesRegexp(utils.Error, 'boom',
                                 process.process, self.data)
@@ -266,7 +266,7 @@ class TestProcess(BaseTest):
 
     @prepare_mocks
     def test_unexpected_exception(self, cli, pop_mock, process_mock):
-        process_mock.side_effect = RuntimeError('boom')
+        process_mock.side_effect = iter([RuntimeError('boom')])
 
         self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
                                 process.process, self.data)
@@ -292,7 +292,7 @@ class TestProcess(BaseTest):
     def test_hook_unexpected_exceptions_no_node(self, cli, pop_mock,
                                                 process_mock):
         # Check that error from hooks is raised, not "not found"
-        pop_mock.side_effect = utils.Error('not found')
+        pop_mock.side_effect = iter([utils.Error('not found')])
         for ext in plugins_base.processing_hooks_manager():
             patcher = mock.patch.object(ext.obj, 'before_processing',
                                         side_effect=RuntimeError('boom'))
@@ -307,7 +307,7 @@ class TestProcess(BaseTest):
     @prepare_mocks
     def test_error_if_node_not_found_hook(self, cli, pop_mock, process_mock):
         plugins_base._NOT_FOUND_HOOK_MGR = None
-        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        pop_mock.side_effect = iter([utils.NotFoundInCacheError('BOOM')])
         self.assertRaisesRegexp(utils.Error,
                                 'Look up error: BOOM',
                                 process.process, self.data)
@@ -316,7 +316,7 @@ class TestProcess(BaseTest):
     def test_node_not_found_hook_run_ok(self, cli, pop_mock, process_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
         plugins_base._NOT_FOUND_HOOK_MGR = None
-        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        pop_mock.side_effect = iter([utils.NotFoundInCacheError('BOOM')])
         with mock.patch.object(example_plugin,
                                'example_not_found_hook') as hook_mock:
             hook_mock.return_value = node_cache.NodeInfo(
@@ -330,7 +330,7 @@ class TestProcess(BaseTest):
     def test_node_not_found_hook_run_none(self, cli, pop_mock, process_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
         plugins_base._NOT_FOUND_HOOK_MGR = None
-        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        pop_mock.side_effect = iter([utils.NotFoundInCacheError('BOOM')])
         with mock.patch.object(example_plugin,
                                'example_not_found_hook') as hook_mock:
             hook_mock.return_value = None
@@ -343,7 +343,7 @@ class TestProcess(BaseTest):
     def test_node_not_found_hook_exception(self, cli, pop_mock, process_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
         plugins_base._NOT_FOUND_HOOK_MGR = None
-        pop_mock.side_effect = utils.NotFoundInCacheError('BOOM')
+        pop_mock.side_effect = iter([utils.NotFoundInCacheError('BOOM')])
         with mock.patch.object(example_plugin,
                                'example_not_found_hook') as hook_mock:
             hook_mock.side_effect = Exception('Hook Error')

@@ -69,7 +69,7 @@ class TestApi(test_base.BaseTest):
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_intospect_failed(self, introspect_mock):
-        introspect_mock.side_effect = utils.Error("boom")
+        introspect_mock.side_effect = iter([utils.Error("boom")])
         res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(400, res.status_code)
         self.assertEqual(
@@ -84,7 +84,7 @@ class TestApi(test_base.BaseTest):
     def test_introspect_failed_authentication(self, introspect_mock,
                                               auth_mock):
         CONF.set_override('auth_strategy', 'keystone')
-        auth_mock.side_effect = utils.Error('Boom', code=403)
+        auth_mock.side_effect = iter([utils.Error('Boom', code=403)])
         res = self.app.post('/v1/introspection/%s' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
@@ -108,7 +108,7 @@ class TestApi(test_base.BaseTest):
 
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue_failed(self, process_mock):
-        process_mock.side_effect = utils.Error("boom")
+        process_mock.side_effect = iter([utils.Error("boom")])
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(400, res.status_code)
         process_mock.assert_called_once_with("JSON")
