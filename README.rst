@@ -14,8 +14,6 @@ node. The default one can be built using diskimage-builder_ and
 Support for **ironic-inspector** is present in `Tuskar UI`_ --
 OpenStack Horizon plugin for TripleO_.
 
-**ironic-inspector** requires OpenStack Kilo (2015.1) release or newer.
-
 Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
 downloads and accessing the released version of this README. Refer to
 CONTRIBUTING.rst_ for instructions on how to contribute.
@@ -29,6 +27,26 @@ CONTRIBUTING.rst_ for instructions on how to contribute.
 
 .. note::
     **ironic-inspector** was called *ironic-discoverd* before version 2.0.0.
+
+Version Support Matrix
+----------------------
+
+Here is a mapping between Ironic versions and supported **ironic-inspector**
+versions. Standalone case means **ironic-inspector** can be used at all with
+this Ironic version. "Inspection interface" case means Ironic inspection
+interface can be used with this **ironic-inspector** version.
+
++--------------+-------------------------------+
+|Ironic Version| Inspector (Discoverd) Version |
+|              +----------+--------------------+
+|              |Standalone|Inspection Interface|
++==============+==========+====================+
+|Juno          |1.0       |N/A                 |
++--------------+----------+--------------------+
+|Kilo          |1.0 - 1.1 |1.0 - 1.1           |
++--------------+----------+--------------------+
+|Liberty       |1.1 - 2.X |2.X                 |
++--------------+----------+--------------------+
 
 Workflow
 --------
