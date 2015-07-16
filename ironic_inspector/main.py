@@ -99,6 +99,11 @@ def api_introspection(uuid):
                                   error=node_info.error or None)
 
 
+@app.errorhandler(404)
+def handle_404(error):
+    return error_response(error, code=404)
+
+
 def periodic_update(period):  # pragma: no cover
     while True:
         LOG.debug('Running periodic update of filters')

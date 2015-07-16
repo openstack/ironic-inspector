@@ -136,6 +136,22 @@ class TestApi(test_base.BaseTest):
         self.assertEqual({'finished': True, 'error': 'boom'},
                          json.loads(res.data.decode('utf-8')))
 
+    @mock.patch.object(node_cache, 'get_node', autospec=True)
+    def test_404_expected(self, get_mock):
+        get_mock.side_effect = iter([utils.Error('boom', code=404)])
+        res = self.app.get('/v1/introspection/%s' % self.uuid)
+        self.assertEqual(404, res.status_code)
+        self.assertEqual(
+            'boom',
+            json.loads(res.data.decode('utf-8'))['error']['message'])
+
+    def test_404_unexpected(self):
+        res = self.app.get('/v42')
+        self.assertEqual(404, res.status_code)
+        self.assertIn(
+            'not found',
+            json.loads(res.data.decode('utf-8'))['error']['message'].lower())
+
 
 class TestPlugins(unittest.TestCase):
     @mock.patch.object(example_plugin.ExampleProcessingHook,
