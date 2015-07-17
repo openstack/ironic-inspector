@@ -144,17 +144,38 @@ Then check status via API::
 Writing a Plugin
 ~~~~~~~~~~~~~~~~
 
-**ironic-inspector** allows to hook your code into data processing chain after
-introspection. Inherit ``ProcessingHook`` class defined in
-`ironic_inspector.plugins.base
-<https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py>`_
-module and overwrite any or both of the following methods:
+* **ironic-inspector** allows you to hook code into the data processing chain
+  after introspection. Inherit ``ProcessingHook`` class defined in
+  ironic_inspector.plugins.base_ module and overwrite any or both of
+  the following methods:
 
-``before_processing(node_info)``
-    called before any data processing, providing the raw data. Each plugin in
-    the chain can modify the data, so order in which plugins are loaded
-    matters here. Returns nothing.
-``before_update(node,ports,node_info)``
-    called after node is found and ports are created, but before data is
-    updated on a node. Returns JSON patches for node and ports to apply.
-    Please refer to the docstring for details and examples.
+  ``before_processing(introspection_data,**)``
+      called before any data processing, providing the raw data. Each plugin in
+      the chain can modify the data, so order in which plugins are loaded
+      matters here. Returns nothing.
+  ``before_update(introspection_data,node_info,node_patches,ports_patches,**)``
+      called after node is found and ports are created, but before data is
+      updated on a node. ``node_patches`` and ``ports_patches`` are JSON
+      patches for node and ports to apply.
+      Please refer to the docstring for details and examples.
+
+  Make your plugin a setuptools entry point under
+  ``ironic_inspector.hooks.processing`` namespace and enable it in the
+  configuration file (``processing.processing_hooks`` option).
+
+* **ironic-inspector** allows plugins to override the action when node is not
+  found in node cache. Write a callable with the following signature:
+
+  ``(introspection_data,**)``
+    called when node is not found in cache, providing the processed data.
+    Should return a ``NodeInfo`` class instance.
+
+  Make your plugin a setuptools entry point under
+  ``ironic_inspector.hooks.node_not_found`` namespace and enable it in the
+  configuration file (``processing.node_not_found_hook`` option).
+
+.. note::
+    ``**`` argument is needed so that we can add optional arguments without
+    breaking out-of-tree plugins. Please make sure to include and ignore it.
+
+.. _ironic_inspector.plugins.base: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py
