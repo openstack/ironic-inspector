@@ -32,9 +32,10 @@ Version Support Matrix
 ----------------------
 
 Here is a mapping between Ironic versions and supported **ironic-inspector**
-versions. Standalone case means **ironic-inspector** can be used at all with
-this Ironic version. "Inspection interface" case means Ironic inspection
-interface can be used with this **ironic-inspector** version.
+versions. The Standalone column shows which **ironic-inspector** versions can
+be used in standalone mode with each Ironic version. The Inspection Interface
+column shows which **ironic-inspector** versions can be used with the Ironic
+inspection interface in each version of Ironic.
 
 +--------------+-------------------------------+
 |Ironic Version| Inspector (Discoverd) Version |
