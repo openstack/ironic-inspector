@@ -14,8 +14,11 @@
 """Handling introspection request."""
 
 import logging
+import re
 import string
+import time
 
+from eventlet import semaphore
 from ironicclient import exceptions
 from oslo_config import cfg
 
@@ -30,6 +33,10 @@ CONF = cfg.CONF
 LOG = logging.getLogger("ironic_inspector.introspect")
 PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
 PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
+
+_LAST_INTROSPECTION_TIME = 0
+_LAST_INTROSPECTION_LOCK = semaphore.BoundedSemaphore()
+_LAST_INTROSPECTION_RE = re.compile(CONF.introspection_delay_drivers)
 
 
 def _validate_ipmi_credentials(node, new_ipmi_credentials):
@@ -112,6 +119,8 @@ def introspect(uuid, new_ipmi_credentials=None):
 
 
 def _background_introspect(ironic, node_info):
+    global _LAST_INTROSPECTION_TIME
+
     # TODO(dtantsur): pagination
     macs = list(node_info.ports(ironic))
     if macs:
@@ -129,6 +138,17 @@ def _background_introspect(ironic, node_info):
             LOG.warning(_LW('Failed to set boot device to PXE for'
                             ' node %(node)s: %(exc)s') %
                         {'node': node_info.uuid, 'exc': exc})
+
+        if _LAST_INTROSPECTION_RE.match(node_info.node().driver):
+            LOG.debug('Attempting to acquire lock on last introspection time')
+            with _LAST_INTROSPECTION_LOCK:
+                delay = (_LAST_INTROSPECTION_TIME - time.time()
+                         + CONF.introspection_delay)
+                if delay > 0:
+                    LOG.debug('Waiting %d seconds before sending the next '
+                              'node on introspection', delay)
+                    time.sleep(delay)
+                _LAST_INTROSPECTION_TIME = time.time()
 
         try:
             utils.retry_on_conflict(ironic.node.set_power_state,

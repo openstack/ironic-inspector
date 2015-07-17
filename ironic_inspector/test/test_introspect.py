@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import collections
+import time
 
 import eventlet
 from ironicclient import exceptions
@@ -30,6 +31,7 @@ CONF = cfg.CONF
 class BaseTest(test_base.NodeTest):
     def setUp(self):
         super(BaseTest, self).setUp()
+        introspect._LAST_INTROSPECTION_TIME = 0
         self.node.power_state = 'power off'
         self.node_compat = mock.Mock(driver='pxe_ssh',
                                      uuid='uuid_compat',
@@ -43,6 +45,7 @@ class BaseTest(test_base.NodeTest):
                                                   for p in self.ports)
         self.node_info = mock.Mock(uuid=self.uuid, options={})
         self.node_info.ports.return_value = self.ports_dict
+        self.node_info.node.return_value = self.node
 
     def _prepare(self, client_mock):
         cli = client_mock.return_value
@@ -157,7 +160,8 @@ class TestIntrospect(BaseTest):
         cli.node.get.return_value = self.node_compat
         cli.node.validate.return_value = mock.Mock(power={'result': True})
         add_mock.return_value = mock.Mock(uuid=self.node_compat.uuid,
-                                          options={})
+                                          options={},
+                                          **{'node.return_value': self.node})
         add_mock.return_value.ports.return_value = collections.OrderedDict(
             (p.address, p) for p in self.ports)
 
@@ -246,6 +250,76 @@ class TestIntrospect(BaseTest):
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(add_mock.called)
+
+    @mock.patch.object(time, 'sleep')
+    @mock.patch.object(time, 'time')
+    def test_sleep_no_pxe_ssh(self, time_mock, sleep_mock, client_mock,
+                              add_mock, filters_mock):
+        self.node.driver = 'pxe_ipmitool'
+        time_mock.return_value = 42
+        introspect._LAST_INTROSPECTION_TIME = 40
+        CONF.set_override('introspection_delay', 10)
+
+        cli = self._prepare(client_mock)
+        add_mock.return_value = self.node_info
+
+        introspect.introspect(self.uuid)
+
+        self.assertFalse(sleep_mock.called)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        # not changed
+        self.assertEqual(40, introspect._LAST_INTROSPECTION_TIME)
+
+    @mock.patch.object(time, 'sleep')
+    @mock.patch.object(time, 'time')
+    def test_sleep_with_pxe_ssh(self, time_mock, sleep_mock, client_mock,
+                                add_mock, filters_mock):
+        self.node.driver = 'pxe_ssh'
+        time_mock.return_value = 42
+        introspect._LAST_INTROSPECTION_TIME = 40
+        CONF.set_override('introspection_delay', 10)
+
+        cli = self._prepare(client_mock)
+        add_mock.return_value = self.node_info
+
+        introspect.introspect(self.uuid)
+
+        sleep_mock.assert_called_once_with(8)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        # updated to the current time.time()
+        self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
+
+    @mock.patch.object(time, 'sleep')
+    @mock.patch.object(time, 'time')
+    def test_sleep_not_needed_with_pxe_ssh(self, time_mock, sleep_mock,
+                                           client_mock, add_mock,
+                                           filters_mock):
+        self.node.driver = 'agent_ssh'
+        time_mock.return_value = 100
+        introspect._LAST_INTROSPECTION_TIME = 40
+        CONF.set_override('introspection_delay', 10)
+
+        cli = self._prepare(client_mock)
+        add_mock.return_value = self.node_info
+
+        introspect.introspect(self.uuid)
+
+        self.assertFalse(sleep_mock.called)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        # updated to the current time.time()
+        self.assertEqual(100, introspect._LAST_INTROSPECTION_TIME)
 
 
 @mock.patch.object(utils, 'spawn_n',
