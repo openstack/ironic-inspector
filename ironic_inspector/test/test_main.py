@@ -33,6 +33,10 @@ from oslo_config import cfg
 CONF = cfg.CONF
 
 
+def _get_error(res):
+    return json.loads(res.data.decode('utf-8'))['error']['message']
+
+
 class TestApi(test_base.BaseTest):
     def setUp(self):
         super(TestApi, self).setUp()
@@ -112,9 +116,7 @@ class TestApi(test_base.BaseTest):
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(400, res.status_code)
         process_mock.assert_called_once_with("JSON")
-        self.assertEqual(
-            'boom',
-            json.loads(res.data.decode('utf-8'))['error']['message'])
+        self.assertEqual('boom', _get_error(res))
 
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_in_progress(self, get_mock):
@@ -141,16 +143,30 @@ class TestApi(test_base.BaseTest):
         get_mock.side_effect = iter([utils.Error('boom', code=404)])
         res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(404, res.status_code)
-        self.assertEqual(
-            'boom',
-            json.loads(res.data.decode('utf-8'))['error']['message'])
+        self.assertEqual('boom', _get_error(res))
 
     def test_404_unexpected(self):
         res = self.app.get('/v42')
         self.assertEqual(404, res.status_code)
-        self.assertIn(
-            'not found',
-            json.loads(res.data.decode('utf-8'))['error']['message'].lower())
+        self.assertIn('not found', _get_error(res).lower())
+
+    @mock.patch.object(node_cache, 'get_node', autospec=True)
+    def test_500_with_debug(self, get_mock):
+        CONF.set_override('debug', True)
+        get_mock.side_effect = iter([RuntimeError('boom')])
+        res = self.app.get('/v1/introspection/%s' % self.uuid)
+        self.assertEqual(500, res.status_code)
+        self.assertEqual('Internal server error (RuntimeError): boom',
+                         _get_error(res))
+
+    @mock.patch.object(node_cache, 'get_node', autospec=True)
+    def test_500_without_debug(self, get_mock):
+        CONF.set_override('debug', False)
+        get_mock.side_effect = iter([RuntimeError('boom')])
+        res = self.app.get('/v1/introspection/%s' % self.uuid)
+        self.assertEqual(500, res.status_code)
+        self.assertEqual('Internal server error',
+                         _get_error(res))
 
 
 class TestPlugins(unittest.TestCase):

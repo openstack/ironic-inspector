@@ -55,7 +55,10 @@ def convert_exceptions(func):
         except utils.Error as exc:
             return error_response(exc, exc.http_code)
         except Exception as exc:
-            return error_response(exc)
+            msg = _('Internal server error')
+            if CONF.debug:
+                msg += ' (%s): %s' % (exc.__class__.__name__, exc)
+            return error_response(msg)
 
     return wrapper
 
