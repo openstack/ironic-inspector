@@ -31,12 +31,5 @@ class ExampleProcessingHook(base.ProcessingHook):  # pragma: no cover
                   node_info.uuid)
 
 
-def example_not_found_hook(self, introspection_data):
-    """Hook to run when the node cache query returns not found.
-
-    :param node_info: raw information sent by the ramdisk, shouldn't be
-                      modified by this hook.
-    :returns: NodeInfo object representing a newly cached node
-              object or None
-    """
+def example_not_found_hook(introspection_data, **kwargs):
     LOG.debug('Processing node not found %s', introspection_data)
