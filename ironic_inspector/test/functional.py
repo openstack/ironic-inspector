@@ -14,6 +14,7 @@
 import eventlet
 eventlet.monkey_patch()
 
+import contextlib
 import json
 import os
 import shutil
@@ -21,7 +22,6 @@ import sys
 import tempfile
 import unittest
 
-import ironic_inspector_client as client
 import mock
 import requests
 
@@ -50,9 +50,9 @@ connection = sqlite:///%(db_file)s
 DEFAULT_SLEEP = 2
 
 
-class Test(base.NodeTest):
+class Base(base.NodeTest):
     def setUp(self):
-        super(Test, self).setUp()
+        super(Base, self).setUp()
 
         self.cli = utils.get_client()
         self.cli.reset_mock()
@@ -82,30 +82,52 @@ class Test(base.NodeTest):
 
         self.node.power_state = 'power off'
 
-    def call_ramdisk(self):
-        res = requests.post('http://127.0.0.1:5050/v1/continue',
-                            data=json.dumps(self.data))
-        res.raise_for_status()
+    def call(self, method, endpoint, data=None, expect_errors=False):
+        if data is not None:
+            data = json.dumps(data)
+        endpoint = 'http://127.0.0.1:5050' + endpoint
+        headers = {'X-Auth-Token': 'token'}
+        res = getattr(requests, method.lower())(endpoint, data=data,
+                                                headers=headers)
+        if not expect_errors:
+            res.raise_for_status()
         return res
 
+    def call_introspect(self, uuid, new_ipmi_username=None,
+                        new_ipmi_password=None):
+        endpoint = '/v1/introspection/%s' % uuid
+        if new_ipmi_password:
+            endpoint += '?new_ipmi_password=%s' % new_ipmi_password
+            if new_ipmi_username:
+                endpoint += '&new_ipmi_username=%s' % new_ipmi_username
+        return self.call('post', endpoint)
+
+    def call_get_status(self, uuid):
+        return self.call('get', '/v1/introspection/%s' % uuid).json()
+
+    def call_continue(self, data):
+        return self.call('post', '/v1/continue', data=data).json()
+
+
+class Test(Base):
     def test_bmc(self):
-        client.introspect(self.uuid, auth_token='token')
+        self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                               'reboot')
 
-        status = client.get_status(self.uuid, auth_token='token')
+        status = self.call_get_status(self.uuid)
         self.assertEqual({'finished': False, 'error': None}, status)
 
-        res = self.call_ramdisk()
-        self.assertEqual({'uuid': self.uuid}, res.json())
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
-        status = client.get_status(self.uuid, auth_token='token')
+        status = self.call_get_status(self.uuid)
         self.assertEqual({'finished': True, 'error': None}, status)
 
     def test_setup_ipmi(self):
@@ -116,19 +138,18 @@ class Test(base.NodeTest):
              'value': 'pwd'},
         ]
         self.node.maintenance = True
-        client.introspect(self.uuid, auth_token='token',
-                          new_ipmi_username='admin', new_ipmi_password='pwd')
+        self.call_introspect(self.uuid, new_ipmi_username='admin',
+                             new_ipmi_password='pwd')
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.assertFalse(self.cli.node.set_power_state.called)
 
-        status = client.get_status(self.uuid, auth_token='token')
+        status = self.call_get_status(self.uuid)
         self.assertEqual({'finished': False, 'error': None}, status)
 
-        res = self.call_ramdisk()
-        res_json = res.json()
-        self.assertEqual('admin', res_json['ipmi_username'])
-        self.assertEqual('pwd', res_json['ipmi_password'])
-        self.assertTrue(res_json['ipmi_setup_credentials'])
+        res = self.call_continue(self.data)
+        self.assertEqual('admin', res['ipmi_username'])
+        self.assertEqual('pwd', res['ipmi_password'])
+        self.assertTrue(res['ipmi_setup_credentials'])
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch)
@@ -136,13 +157,12 @@ class Test(base.NodeTest):
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
-        status = client.get_status(self.uuid, auth_token='token')
+        status = self.call_get_status(self.uuid)
         self.assertEqual({'finished': True, 'error': None}, status)
 
 
-@mock.patch.object(utils, 'check_auth')
-@mock.patch.object(utils, 'get_client')
-def run(client_mock, keystone_mock):
+@contextlib.contextmanager
+def mocked_server():
     d = tempfile.mkdtemp()
     try:
         conf_file = os.path.join(d, 'test.conf')
@@ -150,29 +170,33 @@ def run(client_mock, keystone_mock):
         with open(conf_file, 'wb') as fp:
             fp.write(CONF % {'db_file': db_file})
 
-        eventlet.greenthread.spawn_n(main.main,
-                                     args=['--config-file', conf_file],
-                                     in_functional_test=True)
-        eventlet.greenthread.sleep(1)
-        # Wait for service to start up to 30 seconds
-        for i in range(10):
-            try:
-                requests.get('http://127.0.0.1:5050/v1')
-            except requests.ConnectionError:
-                if i == 9:
-                    raise
-                print('Service did not start yet')
-                eventlet.greenthread.sleep(3)
-            else:
-                break
-        suite = unittest.TestLoader().loadTestsFromTestCase(Test)
-        res = unittest.TextTestRunner().run(suite)
-        # Make sure all processes finished executing
-        eventlet.greenthread.sleep(1)
-        return 0 if res.wasSuccessful() else 1
+        with mock.patch.object(utils, 'check_auth'):
+            with mock.patch.object(utils, 'get_client'):
+                eventlet.greenthread.spawn_n(main.main,
+                                             args=['--config-file', conf_file],
+                                             in_functional_test=True)
+                eventlet.greenthread.sleep(1)
+                # Wait for service to start up to 30 seconds
+                for i in range(10):
+                    try:
+                        requests.get('http://127.0.0.1:5050/v1')
+                    except requests.ConnectionError:
+                        if i == 9:
+                            raise
+                        print('Service did not start yet')
+                        eventlet.greenthread.sleep(3)
+                    else:
+                        break
+                # start testing
+                yield
+                # Make sure all processes finished executing
+                eventlet.greenthread.sleep(1)
     finally:
         shutil.rmtree(d)
 
 
 if __name__ == '__main__':
-    sys.exit(run())
+    with mocked_server():
+        suite = unittest.TestLoader().loadTestsFromTestCase(Test)
+        res = unittest.TextTestRunner().run(suite)
+        sys.exit(0 if res.wasSuccessful else 1)
