@@ -36,10 +36,6 @@ done
 
 for uuid in $nodes; do
     ironic node-set-provision-state $uuid inspect
-    # FIXME(dtantsur): virtual machines PXE often behaves weirdly when a lot of
-    # machines DHCP at the same time, inserting sleep helps. It does not affect
-    # bare metal environment AFAIK.
-    sleep 5
 done
 
 current_nodes=$nodes

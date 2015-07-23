@@ -210,7 +210,14 @@ SERVICE_OPTS = [
                help='Path to SSL key'),
     cfg.IntOpt('max_concurrency',
                default=1000,
-               help='The green thread pool size.')
+               help='The green thread pool size.'),
+    cfg.IntOpt('introspection_delay',
+               default=5,
+               help='Delay (in seconds) between two introspections.'),
+    cfg.StrOpt('introspection_delay_drivers',
+               default='^.*_ssh$',
+               help='Only node with drivers matching this regular expression '
+               'will be affected by introspection_delay setting.'),
 ]
 
 
