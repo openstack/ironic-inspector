@@ -59,6 +59,12 @@ IRONIC_OPTS = [
                help='Ironic API URL, used to set Ironic API URL when '
                     'auth_strategy option is noauth to work with standalone '
                     'Ironic without keystone.'),
+    cfg.StrOpt('os_service_type',
+               default='baremetal',
+               help='Ironic service type.'),
+    cfg.StrOpt('os_endpoint_type',
+               default='internalURL',
+               help='Ironic endpoint type.'),
 ]
 
 

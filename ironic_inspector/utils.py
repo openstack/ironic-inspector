@@ -64,13 +64,15 @@ def get_client():  # pragma: no cover
     """Get Ironic client instance."""
     # NOTE: To support standalone ironic without keystone
     if CONF.ironic.auth_strategy == 'noauth':
-        args = dict({'os_auth_token': 'noauth',
-                     'ironic_url': CONF.ironic.ironic_url})
+        args = {'os_auth_token': 'noauth',
+                'ironic_url': CONF.ironic.ironic_url}
     else:
-        args = dict({'os_password': CONF.ironic.os_password,
-                     'os_username': CONF.ironic.os_username,
-                     'os_auth_url': CONF.ironic.os_auth_url,
-                     'os_tenant_name': CONF.ironic.os_tenant_name})
+        args = {'os_password': CONF.ironic.os_password,
+                'os_username': CONF.ironic.os_username,
+                'os_auth_url': CONF.ironic.os_auth_url,
+                'os_tenant_name': CONF.ironic.os_tenant_name,
+                'os_service_type': CONF.ironic.os_service_type,
+                'os_endpoint_type': CONF.ironic.os_endpoint_type}
     return client.get_client(1, **args)
 
 
