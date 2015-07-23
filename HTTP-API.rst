@@ -4,8 +4,6 @@ HTTP API
 By default **ironic-inspector** listens on ``0.0.0.0:5050``, port
 can be changed in configuration. Protocol is JSON over HTTP.
 
-The HTTP API consist of these endpoints:
-
 Start Introspection
 ~~~~~~~~~~~~~~~~~~~
 
@@ -88,6 +86,10 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
       This list highly depends on enabled plugins, provided above are
       expected keys for the default set of plugins. See Plugins_ for details.
 
+.. note::
+    This endpoint is not expected to be versioned, though versioning will work
+    on it.
+
 Response:
 
 * 200 - OK
@@ -104,3 +106,31 @@ body will contain the following keys:
 
 .. _Setting IPMI Credentials: https://github.com/openstack/ironic-inspector#setting-ipmi-credentials
 .. _Plugins: https://github.com/openstack/ironic-inspector#plugins
+
+API Versioning
+~~~~~~~~~~~~~~
+
+The API supports optional API versioning. You can query for minimum and
+maximum API version supported by the server. You can also declare required API
+version in your requests, so that the server rejects request of unsupported
+version.
+
+.. note::
+    Versioning was introduced in **Ironic Inspector 2.1.0**.
+
+All versions must be supplied as string in form of ``X.Y``, where ``X`` is a
+major version and is always ``1`` for now, ``Y`` is a minor version.
+
+* If ``X-OpenStack-Ironic-Inspector-API-Version`` header is sent with request,
+  the server will check if it supports this version. HTTP error 406 will be
+  returned for unsupported API version.
+
+* All HTTP responses contain
+  ``X-OpenStack-Ironic-Inspector-API-Minimum-Version`` and
+  ``X-OpenStack-Ironic-Inspector-API-Maximum-Version`` headers with minimum
+  and maximum API versions supported by the server.
+
+Version History
+^^^^^^^^^^^^^^^
+
+**1.0** version of API at the moment of introducing versioning.

@@ -37,14 +37,16 @@ def _get_error(res):
     return json.loads(res.data.decode('utf-8'))['error']['message']
 
 
-class TestApi(test_base.BaseTest):
+class BaseAPITest(test_base.BaseTest):
     def setUp(self):
-        super(TestApi, self).setUp()
+        super(BaseAPITest, self).setUp()
         main.app.config['TESTING'] = True
         self.app = main.app.test_client()
         CONF.set_override('auth_strategy', 'noauth')
         self.uuid = uuidutils.generate_uuid()
 
+
+class TestApiIntrospect(BaseAPITest):
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_no_authentication(self, introspect_mock):
         CONF.set_override('auth_strategy', 'noauth')
@@ -100,6 +102,8 @@ class TestApi(test_base.BaseTest):
         res = self.app.post('/v1/introspection/%s' % uuid_dummy)
         self.assertEqual(400, res.status_code)
 
+
+class TestApiContinue(BaseAPITest):
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue(self, process_mock):
         # should be ignored
@@ -118,6 +122,8 @@ class TestApi(test_base.BaseTest):
         process_mock.assert_called_once_with("JSON")
         self.assertEqual('boom', _get_error(res))
 
+
+class TestApiGetStatus(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_in_progress(self, get_mock):
         get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
@@ -138,6 +144,8 @@ class TestApi(test_base.BaseTest):
         self.assertEqual({'finished': True, 'error': 'boom'},
                          json.loads(res.data.decode('utf-8')))
 
+
+class TestApiMisc(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_404_expected(self, get_mock):
         get_mock.side_effect = iter([utils.Error('boom', code=404)])
@@ -167,6 +175,53 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(500, res.status_code)
         self.assertEqual('Internal server error',
                          _get_error(res))
+
+
+class TestApiVersions(BaseAPITest):
+    def _check_version_present(self, res):
+        self.assertEqual('%d.%d' % main.MINIMUM_API_VERSION,
+                         res.headers.get(main._MIN_VERSION_HEADER))
+        self.assertEqual('%d.%d' % main.CURRENT_API_VERSION,
+                         res.headers.get(main._MAX_VERSION_HEADER))
+
+    def test_root_endpoints(self):
+        for endpoint in '/', '/v1':
+            res = self.app.get(endpoint)
+            self.assertEqual(200, res.status_code)
+            self._check_version_present(res)
+
+    def test_404_unexpected(self):
+        # API version on unknown pages
+        self._check_version_present(self.app.get('/v1/foobar'))
+
+    @mock.patch.object(node_cache, 'get_node', autospec=True)
+    def test_usual_requests(self, get_mock):
+        get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
+                                                    started_at=42.0)
+        # Successfull
+        self._check_version_present(
+            self.app.post('/v1/introspection/%s' % self.uuid))
+        # With error
+        self._check_version_present(
+            self.app.post('/v1/introspection/foobar'))
+
+    def test_request_correct_version(self):
+        headers = {main._VERSION_HEADER:
+                   main._format_version(main.CURRENT_API_VERSION)}
+        self._check_version_present(self.app.get('/', headers=headers))
+
+    def test_request_unsupported_version(self):
+        bad_version = (main.CURRENT_API_VERSION[0],
+                       main.CURRENT_API_VERSION[1] + 1)
+        headers = {main._VERSION_HEADER:
+                   main._format_version(bad_version)}
+        res = self.app.get('/', headers=headers)
+        self._check_version_present(res)
+        self.assertEqual(406, res.status_code)
+        error = _get_error(res)
+        self.assertIn('%d.%d' % bad_version, error)
+        self.assertIn('%d.%d' % main.MINIMUM_API_VERSION, error)
+        self.assertIn('%d.%d' % main.CURRENT_API_VERSION, error)
 
 
 class TestPlugins(unittest.TestCase):

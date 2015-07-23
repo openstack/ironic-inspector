@@ -82,11 +82,14 @@ class Base(base.NodeTest):
 
         self.node.power_state = 'power off'
 
-    def call(self, method, endpoint, data=None, expect_errors=False):
+    def call(self, method, endpoint, data=None, expect_errors=False,
+             api_version=None):
         if data is not None:
             data = json.dumps(data)
         endpoint = 'http://127.0.0.1:5050' + endpoint
         headers = {'X-Auth-Token': 'token'}
+        if api_version:
+            headers[main._VERSION_HEADER] = '%d.%d' % api_version
         res = getattr(requests, method.lower())(endpoint, data=data,
                                                 headers=headers)
         if not expect_errors:
