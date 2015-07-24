@@ -94,7 +94,8 @@ def api_introspection(uuid):
             new_ipmi_credentials = None
 
         introspect.introspect(uuid,
-                              new_ipmi_credentials=new_ipmi_credentials)
+                              new_ipmi_credentials=new_ipmi_credentials,
+                              token=flask.request.headers.get('X-Auth-Token'))
         return '', 202
     else:
         node_info = node_cache.get_node(uuid)

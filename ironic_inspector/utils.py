@@ -18,6 +18,7 @@ import socket
 import eventlet
 from ironicclient import client
 from ironicclient import exceptions
+import keystoneclient.v2_0.client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 import six
@@ -60,19 +61,30 @@ def spawn_n(*args, **kwargs):
     return GREEN_POOL.spawn_n(*args, **kwargs)
 
 
-def get_client():  # pragma: no cover
+def get_client(token=None):  # pragma: no cover
     """Get Ironic client instance."""
     # NOTE: To support standalone ironic without keystone
     if CONF.ironic.auth_strategy == 'noauth':
         args = {'os_auth_token': 'noauth',
                 'ironic_url': CONF.ironic.ironic_url}
-    else:
+    elif token is None:
         args = {'os_password': CONF.ironic.os_password,
                 'os_username': CONF.ironic.os_username,
                 'os_auth_url': CONF.ironic.os_auth_url,
                 'os_tenant_name': CONF.ironic.os_tenant_name,
                 'os_service_type': CONF.ironic.os_service_type,
                 'os_endpoint_type': CONF.ironic.os_endpoint_type}
+    else:
+        keystone_creds = {'password': CONF.ironic.os_password,
+                          'username': CONF.ironic.os_username,
+                          'auth_url': CONF.ironic.os_auth_url,
+                          'tenant_name': CONF.ironic.os_tenant_name}
+        keystone = keystone_client.Client(**keystone_creds)
+        ironic_url = keystone.service_catalog.url_for(
+            service_type=CONF.ironic.os_service_type,
+            endpoint_type=CONF.ironic.os_endpoint_type)
+        args = {'os_auth_token': token,
+                'ironic_url': ironic_url}
     return client.get_client(1, **args)
 
 

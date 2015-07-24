@@ -51,7 +51,8 @@ class TestApi(test_base.BaseTest):
         res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with(self.uuid,
-                                                new_ipmi_credentials=None)
+                                                new_ipmi_credentials=None,
+                                                token=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials(self, introspect_mock):
@@ -60,7 +61,8 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with(
             self.uuid,
-            new_ipmi_credentials=('user', 'password'))
+            new_ipmi_credentials=('user', 'password'),
+            token=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials_no_user(self, introspect_mock):
@@ -69,7 +71,8 @@ class TestApi(test_base.BaseTest):
         self.assertEqual(202, res.status_code)
         introspect_mock.assert_called_once_with(
             self.uuid,
-            new_ipmi_credentials=(None, 'password'))
+            new_ipmi_credentials=(None, 'password'),
+            token=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_intospect_failed(self, introspect_mock):
@@ -81,7 +84,8 @@ class TestApi(test_base.BaseTest):
             json.loads(res.data.decode('utf-8'))['error']['message'])
         introspect_mock.assert_called_once_with(
             self.uuid,
-            new_ipmi_credentials=None)
+            new_ipmi_credentials=None,
+            token=None)
 
     @mock.patch.object(utils, 'check_auth', autospec=True)
     @mock.patch.object(introspect, 'introspect', autospec=True)

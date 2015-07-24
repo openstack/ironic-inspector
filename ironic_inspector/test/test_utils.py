@@ -14,7 +14,9 @@
 import unittest
 
 import eventlet
+from ironicclient import client
 from ironicclient import exceptions
+import keystoneclient.v2_0.client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 
@@ -33,6 +35,30 @@ class TestCheckAuth(base.BaseTest):
     def setUp(self):
         super(TestCheckAuth, self).setUp()
         CONF.set_override('auth_strategy', 'keystone')
+
+    @mock.patch.object(client, 'get_client')
+    @mock.patch.object(keystone_client, 'Client')
+    def test_get_client_with_auth_token(self, mock_keystone_client,
+                                        mock_client):
+        fake_token = 'token'
+        fake_ironic_url = 'http://127.0.0.1:6385'
+        mock_keystone_client().service_catalog.url_for.return_value = (
+            fake_ironic_url)
+        utils.get_client(fake_token)
+        args = {'os_auth_token': fake_token,
+                'ironic_url': fake_ironic_url}
+        mock_client.assert_called_once_with(1, **args)
+
+    @mock.patch.object(client, 'get_client')
+    def test_get_client_without_auth_token(self, mock_client):
+        utils.get_client(None)
+        args = {'os_password': CONF.ironic.os_password,
+                'os_username': CONF.ironic.os_username,
+                'os_auth_url': CONF.ironic.os_auth_url,
+                'os_tenant_name': CONF.ironic.os_tenant_name,
+                'os_endpoint_type': CONF.ironic.os_endpoint_type,
+                'os_service_type': CONF.ironic.os_service_type}
+        mock_client.assert_called_once_with(1, **args)
 
     @mock.patch.object(auth_token, 'AuthProtocol')
     def test_middleware(self, mock_auth):
