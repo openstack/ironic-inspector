@@ -13,7 +13,6 @@
 
 """Handling introspection request."""
 
-import logging
 import re
 import string
 import time
@@ -21,6 +20,7 @@ import time
 from eventlet import semaphore
 from ironicclient import exceptions
 from oslo_config import cfg
+from oslo_log import log
 
 from ironic_inspector.common.i18n import _, _LI, _LW
 from ironic_inspector import firewall
@@ -30,7 +30,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-LOG = logging.getLogger("ironic_inspector.introspect")
+LOG = log.getLogger("ironic_inspector.introspect")
 PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
 PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 

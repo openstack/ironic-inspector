@@ -13,13 +13,13 @@
 
 """Gather root device hint from recognized block devices."""
 
-import logging
+from oslo_log import log
 
 from ironic_inspector.common.i18n import _LI, _LW
 from ironic_inspector.plugins import base
 
 
-LOG = logging.getLogger('ironic_inspector.plugins.root_device_hint')
+LOG = log.getLogger('ironic_inspector.plugins.root_device_hint')
 
 
 class RootDeviceHintHook(base.ProcessingHook):

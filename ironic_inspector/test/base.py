@@ -16,6 +16,7 @@ import unittest
 import mock
 from oslo_config import cfg
 from oslo_db import options as db_opts
+from oslo_log import log
 
 from ironic_inspector.common import i18n
 # Import configuration options
@@ -36,6 +37,12 @@ def init_test_conf():
         CONF.reset()
     for group in ('firewall', 'processing', 'ironic'):
         CONF.register_group(cfg.OptGroup(group))
+    try:
+        # Functional tests
+        log.register_options(CONF)
+    except Exception:
+        # Unit tests
+        pass
     db_opts.set_defaults(CONF)
     CONF.set_default('slave_connection', False, group='database')
     CONF.set_default('max_retries', 10, group='database')

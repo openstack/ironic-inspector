@@ -15,11 +15,11 @@
 
 import base64
 import datetime
-import logging
 import os
 import sys
 
 from oslo_config import cfg
+from oslo_log import log
 
 from ironic_inspector.common.i18n import _, _LC, _LI, _LW
 from ironic_inspector import conf
@@ -29,7 +29,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-LOG = logging.getLogger('ironic_inspector.plugins.standard')
+LOG = log.getLogger('ironic_inspector.plugins.standard')
 
 
 class SchedulerHook(base.ProcessingHook):

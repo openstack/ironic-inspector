@@ -14,12 +14,12 @@
 """Cache for nodes currently under introspection."""
 
 import json
-import logging
 import time
 
 from ironicclient import exceptions
 from oslo_config import cfg
 from oslo_db import exception as db_exc
+from oslo_log import log
 from sqlalchemy import text
 
 from ironic_inspector import db
@@ -29,7 +29,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-LOG = logging.getLogger("ironic_inspector.node_cache")
+LOG = log.getLogger("ironic_inspector.node_cache")
 
 
 MACS_ATTRIBUTE = 'mac'

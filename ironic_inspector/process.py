@@ -13,10 +13,9 @@
 
 """Handling introspection data from the ramdisk."""
 
-import logging
-
 import eventlet
 from ironicclient import exceptions
+from oslo_log import log
 
 from ironic_inspector.common.i18n import _, _LE, _LI
 from ironic_inspector import firewall
@@ -25,7 +24,7 @@ from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
 
 
-LOG = logging.getLogger("ironic_inspector.process")
+LOG = log.getLogger("ironic_inspector.process")
 
 _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
