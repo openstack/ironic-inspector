@@ -18,7 +18,6 @@ import contextlib
 import json
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
@@ -197,6 +196,4 @@ def mocked_server():
 
 if __name__ == '__main__':
     with mocked_server():
-        suite = unittest.TestLoader().loadTestsFromTestCase(Test)
-        res = unittest.TextTestRunner().run(suite)
-        sys.exit(0 if res.wasSuccessful else 1)
+        unittest.main()
