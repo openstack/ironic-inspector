@@ -40,10 +40,24 @@ CONF = cfg.CONF
 app = flask.Flask(__name__)
 LOG = logging.getLogger('ironic_inspector.main')
 
+MINIMUM_API_VERSION = (1, 0)
+CURRENT_API_VERSION = (1, 0)
+_MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
+_MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
+_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
+
+
+def _format_version(ver):
+    return '%d.%d' % ver
+
+
+_DEFAULT_API_VERSION = _format_version(MINIMUM_API_VERSION)
+
 
 def error_response(exc, code=500):
     res = flask.jsonify(error={'message': str(exc)})
     res.status_code = code
+    LOG.debug('Returning error to client: %s', exc)
     return res
 
 
@@ -61,6 +75,41 @@ def convert_exceptions(func):
             return error_response(msg)
 
     return wrapper
+
+
+@app.before_request
+def check_api_version():
+    requested = flask.request.headers.get(_VERSION_HEADER,
+                                          _DEFAULT_API_VERSION)
+    try:
+        requested = tuple(int(x) for x in requested.split('.'))
+    except (ValueError, TypeError):
+        return error_response(_('Malformed API version: expected string '
+                                'in form of X.Y'), code=400)
+
+    if requested < MINIMUM_API_VERSION or requested > CURRENT_API_VERSION:
+        return error_response(_('Unsupported API version %(requested)s, '
+                                'supported range is %(min)s to %(max)s') %
+                              {'requested': _format_version(requested),
+                               'min': _format_version(MINIMUM_API_VERSION),
+                               'max': _format_version(CURRENT_API_VERSION)},
+                              code=406)
+
+
+@app.after_request
+def add_version_headers(res):
+    res.headers[_MIN_VERSION_HEADER] = '%s.%s' % MINIMUM_API_VERSION
+    res.headers[_MAX_VERSION_HEADER] = '%s.%s' % CURRENT_API_VERSION
+    return res
+
+
+@app.route('/', methods=['GET'])
+@app.route('/v1', methods=['GET'])
+@convert_exceptions
+def api_root():
+    # TODO(dtantsur): this endpoint only returns API version now, it's possible
+    # we'll return something meaningful in addition later
+    return '{}', 200, {'Content-Type': 'application/json'}
 
 
 @app.route('/v1/continue', methods=['POST'])
