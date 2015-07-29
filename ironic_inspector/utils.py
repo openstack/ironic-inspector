@@ -37,6 +37,9 @@ RETRY_DELAY = 5
 
 GREEN_POOL = None
 
+# 1.6 is a Kilo API version, which has all we need and is pretty well tested
+DEFAULT_IRONIC_API_VERSION = '1.6'
+
 
 class Error(Exception):
     """Inspector exception."""
@@ -61,7 +64,8 @@ def spawn_n(*args, **kwargs):
     return GREEN_POOL.spawn_n(*args, **kwargs)
 
 
-def get_client(token=None):  # pragma: no cover
+def get_client(token=None,
+               api_version=DEFAULT_IRONIC_API_VERSION):  # pragma: no cover
     """Get Ironic client instance."""
     # NOTE: To support standalone ironic without keystone
     if CONF.ironic.auth_strategy == 'noauth':
@@ -85,6 +89,7 @@ def get_client(token=None):  # pragma: no cover
             endpoint_type=CONF.ironic.os_endpoint_type)
         args = {'os_auth_token': token,
                 'ironic_url': ironic_url}
+    args['os_ironic_api_version'] = api_version
     return client.get_client(1, **args)
 
 

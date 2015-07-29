@@ -46,7 +46,8 @@ class TestCheckAuth(base.BaseTest):
             fake_ironic_url)
         utils.get_client(fake_token)
         args = {'os_auth_token': fake_token,
-                'ironic_url': fake_ironic_url}
+                'ironic_url': fake_ironic_url,
+                'os_ironic_api_version': '1.6'}
         mock_client.assert_called_once_with(1, **args)
 
     @mock.patch.object(client, 'get_client')
@@ -57,7 +58,8 @@ class TestCheckAuth(base.BaseTest):
                 'os_auth_url': CONF.ironic.os_auth_url,
                 'os_tenant_name': CONF.ironic.os_tenant_name,
                 'os_endpoint_type': CONF.ironic.os_endpoint_type,
-                'os_service_type': CONF.ironic.os_service_type}
+                'os_service_type': CONF.ironic.os_service_type,
+                'os_ironic_api_version': '1.6'}
         mock_client.assert_called_once_with(1, **args)
 
     @mock.patch.object(auth_token, 'AuthProtocol')

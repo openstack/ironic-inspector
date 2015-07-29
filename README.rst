@@ -31,6 +31,10 @@ CONTRIBUTING.rst_ for instructions on how to contribute.
 Version Support Matrix
 ----------------------
 
+**ironic-inspector** currently requires bare metal API version ``1.6`` to be
+provided by Ironic. This version is available starting with Ironic Kilo
+release.
+
 Here is a mapping between Ironic versions and supported **ironic-inspector**
 versions. The Standalone column shows which **ironic-inspector** versions can
 be used in standalone mode with each Ironic version. The Inspection Interface
@@ -44,10 +48,14 @@ inspection interface in each version of Ironic.
 +==============+==========+====================+
 |Juno          |1.0       |N/A                 |
 +--------------+----------+--------------------+
-|Kilo          |1.0 - 1.1 |1.0 - 1.1           |
+|Kilo          |1.0 - 2.2 |1.0 - 1.1           |
 +--------------+----------+--------------------+
-|Liberty       |1.1 - 2.X |2.X                 |
+|Liberty       |1.1 - 2.X |2.0 - 2.X           |
 +--------------+----------+--------------------+
+
+.. note::
+    ``2.X`` means we don't have specific plans on deprecating support for this
+    Ironic version. This does not imply that we'll support it forever though.
 
 Workflow
 --------
