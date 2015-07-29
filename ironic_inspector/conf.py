@@ -65,6 +65,14 @@ IRONIC_OPTS = [
     cfg.StrOpt('os_endpoint_type',
                default='internalURL',
                help='Ironic endpoint type.'),
+    cfg.IntOpt('retry_interval',
+               default=2,
+               help='Interval between retries in case of conflict error '
+               '(HTTP 409).'),
+    cfg.IntOpt('max_retries',
+               default=30,
+               help='Maximum number of retries in case of conflict error '
+               '(HTTP 409).'),
 ]
 
 

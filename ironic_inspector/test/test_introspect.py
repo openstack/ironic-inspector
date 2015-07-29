@@ -95,31 +95,6 @@ class TestIntrospect(BaseTest):
         add_mock.assert_called_with(self.uuid,
                                     bmc_address=self.bmc_address)
 
-    def test_retries(self, client_mock, add_mock, filters_mock):
-        cli = self._prepare(client_mock)
-        cli.node.validate.side_effect = [exceptions.Conflict,
-                                         mock.Mock(power={'result': True})]
-        cli.node.set_boot_device.side_effect = [exceptions.Conflict,
-                                                None]
-        cli.node.set_power_state.side_effect = [exceptions.Conflict,
-                                                None]
-        add_mock.return_value = self.node_info
-
-        introspect.introspect(self.node.uuid)
-
-        cli.node.get.assert_called_once_with(self.uuid)
-        cli.node.validate.assert_called_with(self.uuid)
-        self.node_info.ports.assert_called_once_with(cli)
-
-        add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
-        filters_mock.assert_called_with(cli)
-        cli.node.set_boot_device.assert_called_with(self.uuid,
-                                                    'pxe',
-                                                    persistent=False)
-        cli.node.set_power_state.assert_called_with(self.uuid,
-                                                    'reboot')
-
     def test_power_failure(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
         cli.node.set_boot_device.side_effect = exceptions.BadRequest()

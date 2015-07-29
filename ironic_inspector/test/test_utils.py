@@ -13,9 +13,7 @@
 
 import unittest
 
-import eventlet
 from ironicclient import client
-from ironicclient import exceptions
 import keystoneclient.v2_0.client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
@@ -47,7 +45,9 @@ class TestCheckAuth(base.BaseTest):
         utils.get_client(fake_token)
         args = {'os_auth_token': fake_token,
                 'ironic_url': fake_ironic_url,
-                'os_ironic_api_version': '1.6'}
+                'os_ironic_api_version': '1.6',
+                'max_retries': CONF.ironic.max_retries,
+                'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, **args)
 
     @mock.patch.object(client, 'get_client')
@@ -59,7 +59,9 @@ class TestCheckAuth(base.BaseTest):
                 'os_tenant_name': CONF.ironic.os_tenant_name,
                 'os_endpoint_type': CONF.ironic.os_endpoint_type,
                 'os_service_type': CONF.ironic.os_service_type,
-                'os_ironic_api_version': '1.6'}
+                'os_ironic_api_version': '1.6',
+                'max_retries': CONF.ironic.max_retries,
+                'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, **args)
 
     @mock.patch.object(auth_token, 'AuthProtocol')
@@ -157,27 +159,6 @@ class TestGetIpmiAddress(base.BaseTest):
         node = mock_node.return_value
         node.driver_info.get.return_value = 'meow'
         self.assertRaises(utils.Error, utils.get_ipmi_address, node)
-
-
-@mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
-class TestRetryOnConflict(unittest.TestCase):
-    def test_retry_on_conflict(self):
-        call = mock.Mock()
-        call.side_effect = ([exceptions.Conflict()] * (utils.RETRY_COUNT - 1)
-                            + [mock.sentinel.result])
-        res = utils.retry_on_conflict(call, 1, 2, x=3)
-        self.assertEqual(mock.sentinel.result, res)
-        call.assert_called_with(1, 2, x=3)
-        self.assertEqual(utils.RETRY_COUNT, call.call_count)
-
-    def test_retry_on_conflict_fail(self):
-        call = mock.Mock()
-        call.side_effect = ([exceptions.Conflict()] * (utils.RETRY_COUNT + 1)
-                            + [mock.sentinel.result])
-        self.assertRaises(exceptions.Conflict, utils.retry_on_conflict,
-                          call, 1, 2, x=3)
-        call.assert_called_with(1, 2, x=3)
-        self.assertEqual(utils.RETRY_COUNT, call.call_count)
 
 
 class TestCapabilities(unittest.TestCase):
