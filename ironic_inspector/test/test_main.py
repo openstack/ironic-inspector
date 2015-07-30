@@ -19,6 +19,7 @@ import unittest
 import mock
 from oslo_utils import uuidutils
 
+from ironic_inspector import db
 from ironic_inspector import firewall
 from ironic_inspector import introspect
 from ironic_inspector import main
@@ -251,7 +252,7 @@ class TestPlugins(unittest.TestCase):
 @mock.patch.object(firewall, 'init')
 @mock.patch.object(utils, 'add_auth_middleware')
 @mock.patch.object(utils, 'get_client')
-@mock.patch.object(node_cache, 'init')
+@mock.patch.object(db, 'init')
 class TestInit(test_base.BaseTest):
     def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
                 mock_firewall, mock_spawn_n):

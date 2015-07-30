@@ -24,6 +24,7 @@ import flask
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
+from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
 # Import configuration options
 from ironic_inspector import conf  # noqa
@@ -185,7 +186,7 @@ def init():
         LOG.warning(_LW('Starting unauthenticated, please check'
                         ' configuration'))
 
-    node_cache.init()
+    db.init()
 
     try:
         hooks = [ext.name for ext in plugins_base.processing_hooks_manager()]

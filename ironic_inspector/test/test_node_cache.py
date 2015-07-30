@@ -17,7 +17,7 @@ import unittest
 import mock
 from oslo_config import cfg
 
-from ironic_inspector import models
+from ironic_inspector import db
 from ironic_inspector import node_cache
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
@@ -28,68 +28,67 @@ CONF = cfg.CONF
 class TestNodeCache(test_base.NodeTest):
     def test_add_node(self):
         # Ensure previous node information is cleared
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid=self.node.uuid).save(session)
-            models.Node(uuid='uuid2').save(session)
-            models.Attribute(name='mac',
-                             value='11:22:11:22:11:22',
-                             uuid=self.uuid).save(session)
+            db.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid='uuid2').save(session)
+            db.Attribute(name='mac',
+                         value='11:22:11:22:11:22',
+                         uuid=self.uuid).save(session)
 
         res = node_cache.add_node(self.node.uuid, mac=self.macs,
                                   bmc_address='1.2.3.4', foo=None)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 60)
 
-        res = (node_cache.model_query(models.Node.uuid,
-               models.Node.started_at).order_by(models.Node.uuid).all())
+        res = (db.model_query(db.Node.uuid,
+               db.Node.started_at).order_by(db.Node.uuid).all())
         self.assertEqual(['1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e',
                           'uuid2'], [t.uuid for t in res])
         self.assertTrue(time.time() - 60 < res[0].started_at <
                         time.time() + 60)
 
-        res = (node_cache.model_query(models.Attribute.name,
-               models.Attribute.value, models.Attribute.uuid).
-               order_by(models.Attribute.name, models.Attribute.value).all())
+        res = (db.model_query(db.Attribute.name,
+                              db.Attribute.value, db.Attribute.uuid).
+               order_by(db.Attribute.name, db.Attribute.value).all())
         self.assertEqual([('bmc_address', '1.2.3.4', self.uuid),
                           ('mac', self.macs[0], self.uuid),
                           ('mac', self.macs[1], self.uuid)],
                          [(row.name, row.value, row.uuid) for row in res])
 
     def test_add_node_duplicate_mac(self):
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid='another-uuid').save(session)
-            models.Attribute(name='mac', value='11:22:11:22:11:22',
-                             uuid='another-uuid').save(session)
+            db.Node(uuid='another-uuid').save(session)
+            db.Attribute(name='mac', value='11:22:11:22:11:22',
+                         uuid='another-uuid').save(session)
         self.assertRaises(utils.Error,
                           node_cache.add_node,
                           self.node.uuid, mac=['11:22:11:22:11:22'])
 
     def test_active_macs(self):
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid=self.node.uuid).save(session)
             values = [('mac', '11:22:11:22:11:22', self.uuid),
                       ('mac', '22:11:22:11:22:11', self.uuid)]
             for value in values:
-                models.Attribute(name=value[0], value=value[1],
-                                 uuid=value[2]).save(session)
+                db.Attribute(name=value[0], value=value[1],
+                             uuid=value[2]).save(session)
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
                          node_cache.active_macs())
 
     def test_add_attribute(self):
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid=self.node.uuid).save(session)
         node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
         node_info.add_attribute('key', 'value')
-        res = node_cache.model_query(models.Attribute.name,
-                                     models.Attribute.value,
-                                     models.Attribute.uuid,
-                                     session=session).order_by(
-                                         models.Attribute.name,
-                                         models.Attribute.value).all()
+        res = db.model_query(db.Attribute.name,
+                             db.Attribute.value,
+                             db.Attribute.uuid,
+                             session=session)
+        res = res.order_by(db.Attribute.name, db.Attribute.value).all()
         self.assertEqual([('key', 'value', self.uuid)],
                          [tuple(row) for row in res])
         self.assertRaises(utils.Error, node_info.add_attribute,
@@ -135,17 +134,17 @@ class TestNodeCacheFind(test_base.NodeTest):
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
 
     def test_inconsistency(self):
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            (node_cache.model_query(models.Node).filter_by(uuid=self.uuid).
+            (db.model_query(db.Node).filter_by(uuid=self.uuid).
                 delete())
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
     def test_already_finished(self):
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            (node_cache.model_query(models.Node).filter_by(uuid=self.uuid).
+            (db.model_query(db.Node).filter_by(uuid=self.uuid).
                 update({'finished_at': 42.0}))
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
@@ -155,14 +154,14 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
     def setUp(self):
         super(TestNodeCacheCleanUp, self).setUp()
         self.started_at = 100.0
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid=self.uuid, started_at=self.started_at).save(
+            db.Node(uuid=self.uuid, started_at=self.started_at).save(
                 session)
             for v in self.macs:
-                models.Attribute(name='mac', value=v, uuid=self.uuid).save(
+                db.Attribute(name='mac', value=v, uuid=self.uuid).save(
                     session)
-            models.Option(uuid=self.uuid, name='foo', value='bar').save(
+            db.Option(uuid=self.uuid, name='foo', value='bar').save(
                 session)
 
     def test_no_timeout(self):
@@ -171,12 +170,12 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertFalse(node_cache.clean_up())
 
         res = [tuple(row) for row in
-               node_cache.model_query(models.Node.finished_at,
-               models.Node.error).all()]
+               db.model_query(db.Node.finished_at,
+                              db.Node.error).all()]
         self.assertEqual([(None, None)], res)
         self.assertEqual(len(self.macs),
-                         node_cache.model_query(models.Attribute).count())
-        self.assertEqual(1, node_cache.model_query(models.Option).count())
+                         db.model_query(db.Attribute).count())
+        self.assertEqual(1, db.model_query(db.Option).count())
 
     @mock.patch.object(time, 'time')
     def test_ok(self, time_mock):
@@ -184,52 +183,52 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
         self.assertFalse(node_cache.clean_up())
 
-        res = [tuple(row) for row in node_cache.model_query(
-            models.Node.finished_at, models.Node.error).all()]
+        res = [tuple(row) for row in db.model_query(
+            db.Node.finished_at, db.Node.error).all()]
         self.assertEqual([(None, None)], res)
         self.assertEqual(len(self.macs),
-                         node_cache.model_query(models.Attribute).count())
-        self.assertEqual(1, node_cache.model_query(models.Option).count())
+                         db.model_query(db.Attribute).count())
+        self.assertEqual(1, db.model_query(db.Option).count())
 
     @mock.patch.object(time, 'time')
     def test_timeout(self, time_mock):
         # Add a finished node to confirm we don't try to timeout it
         time_mock.return_value = self.started_at
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid=self.uuid + '1', started_at=self.started_at,
-                        finished_at=self.started_at + 60).save(session)
+            db.Node(uuid=self.uuid + '1', started_at=self.started_at,
+                    finished_at=self.started_at + 60).save(session)
         CONF.set_override('timeout', 99)
         time_mock.return_value = (self.started_at + 100)
 
         self.assertEqual([self.uuid], node_cache.clean_up())
 
         res = [(row.finished_at, row.error) for row in
-               node_cache.model_query(models.Node).all()]
+               db.model_query(db.Node).all()]
         self.assertEqual([(self.started_at + 100, 'Introspection timeout'),
                           (self.started_at + 60, None)],
                          res)
-        self.assertEqual([], node_cache.model_query(models.Attribute).all())
-        self.assertEqual([], node_cache.model_query(models.Option).all())
+        self.assertEqual([], db.model_query(db.Attribute).all())
+        self.assertEqual([], db.model_query(db.Option).all())
 
     def test_old_status(self):
         CONF.set_override('node_status_keep_time', 42)
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            node_cache.model_query(models.Node).update(
+            db.model_query(db.Node).update(
                 {'finished_at': time.time() - 100})
 
         self.assertEqual([], node_cache.clean_up())
 
-        self.assertEqual([], node_cache.model_query(models.Node).all())
+        self.assertEqual([], db.model_query(db.Node).all())
 
 
 class TestNodeCacheGetNode(test_base.NodeTest):
     def test_ok(self):
         started_at = time.time() - 42
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Node(uuid=self.uuid, started_at=started_at).save(session)
+            db.Node(uuid=self.uuid, started_at=started_at).save(session)
         info = node_cache.get_node(self.uuid)
 
         self.assertEqual(self.uuid, info.uuid)
@@ -249,33 +248,33 @@ class TestNodeInfoFinished(test_base.NodeTest):
                             bmc_address='1.2.3.4',
                             mac=self.macs)
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Option(uuid=self.uuid, name='foo', value='bar').save(
+            db.Option(uuid=self.uuid, name='foo', value='bar').save(
                 session)
 
     def test_success(self):
         self.node_info.finished()
 
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
             self.assertEqual((42.0, None),
-                             tuple(node_cache.model_query(
-                                   models.Node.finished_at,
-                                   models.Node.error).first()))
-            self.assertEqual([], node_cache.model_query(models.Attribute,
+                             tuple(db.model_query(
+                                   db.Node.finished_at,
+                                   db.Node.error).first()))
+            self.assertEqual([], db.model_query(db.Attribute,
                              session=session).all())
-            self.assertEqual([], node_cache.model_query(models.Option,
+            self.assertEqual([], db.model_query(db.Option,
                              session=session).all())
 
     def test_error(self):
         self.node_info.finished(error='boom')
 
         self.assertEqual((42.0, 'boom'),
-                         tuple(node_cache.model_query(models.Node.finished_at,
-                               models.Node.error).first()))
-        self.assertEqual([], node_cache.model_query(models.Attribute).all())
-        self.assertEqual([], node_cache.model_query(models.Option).all())
+                         tuple(db.model_query(db.Node.finished_at,
+                               db.Node.error).first()))
+        self.assertEqual([], db.model_query(db.Attribute).all())
+        self.assertEqual([], db.model_query(db.Option).all())
 
 
 class TestInit(unittest.TestCase):
@@ -283,9 +282,9 @@ class TestInit(unittest.TestCase):
         super(TestInit, self).setUp()
 
     def test_ok(self):
-        node_cache.init()
-        session = node_cache.get_session()
-        node_cache.model_query(models.Node, session=session)
+        db.init()
+        session = db.get_session()
+        db.model_query(db.Node, session=session)
 
 
 class TestNodeInfoOptions(test_base.NodeTest):
@@ -295,9 +294,9 @@ class TestNodeInfoOptions(test_base.NodeTest):
                             bmc_address='1.2.3.4',
                             mac=self.macs)
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
-        session = node_cache.get_session()
+        session = db.get_session()
         with session.begin():
-            models.Option(uuid=self.uuid, name='foo', value='"bar"').save(
+            db.Option(uuid=self.uuid, name='foo', value='"bar"').save(
                 session)
 
     def test_get(self):
