@@ -33,3 +33,11 @@ class ExampleProcessingHook(base.ProcessingHook):  # pragma: no cover
 
 def example_not_found_hook(introspection_data, **kwargs):
     LOG.debug('Processing node not found %s', introspection_data)
+
+
+class ExampleRuleAction(base.RuleActionPlugin):  # pragma: no cover
+    def apply(self, node_info, params, **kwargs):
+        LOG.debug('apply action to %s: %s', node_info.uuid, params)
+
+    def rollback(self, node_info, params, **kwargs):
+        LOG.debug('rollback action to %s: %s', node_info.uuid, params)

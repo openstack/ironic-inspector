@@ -27,6 +27,7 @@ from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
 from ironic_inspector import process
+from ironic_inspector import rules
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
 from oslo_config import cfg
@@ -113,11 +114,11 @@ class TestApiContinue(BaseAPITest):
     def test_continue(self, process_mock):
         # should be ignored
         CONF.set_override('auth_strategy', 'keystone')
-        process_mock.return_value = [42]
+        process_mock.return_value = {'result': 42}
         res = self.app.post('/v1/continue', data='"JSON"')
         self.assertEqual(200, res.status_code)
         process_mock.assert_called_once_with("JSON")
-        self.assertEqual(b'[42]', res.data)
+        self.assertEqual({"result": 42}, json.loads(res.data.decode()))
 
     @mock.patch.object(process, 'process', autospec=True)
     def test_continue_failed(self, process_mock):
@@ -179,6 +180,90 @@ class TestApiGetData(BaseAPITest):
         res = self.app.get('/v1/introspection/%s/data' % self.uuid)
         self.assertFalse(swift_conn.get_object.called)
         self.assertEqual(404, res.status_code)
+
+
+class TestApiRules(BaseAPITest):
+    @mock.patch.object(rules, 'get_all')
+    def test_get_all(self, get_all_mock):
+        get_all_mock.return_value = [
+            mock.Mock(spec=rules.IntrospectionRule,
+                      **{'as_dict.return_value': {'uuid': 'foo'}}),
+            mock.Mock(spec=rules.IntrospectionRule,
+                      **{'as_dict.return_value': {'uuid': 'bar'}}),
+        ]
+
+        res = self.app.get('/v1/rules')
+        self.assertEqual(200, res.status_code)
+        self.assertEqual(
+            {
+                'rules': [{'uuid': 'foo',
+                           'links': [
+                               {'href': '/v1/rules/foo', 'rel': 'self'}
+                           ]},
+                          {'uuid': 'bar',
+                           'links': [
+                               {'href': '/v1/rules/bar', 'rel': 'self'}
+                           ]}]
+            },
+            json.loads(res.data.decode('utf-8')))
+        get_all_mock.assert_called_once_with()
+        for m in get_all_mock.return_value:
+            m.as_dict.assert_called_with(short=True)
+
+    @mock.patch.object(rules, 'delete_all')
+    def test_delete_all(self, delete_all_mock):
+        res = self.app.delete('/v1/rules')
+        self.assertEqual(204, res.status_code)
+        delete_all_mock.assert_called_once_with()
+
+    @mock.patch.object(rules, 'create', autospec=True)
+    def test_create(self, create_mock):
+        data = {'uuid': self.uuid,
+                'conditions': 'cond',
+                'actions': 'act'}
+        exp = data.copy()
+        exp['description'] = None
+        create_mock.return_value = mock.Mock(spec=rules.IntrospectionRule,
+                                             **{'as_dict.return_value': exp})
+
+        res = self.app.post('/v1/rules', data=json.dumps(data))
+        self.assertEqual(200, res.status_code)
+        create_mock.assert_called_once_with(conditions_json='cond',
+                                            actions_json='act',
+                                            uuid=self.uuid,
+                                            description=None)
+        self.assertEqual(exp, json.loads(res.data.decode('utf-8')))
+
+    @mock.patch.object(rules, 'create', autospec=True)
+    def test_create_bad_uuid(self, create_mock):
+        data = {'uuid': 'foo',
+                'conditions': 'cond',
+                'actions': 'act'}
+
+        res = self.app.post('/v1/rules', data=json.dumps(data))
+        self.assertEqual(400, res.status_code)
+
+    @mock.patch.object(rules, 'get')
+    def test_get_one(self, get_mock):
+        get_mock.return_value = mock.Mock(spec=rules.IntrospectionRule,
+                                          **{'as_dict.return_value':
+                                             {'uuid': 'foo'}})
+
+        res = self.app.get('/v1/rules/' + self.uuid)
+        self.assertEqual(200, res.status_code)
+        self.assertEqual({'uuid': 'foo',
+                          'links': [
+                              {'href': '/v1/rules/foo', 'rel': 'self'}
+                          ]},
+                         json.loads(res.data.decode('utf-8')))
+        get_mock.assert_called_once_with(self.uuid)
+        get_mock.return_value.as_dict.assert_called_once_with(short=False)
+
+    @mock.patch.object(rules, 'delete')
+    def test_delete_one(self, delete_mock):
+        res = self.app.delete('/v1/rules/' + self.uuid)
+        self.assertEqual(204, res.status_code)
+        delete_mock.assert_called_once_with(self.uuid)
 
 
 class TestApiMisc(BaseAPITest):

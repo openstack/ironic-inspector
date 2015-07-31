@@ -251,6 +251,23 @@ class NodeInfo(object):
         self.ironic.port.delete(port.uuid)
         del ports[port.address]
 
+    def get_by_path(self, path):
+        """Get field value by ironic-style path (e.g. /extra/foo).
+
+        :param path: path to a field
+        :returns: field value
+        :raises: KeyError if field was not found
+        """
+        path = path.strip('/')
+        try:
+            if '/' in path:
+                prop, key = path.split('/', 1)
+                return getattr(self.node(), prop)[key]
+            else:
+                return getattr(self.node(), path)
+        except AttributeError:
+            raise KeyError(path)
+
 
 def add_node(uuid, **attributes):
     """Store information about a node under introspection.

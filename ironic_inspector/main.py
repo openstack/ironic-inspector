@@ -15,7 +15,6 @@ import eventlet
 eventlet.monkey_patch()
 
 import functools
-import json
 import ssl
 import sys
 
@@ -34,6 +33,7 @@ from ironic_inspector import introspect
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import process
+from ironic_inspector import rules
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -43,7 +43,7 @@ app = flask.Flask(__name__)
 LOG = log.getLogger('ironic_inspector.main')
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 1)
+CURRENT_API_VERSION = (1, 2)
 _MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
 _MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
 _VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
@@ -114,7 +114,7 @@ def add_version_headers(res):
 def api_root():
     # TODO(dtantsur): this endpoint only returns API version now, it's possible
     # we'll return something meaningful in addition later
-    return '{}', 200, {'Content-Type': 'application/json'}
+    return flask.jsonify({})
 
 
 @app.route('/v1/continue', methods=['POST'])
@@ -123,8 +123,7 @@ def api_continue():
     data = flask.request.get_json(force=True)
     LOG.debug("/v1/continue got JSON %s", data)
 
-    res = process.process(data)
-    return json.dumps(res), 200, {'Content-Type': 'applications/json'}
+    return flask.jsonify(process.process(data))
 
 
 @app.route('/v1/introspection/<uuid>', methods=['GET', 'POST'])
@@ -163,12 +162,57 @@ def api_introspection_data(uuid):
     utils.check_auth(flask.request)
     if CONF.processing.store_data == 'swift':
         res = swift.get_introspection_data(uuid)
-        return res, 200, {'Content-Type': 'applications/json'}
+        return res, 200, {'Content-Type': 'application/json'}
     else:
         return error_response(_('Inspector is not configured to store data. '
                                 'Set the [processing] store_data '
                                 'configuration option to change this.'),
                               code=404)
+
+
+def rule_repr(rule, short):
+    result = rule.as_dict(short=short)
+    result['links'] = [{
+        'href': flask.url_for('api_rule', uuid=result['uuid']),
+        'rel': 'self'
+    }]
+    return result
+
+
+@app.route('/v1/rules', methods=['GET', 'POST', 'DELETE'])
+@convert_exceptions
+def api_rules():
+    utils.check_auth(flask.request)
+
+    if flask.request.method == 'GET':
+        res = [rule_repr(rule, short=True) for rule in rules.get_all()]
+        return flask.jsonify(rules=res)
+    elif flask.request.method == 'DELETE':
+        rules.delete_all()
+        return '', 204
+    else:
+        body = flask.request.get_json(force=True)
+        if body.get('uuid') and not uuidutils.is_uuid_like(body['uuid']):
+            raise utils.Error(_('Invalid UUID value'), code=400)
+
+        rule = rules.create(conditions_json=body.get('conditions', []),
+                            actions_json=body.get('actions', []),
+                            uuid=body.get('uuid'),
+                            description=body.get('description'))
+        return flask.jsonify(rule_repr(rule, short=False))
+
+
+@app.route('/v1/rules/<uuid>', methods=['GET', 'DELETE'])
+@convert_exceptions
+def api_rule(uuid):
+    utils.check_auth(flask.request)
+
+    if flask.request.method == 'GET':
+        rule = rules.get(uuid)
+        return flask.jsonify(rule_repr(rule, short=False))
+    else:
+        rules.delete(uuid)
+        return '', 204
 
 
 @app.errorhandler(404)

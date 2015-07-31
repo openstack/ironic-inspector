@@ -524,3 +524,20 @@ class TestUpdate(test_base.NodeTest):
 
         self.ironic.port.delete.assert_called_once_with('0')
         self.assertEqual(['mac1'], list(self.node_info.ports()))
+
+
+class TestNodeCacheGetByPath(test_base.NodeTest):
+    def setUp(self):
+        super(TestNodeCacheGetByPath, self).setUp()
+        self.node = mock.Mock(spec=['uuid', 'properties'],
+                              properties={'answer': 42},
+                              uuid=self.uuid)
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
+                                             node=self.node)
+
+    def test_get_by_path(self):
+        self.assertEqual(self.uuid, self.node_info.get_by_path('/uuid'))
+        self.assertEqual(self.uuid, self.node_info.get_by_path('uuid'))
+        self.assertEqual(42, self.node_info.get_by_path('/properties/answer'))
+        self.assertRaises(KeyError, self.node_info.get_by_path, '/foo')
+        self.assertRaises(KeyError, self.node_info.get_by_path, '/extra/foo')

@@ -25,6 +25,7 @@ import mock
 import requests
 
 from ironic_inspector import main
+from ironic_inspector import rules
 from ironic_inspector.test import base
 from ironic_inspector import utils
 
@@ -50,8 +51,11 @@ DEFAULT_SLEEP = 2
 
 
 class Base(base.NodeTest):
+    ROOT_URL = 'http://127.0.0.1:5050'
+
     def setUp(self):
         super(Base, self).setUp()
+        rules.delete_all()
 
         self.cli = utils.get_client()
         self.cli.reset_mock()
@@ -82,17 +86,19 @@ class Base(base.NodeTest):
 
         self.node.power_state = 'power off'
 
-    def call(self, method, endpoint, data=None, expect_errors=False,
+    def call(self, method, endpoint, data=None, expect_error=None,
              api_version=None):
         if data is not None:
             data = json.dumps(data)
-        endpoint = 'http://127.0.0.1:5050' + endpoint
+        endpoint = self.ROOT_URL + endpoint
         headers = {'X-Auth-Token': 'token'}
         if api_version:
             headers[main._VERSION_HEADER] = '%d.%d' % api_version
         res = getattr(requests, method.lower())(endpoint, data=data,
                                                 headers=headers)
-        if not expect_errors:
+        if expect_error:
+            self.assertEqual(expect_error, res.status_code)
+        else:
             res.raise_for_status()
         return res
 
@@ -110,6 +116,21 @@ class Base(base.NodeTest):
 
     def call_continue(self, data):
         return self.call('post', '/v1/continue', data=data).json()
+
+    def call_add_rule(self, data):
+        return self.call('post', '/v1/rules', data=data).json()
+
+    def call_list_rules(self):
+        return self.call('get', '/v1/rules').json()['rules']
+
+    def call_delete_rules(self):
+        self.call('delete', '/v1/rules')
+
+    def call_delete_rule(self, uuid):
+        self.call('delete', '/v1/rules/' + uuid)
+
+    def call_get_rule(self, uuid):
+        return self.call('get', '/v1/rules/' + uuid).json()
 
 
 class Test(Base):
@@ -162,6 +183,92 @@ class Test(Base):
 
         status = self.call_get_status(self.uuid)
         self.assertEqual({'finished': True, 'error': None}, status)
+
+    def test_rules_api(self):
+        res = self.call_list_rules()
+        self.assertEqual([], res)
+
+        rule = {'conditions': [],
+                'actions': [{'action': 'fail', 'message': 'boom'}],
+                'description': 'Cool actions'}
+        res = self.call_add_rule(rule)
+        self.assertTrue(res['uuid'])
+        rule['uuid'] = res['uuid']
+        rule['links'] = res['links']
+        self.assertEqual(rule, res)
+
+        res = self.call('get', rule['links'][0]['href']).json()
+        self.assertEqual(rule, res)
+
+        res = self.call_list_rules()
+        self.assertEqual(rule['links'], res[0].pop('links'))
+        self.assertEqual([{'uuid': rule['uuid'],
+                           'description': 'Cool actions'}],
+                         res)
+
+        res = self.call_get_rule(rule['uuid'])
+        self.assertEqual(rule, res)
+
+        self.call_delete_rule(rule['uuid'])
+        res = self.call_list_rules()
+        self.assertEqual([], res)
+
+        links = rule.pop('links')
+        del rule['uuid']
+        for _ in range(3):
+            self.call_add_rule(rule)
+
+        res = self.call_list_rules()
+        self.assertEqual(3, len(res))
+
+        self.call_delete_rules()
+        res = self.call_list_rules()
+        self.assertEqual([], res)
+
+        self.call('get', links[0]['href'], expect_error=404)
+        self.call('delete', links[0]['href'], expect_error=404)
+
+    def test_introspection_rules(self):
+        self.node.extra['bar'] = 'foo'
+        rules = [
+            {
+                'conditions': [
+                    {'field': 'memory_mb', 'op': 'eq', 'value': 12288},
+                    {'field': 'local_gb', 'op': 'gt', 'value': 400},
+                    {'field': 'local_gb', 'op': 'lt', 'value': 500},
+                ],
+                'actions': [
+                    {'action': 'set-attribute', 'path': '/extra/foo',
+                     'value': 'bar'}
+                ]
+            },
+            {
+                'conditions': [
+                    {'field': 'memory_mb', 'op': 'ge', 'value': 100500},
+                ],
+                'actions': [
+                    {'action': 'set-attribute', 'path': '/extra/bar',
+                     'value': 'foo'},
+                    {'action': 'fail', 'message': 'boom'}
+                ]
+            }
+        ]
+        for rule in rules:
+            self.call_add_rule(rule)
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.call_continue(self.data)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        # clean up for second rule
+        self.cli.node.update.assert_any_call(
+            self.uuid,
+            [{'op': 'remove', 'path': '/extra/bar'}])
+        # applying first rule
+        self.cli.node.update.assert_any_call(
+            self.uuid,
+            [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
 
 
 @contextlib.contextmanager

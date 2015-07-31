@@ -175,8 +175,63 @@ Writing a Plugin
   ``ironic_inspector.hooks.node_not_found`` namespace and enable it in the
   configuration file (``processing.node_not_found_hook`` option).
 
+* **ironic-inspector**  allows more condition types to be added for
+  `Introspection Rules`_. Inherit ``RuleConditionPlugin`` class defined in
+  ironic_inspector.plugins.base_ module and overwrite at least the following
+  method:
+
+  ``check(node_info,field,params,**)``
+      called to check that condition holds for a given field. Field value is
+      provided as ``field`` argument, ``params`` is a dictionary defined
+      at the time of condition creation. Returns boolean value.
+
+  The following methods and attributes may also be overridden:
+
+  ``validate(params,**)``
+      called to validate parameters provided during condition creating.
+      Default implementation requires keys listed in ``REQUIRED_PARAMS`` (and
+      only them).
+
+  ``REQUIRED_PARAMS``
+      contains set of required parameters used in the default implementation
+      of ``validate`` method, defaults to ``value`` parameter.
+
+  ``ALLOW_NONE``
+      if it's set to ``True``, missing fields will be passed as ``None``
+      values instead of failing the condition. Defaults to ``False``.
+
+  Make your plugin a setuptools entry point under
+  ``ironic_inspector.rules.conditions`` namespace.
+
+* **ironic-inspector** allows more action types to be added for `Introspection
+  Rules`_. Inherit ``RuleActionPlugin`` class defined in
+  ironic_inspector.plugins.base_ module and overwrite at least the following
+  method:
+
+  ``apply(node_info,params,**)``
+      called to apply the action.
+
+  The following methods and attributes may also be overridden:
+
+  ``rollback(node_info,params,**)``
+      called to clean up when conditions were not met.
+      Default implementation does nothing.
+
+  ``validate(params,**)``
+      called to validate parameters provided during actions creating.
+      Default implementation requires keys listed in ``REQUIRED_PARAMS`` (and
+      only them).
+
+  ``REQUIRED_PARAMS``
+      contains set of required parameters used in the default implementation
+      of ``validate`` method, defaults to no parameters.
+
+  Make your plugin a setuptools entry point under
+  ``ironic_inspector.rules.conditions`` namespace.
+
 .. note::
     ``**`` argument is needed so that we can add optional arguments without
     breaking out-of-tree plugins. Please make sure to include and ignore it.
 
 .. _ironic_inspector.plugins.base: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py
+.. _Introspection Rules: https://github.com/openstack/ironic-inspector#introspection-rules

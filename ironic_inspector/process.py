@@ -23,6 +23,7 @@ from ironic_inspector.common import swift
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
+from ironic_inspector import rules
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -165,6 +166,9 @@ def _process_node(node, introspection_data, node_info):
 
     ironic = utils.get_client()
     firewall.update_filters(ironic)
+
+    node_info.invalidate_cache()
+    rules.apply(node_info, introspection_data)
 
     resp = {'uuid': node.uuid}
 

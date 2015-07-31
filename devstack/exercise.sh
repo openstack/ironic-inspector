@@ -7,6 +7,37 @@ export IRONIC_API_VERSION=${IRONIC_API_VERSION:-latest}
 # Copied from devstack
 PRIVATE_NETWORK_NAME=${PRIVATE_NETWORK_NAME:-"private"}
 
+successful_rule=$(mktemp)
+cat > "$successful_rule" << EOM
+{
+    "description": "Successful Rule",
+    "conditions": [
+        {"op": "ge", "field": "memory_mb", "value": 256},
+        {"op": "ge", "field": "local_gb", "value": 1}
+    ],
+    "actions": [
+        {"action": "set-attribute", "path": "/extra/rule_success",
+         "value": "yes"}
+    ]
+}
+EOM
+
+failing_rule=$(mktemp)
+cat > "$failing_rule" << EOM
+{
+    "description": "Failing Rule",
+    "conditions": [
+        {"op": "lt", "field": "memory_mb", "value": 42},
+        {"op": "eq", "field": "local_gb", "value": 0}
+    ],
+    "actions": [
+        {"action": "set-attribute", "path": "/extra/rule_success",
+         "value": "no"},
+        {"action": "fail", "message": "This rule should not have run"}
+    ]
+}
+EOM
+
 expected_cpus=$(openstack flavor show baremetal -f value -c vcpus)
 expected_memory_mb=$(openstack flavor show baremetal -f value -c ram)
 expected_cpu_arch=$(openstack flavor show baremetal -f value -c properties | sed "s/.*cpu_arch='\([^']*\)'.*/\1/")
@@ -21,6 +52,20 @@ if [ -z "$ironic_url" ]; then
     exit 1
 fi
 
+# NOTE(dtantsur): it's hard to get JSON field from Ironic client output, using
+# HTTP API and JQ instead.
+
+function curl_ir {
+    local token=$(keystone token-get | grep ' id ' | tr '|' ' ' | awk '{ print $2; }')
+    curl -H "X-Auth-Token: $token" -X $1 "$ironic_url/$2"
+}
+
+function curl_ins {
+    local token=$(keystone token-get | grep ' id ' | tr '|' ' ' | awk '{ print $2; }')
+    local args=${3:-}
+    curl -f -H "X-Auth-Token: $token" -X $1 $args "http://127.0.0.1:5050/$2"
+}
+
 nodes=$(ironic node-list | tail -n +4 | head -n -1 | tr '|' ' ' | awk '{ print $1; }')
 if [ -z "$nodes" ]; then
     echo "No nodes found in Ironic"
@@ -33,6 +78,10 @@ for uuid in $nodes; do
     done
     ironic node-set-provision-state $uuid manage
 done
+
+curl_ins DELETE v1/rules
+curl_ins POST v1/rules "--data-binary @$successful_rule"
+curl_ins POST v1/rules "--data-binary @$failing_rule"
 
 for uuid in $nodes; do
     ironic node-set-provision-state $uuid inspect
@@ -63,17 +112,7 @@ while true; do
     fi
 done
 
-# NOTE(dtantsur): it's hard to get JSON field from Ironic client output, using
-# HTTP API and JQ instead.
-token=$(keystone token-get | grep ' id ' | tr '|' ' ' | awk '{ print $2; }')
-
-function curl_ir {
-    curl -H "X-Auth-Token: $token" -X $1 "$ironic_url/$2"
-}
-
-function curl_ins {
-    curl -H "X-Auth-Token: $token" -X $1 "http://127.0.0.1:5050/$2"
-}
+curl_ins DELETE v1/rules
 
 function test_swift {
     # Basic sanity check of the data stored in Swift
@@ -105,6 +144,13 @@ for uuid in $nodes; do
     fi
     if [ "$(echo $properties | jq -r '.memory_mb')" != "$expected_memory_mb" ]; then
         echo "Expected memory: $expected_memory_mb"
+        exit 1
+    fi
+
+    extra=$(echo $node_json | jq '.extra')
+    echo Extra properties for $uuid: $extra
+    if [ "$(echo $extra | jq -r '.rule_success')" != "yes" ]; then
+        echo "Rule matching failed"
         exit 1
     fi
 

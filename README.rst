@@ -277,6 +277,61 @@ Node States
     before Nova becomes aware of available nodes after issuing this command.
     Use ``nova hypervisor-stats`` command output to check it.
 
+Introspection Rules
+~~~~~~~~~~~~~~~~~~~
+
+Inspector supports a simple JSON-based DSL to define rules to run during
+introspection. Inspector provides an API to manage such rules, and will run
+them automatically after running all processing hooks.
+
+A rule consists of conditions to check, and actions to run. If conditions
+evaluate to true on the introspection data, then actions are run on a node.
+All actions have "rollback actions" associated with them, which are run when
+conditions evaluate to false. This way we can safely rerun introspection.
+
+Available conditions and actions are defined by plugins, and can be extended,
+see CONTRIBUTING.rst_ for details. See `HTTP API`_ for specific calls to define
+introspection rules.
+
+Conditions
+^^^^^^^^^^
+
+A condition is represented by an object with fields:
+
+``op`` the type of comparison operation, default available operators include :
+``eq``, ``le``, ``ge``, ``ne``, ``lt``, ``gt``.
+
+``field`` a `JSON path <http://goessner.net/articles/JsonPath/>`_ to the field
+in the introspection data to use in comparison.
+
+``multiple`` how to treat situations where the ``field`` query returns multiple
+results (e.g. the field contains a list), available options are:
+
+* ``any`` (the default) require any to match,
+* ``all`` require all to match,
+* ``first`` requrie the first to match.
+
+All other fields are passed to the condition plugin, e.g. numeric comparison
+operations require a ``value`` field to compare against.
+
+Actions
+^^^^^^^
+
+An action is represented by an object with fields:
+
+``action`` type of action. Possible values are defined by plugins.
+
+All other fields are passed to the action plugin.
+
+Default available actions include:
+
+* ``fail`` fail introspection. Requires a ``message`` parameter for the failure
+  message.
+
+* ``set-attribute`` sets an attribute on an Ironic node. Requires a ``path``
+  field, which is the path to the attribute as used by ironic (e.g.
+  ``/properties/something``), and a ``value`` to set.
+
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

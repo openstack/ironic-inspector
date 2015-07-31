@@ -21,8 +21,11 @@ from oslo_config import cfg
 from oslo_db import options as db_opts
 from oslo_db.sqlalchemy import models
 from oslo_db.sqlalchemy import session as db_session
-from sqlalchemy import Column, Float, ForeignKey, String, Text
+from oslo_db.sqlalchemy import types as db_types
+from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
+                        String, Text)
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import orm
 
 
 Base = declarative_base(cls=models.ModelBase)
@@ -51,6 +54,53 @@ class Option(Base):
     uuid = Column(String(36), ForeignKey('nodes.uuid'), primary_key=True)
     name = Column(Text, primary_key=True)
     value = Column(Text)
+
+
+class Rule(Base):
+    __tablename__ = 'rules'
+    uuid = Column(String(36), primary_key=True)
+    created_at = Column(DateTime, nullable=False)
+    description = Column(Text)
+    # NOTE(dtantsur): in the future we might need to temporary disable a rule
+    disabled = Column(Boolean, default=False)
+
+    conditions = orm.relationship('RuleCondition', lazy='joined',
+                                  order_by='RuleCondition.id',
+                                  cascade="all, delete-orphan")
+    actions = orm.relationship('RuleAction', lazy='joined',
+                               order_by='RuleAction.id',
+                               cascade="all, delete-orphan")
+
+
+class RuleCondition(Base):
+    __tablename__ = 'rule_conditions'
+    id = Column(Integer, primary_key=True)
+    rule = Column(String(36), ForeignKey('rules.uuid'))
+    op = Column(String(255), nullable=False)
+    multiple = Column(String(255), nullable=False)
+    # NOTE(dtantsur): while all operations now require a field, I can also
+    # imagine user-defined operations that do not, thus it's nullable.
+    field = Column(Text)
+    params = Column(db_types.JsonEncodedDict)
+
+    def as_dict(self):
+        res = self.params.copy()
+        res['op'] = self.op
+        res['field'] = self.field
+        return res
+
+
+class RuleAction(Base):
+    __tablename__ = 'rule_actions'
+    id = Column(Integer, primary_key=True)
+    rule = Column(String(36), ForeignKey('rules.uuid'))
+    action = Column(String(255), nullable=False)
+    params = Column(db_types.JsonEncodedDict)
+
+    def as_dict(self):
+        res = self.params.copy()
+        res['action'] = self.action
+        return res
 
 
 def init():
