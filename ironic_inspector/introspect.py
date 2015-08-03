@@ -95,7 +95,7 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
         new_ipmi_credentials = (
             _validate_ipmi_credentials(node, new_ipmi_credentials))
     else:
-        validation = utils.retry_on_conflict(ironic.node.validate, node.uuid)
+        validation = ironic.node.validate(node.uuid)
         if not validation.power['result']:
             msg = _('Failed validation of power interface for node %(node)s, '
                     'reason: %(reason)s')
@@ -133,8 +133,8 @@ def _background_introspect(ironic, node_info):
 
     if not node_info.options.get('new_ipmi_credentials'):
         try:
-            utils.retry_on_conflict(ironic.node.set_boot_device,
-                                    node_info.uuid, 'pxe', persistent=False)
+            ironic.node.set_boot_device(node_info.uuid, 'pxe',
+                                        persistent=False)
         except Exception as exc:
             LOG.warning(_LW('Failed to set boot device to PXE for'
                             ' node %(node)s: %(exc)s') %
@@ -152,8 +152,7 @@ def _background_introspect(ironic, node_info):
                 _LAST_INTROSPECTION_TIME = time.time()
 
         try:
-            utils.retry_on_conflict(ironic.node.set_power_state,
-                                    node_info.uuid, 'reboot')
+            ironic.node.set_power_state(node_info.uuid, 'reboot')
         except Exception as exc:
             raise utils.Error(_('Failed to power on node %(node)s,'
                                 ' check it\'s power '

@@ -17,13 +17,12 @@ import socket
 
 import eventlet
 from ironicclient import client
-from ironicclient import exceptions
 import keystoneclient.v2_0.client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 import six
 
-from ironic_inspector.common.i18n import _, _LE, _LI, _LW
+from ironic_inspector.common.i18n import _, _LE, _LI
 
 CONF = cfg.CONF
 
@@ -32,8 +31,6 @@ VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
 
 
 LOG = logging.getLogger('ironic_inspector.utils')
-RETRY_COUNT = 12
-RETRY_DELAY = 5
 
 GREEN_POOL = None
 
@@ -90,6 +87,8 @@ def get_client(token=None,
         args = {'os_auth_token': token,
                 'ironic_url': ironic_url}
     args['os_ironic_api_version'] = api_version
+    args['max_retries'] = CONF.ironic.max_retries
+    args['retry_interval'] = CONF.ironic.retry_interval
     return client.get_client(1, **args)
 
 
@@ -166,24 +165,6 @@ def get_ipmi_address(node):
             except socket.gaierror:
                 msg = ('Failed to resolve the hostname (%s) for node %s')
                 raise Error(msg % (value, node.uuid))
-
-
-def retry_on_conflict(call, *args, **kwargs):
-    """Wrapper to retry 409 CONFLICT exceptions."""
-    for i in range(RETRY_COUNT):
-        try:
-            return call(*args, **kwargs)
-        except exceptions.Conflict as exc:
-            LOG.warning(_LW('Conflict on calling %(call)s: %(exc)s,'
-                            ' retry attempt %(count)d') %
-                        {'call': getattr(call, '__name__', repr(call)),
-                         'exc': exc,
-                         'count': i + 1})
-            if i == RETRY_COUNT - 1:
-                raise
-            eventlet.greenthread.sleep(RETRY_DELAY)
-
-    raise RuntimeError('unreachable code')  # pragma: no cover
 
 
 def check_provision_state(node):

@@ -143,10 +143,10 @@ def _process_node(ironic, node, introspection_data, node_info):
     node_patches, port_patches = _run_post_hooks(node_info,
                                                  introspection_data)
 
-    node = utils.retry_on_conflict(ironic.node.update, node.uuid, node_patches)
+    node = ironic.node.update(node.uuid, node_patches)
     for mac, patches in port_patches.items():
         port = node_info.ports(ironic)[mac]
-        utils.retry_on_conflict(ironic.port.update, port.uuid, patches)
+        ironic.port.update(port.uuid, patches)
 
     LOG.debug('Node %s was updated with data from introspection process, '
               'patches %s, port patches %s',
@@ -181,7 +181,7 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
             introspection_data.get('ipmi_address')):
         patch.append({'op': 'add', 'path': '/driver_info/ipmi_address',
                       'value': introspection_data['ipmi_address']})
-    utils.retry_on_conflict(ironic.node.update, node_info.uuid, patch)
+    ironic.node.update(node_info.uuid, patch)
 
     for attempt in range(_CREDENTIALS_WAIT_RETRIES):
         try:
@@ -207,8 +207,7 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
 def _finish(ironic, node_info):
     LOG.debug('Forcing power off of node %s', node_info.uuid)
     try:
-        utils.retry_on_conflict(ironic.node.set_power_state,
-                                node_info.uuid, 'off')
+        ironic.node.set_power_state(node_info.uuid, 'off')
     except Exception as exc:
         msg = (_('Failed to power off node %(node)s, check it\'s power '
                  'management configuration: %(exc)s') %
