@@ -20,7 +20,7 @@ from oslo_db import options as db_opts
 from ironic_inspector.common import i18n
 # Import configuration options
 from ironic_inspector import conf  # noqa
-from ironic_inspector import models
+from ironic_inspector import db
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 
@@ -49,11 +49,11 @@ class BaseTest(unittest.TestCase):
     def setUp(self):
         super(BaseTest, self).setUp()
         init_test_conf()
-        self.session = node_cache.get_session()
-        engine = node_cache.get_engine()
-        models.Base.metadata.create_all(engine)
+        self.session = db.get_session()
+        engine = db.get_engine()
+        db.Base.metadata.create_all(engine)
         engine.connect()
-        self.addCleanup(node_cache.get_engine().dispose)
+        self.addCleanup(db.get_engine().dispose)
         plugins_base._HOOKS_MGR = None
         for name in ('_', '_LI', '_LW', '_LE', '_LC'):
             patch = mock.patch.object(i18n, name, lambda s: s)

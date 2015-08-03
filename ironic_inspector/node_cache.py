@@ -13,7 +13,6 @@
 
 """Cache for nodes currently under introspection."""
 
-import contextlib
 import json
 import logging
 import time
@@ -21,19 +20,16 @@ import time
 from ironicclient import exceptions
 from oslo_config import cfg
 from oslo_db import exception as db_exc
-from oslo_db import options as db_opts
-from oslo_db.sqlalchemy import session as db_session
 from sqlalchemy import text
 
+from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LE, _LW
-from ironic_inspector import models
 from ironic_inspector import utils
 
 CONF = cfg.CONF
 
 
 LOG = logging.getLogger("ironic_inspector.node_cache")
-_FACADE = None
 
 
 MACS_ATTRIBUTE = 'mac'
@@ -58,7 +54,7 @@ class NodeInfo(object):
     def options(self):
         """Node introspection options as a dict."""
         if self._options is None:
-            rows = model_query(models.Option).filter_by(
+            rows = db.model_query(db.Option).filter_by(
                 uuid=self.uuid)
             self._options = {row.name: json.loads(row.value)
                              for row in rows}
@@ -68,10 +64,10 @@ class NodeInfo(object):
         """Set an option for a node."""
         encoded = json.dumps(value)
         self.options[name] = value
-        with _ensure_transaction() as session:
-            model_query(models.Option, session=session).filter_by(
+        with db.ensure_transaction() as session:
+            db.model_query(db.Option, session=session).filter_by(
                 uuid=self.uuid, name=name).delete()
-            models.Option(uuid=self.uuid, name=name, value=encoded).save(
+            db.Option(uuid=self.uuid, name=name, value=encoded).save(
                 session)
 
     def finished(self, error=None):
@@ -84,13 +80,13 @@ class NodeInfo(object):
         self.finished_at = time.time()
         self.error = error
 
-        with _ensure_transaction() as session:
-            model_query(models.Node, session=session).filter_by(
+        with db.ensure_transaction() as session:
+            db.model_query(db.Node, session=session).filter_by(
                 uuid=self.uuid).update(
                 {'finished_at': self.finished_at, 'error': error})
-            model_query(models.Attribute, session=session).filter_by(
+            db.model_query(db.Attribute, session=session).filter_by(
                 uuid=self.uuid).delete()
-            model_query(models.Option, session=session).filter_by(
+            db.model_query(db.Option, session=session).filter_by(
                 uuid=self.uuid).delete()
 
     def add_attribute(self, name, value, session=None):
@@ -104,10 +100,10 @@ class NodeInfo(object):
         if not isinstance(value, list):
             value = [value]
 
-        with _ensure_transaction(session) as session:
+        with db.ensure_transaction(session) as session:
             try:
                 for v in value:
-                    models.Attribute(name=name, value=v, uuid=self.uuid).save(
+                    db.Attribute(name=name, value=v, uuid=self.uuid).save(
                         session)
             except db_exc.DBDuplicateEntry as exc:
                 LOG.error(_LE('Database integrity error %s during '
@@ -175,53 +171,6 @@ class NodeInfo(object):
             self._ports[mac] = port
 
 
-def init():
-    """Initialize the database."""
-    if CONF.discoverd.database:
-        db_opts.set_defaults(CONF,
-                             connection='sqlite:///%s' %
-                             str(CONF.discoverd.database).strip())
-    # TODO(yuikotakada) alembic migration
-    engine = get_engine()
-    models.Base.metadata.create_all(engine)
-    return get_session()
-
-
-def get_session(**kwargs):
-    facade = _create_facade_lazily()
-    return facade.get_session(**kwargs)
-
-
-def get_engine():
-    facade = _create_facade_lazily()
-    return facade.get_engine()
-
-
-def model_query(model, *args, **kwargs):
-    """Query helper for simpler session usage.
-
-    :param session: if present, the session to use
-    """
-
-    session = kwargs.get('session') or get_session()
-    query = session.query(model, *args)
-    return query
-
-
-def _create_facade_lazily():
-    global _FACADE
-    if _FACADE is None:
-        _FACADE = db_session.EngineFacade.from_config(cfg.CONF)
-    return _FACADE
-
-
-@contextlib.contextmanager
-def _ensure_transaction(session=None):
-    session = session or get_session()
-    with session.begin(subtransactions=True):
-        yield session
-
-
 def add_node(uuid, **attributes):
     """Store information about a node under introspection.
 
@@ -233,15 +182,15 @@ def add_node(uuid, **attributes):
     :returns: NodeInfo
     """
     started_at = time.time()
-    with _ensure_transaction() as session:
-        (model_query(models.Node, session=session).filter_by(uuid=uuid).
+    with db.ensure_transaction() as session:
+        (db.model_query(db.Node, session=session).filter_by(uuid=uuid).
             delete())
-        (model_query(models.Attribute, session=session).filter_by(uuid=uuid).
+        (db.model_query(db.Attribute, session=session).filter_by(uuid=uuid).
             delete(synchronize_session=False))
-        (model_query(models.Option, session=session).filter_by(uuid=uuid).
+        (db.model_query(db.Option, session=session).filter_by(uuid=uuid).
             delete())
 
-        models.Node(uuid=uuid, started_at=started_at).save(session)
+        db.Node(uuid=uuid, started_at=started_at).save(session)
 
         node_info = NodeInfo(uuid=uuid, started_at=started_at)
         for (name, value) in attributes.items():
@@ -254,7 +203,7 @@ def add_node(uuid, **attributes):
 
 def active_macs():
     """List all MAC's that are on introspection right now."""
-    return ({x.value for x in model_query(models.Attribute.value).
+    return ({x.value for x in db.model_query(db.Attribute.value).
             filter_by(name=MACS_ATTRIBUTE)})
 
 
@@ -264,7 +213,7 @@ def get_node(uuid):
     :param uuid: node UUID.
     :returns: structure NodeInfo.
     """
-    row = model_query(models.Node).filter_by(uuid=uuid).first()
+    row = db.model_query(db.Node).filter_by(uuid=uuid).first()
     if row is None:
         raise utils.Error(_('Could not find node %s in cache') % uuid,
                           code=404)
@@ -295,7 +244,7 @@ def find_node(**attributes):
             value_list.append('name="%s" AND value="%s"' % (name, v))
         stmt = ('select distinct uuid from attributes where ' +
                 ' OR '.join(value_list))
-        rows = (model_query(models.Attribute.uuid).from_statement(
+        rows = (db.model_query(db.Attribute.uuid).from_statement(
             text(stmt)).all())
         if rows:
             found.update(item.uuid for item in rows)
@@ -310,7 +259,7 @@ def find_node(**attributes):
             % {'attr': attributes, 'found': list(found)}, code=404)
 
     uuid = found.pop()
-    row = (model_query(models.Node.started_at, models.Node.finished_at).
+    row = (db.model_query(db.Node.started_at, db.Node.finished_at).
            filter_by(uuid=uuid).first())
 
     if not row:
@@ -337,32 +286,32 @@ def clean_up():
     status_keep_threshold = (time.time() -
                              CONF.node_status_keep_time)
 
-    with _ensure_transaction() as session:
-        model_query(models.Node, session=session).filter(
-            models.Node.finished_at.isnot(None),
-            models.Node.finished_at < status_keep_threshold).delete()
+    with db.ensure_transaction() as session:
+        db.model_query(db.Node, session=session).filter(
+            db.Node.finished_at.isnot(None),
+            db.Node.finished_at < status_keep_threshold).delete()
 
         timeout = CONF.timeout
         if timeout <= 0:
             return []
         threshold = time.time() - timeout
         uuids = [row.uuid for row in
-                 model_query(models.Node.uuid, session=session).filter(
-                     models.Node.started_at < threshold,
-                     models.Node.finished_at.is_(None)).all()]
+                 db.model_query(db.Node.uuid, session=session).filter(
+                     db.Node.started_at < threshold,
+                     db.Node.finished_at.is_(None)).all()]
         if not uuids:
             return []
 
         LOG.error(_LE('Introspection for nodes %s has timed out'), uuids)
-        query = model_query(models.Node, session=session).filter(
-            models.Node.started_at < threshold,
-            models.Node.finished_at.is_(None))
+        query = db.model_query(db.Node, session=session).filter(
+            db.Node.started_at < threshold,
+            db.Node.finished_at.is_(None))
         query.update({'finished_at': time.time(),
                       'error': 'Introspection timeout'})
         for u in uuids:
-            model_query(models.Attribute, session=session).filter_by(
+            db.model_query(db.Attribute, session=session).filter_by(
                 uuid=u).delete()
-            model_query(models.Option, session=session).filter_by(
+            db.model_query(db.Option, session=session).filter_by(
                 uuid=u).delete()
 
     return uuids
