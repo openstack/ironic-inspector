@@ -49,6 +49,7 @@ class NodeInfo(object):
         if ports is not None and not isinstance(ports, dict):
             ports = {p.address: p for p in ports}
         self._ports = ports
+        self._attributes = None
 
     @property
     def options(self):
@@ -59,6 +60,17 @@ class NodeInfo(object):
             self._options = {row.name: json.loads(row.value)
                              for row in rows}
         return self._options
+
+    @property
+    def attributes(self):
+        """Node look up attributes as a dict."""
+        if self._attributes is None:
+            self._attributes = {}
+            rows = db.model_query(db.Attribute).filter_by(
+                uuid=self.uuid)
+            for row in rows:
+                self._attributes.setdefault(row.name, []).append(row.value)
+        return self._attributes
 
     def set_option(self, name, value):
         """Set an option for a node."""
@@ -111,6 +123,8 @@ class NodeInfo(object):
                 raise utils.Error(_(
                     'Some or all of %(name)s\'s %(value)s are already '
                     'on introspection') % {'name': name, 'value': value})
+            # Invalidate attributes so they're loaded on next usage
+            self._attributes = None
 
     @classmethod
     def from_row(cls, row):
@@ -124,6 +138,7 @@ class NodeInfo(object):
         self._options = None
         self._node = None
         self._ports = None
+        self._attributes = None
 
     def node(self, ironic=None):
         """Get Ironic node object associated with the cached node record."""

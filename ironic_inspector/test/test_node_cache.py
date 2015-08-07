@@ -93,6 +93,28 @@ class TestNodeCache(test_base.NodeTest):
                          [tuple(row) for row in res])
         self.assertRaises(utils.Error, node_info.add_attribute,
                           'key', 'value')
+        # check that .attributes got invalidated and reloaded
+        self.assertEqual({'key': ['value']}, node_info.attributes)
+
+    def test_attributes(self):
+        node_info = node_cache.add_node(self.uuid,
+                                        bmc_address='1.2.3.4',
+                                        mac=self.macs)
+        self.assertEqual({'bmc_address': ['1.2.3.4'],
+                          'mac': self.macs},
+                         node_info.attributes)
+        # check invalidation
+        session = db.get_session()
+        with session.begin():
+            db.Attribute(name='foo', value='bar', uuid=self.uuid).save(session)
+        # still cached
+        self.assertEqual({'bmc_address': ['1.2.3.4'],
+                          'mac': self.macs},
+                         node_info.attributes)
+        node_info.invalidate_cache()
+        self.assertEqual({'bmc_address': ['1.2.3.4'],
+                          'mac': self.macs, 'foo': ['bar']},
+                         node_info.attributes)
 
 
 class TestNodeCacheFind(test_base.NodeTest):

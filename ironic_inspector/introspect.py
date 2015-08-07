@@ -131,6 +131,10 @@ def _background_introspect(ironic, node_info):
                  {'macs': macs, 'node': node_info.uuid})
         firewall.update_filters(ironic)
 
+    LOG.info(_LI('The following attributes will be used for looking up '
+                 'node %(uuid)s: %(attrs)s'),
+             {'attrs': node_info.attributes, 'uuid': node_info.uuid})
+
     if not node_info.options.get('new_ipmi_credentials'):
         try:
             ironic.node.set_boot_device(node_info.uuid, 'pxe',
