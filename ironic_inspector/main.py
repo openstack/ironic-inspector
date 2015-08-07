@@ -174,9 +174,18 @@ def periodic_clean_up(period):  # pragma: no cover
         try:
             if node_cache.clean_up():
                 firewall.update_filters()
+            sync_with_ironic()
         except Exception:
             LOG.exception(_LE('Periodic clean up of node cache failed'))
         eventlet.greenthread.sleep(period)
+
+
+def sync_with_ironic():
+    ironic = utils.get_client()
+    # TODO(yuikotakada): pagination
+    ironic_nodes = ironic.node.list(limit=0)
+    ironic_node_uuids = {node.uuid for node in ironic_nodes}
+    node_cache.delete_nodes_not_in_list(ironic_node_uuids)
 
 
 def init():
