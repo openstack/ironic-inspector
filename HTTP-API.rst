@@ -107,6 +107,23 @@ body will contain the following keys:
 .. _Setting IPMI Credentials: https://github.com/openstack/ironic-inspector#setting-ipmi-credentials
 .. _Plugins: https://github.com/openstack/ironic-inspector#plugins
 
+Error Response
+~~~~~~~~~~~~~~
+
+If an error happens during request processing, **Ironic Inspector** returns
+a response with an appropriate HTTP code set, e.g. 400 for bad request or
+404 when something was not found (usually node in cache or node in ironic).
+The following JSON body is returned::
+
+    {
+        "error": {
+            "message": "Full error message"
+        }
+    }
+
+This body may be extended in the future to include details that are more error
+specific.
+
 API Versioning
 ~~~~~~~~~~~~~~
 
