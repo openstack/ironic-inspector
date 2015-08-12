@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import subprocess
 
 from eventlet import semaphore
 from oslo_config import cfg
+from oslo_log import log
 
 from ironic_inspector.common.i18n import _LE
 from ironic_inspector import node_cache
@@ -23,7 +23,7 @@ from ironic_inspector import utils
 
 
 CONF = cfg.CONF
-LOG = logging.getLogger("ironic_inspector.firewall")
+LOG = log.getLogger("ironic_inspector.firewall")
 NEW_CHAIN = None
 CHAIN = None
 INTERFACE = None

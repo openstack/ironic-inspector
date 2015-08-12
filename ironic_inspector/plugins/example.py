@@ -13,12 +13,12 @@
 
 """Example plugin."""
 
-import logging
+from oslo_log import log
 
 from ironic_inspector.plugins import base
 
 
-LOG = logging.getLogger('ironic_inspector.plugins.example')
+LOG = log.getLogger('ironic_inspector.plugins.example')
 
 
 class ExampleProcessingHook(base.ProcessingHook):  # pragma: no cover

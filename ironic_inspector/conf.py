@@ -193,10 +193,6 @@ SERVICE_OPTS = [
                 help='DEPRECATED: use auth_strategy.',
                 deprecated_group='discoverd',
                 deprecated_for_removal=True),
-    cfg.BoolOpt('debug',
-                default=False,
-                help='Debug mode enabled/disabled.',
-                deprecated_group='discoverd'),
     cfg.IntOpt('timeout',
                default=3600,
                help='Timeout after which introspection is considered failed, '

@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import re
 import socket
 
@@ -20,6 +19,7 @@ from ironicclient import client
 import keystoneclient.v2_0.client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
+from oslo_log import log
 import six
 
 from ironic_inspector.common.i18n import _, _LE, _LI
@@ -30,7 +30,7 @@ CONF = cfg.CONF
 VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
 
 
-LOG = logging.getLogger('ironic_inspector.utils')
+LOG = log.getLogger('ironic_inspector.utils')
 
 GREEN_POOL = None
 

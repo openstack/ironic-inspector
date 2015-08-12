@@ -16,17 +16,16 @@ eventlet.monkey_patch()
 
 import functools
 import json
-import logging
 import ssl
 import sys
 
 import flask
 from oslo_config import cfg
+from oslo_log import log
 from oslo_utils import uuidutils
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
-# Import configuration options
 from ironic_inspector import conf  # noqa
 from ironic_inspector import firewall
 from ironic_inspector import introspect
@@ -39,7 +38,7 @@ CONF = cfg.CONF
 
 
 app = flask.Flask(__name__)
-LOG = logging.getLogger('ironic_inspector.main')
+LOG = log.getLogger('ironic_inspector.main')
 
 MINIMUM_API_VERSION = (1, 0)
 CURRENT_API_VERSION = (1, 0)
@@ -250,16 +249,17 @@ def create_ssl_context():
 
 
 def main(args=sys.argv[1:], in_functional_test=False):  # pragma: no cover
+    log.register_options(CONF)
     CONF(args, project='ironic-inspector')
     debug = CONF.debug
 
-    logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
-    for third_party in ('urllib3.connectionpool',
-                        'keystonemiddleware.auth_token',
-                        'requests.packages.urllib3.connectionpool'):
-        logging.getLogger(third_party).setLevel(logging.WARNING)
-    logging.getLogger('ironicclient.common.http').setLevel(
-        logging.INFO if debug else logging.ERROR)
+    log.set_defaults(default_log_levels=[
+        'urllib3.connectionpool=WARN',
+        'keystonemiddleware.auth_token=WARN',
+        'requests.packages.urllib3.connectionpool=WARN',
+        ('ironicclient.common.http=INFO' if debug else
+         'ironicclient.common.http=ERROR')])
+    log.setup(CONF, 'ironic_inspector')
 
     app_kwargs = {'debug': debug and not in_functional_test,
                   'host': CONF.listen_address,

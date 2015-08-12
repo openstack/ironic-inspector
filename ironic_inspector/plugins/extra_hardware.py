@@ -19,9 +19,9 @@ is stored in the 'inspector' container.
 """
 
 import json
-import logging
 
 from oslo_config import cfg
+from oslo_log import log
 
 from ironic_inspector.common.i18n import _LW
 from ironic_inspector.common import swift
@@ -30,7 +30,7 @@ from ironic_inspector.plugins import base
 CONF = cfg.CONF
 
 
-LOG = logging.getLogger('ironic_inspector.plugins.extra_hardware')
+LOG = log.getLogger('ironic_inspector.plugins.extra_hardware')
 
 
 class ExtraHardwareHook(base.ProcessingHook):
