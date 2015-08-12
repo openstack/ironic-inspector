@@ -45,6 +45,8 @@ class SwiftTestCase(base.BaseTest):
         CONF.set_override('os_auth_url', 'http://authurl/v2.0', 'swift')
         CONF.set_override('os_auth_version', '2', 'swift')
         CONF.set_override('max_retries', 2, 'swift')
+        CONF.set_override('os_service_type', 'object-store', 'swift')
+        CONF.set_override('os_endpoint_type', 'internalURL', 'swift')
 
         # The constructor of SwiftAPI accepts arguments whose
         # default values are values of some config options above. So reload
@@ -58,7 +60,9 @@ class SwiftTestCase(base.BaseTest):
                   'tenant_name': 'tenant',
                   'key': 'password',
                   'authurl': 'http://authurl/v2.0',
-                  'auth_version': '2'}
+                  'auth_version': '2',
+                  'os_options': {'service_type': 'object-store',
+                                 'endpoint_type': 'internalURL'}}
         connection_mock.assert_called_once_with(**params)
 
     def test_create_object(self, connection_mock):
