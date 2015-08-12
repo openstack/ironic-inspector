@@ -55,6 +55,12 @@ SWIFT_OPTS = [
     cfg.StrOpt('os_auth_url',
                default='',
                help='Keystone authentication URL'),
+    cfg.StrOpt('os_service_type',
+               default='object-store',
+               help='Swift service type.'),
+    cfg.StrOpt('os_endpoint_type',
+               default='internalURL',
+               help='Swift endpoint type.'),
 ]
 
 
@@ -74,7 +80,9 @@ class SwiftAPI(object):
                  tenant_name=CONF.swift.tenant_name,
                  key=CONF.swift.password,
                  auth_url=CONF.swift.os_auth_url,
-                 auth_version=CONF.swift.os_auth_version):
+                 auth_version=CONF.swift.os_auth_version,
+                 service_type=CONF.swift.os_service_type,
+                 endpoint_type=CONF.swift.os_endpoint_type):
         """Constructor for creating a SwiftAPI object.
 
         :param user: the name of the user for Swift account
@@ -88,7 +96,9 @@ class SwiftAPI(object):
                   'tenant_name': tenant_name,
                   'key': key,
                   'authurl': auth_url,
-                  'auth_version': auth_version}
+                  'auth_version': auth_version,
+                  'os_options': {'service_type': service_type,
+                                 'endpoint_type': endpoint_type}}
 
         self.connection = swift_client.Connection(**params)
 
