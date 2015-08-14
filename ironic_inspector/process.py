@@ -15,14 +15,17 @@
 
 import eventlet
 from ironicclient import exceptions
+from oslo_config import cfg
 from oslo_log import log
 
 from ironic_inspector.common.i18n import _, _LE, _LI
+from ironic_inspector.common import swift
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
 
+CONF = cfg.CONF
 
 LOG = log.getLogger("ironic_inspector.process")
 
@@ -141,6 +144,15 @@ def _process_node(ironic, node, introspection_data, node_info):
 
     node_patches, port_patches = _run_post_hooks(node_info,
                                                  introspection_data)
+
+    if CONF.processing.store_data == 'swift':
+        swift_object_name = swift.store_introspection_data(introspection_data,
+                                                           node_info.uuid)
+        if CONF.processing.store_data_location:
+            node_patches.append({'op': 'add',
+                                 'path': '/extra/%s' %
+                                 CONF.processing.store_data_location,
+                                 'value': swift_object_name})
 
     node = ironic.node.update(node.uuid, node_patches)
     for mac, patches in port_patches.items():

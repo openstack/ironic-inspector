@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import functools
+import json
 import time
 
 import eventlet
@@ -577,6 +578,40 @@ class TestProcessNode(BaseTest):
         for port in all_ports[2:]:
             self.cli.port.delete.assert_any_call(port.uuid)
         self.assertEqual(2, self.cli.port.delete.call_count)
+
+    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
+    def test_store_data(self, swift_mock, filters_mock, post_hook_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        swift_conn = swift_mock.return_value
+        name = 'inspector_data-%s' % self.uuid
+        expected = json.dumps(self.data)
+
+        self.call()
+
+        swift_conn.create_object.assert_called_once_with(name, expected)
+        self.cli.node.update.assert_called_once_with(self.uuid,
+                                                     self.patch_props)
+
+    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
+    def test_store_data_location(self, swift_mock, filters_mock,
+                                 post_hook_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        CONF.set_override('store_data_location', 'inspector_data_object',
+                          'processing')
+        swift_conn = swift_mock.return_value
+        name = 'inspector_data-%s' % self.uuid
+        self.patch_props.append(
+            {'path': '/extra/inspector_data_object',
+             'value': name,
+             'op': 'add'}
+        )
+        expected = json.dumps(self.data)
+
+        self.call()
+
+        swift_conn.create_object.assert_called_once_with(name, expected)
+        self.cli.node.update.assert_called_once_with(self.uuid,
+                                                     self.patch_props)
 
 
 class TestValidateInterfacesHook(test_base.BaseTest):

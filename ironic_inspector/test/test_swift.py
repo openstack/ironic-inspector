@@ -26,14 +26,34 @@ from swiftclient import client as swift_client
 from swiftclient import exceptions as swift_exception
 
 from ironic_inspector.common import swift
-from ironic_inspector.test import base
+from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
 
 CONF = cfg.CONF
 
 
+class BaseTest(test_base.NodeTest):
+    def setUp(self):
+        super(BaseTest, self).setUp()
+        self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
+        self.pxe_mac = self.macs[1]
+        self.data = {
+            'ipmi_address': self.bmc_address,
+            'cpus': 2,
+            'cpu_arch': 'x86_64',
+            'memory_mb': 1024,
+            'local_gb': 20,
+            'interfaces': {
+                'em1': {'mac': self.macs[0], 'ip': '1.2.0.1'},
+                'em2': {'mac': self.macs[1], 'ip': '1.2.0.2'},
+                'em3': {'mac': self.all_macs[2]},
+            },
+            'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
+        }
+
+
 @mock.patch.object(swift_client, 'Connection', autospec=True)
-class SwiftTestCase(base.BaseTest):
+class SwiftTestCase(BaseTest):
 
     def setUp(self):
         super(SwiftTestCase, self).setUp()
@@ -54,7 +74,11 @@ class SwiftTestCase(base.BaseTest):
         reload_module(sys.modules['ironic_inspector.common.swift'])
 
     def test___init__(self, connection_mock):
-        swift.SwiftAPI()
+        swift.SwiftAPI(user=CONF.swift.username,
+                       tenant_name=CONF.swift.tenant_name,
+                       key=CONF.swift.password,
+                       auth_url=CONF.swift.os_auth_url,
+                       auth_version=CONF.swift.os_auth_version)
         params = {'retries': 2,
                   'user': 'swift',
                   'tenant_name': 'tenant',
@@ -66,7 +90,11 @@ class SwiftTestCase(base.BaseTest):
         connection_mock.assert_called_once_with(**params)
 
     def test_create_object(self, connection_mock):
-        swiftapi = swift.SwiftAPI()
+        swiftapi = swift.SwiftAPI(user=CONF.swift.username,
+                                  tenant_name=CONF.swift.tenant_name,
+                                  key=CONF.swift.password,
+                                  auth_url=CONF.swift.os_auth_url,
+                                  auth_version=CONF.swift.os_auth_version)
         connection_obj_mock = connection_mock.return_value
 
         connection_obj_mock.put_object.return_value = 'object-uuid'
@@ -80,7 +108,11 @@ class SwiftTestCase(base.BaseTest):
         self.assertEqual('object-uuid', object_uuid)
 
     def test_create_object_create_container_fails(self, connection_mock):
-        swiftapi = swift.SwiftAPI()
+        swiftapi = swift.SwiftAPI(user=CONF.swift.username,
+                                  tenant_name=CONF.swift.tenant_name,
+                                  key=CONF.swift.password,
+                                  auth_url=CONF.swift.os_auth_url,
+                                  auth_version=CONF.swift.os_auth_version)
         connection_obj_mock = connection_mock.return_value
         connection_obj_mock.put_container.side_effect = self.swift_exception
         self.assertRaises(utils.Error, swiftapi.create_object, 'object',
@@ -90,7 +122,11 @@ class SwiftTestCase(base.BaseTest):
         self.assertFalse(connection_obj_mock.put_object.called)
 
     def test_create_object_put_object_fails(self, connection_mock):
-        swiftapi = swift.SwiftAPI()
+        swiftapi = swift.SwiftAPI(user=CONF.swift.username,
+                                  tenant_name=CONF.swift.tenant_name,
+                                  key=CONF.swift.password,
+                                  auth_url=CONF.swift.os_auth_url,
+                                  auth_version=CONF.swift.os_auth_version)
         connection_obj_mock = connection_mock.return_value
         connection_obj_mock.put_object.side_effect = self.swift_exception
         self.assertRaises(utils.Error, swiftapi.create_object, 'object',
@@ -99,3 +135,33 @@ class SwiftTestCase(base.BaseTest):
                                                                   'inspector')
         connection_obj_mock.put_object.assert_called_once_with(
             'ironic-inspector', 'object', 'some-string-data', headers=None)
+
+    def test_get_object(self, connection_mock):
+        swiftapi = swift.SwiftAPI(user=CONF.swift.username,
+                                  tenant_name=CONF.swift.tenant_name,
+                                  key=CONF.swift.password,
+                                  auth_url=CONF.swift.os_auth_url,
+                                  auth_version=CONF.swift.os_auth_version)
+        connection_obj_mock = connection_mock.return_value
+
+        expected_obj = self.data
+        connection_obj_mock.get_object.return_value = ('headers', expected_obj)
+
+        swift_obj = swiftapi.get_object('object')
+
+        connection_obj_mock.get_object.assert_called_once_with(
+            'ironic-inspector', 'object')
+        self.assertEqual(expected_obj, swift_obj)
+
+    def test_get_object_fails(self, connection_mock):
+        swiftapi = swift.SwiftAPI(user=CONF.swift.username,
+                                  tenant_name=CONF.swift.tenant_name,
+                                  key=CONF.swift.password,
+                                  auth_url=CONF.swift.os_auth_url,
+                                  auth_version=CONF.swift.os_auth_version)
+        connection_obj_mock = connection_mock.return_value
+        connection_obj_mock.get_object.side_effect = self.swift_exception
+        self.assertRaises(utils.Error, swiftapi.get_object,
+                          'object')
+        connection_obj_mock.get_object.assert_called_once_with(
+            'ironic-inspector', 'object')

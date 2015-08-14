@@ -83,6 +83,7 @@ Example local.conf
     enable_service ironic ir-api ir-cond
     disable_service n-net n-novnc
     enable_service neutron q-svc q-agt q-dhcp q-l3 q-meta
+    enable_service s-proxy s-object s-container s-account
     disable_service heat h-api h-api-cfn h-api-cw h-eng
     disable_service cinder c-sch c-api c-vol
 

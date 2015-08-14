@@ -16,6 +16,7 @@ from oslo_config import cfg
 
 VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe')
 VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
+VALID_STORE_DATA_VALUES = ('none', 'swift')
 
 
 IRONIC_OPTS = [
@@ -160,7 +161,16 @@ PROCESSING_OPTS = [
                default=None,
                help='The name of the hook to run when inspector receives '
                     'inspection information from a node it isn\'t already '
-                    'aware of. This hook is ignored by default.')
+                    'aware of. This hook is ignored by default.'),
+    cfg.StrOpt('store_data',
+               default='none',
+               choices=VALID_STORE_DATA_VALUES,
+               help='Method for storing introspection data. If set to \'none'
+                    '\', introspection data will not be stored.'),
+    cfg.StrOpt('store_data_location',
+               default=None,
+               help='Name of the key to store the location of stored data in '
+                    'the extra column of the Ironic database.'),
 ]
 
 

@@ -13,6 +13,8 @@
 
 # Mostly copied from ironic/common/swift.py
 
+import json
+
 from oslo_config import cfg
 from oslo_log import log
 from swiftclient import client as swift_client
@@ -70,6 +72,8 @@ def list_opts():
     ]
 
 CONF.register_opts(SWIFT_OPTS, group='swift')
+
+OBJECT_NAME_PREFIX = 'inspector_data'
 
 
 class SwiftAPI(object):
@@ -137,3 +141,53 @@ class SwiftAPI(object):
             raise utils.Error(err_msg)
 
         return obj_uuid
+
+    def get_object(self, object, container=CONF.swift.container):
+        """Downloads a given object from Swift.
+
+        :param object: The name of the object in Swift
+        :param container: The name of the container for the object.
+        :returns: Swift object
+        :raises: utils.Error, if the Swift operation fails.
+        """
+        try:
+            headers, obj = self.connection.get_object(container, object)
+        except swift_exceptions.ClientException as e:
+            err_msg = (_('Swift failed to get object %(object)s in '
+                         'container %(container)s. Error was: %(error)s') %
+                       {'object': object, 'container': container, 'error': e})
+            raise utils.Error(err_msg)
+
+        return obj
+
+
+def store_introspection_data(data, uuid):
+    """Uploads introspection data to Swift.
+
+    :param data: data to store in Swift
+    :param uuid: UUID of the Ironic node that the data came from
+    :returns: name of the Swift object that the data is stored in
+    """
+    swift_api = SwiftAPI(user=CONF.swift.username,
+                         tenant_name=CONF.swift.tenant_name,
+                         key=CONF.swift.password,
+                         auth_url=CONF.swift.os_auth_url,
+                         auth_version=CONF.swift.os_auth_version)
+    swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
+    swift_api.create_object(swift_object_name, json.dumps(data))
+    return swift_object_name
+
+
+def get_introspection_data(uuid):
+    """Downloads introspection data from Swift.
+
+    :param uuid: UUID of the Ironic node that the data came from
+    :returns: Swift object with the introspection data
+    """
+    swift_api = SwiftAPI(user=CONF.swift.username,
+                         tenant_name=CONF.swift.tenant_name,
+                         key=CONF.swift.password,
+                         auth_url=CONF.swift.os_auth_url,
+                         auth_version=CONF.swift.os_auth_version)
+    swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
+    return swift_api.get_object(swift_object_name)

@@ -150,6 +150,37 @@ class TestApiGetStatus(BaseAPITest):
                          json.loads(res.data.decode('utf-8')))
 
 
+class TestApiGetData(BaseAPITest):
+    @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
+    def test_get_introspection_data(self, swift_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        data = {
+            'ipmi_address': '1.2.3.4',
+            'cpus': 2,
+            'cpu_arch': 'x86_64',
+            'memory_mb': 1024,
+            'local_gb': 20,
+            'interfaces': {
+                'em1': {'mac': '11:22:33:44:55:66', 'ip': '1.2.0.1'},
+            }
+        }
+        swift_conn = swift_mock.return_value
+        swift_conn.get_object.return_value = json.dumps(data)
+        res = self.app.get('/v1/introspection/%s/data' % self.uuid)
+        name = 'inspector_data-%s' % self.uuid
+        swift_conn.get_object.assert_called_once_with(name)
+        self.assertEqual(200, res.status_code)
+        self.assertEqual(data, json.loads(res.data.decode('utf-8')))
+
+    @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
+    def test_introspection_data_not_stored(self, swift_mock):
+        CONF.set_override('store_data', 'none', 'processing')
+        swift_conn = swift_mock.return_value
+        res = self.app.get('/v1/introspection/%s/data' % self.uuid)
+        self.assertFalse(swift_conn.get_object.called)
+        self.assertEqual(404, res.status_code)
+
+
 class TestApiMisc(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_404_expected(self, get_mock):
