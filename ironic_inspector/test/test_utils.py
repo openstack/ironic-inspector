@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import socket
 import unittest
 
 from ironicclient import client
@@ -155,7 +156,9 @@ class TestGetIpmiAddress(base.BaseTest):
         mock_socket.assert_called_once_with('www.example.com')
         self.assertEqual(ip, '192.168.1.1')
 
-    def test_bad_hostname_errors(self, mock_node):
+    @mock.patch('socket.gethostbyname')
+    def test_bad_hostname_errors(self, mock_socket, mock_node):
+        mock_socket.side_effect = socket.gaierror('Boom')
         node = mock_node.return_value
         node.driver_info.get.return_value = 'meow'
         self.assertRaises(utils.Error, utils.get_ipmi_address, node)
