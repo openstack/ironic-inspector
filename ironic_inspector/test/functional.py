@@ -171,7 +171,8 @@ def mocked_server():
         conf_file = os.path.join(d, 'test.conf')
         db_file = os.path.join(d, 'test.db')
         with open(conf_file, 'wb') as fp:
-            fp.write(CONF % {'db_file': db_file})
+            content = CONF % {'db_file': db_file}
+            fp.write(content.encode('utf-8'))
 
         with mock.patch.object(utils, 'check_auth'):
             with mock.patch.object(utils, 'get_client'):
