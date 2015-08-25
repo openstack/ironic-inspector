@@ -11,13 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import subprocess
 
 from eventlet import semaphore
 from oslo_config import cfg
 from oslo_log import log
 
-from ironic_inspector.common.i18n import _LE
+from ironic_inspector.common.i18n import _LE, _LW
 from ironic_inspector import node_cache
 from ironic_inspector import utils
 
@@ -28,10 +29,12 @@ NEW_CHAIN = None
 CHAIN = None
 INTERFACE = None
 LOCK = semaphore.BoundedSemaphore()
+BASE_COMMAND = ('iptables',)
 
 
 def _iptables(*args, **kwargs):
-    cmd = ('iptables',) + args
+    # NOTE(dtantsur): -w flag makes it wait for xtables lock
+    cmd = BASE_COMMAND + args
     ignore = kwargs.pop('ignore', False)
     LOG.debug('Running iptables %s', args)
     kwargs['stderr'] = subprocess.STDOUT
@@ -54,10 +57,23 @@ def init():
     if not CONF.firewall.manage_firewall:
         return
 
-    global INTERFACE, CHAIN, NEW_CHAIN
+    global INTERFACE, CHAIN, NEW_CHAIN, BASE_COMMAND
     INTERFACE = CONF.firewall.dnsmasq_interface
     CHAIN = CONF.firewall.firewall_chain
     NEW_CHAIN = CHAIN + '_temp'
+
+    # -w flag makes iptables wait for xtables lock, but it's not supported
+    # everywhere yet
+    try:
+        with open(os.devnull, 'wb') as null:
+            subprocess.check_call(['iptables', '-w', '-h'],
+                                  stderr=null, stdout=null)
+    except subprocess.CalledProcessError:
+        LOG.warn(_LW('iptables does not support -w flag, please update '
+                     'it to at least version 1.4.21'))
+        BASE_COMMAND = ('iptables',)
+    else:
+        BASE_COMMAND = ('iptables', '-w')
 
     _clean_up(CHAIN)
     # Not really needed, but helps to validate that we have access to iptables
