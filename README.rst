@@ -1,8 +1,8 @@
-Hardware introspection for OpenStack Ironic
-===========================================
+Hardware introspection for OpenStack Bare Metal
+===============================================
 
 This is an auxiliary service for discovering hardware properties for a
-node managed by `OpenStack Ironic`_. Hardware introspection or hardware
+node managed by `Ironic`_. Hardware introspection or hardware
 properties discovery is a process of getting hardware parameters required for
 scheduling from a bare metal node, given it's power management credentials
 (e.g. IPMI address, user name and password).
@@ -11,17 +11,17 @@ A special ramdisk is required to collect the information on a
 node. The default one can be built using diskimage-builder_ and
 `ironic-discoverd-ramdisk element`_ (see Configuration_ below).
 
-Support for **ironic-inspector** is present in `Tuskar UI`_ --
-OpenStack Horizon plugin for TripleO_.
+* Free software: Apache license
+* Source: http://git.openstack.org/cgit/openstack/ironic-inspector
+* Bugs: http://bugs.launchpad.net/ironic-inspector
+* Blueprints: https://blueprints.launchpad.net/ironic-inspector
+* Downloads: https://pypi.python.org/pypi/ironic-inspector
+* Python client library and CLI tool: `python-ironic-inspector-client
+  <https://pypi.python.org/pypi/python-ironic-inspector-client>`_.
 
-Please use launchpad_ to report bugs and ask questions. Use PyPI_ for
-downloads and accessing the released version of this README. Refer to
-CONTRIBUTING.rst_ for instructions on how to contribute.
+Refer to CONTRIBUTING.rst_ for instructions on how to contribute.
 
-.. _OpenStack Ironic: https://wiki.openstack.org/wiki/Ironic
-.. _Tuskar UI: https://pypi.python.org/pypi/tuskar-ui
-.. _TripleO: https://wiki.openstack.org/wiki/TripleO
-.. _launchpad: https://bugs.launchpad.net/ironic-inspector
+.. _Ironic: https://wiki.openstack.org/wiki/Ironic
 .. _PyPI: https://pypi.python.org/pypi/ironic-inspector
 .. _CONTRIBUTING.rst: https://github.com/openstack/ironic-inspector/blob/master/CONTRIBUTING.rst
 
@@ -62,18 +62,14 @@ Workflow
 
 Usual hardware introspection flow is as follows:
 
-* Operator installs undercloud with **ironic-inspector**
-  (e.g. using instack-undercloud_).
-
-* Operator enrolls nodes into Ironic either manually or by uploading CSV file
-  to `Tuskar UI`_. Power management credentials should be provided to Ironic
-  at this step.
+* Operator enrolls nodes into Ironic_ e.g. via ironic CLI command.
+  Power management credentials should be provided to Ironic at this step.
 
 * Nodes are put in the correct state for introspection as described in
   `Node States`_.
 
-* Operator sends nodes on introspection either manually using
-  **ironic-inspector** API (see Usage_) or again via `Tuskar UI`_.
+* Operator sends nodes on introspection using **ironic-inspector** API or CLI
+  (see Usage_).
 
 * On receiving node UUID **ironic-inspector**:
 
@@ -154,7 +150,7 @@ Fill in at least these configuration values:
 
 * ``dnsmasq_interface`` - interface on which ``dnsmasq`` (or another DHCP
   service) listens for PXE boot requests (defaults to ``br-ctlplane`` which is
-  a sane default for TripleO_ based installations but is unlikely to work for
+  a sane default for TripleO-based installations but is unlikely to work for
   other cases).
 
 See comments inside `example.conf
