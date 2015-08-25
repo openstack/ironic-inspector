@@ -176,6 +176,19 @@ class TestIntrospect(BaseTest):
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
 
+    def test_no_lookup_attrs(self, client_mock, add_mock, filters_mock):
+        cli = self._prepare(client_mock)
+        self.node_info.ports.return_value = []
+        add_mock.return_value = self.node_info
+        self.node_info.attributes = {}
+
+        introspect.introspect(self.uuid)
+
+        self.node_info.ports.assert_called_once_with(cli)
+        self.node_info.finished.assert_called_once_with(error=mock.ANY)
+        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, cli.node.set_power_state.call_count)
+
     def test_failed_to_get_node(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = exceptions.NotFound()
