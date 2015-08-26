@@ -19,10 +19,10 @@ from ironic_inspector.common.i18n import _LI, _LW
 from ironic_inspector.plugins import base
 
 
-LOG = log.getLogger('ironic_inspector.plugins.root_device_hint')
+LOG = log.getLogger(__name__)
 
 
-class RootDeviceHintHook(base.ProcessingHook):
+class RaidDeviceDetection(base.ProcessingHook):
     """Processing hook for learning the root device after RAID creation.
 
     The plugin can figure out the root device in 2 runs. First, it saves the
