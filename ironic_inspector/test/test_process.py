@@ -234,8 +234,7 @@ class TestProcessNode(BaseTest):
     def setUp(self):
         super(TestProcessNode, self).setUp()
         CONF.set_override('processing_hooks',
-                          'ramdisk_error,scheduler,validate_interfaces,'
-                          'example',
+                          '$processing.default_processing_hooks,example',
                           'processing')
         self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
