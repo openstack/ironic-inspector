@@ -209,6 +209,14 @@ def init():
         LOG.warning(_LW('Starting unauthenticated, please check'
                         ' configuration'))
 
+    if CONF.processing.store_data == 'none':
+        LOG.warning(_LW('Introspection data will not be stored. Change '
+                        '"[processing] store_data" option if this is not the '
+                        'desired behavior'))
+    elif CONF.processing.store_data == 'swift':
+        LOG.info(_LI('Introspection data will be stored in Swift in the '
+                     'container %s'), CONF.swift.container)
+
     db.init()
 
     try:

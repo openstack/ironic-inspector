@@ -148,12 +148,17 @@ def _process_node(ironic, node, introspection_data, node_info):
     if CONF.processing.store_data == 'swift':
         swift_object_name = swift.store_introspection_data(introspection_data,
                                                            node_info.uuid)
+        LOG.info(_LI('Introspection data for node %(node)s was stored in '
+                     'Swift in object %(obj)s'),
+                 {'node': node_info.uuid, 'obj': swift_object_name})
         if CONF.processing.store_data_location:
             node_patches.append({'op': 'add',
                                  'path': '/extra/%s' %
                                  CONF.processing.store_data_location,
                                  'value': swift_object_name})
-
+    else:
+        LOG.debug('Swift support is disabled, introspection data for node %s '
+                  'won\'t be stored', node_info.uuid)
     node = ironic.node.update(node.uuid, node_patches)
     for mac, patches in port_patches.items():
         port = node_info.ports(ironic)[mac]
