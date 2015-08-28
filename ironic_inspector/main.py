@@ -23,6 +23,7 @@ import flask
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import uuidutils
+import werkzeug
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
@@ -69,7 +70,10 @@ def convert_exceptions(func):
             return func(*args, **kwargs)
         except utils.Error as exc:
             return error_response(exc, exc.http_code)
+        except werkzeug.exceptions.HTTPException as exc:
+            return error_response(exc, exc.code or 400)
         except Exception as exc:
+            LOG.exception(_LE('Internal server error'))
             msg = _('Internal server error')
             if CONF.debug:
                 msg += ' (%s): %s' % (exc.__class__.__name__, exc)
