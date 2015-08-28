@@ -238,6 +238,10 @@ SERVICE_OPTS = [
                default='^.*_ssh$',
                help='Only node with drivers matching this regular expression '
                'will be affected by introspection_delay setting.'),
+    cfg.ListOpt('ipmi_address_fields',
+                default=['ilo_address', 'drac_host', 'cimc_address'],
+                help='Ironic driver_info fields that are equivalent '
+                'to ipmi_address.'),
 ]
 
 
