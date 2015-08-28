@@ -11,15 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ironic_inspector.plugins import root_device_hint
+from ironic_inspector.plugins import base
+from ironic_inspector.plugins import raid_device
 from ironic_inspector.test import base as test_base
 
 
-class TestRootDeviceHint(test_base.NodeTest):
+class TestRaidDeviceDetection(test_base.NodeTest):
 
     def setUp(self):
-        super(TestRootDeviceHint, self).setUp()
-        self.hook = root_device_hint.RootDeviceHintHook()
+        super(TestRaidDeviceDetection, self).setUp()
+        self.hook = raid_device.RaidDeviceDetection()
 
     def _before_update(self, introspection_data):
         node_patches = []
@@ -28,6 +29,14 @@ class TestRootDeviceHint(test_base.NodeTest):
                                 node_patches, ports_patches)
         self.assertFalse(ports_patches)
         return node_patches
+
+    def test_loadable_by_name(self):
+        names = ('raid_device', 'root_device_hint')
+        base.CONF.set_override('processing_hooks', ','.join(names),
+                               'processing')
+        for name in names:
+            ext = base.processing_hooks_manager()[name]
+            self.assertIsInstance(ext.obj, raid_device.RaidDeviceDetection)
 
     def test_missing_local_gb(self):
         introspection_data = {}
