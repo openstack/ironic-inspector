@@ -71,6 +71,21 @@ function curl_ir {
     curl -H "X-Auth-Token: $token" -X $1 "$ironic_url/$2"
 }
 
+function curl_ins {
+    curl -H "X-Auth-Token: $token" -X $1 "http://127.0.0.1:5050/$2"
+}
+
+function test_swift {
+    # Basic sanity check of the data stored in Swift
+    stored_data_json=$(curl_ins GET v1/introspection/$uuid/data)
+    stored_cpu_arch=$(echo $stored_data_json | jq -r '.cpu_arch')
+    echo CPU arch for $uuid from stored data: $stored_cpu_arch
+    if [ "$stored_cpu_arch" != "$expected_cpu_arch" ]; then
+        echo "The data stored in Swift does not match the expected data."
+        exit 1
+    fi
+}
+
 for uuid in $nodes; do
     node_json=$(curl_ir GET v1/nodes/$uuid)
     properties=$(echo $node_json | jq '.properties')
@@ -92,6 +107,8 @@ for uuid in $nodes; do
         echo "Expected memory: $expected_memory_mb"
         exit 1
     fi
+
+    openstack service list | grep swift && test_swift
 
     for attempt in {1..12}; do
         node_json=$(curl_ir GET v1/nodes/$uuid)

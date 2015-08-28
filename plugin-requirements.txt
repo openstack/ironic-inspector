@@ -1,2 +1,0 @@
-# required for extra_hardware plugin
-python-swiftclient>=2.2.0

@@ -26,6 +26,7 @@ from oslo_utils import uuidutils
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
+from ironic_inspector.common import swift
 from ironic_inspector import conf  # noqa
 from ironic_inspector import firewall
 from ironic_inspector import introspect
@@ -41,7 +42,7 @@ app = flask.Flask(__name__)
 LOG = log.getLogger('ironic_inspector.main')
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 0)
+CURRENT_API_VERSION = (1, 1)
 _MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
 _MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
 _VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
@@ -150,6 +151,20 @@ def api_introspection(uuid):
         node_info = node_cache.get_node(uuid)
         return flask.json.jsonify(finished=bool(node_info.finished_at),
                                   error=node_info.error or None)
+
+
+@app.route('/v1/introspection/<uuid>/data', methods=['GET'])
+@convert_exceptions
+def api_introspection_data(uuid):
+    utils.check_auth(flask.request)
+    if CONF.processing.store_data == 'swift':
+        res = swift.get_introspection_data(uuid)
+        return res, 200, {'Content-Type': 'applications/json'}
+    else:
+        return error_response(_('Inspector is not configured to store data. '
+                                'Set the [processing] store_data '
+                                'configuration option to change this.'),
+                              code=404)
 
 
 @app.errorhandler(404)

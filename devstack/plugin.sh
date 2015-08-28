@@ -137,8 +137,19 @@ function configure_inspector {
     inspector_iniset firewall dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection sqlite:///$IRONIC_INSPECTOR_DATA_DIR/inspector.sqlite
 
+    is_service_enabled swift && configure_inspector_swift
+
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI
+}
+
+function configure_inspector_swift {
+    inspector_iniset swift os_auth_url "$KEYSTONE_SERVICE_URI/v2.0"
+    inspector_iniset swift username $IRONIC_INSPECTOR_ADMIN_USER
+    inspector_iniset swift password $SERVICE_PASSWORD
+    inspector_iniset swift tenant_name $SERVICE_TENANT_NAME
+
+    inspector_iniset processing store_data swift
 }
 
 function configure_inspector_dhcp {

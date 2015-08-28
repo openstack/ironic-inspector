@@ -50,6 +50,23 @@ Response body: JSON dictionary with keys:
 * ``finished`` (boolean) whether introspection is finished
 * ``error`` error string or ``null``
 
+Get Introspection Data
+~~~~~~~~~~~~~~~~~~~~~~
+
+``GET /v1/introspection/<UUID>/data`` get stored data from successful
+introspection.
+
+Requires X-Auth-Token header with Keystone token for authentication.
+
+Response:
+
+* 200 - OK
+* 400 - bad request
+* 401, 403 - missing or invalid authentication
+* 404 - data cannot be found or data storage not configured
+
+Response body: JSON dictionary with introspection data
+
 Ramdisk Callback
 ~~~~~~~~~~~~~~~~
 
@@ -151,3 +168,4 @@ Version History
 ^^^^^^^^^^^^^^^
 
 **1.0** version of API at the moment of introducing versioning.
+**1.1** adds endpoint to retrieve stored introspection data.
