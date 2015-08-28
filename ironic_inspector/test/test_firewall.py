@@ -13,8 +13,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import mock
+import subprocess
 
+import mock
 from oslo_config import cfg
 
 from ironic_inspector import firewall
@@ -35,7 +36,8 @@ class TestFirewall(test_base.NodeTest):
         firewall.update_filters()
         self.assertEqual(0, mock_iptables.call_count)
 
-    def test_init_args(self, mock_get_client, mock_iptables):
+    @mock.patch.object(subprocess, 'check_call')
+    def test_init_args(self, mock_call, mock_get_client, mock_iptables):
         firewall.init()
         init_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport', '67',
@@ -48,6 +50,27 @@ class TestFirewall(test_base.NodeTest):
 
         for (args, call) in zip(init_expected_args, call_args_list):
             self.assertEqual(args, call[0])
+
+        self.assertEqual(('iptables', '-w'), firewall.BASE_COMMAND)
+
+    @mock.patch.object(subprocess, 'check_call')
+    def test_init_args_old_iptables(self, mock_call, mock_get_client,
+                                    mock_iptables):
+        mock_call.side_effect = subprocess.CalledProcessError(2, '')
+        firewall.init()
+        init_expected_args = [
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport', '67',
+             '-j', CONF.firewall.firewall_chain),
+            ('-F', CONF.firewall.firewall_chain),
+            ('-X', CONF.firewall.firewall_chain),
+            ('-N', CONF.firewall.firewall_chain)]
+
+        call_args_list = mock_iptables.call_args_list
+
+        for (args, call) in zip(init_expected_args, call_args_list):
+            self.assertEqual(args, call[0])
+
+        self.assertEqual(('iptables',), firewall.BASE_COMMAND)
 
     def test_init_kwargs(self, mock_get_client, mock_iptables):
         firewall.init()
