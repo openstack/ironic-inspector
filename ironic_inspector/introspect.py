@@ -44,11 +44,6 @@ def _validate_ipmi_credentials(node, new_ipmi_credentials):
         raise utils.Error(
             _('IPMI credentials setup is disabled in configuration'))
 
-    if not node.maintenance:
-        # Otherwise Ironic is going to interfere
-        raise utils.Error(_('Node should be in maintenance mode to set '
-                            'IPMI credentials on it'))
-
     new_username, new_password = new_ipmi_credentials
     if not new_username:
         new_username = node.driver_info.get('ipmi_username')
@@ -89,7 +84,7 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
         raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
                           {'node': uuid, 'exc': exc})
 
-    utils.check_provision_state(node)
+    utils.check_provision_state(node, with_credentials=new_ipmi_credentials)
 
     if new_ipmi_credentials:
         new_ipmi_credentials = (

@@ -230,8 +230,7 @@ class TestIntrospect(BaseTest):
         cli.node.get.return_value = self.node
 
         self.assertRaisesRegexp(
-            utils.Error,
-            'node %s with provision state "active"' % self.uuid,
+            utils.Error, 'Invalid provision state "active"',
             introspect.introspect, self.uuid)
 
         self.assertEqual(0, self.node_info.ports.call_count)
@@ -322,9 +321,27 @@ class TestSetIpmiCredentials(BaseTest):
                           'processing')
         self.new_creds = ('user', 'password')
         self.node_info.options['new_ipmi_credentials'] = self.new_creds
-        self.node.maintenance = True
+        self.node.provision_state = 'enroll'
 
     def test_ok(self, client_mock, add_mock, filters_mock):
+        cli = self._prepare(client_mock)
+        add_mock.return_value = self.node_info
+
+        introspect.introspect(self.uuid, new_ipmi_credentials=self.new_creds)
+
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address)
+        filters_mock.assert_called_with(cli)
+        self.assertFalse(cli.node.validate.called)
+        self.assertFalse(cli.node.set_boot_device.called)
+        self.assertFalse(cli.node.set_power_state.called)
+        add_mock.return_value.set_option.assert_called_once_with(
+            'new_ipmi_credentials', self.new_creds)
+
+    def test_any_state_with_maintenance(self, client_mock, add_mock,
+                                        filters_mock):
+        self.node.provision_state = 'manageable'
+        self.node.maintenance = True
         cli = self._prepare(client_mock)
         add_mock.return_value = self.node_info
 
@@ -385,8 +402,8 @@ class TestSetIpmiCredentials(BaseTest):
         self.assertRaises(utils.Error, introspect.introspect, self.uuid,
                           new_ipmi_credentials=self.new_creds)
 
-    def test_require_maintenance(self, client_mock, add_mock, filters_mock):
-        self.node.maintenance = False
+    def test_wrong_state(self, client_mock, add_mock, filters_mock):
+        self.node.provision_state = 'manageable'
         self._prepare(client_mock)
 
         self.assertRaises(utils.Error, introspect.introspect, self.uuid,

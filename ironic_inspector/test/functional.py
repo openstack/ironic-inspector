@@ -140,7 +140,7 @@ class Test(Base):
             {'op': 'add', 'path': '/driver_info/ipmi_password',
              'value': 'pwd'},
         ]
-        self.node.maintenance = True
+        self.node.provision_state = 'enroll'
         self.call_introspect(self.uuid, new_ipmi_username='admin',
                              new_ipmi_password='pwd')
         eventlet.greenthread.sleep(DEFAULT_SLEEP)

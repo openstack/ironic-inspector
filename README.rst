@@ -262,29 +262,20 @@ drivers, please refer to `Ironic inspection documentation`_ for details.
 Node States
 ~~~~~~~~~~~
 
-* As of Ironic Kilo release the nodes should be moved to ``MANAGEABLE``
-  provision state before introspection (requires *python-ironicclient*
-  of version 0.5.0 or newer)::
+* The nodes should be moved to ``MANAGEABLE`` provision state before
+  introspection (requires *python-ironicclient* of version 0.5.0 or newer)::
 
     ironic node-set-provision-state <UUID> manage
 
-  With Juno release and/or older *python-ironicclient* it's recommended
-  to set maintenance mode, so that nodes are not taken by Nova for deploying::
-
-    ironic node-update <UUID> replace maintenance=true
-
 * After successful introspection and before deploying nodes should be made
-  available to Nova, either by moving them to ``AVAILABLE`` state (Kilo)::
+  available to Nova, by moving them to ``AVAILABLE`` state::
 
     ironic node-set-provision-state <UUID> provide
 
-  or by removing maintenance mode (Juno and/or older client)::
-
-    ironic node-update <UUID> replace maintenance=false
-
   .. note::
     Due to how Nova interacts with Ironic driver, you should wait 1 minute
-    before Nova becomes aware of available nodes after issuing these commands.
+    before Nova becomes aware of available nodes after issuing this command.
+    Use ``nova hypervisor-stats`` command output to check it.
 
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -296,13 +287,22 @@ is as follows:
 * Ensure nodes will PXE boot on the right network by default.
 
 * Set ``enable_setting_ipmi_credentials = true`` in the **ironic-inspector**
-  configuration file.
+  configuration file, restart **ironic-inspector**.
 
-* Enroll nodes in Ironic with setting their ``ipmi_address`` only. This step
-  allows **ironic-inspector** to distinguish nodes.
+* Enroll nodes in Ironic with setting their ``ipmi_address`` only (or
+  equivalent driver-specific property, as per ``ipmi_address_fields``
+  configuration option).
 
-* Set maintenance mode on nodes. That's an important step, otherwise Ironic
-  might interfere with introspection process.
+  With Ironic Liberty use ironic API version ``1.11``, so that new node gets
+  into ``enroll`` provision state::
+
+    ironic --ironic-api-version 1.11 node-create -d <DRIVER> -i ipmi_address=<ADDRESS>
+
+  Providing ``ipmi_address`` allows **ironic-inspector** to distinguish nodes.
+
+* With Ironic Kilo or older, set maintenance mode on nodes.
+  That's an important step, otherwise Ironic might interfere with introspection
+  process. This is replaced by ``enroll`` state in Ironic Liberty.
 
 * Start introspection with providing additional parameters:
 
@@ -313,7 +313,9 @@ is as follows:
 * Manually power on the nodes and wait.
 
 * After introspection is finished (watch nodes power state or use
-  **ironic-inspector** status API) you can turn maintenance mode off.
+  **ironic-inspector** status API) you can move node to ``manageable`` and
+  then ``available`` states - see `Node States`_. With Ironic Kilo you have to
+  move a node out of maintenance mode.
 
 Note that due to various limitations on password value in different BMC,
 **ironic-inspector** will only accept passwords with length between 1 and 20
@@ -358,8 +360,7 @@ Troubleshooting
 Errors when starting introspection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* *Refusing to introspect node <UUID> with provision state "available"
-  and maintenance mode off*
+* *Invalid provision state "available"*
 
   In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
   defaults to reporting provision state ``AVAILABLE`` for newly enrolled
