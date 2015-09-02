@@ -139,29 +139,37 @@ class TestCheckAuth(base.BaseTest):
         utils.check_auth(request)
 
 
-@mock.patch('ironic_inspector.node_cache.NodeInfo')
 class TestGetIpmiAddress(base.BaseTest):
-    def test_ipv4_in_resolves(self, mock_node):
-        node = mock_node.return_value
-        node.driver_info.get.return_value = '192.168.1.1'
+    def test_ipv4_in_resolves(self):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'ipmi_address': '192.168.1.1'})
         ip = utils.get_ipmi_address(node)
         self.assertEqual(ip, '192.168.1.1')
 
     @mock.patch('socket.gethostbyname')
-    def test_good_hostname_resolves(self, mock_socket, mock_node):
-        node = mock_node.return_value
-        node.driver_info.get.return_value = 'www.example.com'
+    def test_good_hostname_resolves(self, mock_socket):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'ipmi_address': 'www.example.com'})
         mock_socket.return_value = '192.168.1.1'
         ip = utils.get_ipmi_address(node)
         mock_socket.assert_called_once_with('www.example.com')
         self.assertEqual(ip, '192.168.1.1')
 
     @mock.patch('socket.gethostbyname')
-    def test_bad_hostname_errors(self, mock_socket, mock_node):
+    def test_bad_hostname_errors(self, mock_socket):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'ipmi_address': 'meow'})
         mock_socket.side_effect = socket.gaierror('Boom')
-        node = mock_node.return_value
-        node.driver_info.get.return_value = 'meow'
         self.assertRaises(utils.Error, utils.get_ipmi_address, node)
+
+    def test_additional_fields(self):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'foo': '192.168.1.1'})
+        self.assertIsNone(utils.get_ipmi_address(node))
+
+        CONF.set_override('ipmi_address_fields', ['foo', 'bar', 'baz'])
+        ip = utils.get_ipmi_address(node)
+        self.assertEqual(ip, '192.168.1.1')
 
 
 class TestCapabilities(unittest.TestCase):
