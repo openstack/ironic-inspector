@@ -308,6 +308,26 @@ class TestInit(test_base.BaseTest):
         main.init()
         self.assertFalse(mock_auth.called)
 
+    @mock.patch.object(main.LOG, 'warning')
+    def test_init_with_no_data_storage(self, mock_log, mock_node_cache,
+                                       mock_get_client, mock_auth,
+                                       mock_firewall, mock_spawn_n):
+        msg = ('Introspection data will not be stored. Change '
+               '"[processing] store_data" option if this is not the '
+               'desired behavior')
+        main.init()
+        mock_log.assert_called_once_with(msg)
+
+    @mock.patch.object(main.LOG, 'info')
+    def test_init_with_swift_storage(self, mock_log, mock_node_cache,
+                                     mock_get_client, mock_auth,
+                                     mock_firewall, mock_spawn_n):
+        CONF.set_override('store_data', 'swift', 'processing')
+        msg = mock.call('Introspection data will be stored in Swift in the '
+                        'container %s', CONF.swift.container)
+        main.init()
+        self.assertIn(msg, mock_log.call_args_list)
+
     def test_init_without_manage_firewall(self, mock_node_cache,
                                           mock_get_client, mock_auth,
                                           mock_firewall, mock_spawn_n):
