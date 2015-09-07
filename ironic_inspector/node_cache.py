@@ -39,7 +39,7 @@ class NodeInfo(object):
     """Record about a node in the cache."""
 
     def __init__(self, uuid, started_at, finished_at=None, error=None,
-                 node=None, ports=None):
+                 node=None, ports=None, ironic=None):
         self.uuid = uuid
         self.started_at = started_at
         self.finished_at = finished_at
@@ -50,6 +50,7 @@ class NodeInfo(object):
             ports = {p.address: p for p in ports}
         self._ports = ports
         self._attributes = None
+        self._ironic = ironic
 
     @property
     def options(self):
@@ -71,6 +72,13 @@ class NodeInfo(object):
             for row in rows:
                 self._attributes.setdefault(row.name, []).append(row.value)
         return self._attributes
+
+    @property
+    def ironic(self):
+        """Ironic client instance."""
+        if self._ironic is None:
+            self._ironic = utils.get_client()
+        return self._ironic
 
     def set_option(self, name, value):
         """Set an option for a node."""
@@ -127,11 +135,11 @@ class NodeInfo(object):
             self._attributes = None
 
     @classmethod
-    def from_row(cls, row):
+    def from_row(cls, row, ironic=None):
         """Construct NodeInfo from a database row."""
         fields = {key: row[key]
                   for key in ('uuid', 'started_at', 'finished_at', 'error')}
-        return cls(**fields)
+        return cls(ironic=ironic, **fields)
 
     def invalidate_cache(self):
         """Clear all cached info, so that it's reloaded next time."""
@@ -139,28 +147,27 @@ class NodeInfo(object):
         self._node = None
         self._ports = None
         self._attributes = None
+        self._ironic = None
 
-    def node(self, ironic=None):
+    def node(self):
         """Get Ironic node object associated with the cached node record."""
         if self._node is None:
-            ironic = utils.get_client() if ironic is None else ironic
-            self._node = ironic.node.get(self.uuid)
+            self._node = self.ironic.node.get(self.uuid)
         return self._node
 
-    def create_ports(self, macs, ironic=None):
+    def create_ports(self, macs):
         """Create one or several ports for this node.
 
         A warning is issued if port already exists on a node.
         """
-        ironic = utils.get_client() if ironic is None else ironic
         for mac in macs:
             if mac not in self.ports():
-                self._create_port(mac, ironic)
+                self._create_port(mac)
             else:
                 LOG.warn(_LW('Port %(mac)s already exists for node %(uuid)s, '
                              'skipping'), {'mac': mac, 'uuid': self.uuid})
 
-    def ports(self, ironic=None):
+    def ports(self):
         """Get Ironic port objects associated with the cached node record.
 
         This value is cached as well, use invalidate_cache() to clean.
@@ -168,14 +175,13 @@ class NodeInfo(object):
         :return: dict MAC -> port object
         """
         if self._ports is None:
-            ironic = utils.get_client() if ironic is None else ironic
-            self._ports = {p.address: p
-                           for p in ironic.node.list_ports(self.uuid, limit=0)}
+            self._ports = {p.address: p for p in
+                           self.ironic.node.list_ports(self.uuid, limit=0)}
         return self._ports
 
-    def _create_port(self, mac, ironic):
+    def _create_port(self, mac):
         try:
-            port = ironic.port.create(node_uuid=self.uuid, address=mac)
+            port = self.ironic.port.create(node_uuid=self.uuid, address=mac)
         except exceptions.Conflict:
             LOG.warn(_LW('Port %(mac)s already exists for node %(uuid)s, '
                          'skipping'), {'mac': mac, 'uuid': self.uuid})
@@ -185,6 +191,66 @@ class NodeInfo(object):
         else:
             self._ports[mac] = port
 
+    def patch(self, patches):
+        """Apply JSON patches to a node.
+
+        Refreshes cached node instance.
+
+        :param patches: JSON patches to apply
+        :raises: ironicclient exceptions
+        """
+        LOG.debug('Updating node %(uuid)s with patches %(patches)s',
+                  {'uuid': self.uuid, 'patches': patches})
+        self._node = self.ironic.node.update(self.uuid, patches)
+
+    def patch_port(self, port, patches):
+        """Apply JSON patches to a port.
+
+        :param port: port object or its MAC
+        :param patches: JSON patches to apply
+        """
+        ports = self.ports()
+        if isinstance(port, str):
+            port = ports[port]
+
+        LOG.debug('Updating port %(mac)s of node %(uuid)s with patches '
+                  '%(patches)s',
+                  {'mac': port.address, 'uuid': self.uuid, 'patches': patches})
+        new_port = self.ironic.port.update(port.uuid, patches)
+        ports[port.address] = new_port
+
+    def update_properties(self, **props):
+        """Update properties on a node.
+
+        :param props: properties to update
+        """
+        patches = [{'op': 'add', 'path': '/properties/%s' % k, 'value': v}
+                   for k, v in props.items()]
+        self.patch(patches)
+
+    def update_capabilities(self, **caps):
+        """Update capabilities on a node.
+
+        :param props: capabilities to update
+        """
+        existing = utils.capabilities_to_dict(
+            self.node().properties.get('capabilities'))
+        existing.update(caps)
+        self.update_properties(
+            capabilities=utils.dict_to_capabilities(existing))
+
+    def delete_port(self, port):
+        """Delete port.
+
+        :param port: port object or its MAC
+        """
+        ports = self.ports()
+        if isinstance(port, str):
+            port = ports[port]
+
+        self.ironic.port.delete(port.uuid)
+        del ports[port.address]
+
 
 def add_node(uuid, **attributes):
     """Store information about a node under introspection.
@@ -193,7 +259,8 @@ def add_node(uuid, **attributes):
     Empty values are skipped.
 
     :param uuid: Ironic node UUID
-    :param attributes: attributes known about this node (like macs, BMC etc)
+    :param attributes: attributes known about this node (like macs, BMC etc);
+                       also ironic client instance may be passed under 'ironic'
     :returns: NodeInfo
     """
     started_at = time.time()
@@ -201,7 +268,8 @@ def add_node(uuid, **attributes):
         _delete_node(uuid)
         db.Node(uuid=uuid, started_at=started_at).save(session)
 
-        node_info = NodeInfo(uuid=uuid, started_at=started_at)
+        node_info = NodeInfo(uuid=uuid, started_at=started_at,
+                             ironic=attributes.pop('ironic', None))
         for (name, value) in attributes.items():
             if not value:
                 continue
@@ -250,26 +318,29 @@ def _list_node_uuids():
     return {x.uuid for x in db.model_query(db.Node.uuid)}
 
 
-def get_node(uuid):
+def get_node(uuid, ironic=None):
     """Get node from cache by it's UUID.
 
     :param uuid: node UUID.
+    :param ironic: optional ironic client instance
     :returns: structure NodeInfo.
     """
     row = db.model_query(db.Node).filter_by(uuid=uuid).first()
     if row is None:
         raise utils.Error(_('Could not find node %s in cache') % uuid,
                           code=404)
-    return NodeInfo.from_row(row)
+    return NodeInfo.from_row(row, ironic=ironic)
 
 
 def find_node(**attributes):
     """Find node in cache.
 
     :param attributes: attributes known about this node (like macs, BMC etc)
+                       also ironic client instance may be passed under 'ironic'
     :returns: structure NodeInfo with attributes ``uuid`` and ``created_at``
     :raises: Error if node is not found
     """
+    ironic = attributes.pop('ironic', None)
     # NOTE(dtantsur): sorting is not required, but gives us predictability
     found = set()
 
@@ -315,7 +386,7 @@ def find_node(**attributes):
             'Introspection for node %(node)s already finished on '
             '%(finish)s') % {'node': uuid, 'finish': row.finished_at})
 
-    return NodeInfo(uuid=uuid, started_at=row.started_at)
+    return NodeInfo(uuid=uuid, started_at=row.started_at, ironic=ironic)
 
 
 def clean_up():

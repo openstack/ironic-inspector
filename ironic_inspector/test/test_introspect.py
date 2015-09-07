@@ -71,8 +71,9 @@ class TestIntrospect(BaseTest):
         cli.node.validate.assert_called_once_with(self.uuid)
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
-        self.node_info.ports.assert_called_once_with(cli)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
+        self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
                                                              self.macs)
         filters_mock.assert_called_with(cli)
@@ -85,7 +86,7 @@ class TestIntrospect(BaseTest):
             'new_ipmi_credentials', None)
 
     def test_ok_ilo_and_drac(self, client_mock, add_mock, filters_mock):
-        self._prepare(client_mock)
+        cli = self._prepare(client_mock)
         add_mock.return_value = self.node_info
 
         for name in ('ilo_address', 'drac_host'):
@@ -93,7 +94,8 @@ class TestIntrospect(BaseTest):
             introspect.introspect(self.node.uuid)
 
         add_mock.assert_called_with(self.uuid,
-                                    bmc_address=self.bmc_address)
+                                    bmc_address=self.bmc_address,
+                                    ironic=cli)
 
     def test_power_failure(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
@@ -106,7 +108,8 @@ class TestIntrospect(BaseTest):
         cli.node.get.assert_called_once_with(self.uuid)
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
@@ -125,7 +128,8 @@ class TestIntrospect(BaseTest):
         cli.node.get.assert_called_once_with(self.uuid)
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
         self.assertFalse(cli.node.set_boot_device.called)
         add_mock.return_value.finished.assert_called_once_with(
             error=mock.ANY)
@@ -144,10 +148,11 @@ class TestIntrospect(BaseTest):
 
         cli.node.get.assert_called_once_with(self.node_compat.uuid)
         cli.node.validate.assert_called_once_with(self.node_compat.uuid)
-        add_mock.return_value.ports.assert_called_once_with(cli)
+        add_mock.return_value.ports.assert_called_once_with()
 
         add_mock.assert_called_once_with(self.node_compat.uuid,
-                                         bmc_address=None)
+                                         bmc_address=None,
+                                         ironic=cli)
         add_mock.return_value.add_attribute.assert_called_once_with('mac',
                                                                     self.macs)
         filters_mock.assert_called_with(cli)
@@ -164,10 +169,11 @@ class TestIntrospect(BaseTest):
 
         introspect.introspect(self.node.uuid)
 
-        self.node_info.ports.assert_called_once_with(cli)
+        self.node_info.ports.assert_called_once_with()
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
         self.assertFalse(self.node_info.add_attribute.called)
         self.assertFalse(filters_mock.called)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
@@ -184,7 +190,7 @@ class TestIntrospect(BaseTest):
 
         introspect.introspect(self.uuid)
 
-        self.node_info.ports.assert_called_once_with(cli)
+        self.node_info.ports.assert_called_once_with()
         self.node_info.finished.assert_called_once_with(error=mock.ANY)
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
@@ -330,7 +336,8 @@ class TestSetIpmiCredentials(BaseTest):
         introspect.introspect(self.uuid, new_ipmi_credentials=self.new_creds)
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
         filters_mock.assert_called_with(cli)
         self.assertFalse(cli.node.validate.called)
         self.assertFalse(cli.node.set_boot_device.called)
@@ -348,7 +355,8 @@ class TestSetIpmiCredentials(BaseTest):
         introspect.introspect(self.uuid, new_ipmi_credentials=self.new_creds)
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
         filters_mock.assert_called_with(cli)
         self.assertFalse(cli.node.validate.called)
         self.assertFalse(cli.node.set_boot_device.called)
@@ -380,7 +388,8 @@ class TestSetIpmiCredentials(BaseTest):
                               new_ipmi_credentials=(None, self.new_creds[1]))
 
         add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address)
+                                         bmc_address=self.bmc_address,
+                                         ironic=cli)
         filters_mock.assert_called_with(cli)
         self.assertFalse(cli.node.validate.called)
         self.assertFalse(cli.node.set_boot_device.called)

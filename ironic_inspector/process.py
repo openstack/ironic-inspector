@@ -100,9 +100,8 @@ def process(introspection_data):
         }
         raise utils.Error(msg)
 
-    ironic = utils.get_client()
     try:
-        node = node_info.node(ironic)
+        node = node_info.node()
     except exceptions.NotFound:
         msg = (_('Node UUID %s was found in cache, but is not found in Ironic')
                % node_info.uuid)
@@ -110,7 +109,7 @@ def process(introspection_data):
         raise utils.Error(msg, code=404)
 
     try:
-        return _process_node(ironic, node, introspection_data, node_info)
+        return _process_node(node, introspection_data, node_info)
     except utils.Error as exc:
         node_info.finished(error=str(exc))
         raise
@@ -136,11 +135,11 @@ def _run_post_hooks(node_info, introspection_data):
     return node_patches, port_patches
 
 
-def _process_node(ironic, node, introspection_data, node_info):
+def _process_node(node, introspection_data, node_info):
     # NOTE(dtantsur): repeat the check in case something changed
     utils.check_provision_state(node)
 
-    node_info.create_ports(introspection_data.get('macs') or (), ironic=ironic)
+    node_info.create_ports(introspection_data.get('macs') or ())
 
     node_patches, port_patches = _run_post_hooks(node_info,
                                                  introspection_data)
@@ -159,15 +158,12 @@ def _process_node(ironic, node, introspection_data, node_info):
     else:
         LOG.debug('Swift support is disabled, introspection data for node %s '
                   'won\'t be stored', node_info.uuid)
-    node = ironic.node.update(node.uuid, node_patches)
+
+    node_info.patch(node_patches)
     for mac, patches in port_patches.items():
-        port = node_info.ports(ironic)[mac]
-        ironic.port.update(port.uuid, patches)
+        node_info.patch_port(mac, patches)
 
-    LOG.debug('Node %s was updated with data from introspection process, '
-              'patches %s, port patches %s',
-              node.uuid, node_patches, port_patches)
-
+    ironic = utils.get_client()
     firewall.update_filters(ironic)
 
     resp = {'uuid': node.uuid}

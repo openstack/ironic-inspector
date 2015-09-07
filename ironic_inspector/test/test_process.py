@@ -96,7 +96,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -116,7 +116,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -136,7 +136,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -156,7 +156,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -177,7 +177,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -188,7 +188,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=None,
                                          mac=self.data['macs'])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -223,7 +223,7 @@ class TestProcess(BaseTest):
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=[self.macs[1]])
         cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli, cli.node.get.return_value,
+        process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
 
     @prepare_mocks
@@ -397,8 +397,7 @@ class TestProcessNode(BaseTest):
     @mock.patch.object(utils, 'get_client')
     def call(self, mock_cli):
         mock_cli.return_value = self.cli
-        return process._process_node(self.cli, self.node, self.data,
-                                     self.node_info)
+        return process._process_node(self.node, self.data, self.node_info)
 
     def test_return_includes_uuid(self, filters_mock, post_hook_mock):
         ret_val = self.call()

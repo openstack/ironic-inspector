@@ -98,7 +98,8 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
                                      'reason': validation.power['reason']})
 
     node_info = node_cache.add_node(node.uuid,
-                                    bmc_address=utils.get_ipmi_address(node))
+                                    bmc_address=utils.get_ipmi_address(node),
+                                    ironic=ironic)
     node_info.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
     def _handle_exceptions():
@@ -118,7 +119,7 @@ def _background_introspect(ironic, node_info):
     global _LAST_INTROSPECTION_TIME
 
     # TODO(dtantsur): pagination
-    macs = list(node_info.ports(ironic))
+    macs = list(node_info.ports())
     if macs:
         node_info.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
         LOG.info(_LI('Whitelisting MAC\'s %(macs)s for node %(node)s on the'

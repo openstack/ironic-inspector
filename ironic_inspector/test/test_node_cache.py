@@ -385,7 +385,7 @@ class TestNodeInfoOptions(test_base.NodeTest):
         self.assertEqual(data, new.options['name'])
 
 
-@mock.patch.object(utils, 'get_client')
+@mock.patch.object(utils, 'get_client', autospec=True)
 class TestNodeCacheIronicObjects(unittest.TestCase):
     def setUp(self):
         super(TestNodeCacheIronicObjects, self).setUp()
@@ -396,7 +396,6 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
                                         node=mock.sentinel.node)
         self.assertIs(mock.sentinel.node, node_info.node())
-        self.assertIs(mock.sentinel.node, node_info.node(ironic='ironic'))
         self.assertFalse(mock_ironic.called)
 
     def test_node_not_provided(self, mock_ironic):
@@ -409,29 +408,26 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
         mock_ironic.assert_called_once_with()
         mock_ironic.return_value.node.get.assert_called_once_with('uuid')
 
-    def test_node_ironic_arg(self, mock_ironic):
-        ironic2 = mock.Mock()
-        ironic2.node.get.return_value = mock.sentinel.node
-        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
-
-        self.assertIs(mock.sentinel.node, node_info.node(ironic=ironic2))
-        self.assertIs(node_info.node(), node_info.node(ironic=ironic2))
+    def test_node_ironic_preset(self, mock_ironic):
+        mock_ironic2 = mock.Mock()
+        mock_ironic2.node.get.return_value = mock.sentinel.node
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
+                                        ironic=mock_ironic2)
+        self.assertIs(mock.sentinel.node, node_info.node())
 
         self.assertFalse(mock_ironic.called)
-        ironic2.node.get.assert_called_once_with('uuid')
+        mock_ironic2.node.get.assert_called_once_with('uuid')
 
     def test_ports_provided(self, mock_ironic):
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
                                         ports=self.ports)
         self.assertIs(self.ports, node_info.ports())
-        self.assertIs(self.ports, node_info.ports(ironic='ironic'))
         self.assertFalse(mock_ironic.called)
 
     def test_ports_provided_list(self, mock_ironic):
         node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
                                         ports=list(self.ports.values()))
         self.assertEqual(self.ports, node_info.ports())
-        self.assertEqual(self.ports, node_info.ports(ironic='ironic'))
         self.assertFalse(mock_ironic.called)
 
     def test_ports_not_provided(self, mock_ironic):
@@ -446,13 +442,85 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
         mock_ironic.return_value.node.list_ports.assert_called_once_with(
             'uuid', limit=0)
 
-    def test_ports_ironic_arg(self, mock_ironic):
-        ironic2 = mock.Mock()
-        ironic2.node.list_ports.return_value = list(self.ports.values())
-        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0)
-
-        self.assertEqual(self.ports, node_info.ports(ironic=ironic2))
-        self.assertIs(node_info.ports(), node_info.ports(ironic=ironic2))
+    def test_ports_ironic_preset(self, mock_ironic):
+        mock_ironic2 = mock.Mock()
+        mock_ironic2.node.list_ports.return_value = list(
+            self.ports.values())
+        node_info = node_cache.NodeInfo(uuid='uuid', started_at=0,
+                                        ironic=mock_ironic2)
+        self.assertEqual(self.ports, node_info.ports())
 
         self.assertFalse(mock_ironic.called)
-        ironic2.node.list_ports.assert_called_once_with('uuid', limit=0)
+        mock_ironic2.node.list_ports.assert_called_once_with(
+            'uuid', limit=0)
+
+
+class TestUpdate(test_base.NodeTest):
+    def setUp(self):
+        super(TestUpdate, self).setUp()
+        self.ironic = mock.Mock()
+        self.ports = {'mac%d' % i: mock.Mock(address='mac%d' % i, uuid=str(i))
+                      for i in range(2)}
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid,
+                                             started_at=0,
+                                             node=self.node,
+                                             ports=self.ports,
+                                             ironic=self.ironic)
+
+    def test_patch(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        self.node_info.patch(['patch'])
+
+        self.ironic.node.update.assert_called_once_with(self.uuid, ['patch'])
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
+    def test_update_properties(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        self.node_info.update_properties(prop=42)
+
+        patch = [{'op': 'add', 'path': '/properties/prop', 'value': 42}]
+        self.ironic.node.update.assert_called_once_with(self.uuid, patch)
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
+    def test_update_capabilities(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+        self.node.properties['capabilities'] = 'foo:bar,x:y'
+
+        self.node_info.update_capabilities(x=1, y=2)
+
+        self.ironic.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        patch = self.ironic.node.update.call_args[0][1]
+        new_caps = utils.capabilities_to_dict(patch[0]['value'])
+        self.assertEqual({'foo': 'bar', 'x': '1', 'y': '2'}, new_caps)
+
+    def test_patch_port(self):
+        self.ironic.port.update.return_value = mock.sentinel.port
+
+        self.node_info.patch_port(self.ports['mac0'], ['patch'])
+
+        self.ironic.port.update.assert_called_once_with('0', ['patch'])
+        self.assertIs(mock.sentinel.port,
+                      self.node_info.ports()['mac0'])
+
+    def test_patch_port_by_mac(self):
+        self.ironic.port.update.return_value = mock.sentinel.port
+
+        self.node_info.patch_port('mac0', ['patch'])
+
+        self.ironic.port.update.assert_called_once_with('0', ['patch'])
+        self.assertIs(mock.sentinel.port,
+                      self.node_info.ports()['mac0'])
+
+    def test_delete_port(self):
+        self.node_info.delete_port(self.ports['mac0'])
+
+        self.ironic.port.delete.assert_called_once_with('0')
+        self.assertEqual(['mac1'], list(self.node_info.ports()))
+
+    def test_delete_port_by_mac(self):
+        self.node_info.delete_port('mac0')
+
+        self.ironic.port.delete.assert_called_once_with('0')
+        self.assertEqual(['mac1'], list(self.node_info.ports()))
