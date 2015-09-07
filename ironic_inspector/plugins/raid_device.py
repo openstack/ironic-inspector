@@ -51,8 +51,7 @@ class RaidDeviceDetection(base.ProcessingHook):
                          'value for "local_gb"'))
             introspection_data['local_gb'] = 1
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         if 'block_devices' not in introspection_data:
             LOG.warning(_LW('No block device was received from ramdisk'))
             return
@@ -78,7 +77,7 @@ class RaidDeviceDetection(base.ProcessingHook):
                 LOG.warning(_LW('No new devices were found'))
                 return
 
-            node_patches.extend([
+            node_info.patch([
                 {'op': 'remove',
                  'path': '/extra/block_devices'},
                 {'op': 'add',
@@ -89,6 +88,6 @@ class RaidDeviceDetection(base.ProcessingHook):
         else:
             # No previously discovered devices - save the inspector block
             # devices in node.extra
-            node_patches.append({'op': 'add',
-                                 'path': '/extra/block_devices',
-                                 'value': introspection_data['block_devices']})
+            node_info.patch([{'op': 'add',
+                              'path': '/extra/block_devices',
+                              'value': introspection_data['block_devices']}])

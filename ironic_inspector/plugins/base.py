@@ -39,32 +39,17 @@ class ProcessingHook(object):  # pragma: no cover
         :returns: nothing.
         """
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         """Hook to run before Ironic node update.
 
         This hook is run after node is found and ports are created,
         just before the node is updated with the data.
 
-        To update node and/or ports use *node_patches* and *ports_patches*
-        arguments.
-
         :param introspection_data: processed data from the ramdisk.
         :param node_info: NodeInfo instance.
-        :param node_patches: list of JSON patches [RFC 6902] to apply
-                             to the node, e.g.
-                             ::
-                               [{'op': 'add',
-                                 'path': '/extra/foo',
-                                 'value': 'bar'}]
-        :param ports_patches: dict where keys are port MAC's,
-                              values are lists of JSON patches, e.g.
-                              ::
-                                {'11:22:33:44:55:55': [
-                                  {'op': 'add', 'path': '/extra/foo',
-                                  'value': 'bar'}
-                                ]}
-        :param kwargs: used for extensibility without breaking existing hooks
+        :param kwargs: used for extensibility without breaking existing hooks,
+                       currently deprecated arguments node_patches and
+                       ports_patches are provided here.
         :returns: nothing.
 
         [RFC 6902] - http://tools.ietf.org/html/rfc6902

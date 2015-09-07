@@ -59,7 +59,8 @@ class TestSchedulerHook(test_base.NodeTest):
             self.assertRaisesRegexp(utils.Error, key,
                                     self.hook.before_processing, new_data)
 
-    def test_before_update(self):
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_before_update(self, mock_patch):
         patch = [
             {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
@@ -67,12 +68,11 @@ class TestSchedulerHook(test_base.NodeTest):
             {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
         ]
 
-        self.hook.before_update(self.data, self.node_info,
-                                self.node_patches, self.ports_patches)
-        self.assertPatchEqual(patch, self.node_patches)
-        self.assertFalse(self.ports_patches)
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
 
-    def test_before_update_no_overwrite(self):
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_before_update_no_overwrite(self, mock_patch):
         CONF.set_override('overwrite_existing', False, 'processing')
         self.node.properties = {
             'memory_mb': '4096',
@@ -83,10 +83,8 @@ class TestSchedulerHook(test_base.NodeTest):
             {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
         ]
 
-        self.hook.before_update(self.data, self.node_info,
-                                self.node_patches, self.ports_patches)
-        self.assertPatchEqual(patch, self.node_patches)
-        self.assertFalse(self.ports_patches)
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
 
 
 class TestValidateInterfacesHook(test_base.NodeTest):
@@ -183,14 +181,14 @@ class TestValidateInterfacesHook(test_base.NodeTest):
 
     @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
     def test_keep_all(self, mock_delete_port):
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_delete_port.called)
 
     @mock.patch.object(node_cache.NodeInfo, 'delete_port')
     def test_keep_present(self, mock_delete_port):
         CONF.set_override('keep_ports', 'present', 'processing')
         self.data['all_interfaces'] = self.orig_interfaces
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.hook.before_update(self.data, self.node_info)
 
         mock_delete_port.assert_called_once_with(self.existing_ports[1])
 
@@ -198,7 +196,7 @@ class TestValidateInterfacesHook(test_base.NodeTest):
     def test_keep_added(self, mock_delete_port):
         CONF.set_override('keep_ports', 'added', 'processing')
         self.data['macs'] = [self.pxe_interface['mac']]
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.hook.before_update(self.data, self.node_info)
 
         mock_delete_port.assert_any_call(self.existing_ports[0])
         mock_delete_port.assert_any_call(self.existing_ports[1])
