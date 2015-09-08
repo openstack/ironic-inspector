@@ -141,6 +141,10 @@ function configure_inspector {
 
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI
+
+    if [ "$LOG_COLOR" == "True" ] && [ "$SYSLOG" == "False" ]; then
+        setup_colorized_logging $IRONIC_INSPECTOR_CONF_FILE DEFAULT
+    fi
 }
 
 function configure_inspector_swift {
