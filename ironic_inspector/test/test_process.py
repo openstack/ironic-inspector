@@ -24,7 +24,6 @@ from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
-from ironic_inspector.plugins import standard as std_plugins
 from ironic_inspector import process
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
@@ -36,7 +35,6 @@ class BaseTest(test_base.NodeTest):
     def setUp(self):
         super(BaseTest, self).setUp()
         self.started_at = time.time()
-        self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
         self.pxe_mac = self.macs[1]
         self.data = {
             'ipmi_address': self.bmc_address,
@@ -47,7 +45,7 @@ class BaseTest(test_base.NodeTest):
             'interfaces': {
                 'em1': {'mac': self.macs[0], 'ip': '1.2.0.1'},
                 'em2': {'mac': self.macs[1], 'ip': '1.2.0.2'},
-                'em3': {'mac': self.all_macs[2]},
+                'em3': {'mac': 'DE:AD:BE:EF:DE:AD'},
             },
             'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
         }
@@ -89,90 +87,7 @@ class TestProcess(BaseTest):
 
         # Only boot interface is added by default
         self.assertEqual(['em2'], sorted(self.data['interfaces']))
-        self.assertEqual(['em1', 'em2', 'em3'],
-                         sorted(self.data['all_interfaces']))
         self.assertEqual([self.pxe_mac], self.data['macs'])
-
-        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=self.data['macs'])
-        cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli.node.get.return_value,
-                                             self.data, pop_mock.return_value)
-
-    @prepare_mocks
-    def test_boot_interface_as_mac(self, cli, pop_mock, process_mock):
-        self.data['boot_interface'] = self.pxe_mac
-
-        res = process.process(self.data)
-
-        self.assertEqual(self.fake_result_json, res)
-
-        # Only boot interface is added by default
-        self.assertEqual(['em2'], sorted(self.data['interfaces']))
-        self.assertEqual(['em1', 'em2', 'em3'],
-                         sorted(self.data['all_interfaces']))
-        self.assertEqual([self.pxe_mac], self.data['macs'])
-
-        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=self.data['macs'])
-        cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli.node.get.return_value,
-                                             self.data, pop_mock.return_value)
-
-    @prepare_mocks
-    def test_no_boot_interface(self, cli, pop_mock, process_mock):
-        del self.data['boot_interface']
-
-        res = process.process(self.data)
-
-        self.assertEqual(self.fake_result_json, res)
-
-        # By default interfaces w/o IP are dropped
-        self.assertEqual(['em1', 'em2'], sorted(self.data['interfaces']))
-        self.assertEqual(['em1', 'em2', 'em3'],
-                         sorted(self.data['all_interfaces']))
-        self.assertEqual(self.macs, sorted(self.data['macs']))
-
-        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=self.data['macs'])
-        cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli.node.get.return_value,
-                                             self.data, pop_mock.return_value)
-
-    @prepare_mocks
-    def test_add_ports_active(self, cli, pop_mock, process_mock):
-        CONF.set_override('add_ports', 'active', 'processing')
-
-        res = process.process(self.data)
-
-        self.assertEqual(self.fake_result_json, res)
-
-        self.assertEqual(['em1', 'em2'],
-                         sorted(self.data['interfaces']))
-        self.assertEqual(['em1', 'em2', 'em3'],
-                         sorted(self.data['all_interfaces']))
-        self.assertEqual(self.macs, sorted(self.data['macs']))
-
-        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=self.data['macs'])
-        cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli.node.get.return_value,
-                                             self.data, pop_mock.return_value)
-
-    @prepare_mocks
-    def test_add_ports_all(self, cli, pop_mock, process_mock):
-        CONF.set_override('add_ports', 'all', 'processing')
-
-        res = process.process(self.data)
-
-        self.assertEqual(self.fake_result_json, res)
-
-        # By default interfaces w/o IP are dropped
-        self.assertEqual(['em1', 'em2', 'em3'],
-                         sorted(self.data['interfaces']))
-        self.assertEqual(['em1', 'em2', 'em3'],
-                         sorted(self.data['all_interfaces']))
-        self.assertEqual(self.all_macs, sorted(self.data['macs']))
 
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                          mac=self.data['macs'])
@@ -190,50 +105,6 @@ class TestProcess(BaseTest):
         cli.node.get.assert_called_once_with(self.uuid)
         process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
-
-    @prepare_mocks
-    def test_no_interfaces(self, cli, pop_mock, process_mock):
-        del self.data['interfaces']
-        self.assertRaises(utils.Error, process.process, self.data)
-
-    @prepare_mocks
-    def test_invalid_interfaces_all(self, cli, pop_mock, process_mock):
-        self.data['interfaces'] = {
-            'br1': {'mac': 'broken', 'ip': '1.2.0.1'},
-            'br2': {'mac': '', 'ip': '1.2.0.2'},
-            'br3': {},
-        }
-
-        self.assertRaises(utils.Error, process.process, self.data)
-
-    @prepare_mocks
-    def test_invalid_interfaces(self, cli, pop_mock, process_mock):
-        self.data['interfaces'] = {
-            'br1': {'mac': 'broken', 'ip': '1.2.0.1'},
-            'br2': {'mac': '', 'ip': '1.2.0.2'},
-            'br3': {},
-            'em1': {'mac': self.macs[1], 'ip': '1.2.3.4'},
-        }
-
-        process.process(self.data)
-
-        self.assertEqual(['em1'], list(self.data['interfaces']))
-        self.assertEqual([self.macs[1]], self.data['macs'])
-
-        pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=[self.macs[1]])
-        cli.node.get.assert_called_once_with(self.uuid)
-        process_mock.assert_called_once_with(cli.node.get.return_value,
-                                             self.data, pop_mock.return_value)
-
-    @prepare_mocks
-    def test_missing_required(self, cli, pop_mock, process_mock):
-        del self.data['cpus']
-
-        self.assertRaisesRegexp(utils.Error,
-                                'missing',
-                                process.process, self.data)
-        self.assertFalse(process_mock.called)
 
     @prepare_mocks
     def test_not_found_in_cache(self, cli, pop_mock, process_mock):
@@ -537,47 +408,6 @@ class TestProcessNode(BaseTest):
             error='Failed to power off node %s, check it\'s power management'
             ' configuration: boom' % self.uuid)
 
-    @mock.patch.object(utils, 'get_client')
-    def test_keep_ports_present(self, client_mock, filters_mock,
-                                post_hook_mock):
-        CONF.set_override('keep_ports', 'present', 'processing')
-
-        # 2 MACs valid, one invalid, one not present in data
-        all_macs = self.all_macs + ['01:09:02:08:03:07']
-        all_ports = [
-            mock.Mock(uuid='port_uuid%d' % i, address=mac)
-            for i, mac in enumerate(all_macs)
-        ]
-
-        client_mock.return_value = self.cli
-        self.cli.node.list_ports.return_value = all_ports
-
-        self.call()
-
-        self.cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
-        self.cli.port.delete.assert_called_once_with(all_ports[-1].uuid)
-
-    @mock.patch.object(utils, 'get_client')
-    def test_keep_ports_added(self, client_mock, filters_mock, post_hook_mock):
-        CONF.set_override('keep_ports', 'added', 'processing')
-
-        # 2 MACs valid, one invalid, one not present in data
-        all_macs = self.all_macs + ['01:09:02:08:03:07']
-        all_ports = [
-            mock.Mock(uuid='port_uuid%d' % i, address=mac)
-            for i, mac in enumerate(all_macs)
-        ]
-
-        client_mock.return_value = self.cli
-        self.cli.node.list_ports.return_value = all_ports
-
-        self.call()
-
-        self.cli.node.list_ports.assert_called_once_with(self.uuid, limit=0)
-        for port in all_ports[2:]:
-            self.cli.port.delete.assert_any_call(port.uuid)
-        self.assertEqual(2, self.cli.port.delete.call_count)
-
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data(self, swift_mock, filters_mock, post_hook_mock):
         CONF.set_override('store_data', 'swift', 'processing')
@@ -611,13 +441,3 @@ class TestProcessNode(BaseTest):
         swift_conn.create_object.assert_called_once_with(name, expected)
         self.cli.node.update.assert_called_once_with(self.uuid,
                                                      self.patch_props)
-
-
-class TestValidateInterfacesHook(test_base.BaseTest):
-    def test_wrong_add_ports(self):
-        CONF.set_override('add_ports', 'foobar', 'processing')
-        self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
-
-    def test_wrong_keep_ports(self):
-        CONF.set_override('keep_ports', 'foobar', 'processing')
-        self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
