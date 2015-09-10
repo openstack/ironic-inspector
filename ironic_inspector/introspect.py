@@ -36,7 +36,6 @@ PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
 _LAST_INTROSPECTION_TIME = 0
 _LAST_INTROSPECTION_LOCK = semaphore.BoundedSemaphore()
-_LAST_INTROSPECTION_RE = re.compile(CONF.introspection_delay_drivers)
 
 
 def _validate_ipmi_credentials(node, new_ipmi_credentials):
@@ -146,7 +145,7 @@ def _background_introspect(ironic, node_info):
                             ' node %(node)s: %(exc)s') %
                         {'node': node_info.uuid, 'exc': exc})
 
-        if _LAST_INTROSPECTION_RE.match(node_info.node().driver):
+        if re.match(CONF.introspection_delay_drivers, node_info.node().driver):
             LOG.debug('Attempting to acquire lock on last introspection time')
             with _LAST_INTROSPECTION_LOCK:
                 delay = (_LAST_INTROSPECTION_TIME - time.time()
