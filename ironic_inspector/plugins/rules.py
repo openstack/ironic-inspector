@@ -15,6 +15,7 @@
 
 import operator
 
+import netaddr
 from oslo_log import log
 
 from ironic_inspector.plugins import base
@@ -65,6 +66,20 @@ class NeCondition(SimpleCondition):
     op = operator.ne
 
 
+class NetCondition(base.RuleConditionPlugin):
+    def validate(self, params, **kwargs):
+        super(NetCondition, self).validate(params, **kwargs)
+        # Make sure it does not raise
+        try:
+            netaddr.IPNetwork(params['value'])
+        except netaddr.AddrFormatError as exc:
+            raise ValueError('invalid value: %s' % exc)
+
+    def check(self, node_info, field, params, **kwargs):
+        network = netaddr.IPNetwork(params['value'])
+        return netaddr.IPAddress(field) in network
+
+
 class FailAction(base.RuleActionPlugin):
     REQUIRED_PARAMS = {'message'}
 
@@ -90,3 +105,36 @@ class SetAttributeAction(base.RuleActionPlugin):
             return
 
         node_info.patch([{'op': 'remove', 'path': params['path']}])
+
+
+class SetCapabilityAction(base.RuleActionPlugin):
+    REQUIRED_PARAMS = {'name'}
+    OPTIONAL_PARAMS = {'value'}
+
+    def apply(self, node_info, params, **kwargs):
+        node_info.update_capabilities(
+            **{params['name']: params.get('value')})
+
+    def rollback(self, node_info, params, **kwargs):
+        node_info.update_capabilities(**{params['name']: None})
+
+
+class ExtendAttributeAction(base.RuleActionPlugin):
+    REQUIRED_PARAMS = {'path', 'value'}
+    OPTIONAL_PARAMS = {'unique'}
+    # TODO(dtantsur): proper validation of path
+
+    def apply(self, node_info, params, **kwargs):
+        def _replace(values):
+            value = params['value']
+            if not params.get('unique') or value not in values:
+                values.append(value)
+            return values
+
+        node_info.replace_field(params['path'], _replace, default=[])
+
+    def rollback(self, node_info, params, **kwargs):
+        def _replace(values):
+            return [v for v in values if v != params['value']]
+
+        node_info.replace_field(params['path'], _replace, default=[])

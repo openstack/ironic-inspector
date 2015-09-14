@@ -355,7 +355,8 @@ Conditions
 A condition is represented by an object with fields:
 
 ``op`` the type of comparison operation, default available operators include :
-``eq``, ``le``, ``ge``, ``ne``, ``lt``, ``gt``.
+``eq``, ``le``, ``ge``, ``ne``, ``lt``, ``gt`` (basic comparison operators),
+``in-net`` (checks that IP address is in a given network).
 
 ``field`` a `JSON path <http://goessner.net/articles/JsonPath/>`_ to the field
 in the introspection data to use in comparison.
@@ -387,6 +388,14 @@ Default available actions include:
 * ``set-attribute`` sets an attribute on an Ironic node. Requires a ``path``
   field, which is the path to the attribute as used by ironic (e.g.
   ``/properties/something``), and a ``value`` to set.
+
+* ``set-capability`` sets a capability on an Ironic node. Requires ``name``
+  and ``value`` fields, which are the name and the value for a new capability
+  accordingly. Existing value for this same capability is replaced.
+
+* ``extend-attribute`` the same as ``set-attribute``, but treats existing
+  value as a list and appends value to it. If optional ``unique`` parameter is
+  set to ``True``, nothing will be added if given value is already in a list.
 
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
