@@ -29,7 +29,7 @@ NEW_CHAIN = None
 CHAIN = None
 INTERFACE = None
 LOCK = semaphore.BoundedSemaphore()
-BASE_COMMAND = ('iptables',)
+BASE_COMMAND = None
 
 
 def _iptables(*args, **kwargs):
@@ -61,19 +61,20 @@ def init():
     INTERFACE = CONF.firewall.dnsmasq_interface
     CHAIN = CONF.firewall.firewall_chain
     NEW_CHAIN = CHAIN + '_temp'
+    BASE_COMMAND = ('sudo', 'ironic-inspector-rootwrap',
+                    CONF.rootwrap_config, 'iptables',)
 
     # -w flag makes iptables wait for xtables lock, but it's not supported
     # everywhere yet
     try:
         with open(os.devnull, 'wb') as null:
-            subprocess.check_call(['iptables', '-w', '-h'],
+            subprocess.check_call(BASE_COMMAND + ('-w', '-h'),
                                   stderr=null, stdout=null)
     except subprocess.CalledProcessError:
         LOG.warn(_LW('iptables does not support -w flag, please update '
                      'it to at least version 1.4.21'))
-        BASE_COMMAND = ('iptables',)
     else:
-        BASE_COMMAND = ('iptables', '-w')
+        BASE_COMMAND += ('-w',)
 
     _clean_up(CHAIN)
     # Not really needed, but helps to validate that we have access to iptables

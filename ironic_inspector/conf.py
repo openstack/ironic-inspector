@@ -249,6 +249,10 @@ SERVICE_OPTS = [
                 default=['ilo_address', 'drac_host', 'cimc_address'],
                 help='Ironic driver_info fields that are equivalent '
                 'to ipmi_address.'),
+    cfg.StrOpt('rootwrap_config',
+               default="/etc/ironic-inspector/rootwrap.conf",
+               help='Path to the rootwrap configuration file to use for '
+                    'running commands as root'),
 ]
 
 

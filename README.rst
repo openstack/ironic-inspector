@@ -161,6 +161,23 @@ for the other possible configuration options.
     Configuration file contains a password and thus should be owned by ``root``
     and should have access rights like ``0600``.
 
+**ironic-inspector** requires root rights for managing iptables. It gets them
+by running ``ironic-inspector-rootwrap`` utility with ``sudo``. To allow it,
+copy ``rootwrap.conf`` to the configuration directory (e.g. as
+``/etc/ironic-inspector/rootwrap.conf`` and create file
+``/etc/sudoers.d/ironic-inspector-rootwrap`` with the following content::
+
+   stack ALL=(root) NOPASSWD: /usr/bin/ironic-inspector-rootwrap /etc/ironic-inspector/rootwrap.conf *
+
+.. note::
+    ``rootwrap.conf`` must be writeable only by root.
+
+Replace ``stack`` with whatever user you'll be using to run
+**ironic-inspector**.
+
+Configuring PXE
+^^^^^^^^^^^^^^^
+
 As for PXE boot environment, you'll need:
 
 * TFTP server running and accessible (see below for using *dnsmasq*).
@@ -280,14 +297,9 @@ will be accessed by ramdisk on a booting machine).
 Running
 ~~~~~~~
 
-Run as ``root``::
+::
 
     ironic-inspector --config-file /etc/ironic-inspector/inspector.conf
-
-.. note::
-    Running as ``root`` is not required if **ironic-inspector** does not
-    manage the firewall (i.e. ``manage_firewall`` is set to ``false`` in the
-    configuration file).
 
 A good starting point for writing your own *systemd* unit should be `one used
 in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/plain/openstack-ironic-discoverd.service>`_

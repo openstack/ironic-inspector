@@ -39,6 +39,8 @@ class TestFirewall(test_base.NodeTest):
         self.assertEqual(0, mock_iptables.call_count)
 
     def test_init_args(self, mock_call, mock_get_client, mock_iptables):
+        rootwrap_path = '/some/fake/path'
+        CONF.set_override('rootwrap_config', rootwrap_path)
         firewall.init()
         init_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport', '67',
@@ -52,10 +54,14 @@ class TestFirewall(test_base.NodeTest):
         for (args, call) in zip(init_expected_args, call_args_list):
             self.assertEqual(args, call[0])
 
-        self.assertEqual(('iptables', '-w'), firewall.BASE_COMMAND)
+        expected = ('sudo', 'ironic-inspector-rootwrap', rootwrap_path,
+                    'iptables', '-w')
+        self.assertEqual(expected, firewall.BASE_COMMAND)
 
     def test_init_args_old_iptables(self, mock_call, mock_get_client,
                                     mock_iptables):
+        rootwrap_path = '/some/fake/path'
+        CONF.set_override('rootwrap_config', rootwrap_path)
         mock_call.side_effect = subprocess.CalledProcessError(2, '')
         firewall.init()
         init_expected_args = [
@@ -70,7 +76,9 @@ class TestFirewall(test_base.NodeTest):
         for (args, call) in zip(init_expected_args, call_args_list):
             self.assertEqual(args, call[0])
 
-        self.assertEqual(('iptables',), firewall.BASE_COMMAND)
+        expected = ('sudo', 'ironic-inspector-rootwrap', rootwrap_path,
+                    'iptables',)
+        self.assertEqual(expected, firewall.BASE_COMMAND)
 
     def test_init_kwargs(self, mock_call, mock_get_client, mock_iptables):
         firewall.init()

@@ -1,0 +1,6 @@
+# ironic-inspector-rootwrap command filters for firewall manipulation
+# This file should be owned by (and only-writeable by) the root user
+
+[Filters]
+# ironic_inspector/firewall.py
+iptables: CommandFilter, iptables, root
