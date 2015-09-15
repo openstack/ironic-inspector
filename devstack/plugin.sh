@@ -13,6 +13,9 @@ IRONIC_INSPECTOR_MANAGE_FIREWALL=$(trueorfalse True IRONIC_INSPECTOR_MANAGE_FIRE
 IRONIC_INSPECTOR_HOST=$HOST_IP
 IRONIC_INSPECTOR_PORT=5050
 IRONIC_INSPECTOR_URI="http://$IRONIC_INSPECTOR_HOST:$IRONIC_INSPECTOR_PORT"
+IRONIC_INSPECTOR_BUILD_RAMDISK=$(trueorfalse False IRONIC_INSPECTOR_BUILD_RAMDISK)
+IRONIC_AGENT_KERNEL_URL=${IRONIC_AGENT_KERNEL_URL:-http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe.vmlinuz}
+IRONIC_AGENT_RAMDISK_URL=${IRONIC_AGENT_RAMDISK_URL:-http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe_image-oem.cpio.gz}
 IRONIC_INSPECTOR_RAMDISK_ELEMENT=${IRONIC_INSPECTOR_RAMDISK_ELEMENT:-ironic-discoverd-ramdisk}
 IRONIC_INSPECTOR_RAMDISK_FLAVOR=${IRONIC_INSPECTOR_RAMDISK_FLAVOR:-fedora $IRONIC_INSPECTOR_RAMDISK_ELEMENT}
 # These should not overlap with other ranges/networks
@@ -80,27 +83,52 @@ function stop_inspector_dhcp {
     screen -S $SCREEN_NAME -p ironic-inspector-dhcp -X kill
 }
 
+function inspector_uses_ipa {
+    [[ $IRONIC_INSPECTOR_RAMDISK_ELEMENT = "ironic-agent" ]] || [[ $IRONIC_INSPECTOR_RAMDISK_FLAVOR =~ (ironic-agent$|^ironic-agent) ]] && return 0
+    return 1
+}
+
 ### Configuration
 
 function prepare_tftp {
     IRONIC_INSPECTOR_IMAGE_PATH="$TOP_DIR/files/ironic-inspector"
-    IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
     IRONIC_INSPECTOR_INITRAMFS_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.initramfs"
+    IRONIC_INSPECTOR_CALLBACK_URI="$IRONIC_INSPECTOR_INTERNAL_URI/v1/continue"
 
-    if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
-        if [[ $(type -P ramdisk-image-create) == "" ]]; then
-            pip_install diskimage_builder
+    if  inspector_uses_ipa; then
+        IRONIC_INSPECTOR_KERNEL_CMDLINE="ipa-inspection-callback-url=$IRONIC_INSPECTOR_CALLBACK_URI systemd.journald.forward_to_console=yes"
+        if [[ "$IRONIC_INSPECTOR_BUILD_RAMDISK" == "True" ]]; then
+            IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.vmlinuz"
+            if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
+                if [[ $(type -P disk-image-create) == "" ]]; then
+                    pip_install_gr diskimage-builder
+                fi
+                disk-image-create $IRONIC_INSPECTOR_RAMDISK_FLAVOR \
+                    -o $IRONIC_INSPECTOR_IMAGE_PATH
+                sudo chown $STACK_USER $IRONIC_INSPECTOR_KERNEL_PATH
+            fi
+        else
+            # download the agent image tarball
+            IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
+            wget "$IRONIC_AGENT_KERNEL_URL" -O $IRONIC_INSPECTOR_KERNEL_PATH
+            wget "$IRONIC_AGENT_RAMDISK_URL" -O $IRONIC_INSPECTOR_INITRAMFS_PATH
         fi
-        ramdisk-image-create $IRONIC_INSPECTOR_RAMDISK_FLAVOR \
-            -o $IRONIC_INSPECTOR_IMAGE_PATH
+    else
+        IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
+        IRONIC_INSPECTOR_KERNEL_CMDLINE="discoverd_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI inspector_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI"
+        if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
+            if [[ $(type -P ramdisk-image-create) == "" ]]; then
+                pip_install diskimage_builder
+            fi
+            ramdisk-image-create $IRONIC_INSPECTOR_RAMDISK_FLAVOR \
+                -o $IRONIC_INSPECTOR_IMAGE_PATH
+        fi
     fi
 
     mkdir_chown_stack "$IRONIC_TFTPBOOT_DIR/pxelinux.cfg"
-    cp $IRONIC_INSPECTOR_KERNEL_PATH $IRONIC_INSPECTOR_INITRAMFS_PATH \
-        $IRONIC_TFTPBOOT_DIR
+    cp $IRONIC_INSPECTOR_KERNEL_PATH $IRONIC_TFTPBOOT_DIR/ironic-inspector.kernel
+    cp $IRONIC_INSPECTOR_INITRAMFS_PATH $IRONIC_TFTPBOOT_DIR
 
-    IRONIC_INSPECTOR_CALLBACK_URI="$IRONIC_INSPECTOR_INTERNAL_URI/v1/continue"
-    IRONIC_INSPECTOR_KERNEL_CMDLINE="discoverd_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI inspector_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI"
     cat > "$IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default" <<EOF
 default inspect
 

@@ -77,6 +77,9 @@ components. There is a plugin for installing **ironic-inspector** on DevStack.
 Example local.conf
 ------------------
 
+Using simple ramdisk
+~~~~~~~~~~~~~~~~~~~~
+
 ::
 
     [[local|localrc]]
@@ -121,6 +124,43 @@ Notes
 * Before restarting stack.sh::
 
     rm -rf /opt/stack/ironic-inspector
+
+Using IPA
+~~~~~~~~~
+
+::
+
+    [[local|localrc]]
+    enable_service ironic ir-api ir-cond
+    disable_service n-net n-novnc
+    enable_service neutron q-svc q-agt q-dhcp q-l3 q-meta
+    enable_service s-proxy s-object s-container s-account
+    disable_service heat h-api h-api-cfn h-api-cw h-eng
+    disable_service cinder c-sch c-api c-vol
+
+    enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
+
+    IRONIC_BAREMETAL_BASIC_OPS=True
+    IRONIC_VM_COUNT=2
+    IRONIC_VM_SPECS_RAM=1024
+    IRONIC_DEPLOY_FLAVOR="fedora ironic-agent"
+
+    IRONIC_INSPECTOR_RAMDISK_FLAVOR="fedora ironic-agent"
+
+    VIRT_DRIVER=ironic
+
+    LOGDAYS=1
+    LOGFILE=~/logs/stack.sh.log
+    SCREEN_LOGDIR=~/logs/screen
+
+    DEFAULT_INSTANCE_TYPE=baremetal
+    TEMPEST_ALLOW_TENANT_ISOLATION=False
+
+Notes
+-----
+
+* Set IRONIC_INSPECTOR_BUILD_RAMDISK to True if you want to build ramdisk.
+  Default value is False and ramdisk will be download instead of building.
 
 Test
 ----
