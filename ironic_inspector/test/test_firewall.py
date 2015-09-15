@@ -29,14 +29,15 @@ CONF = cfg.CONF
 
 @mock.patch.object(firewall, '_iptables')
 @mock.patch.object(utils, 'get_client')
+@mock.patch.object(subprocess, 'check_call')
 class TestFirewall(test_base.NodeTest):
-    def test_update_filters_without_manage_firewall(self, mock_get_client,
+    def test_update_filters_without_manage_firewall(self, mock_call,
+                                                    mock_get_client,
                                                     mock_iptables):
         CONF.set_override('manage_firewall', False, 'firewall')
         firewall.update_filters()
         self.assertEqual(0, mock_iptables.call_count)
 
-    @mock.patch.object(subprocess, 'check_call')
     def test_init_args(self, mock_call, mock_get_client, mock_iptables):
         firewall.init()
         init_expected_args = [
@@ -53,7 +54,6 @@ class TestFirewall(test_base.NodeTest):
 
         self.assertEqual(('iptables', '-w'), firewall.BASE_COMMAND)
 
-    @mock.patch.object(subprocess, 'check_call')
     def test_init_args_old_iptables(self, mock_call, mock_get_client,
                                     mock_iptables):
         mock_call.side_effect = subprocess.CalledProcessError(2, '')
@@ -72,7 +72,7 @@ class TestFirewall(test_base.NodeTest):
 
         self.assertEqual(('iptables',), firewall.BASE_COMMAND)
 
-    def test_init_kwargs(self, mock_get_client, mock_iptables):
+    def test_init_kwargs(self, mock_call, mock_get_client, mock_iptables):
         firewall.init()
         init_expected_kwargs = [
             {'ignore': True},
@@ -84,7 +84,8 @@ class TestFirewall(test_base.NodeTest):
         for (kwargs, call) in zip(init_expected_kwargs, call_args_list):
             self.assertEqual(kwargs, call[1])
 
-    def test_update_filters_args(self, mock_get_client, mock_iptables):
+    def test_update_filters_args(self, mock_call, mock_get_client,
+                                 mock_iptables):
         firewall.init()
 
         update_filters_expected_args = [
@@ -115,7 +116,8 @@ class TestFirewall(test_base.NodeTest):
                                 call_args_list):
             self.assertEqual(args, call[0])
 
-    def test_update_filters_kwargs(self, mock_get_client, mock_iptables):
+    def test_update_filters_kwargs(self, mock_call, mock_get_client,
+                                   mock_iptables):
         firewall.init()
 
         update_filters_expected_kwargs = [
@@ -141,7 +143,7 @@ class TestFirewall(test_base.NodeTest):
                                   call_args_list):
             self.assertEqual(kwargs, call[1])
 
-    def test_update_filters_with_blacklist(self, mock_get_client,
+    def test_update_filters_with_blacklist(self, mock_call, mock_get_client,
                                            mock_iptables):
         active_macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
         inactive_mac = ['AA:BB:CC:DD:EE:FF']
