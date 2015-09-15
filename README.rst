@@ -166,13 +166,6 @@ As for PXE boot environment, you'll need:
 * TFTP server running and accessible (see below for using *dnsmasq*).
   Ensure ``pxelinux.0`` is present in the TFTP root.
 
-* Build and put into your TFTP directory kernel and ramdisk from the
-  diskimage-builder_ `ironic-discoverd-ramdisk element`_::
-
-    ramdisk-image-create -o discovery fedora ironic-discoverd-ramdisk
-
-  You need diskimage-builder_ 0.1.38 or newer to do it (using the latest one
-  is always advised).
 
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   **ironic-inspector**. Don't do any firewall configuration:
@@ -188,23 +181,9 @@ As for PXE boot environment, you'll need:
     tftp-root={TFTP ROOT, e.g. /tftpboot}
     dhcp-boot=pxelinux.0
 
-* Configure your ``$TFTPROOT/pxelinux.cfg/default`` with something like::
-
-    default discover
-
-    label discover
-    kernel discovery.kernel
-    append initrd=discovery.initramfs discoverd_callback_url=http://{IP}:5050/v1/continue
-
-    ipappend 3
-
-  Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
-  will be accessed by ramdisk on a booting machine).
-
-  .. note::
-    There are some prebuilt images which use obsolete ``ironic_callback_url``
-    instead of ``discoverd_callback_url``. Modify ``pxelinux.cfg/default``
-    accordingly if you have one of these.
+* You have to install and configure one of 2 available ramdisks: simple
+  bash-based (see `Using simple ramdisk`_) or more complex based on
+  ironic-python-agent_ (See `Using IPA`_).
 
 Here is *inspector.conf* you may end up with::
 
@@ -222,8 +201,85 @@ Here is *inspector.conf* you may end up with::
 .. note::
     Set ``debug = true`` if you want to see complete logs.
 
+Using simple ramdisk
+^^^^^^^^^^^^^^^^^^^^
+
+* Build and put into your TFTP the kernel and ramdisk created using the
+  diskimage-builder_ `ironic-discoverd-ramdisk element`_::
+
+    ramdisk-image-create -o discovery fedora ironic-discoverd-ramdisk
+
+  You need diskimage-builder_ 0.1.38 or newer to do it (using the latest one
+  is always advised).
+
+* Configure your ``$TFTPROOT/pxelinux.cfg/default`` with something like::
+
+    default introspect
+
+    label introspect
+    kernel discovery.kernel
+    append initrd=discovery.initramfs discoverd_callback_url=http://{IP}:5050/v1/continue
+
+    ipappend 3
+
+  Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
+  will be accessed by ramdisk on a booting machine).
+
+  .. note::
+    There are some prebuilt images which use obsolete ``ironic_callback_url``
+    instead of ``discoverd_callback_url``. Modify ``pxelinux.cfg/default``
+    accordingly if you have one of these.
+
+Using IPA
+^^^^^^^^^
+
+ironic-python-agent_ is a new ramdisk developed for Ironic. During the Liberty
+cycle support for **ironic-inspector** was added. This is experimental
+for now, but we plan on making IPA the default ramdisk in Mitaka cycle.
+
+.. note::
+    You need at least 1.5 GiB of RAM on the machines to use this ramdisk.
+
+To build an ironic-python-agent ramdisk, do the following:
+
+* Get the latest diskimage-builder_ source::
+
+    git clone https://github.com/openstack/diskimage-builder
+    cd diskimage-builder
+    tox -evenv true
+
+* Build the ramdisk::
+
+    source .tox/venv/bin/activate
+    bin/disk-image-create ironic-agent fedora -o ironic-agent
+    deactivate
+
+  .. note::
+    Replace "fedora" with your distribution of choice.
+
+* Copy resulting files ``ironic-agent.vmlinuz`` and ``ironic-agent.initramfs``
+  to the TFTP root directory.
+
+Next, set up ``$TFTPROOT/pxelinux.cfg/default`` as follows::
+
+    default introspect
+
+    label introspect
+    kernel ironic-agent.vmlinuz
+    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
+
+    ipappend 3
+
+Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
+will be accessed by ramdisk on a booting machine).
+
+.. note::
+    While ``systemd.journald.forward_to_console=yes`` is not actually
+    required, it will substantially simplify debugging if something goes wrong.
+
 .. _diskimage-builder: https://github.com/openstack/diskimage-builder
 .. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
+.. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
 
 Running
 ~~~~~~~
