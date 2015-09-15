@@ -294,6 +294,41 @@ will be accessed by ramdisk on a booting machine).
 .. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
 .. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
 
+Managing the **ironic-inspector** database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**ironic-inspector** provides a command line client for managing its database,
+this client can be used for upgrading, and downgrading the database using
+alembic migrations.
+
+If this is your first time running **ironic-inspector** to migrate the
+database simply run:
+::
+
+    ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
+
+If you have previously run a version of **ironic-inspector** earlier than
+2.2.0, to ensure your database will work with the migrations, you'll need to
+run an extra step before upgrading the database. You only need to do this the
+first time running version 2.2.0 or later.
+
+If you are upgrading from **ironic-inspector** version 2.1.0 or lower:
+::
+
+    ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf stamp --revision 578f84f38d
+    ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
+
+If you are upgrading from a git master install of **ironic-inspector** from
+after `Introspection Rules`_ were introduced:
+::
+
+    ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf stamp --revision d588418040d
+    ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
+
+Other available commands can be discovered by running::
+
+    ironic-inspector-dbsync --help
+
 Running
 ~~~~~~~
 

@@ -238,3 +238,28 @@ Writing a Plugin
 
 .. _ironic_inspector.plugins.base: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py
 .. _Introspection Rules: https://github.com/openstack/ironic-inspector#introspection-rules
+
+Adding migrations to the database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to make any changes to the database, you must add a new migration.
+This can be done using alembic::
+
+    alembic --config ironic_inspector/alembic.ini revision -m "A short description"
+
+This will generate an empty migration file, with the correct revision
+information already included. In this file there are two functions:
+
+* upgrade - The upgrade function is run when
+    ``ironic-inspector-dbsync upgrade`` is run, and should be populated with
+    code to bring the database up to its new state from the state it was in
+    after the last migration.
+
+* downgrade - The downgrade function should have code to undo the actions which
+    upgrade performs, returning the database to the state it would have been in
+    before the migration ran.
+
+For further information on creating a migration, refer to
+`Create a Migration Script`_ from the alembic documentation.
+
+.. _Create a Migration Script: https://alembic.readthedocs.org/en/latest/tutorial.html#create-a-migration-script
