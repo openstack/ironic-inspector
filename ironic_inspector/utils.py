@@ -157,6 +157,10 @@ def get_auth_strategy():
 
 def get_ipmi_address(node):
     ipmi_fields = ['ipmi_address'] + CONF.ipmi_address_fields
+    # NOTE(sambetts): IPMI Address is useless to us if bridging is enabled so
+    # just ignore it and return None
+    if node.driver_info.get("ipmi_bridging", "no") != "no":
+        return
     for name in ipmi_fields:
         value = node.driver_info.get(name)
         if value:
