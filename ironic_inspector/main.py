@@ -15,6 +15,8 @@ import eventlet
 eventlet.monkey_patch()
 
 import functools
+import os
+import re
 import ssl
 import sys
 
@@ -108,13 +110,55 @@ def add_version_headers(res):
     return res
 
 
+def create_link_object(urls):
+    links = []
+    for url in urls:
+        links.append({"rel": "self",
+                      "href": os.path.join(flask.request.url_root, url)})
+    return links
+
+
+def generate_resource_data(resources):
+    data = []
+    for resource in resources:
+        item = {}
+        item['name'] = str(resource).split('/')[-1]
+        item['links'] = create_link_object([str(resource)[1:]])
+        data.append(item)
+    return data
+
+
 @app.route('/', methods=['GET'])
-@app.route('/v1', methods=['GET'])
 @convert_exceptions
 def api_root():
-    # TODO(dtantsur): this endpoint only returns API version now, it's possible
-    # we'll return something meaningful in addition later
-    return flask.jsonify({})
+    versions = [
+        {
+            "status": "CURRENT",
+            "id": '%s.%s' % CURRENT_API_VERSION,
+        },
+    ]
+
+    for version in versions:
+        version['links'] = create_link_object(
+            ["v%s" % version['id'].split('.')[0]])
+
+    return flask.jsonify(versions=versions)
+
+
+@app.route('/<version>', methods=['GET'])
+@convert_exceptions
+def version_root(version):
+    pat = re.compile("^\/%s\/[^\/]*?$" % version)
+
+    resources = []
+    for url in app.url_map.iter_rules():
+        if pat.match(str(url)):
+            resources.append(url)
+
+    if not resources:
+        raise utils.Error(_('Version not found.'), code=404)
+
+    return flask.jsonify(resources=generate_resource_data(resources))
 
 
 @app.route('/v1/continue', methods=['POST'])
@@ -126,6 +170,7 @@ def api_continue():
     return flask.jsonify(process.process(data))
 
 
+# TODO(sambetts) Add API discovery for this endpoint
 @app.route('/v1/introspection/<uuid>', methods=['GET', 'POST'])
 @convert_exceptions
 def api_introspection(uuid):

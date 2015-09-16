@@ -228,6 +228,43 @@ major version and is always ``1`` for now, ``Y`` is a minor version.
   ``X-OpenStack-Ironic-Inspector-API-Maximum-Version`` headers with minimum
   and maximum API versions supported by the server.
 
+API Discovery
+~~~~~~~~~~~~~
+
+The API supports API discovery. You can query different parts of the API to
+discover what other endpoints are avaliable.
+
+* ``GET /`` List API Versions
+
+  Response:
+
+  * 200 - OK
+
+  Response body: JSON dictionary containing a list of ``versions``, each
+  version contains:
+
+  * ``status`` Either CURRENT or SUPPORTED
+  * ``id`` The version identifier
+  * ``links`` A list of links to this version endpoint containing:
+
+    * ``href`` The URL
+    * ``rel`` The relationship between the version and the href
+
+* ``GET /v1`` List API v1 resources
+
+  Response:
+
+  * 200 - OK
+
+  Response body: JSON dictionary containing a list of ``resources``, each
+  resource contains:
+
+  * ``name`` The name of this resources
+  * ``links`` A list of link to this resource containing:
+
+    * ``href`` The URL
+    * ``rel`` The relationship between the resource and the href
+
 Version History
 ^^^^^^^^^^^^^^^
 

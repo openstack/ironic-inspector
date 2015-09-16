@@ -305,11 +305,53 @@ class TestApiVersions(BaseAPITest):
         self.assertEqual('%d.%d' % main.CURRENT_API_VERSION,
                          res.headers.get(main._MAX_VERSION_HEADER))
 
-    def test_root_endpoints(self):
-        for endpoint in '/', '/v1':
-            res = self.app.get(endpoint)
-            self.assertEqual(200, res.status_code)
-            self._check_version_present(res)
+    def test_root_endpoint(self):
+        res = self.app.get("/")
+        self.assertEqual(200, res.status_code)
+        self._check_version_present(res)
+        data = res.data.decode('utf-8')
+        json_data = json.loads(data)
+        expected = {"versions": [{
+            "status": "CURRENT", "id": '%s.%s' % main.CURRENT_API_VERSION,
+            "links": [{
+                "rel": "self",
+                "href": ("http://localhost/v%s" %
+                         main.CURRENT_API_VERSION[0])
+            }]
+        }]}
+        self.assertEqual(expected, json_data)
+
+    @mock.patch.object(main.app.url_map, "iter_rules", autospec=True)
+    def test_version_endpoint(self, mock_rules):
+        mock_rules.return_value = ["/v1/endpoint1", "/v1/endpoint2/<uuid>",
+                                   "/v1/endpoint1/<name>",
+                                   "/v2/endpoint1", "/v1/endpoint3",
+                                   "/v1/endpoint2/<uuid>/subpoint"]
+        endpoint = "/v1"
+        res = self.app.get(endpoint)
+        self.assertEqual(200, res.status_code)
+        self._check_version_present(res)
+        json_data = json.loads(res.data.decode('utf-8'))
+        expected = {u'resources': [
+            {
+                u'name': u'endpoint1',
+                u'links': [{
+                    u'rel': u'self',
+                    u'href': u'http://localhost/v1/endpoint1'}]
+            },
+            {
+                u'name': u'endpoint3',
+                u'links': [{
+                    u'rel': u'self',
+                    u'href': u'http://localhost/v1/endpoint3'}]
+            },
+        ]}
+        self.assertDictEqual(expected, json_data)
+
+    def test_version_endpoint_invalid(self):
+        endpoint = "/v-1"
+        res = self.app.get(endpoint)
+        self.assertEqual(404, res.status_code)
 
     def test_404_unexpected(self):
         # API version on unknown pages
