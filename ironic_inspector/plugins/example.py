@@ -25,8 +25,7 @@ class ExampleProcessingHook(base.ProcessingHook):  # pragma: no cover
     def before_processing(self, introspection_data, **kwargs):
         LOG.debug('before_processing: %s', introspection_data)
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         LOG.debug('before_update: %s (node %s)', introspection_data,
                   node_info.uuid)
 

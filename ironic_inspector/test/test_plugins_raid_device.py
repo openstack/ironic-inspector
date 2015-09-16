@@ -11,24 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
+
+from ironic_inspector import node_cache
 from ironic_inspector.plugins import base
 from ironic_inspector.plugins import raid_device
 from ironic_inspector.test import base as test_base
 
 
 class TestRaidDeviceDetection(test_base.NodeTest):
-
-    def setUp(self):
-        super(TestRaidDeviceDetection, self).setUp()
-        self.hook = raid_device.RaidDeviceDetection()
-
-    def _before_update(self, introspection_data):
-        node_patches = []
-        ports_patches = {}
-        self.hook.before_update(introspection_data, self.node_info,
-                                node_patches, ports_patches)
-        self.assertFalse(ports_patches)
-        return node_patches
+    hook = raid_device.RaidDeviceDetection()
 
     def test_loadable_by_name(self):
         names = ('raid_device', 'root_device_hint')
@@ -50,63 +42,52 @@ class TestRaidDeviceDetection(test_base.NodeTest):
 
         self.assertEqual(42, introspection_data['local_gb'])
 
+
+class TestRaidDeviceDetectionUpdate(test_base.NodeTest):
+    hook = raid_device.RaidDeviceDetection()
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def _check(self, data, patch, mock_patch):
+        self.hook.before_processing(data)
+        self.hook.before_update(data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+
     def test_no_previous_block_devices(self):
         introspection_data = {'block_devices': {'serials': ['foo', 'bar']}}
-        node_patches = self._before_update(introspection_data)
-
-        self.assertEqual('add',
-                         node_patches[0]['op'])
-        self.assertEqual('/extra/block_devices',
-                         node_patches[0]['path'])
-        self.assertEqual(introspection_data['block_devices'],
-                         node_patches[0]['value'])
+        expected = [{'op': 'add', 'path': '/extra/block_devices',
+                     'value': introspection_data['block_devices']}]
+        self._check(introspection_data, expected)
 
     def test_root_device_found(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
         introspection_data = {'block_devices': {'serials': ['foo', 'baz']}}
-        self.hook.before_processing(introspection_data)
-        node_patches = self._before_update(introspection_data)
+        expected = [{'op': 'remove', 'path': '/extra/block_devices'},
+                    {'op': 'add', 'path': '/properties/root_device',
+                     'value': {'serial': 'baz'}}]
 
-        self.assertEqual('remove',
-                         node_patches[0]['op'])
-        self.assertEqual('/extra/block_devices',
-                         node_patches[0]['path'])
-        self.assertEqual('add',
-                         node_patches[1]['op'])
-        self.assertEqual('/properties/root_device',
-                         node_patches[1]['path'])
-        self.assertEqual({'serial': 'baz'},
-                         node_patches[1]['value'])
+        self._check(introspection_data, expected)
 
     def test_root_device_already_exposed(self):
         self.node.properties['root_device'] = {'serial': 'foo'}
         introspection_data = {'block_devices': {'serials': ['foo', 'baz']}}
-        self.hook.before_processing(introspection_data)
-        node_patches = self._before_update(introspection_data)
 
-        self.assertFalse(node_patches)
+        self._check(introspection_data, [])
 
     def test_multiple_new_devices(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
         introspection_data = {
             'block_devices': {'serials': ['foo', 'baz', 'qux']}
         }
-        self.hook.before_processing(introspection_data)
-        node_patches = self._before_update(introspection_data)
 
-        self.assertFalse(node_patches)
+        self._check(introspection_data, [])
 
     def test_no_new_devices(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
         introspection_data = {'block_devices': {'serials': ['foo', 'bar']}}
-        self.hook.before_processing(introspection_data)
-        node_patches = self._before_update(introspection_data)
 
-        self.assertFalse(node_patches)
+        self._check(introspection_data, [])
 
     def test_no_block_devices_from_ramdisk(self):
         introspection_data = {}
-        self.hook.before_processing(introspection_data)
-        node_patches = self._before_update(introspection_data)
 
-        self.assertFalse(node_patches)
+        self._check(introspection_data, [])

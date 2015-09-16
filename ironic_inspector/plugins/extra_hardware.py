@@ -41,8 +41,7 @@ class ExtraHardwareHook(base.ProcessingHook):
         swift_api = swift.SwiftAPI()
         swift_api.create_object(name, data)
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         """Stores the 'data' key from introspection_data in Swift.
 
         If the 'data' key exists, updates Ironic extra column
@@ -60,6 +59,5 @@ class ExtraHardwareHook(base.ProcessingHook):
         self._store_extra_hardware(name,
                                    json.dumps(introspection_data['data']))
 
-        node_patches.append({'op': 'add',
-                             'path': '/extra/hardware_swift_object',
-                             'value': name})
+        node_info.patch([{'op': 'add', 'path': '/extra/hardware_swift_object',
+                          'value': name}])

@@ -154,11 +154,14 @@ Writing a Plugin
       called before any data processing, providing the raw data. Each plugin in
       the chain can modify the data, so order in which plugins are loaded
       matters here. Returns nothing.
-  ``before_update(introspection_data,node_info,node_patches,ports_patches,**)``
+  ``before_update(introspection_data,node_info,**)``
       called after node is found and ports are created, but before data is
-      updated on a node. ``node_patches`` and ``ports_patches`` are JSON
-      patches for node and ports to apply.
-      Please refer to the docstring for details and examples.
+      updated on a node.  Please refer to the docstring for details
+      and examples.
+
+      .. note::
+        Keyword arguments node_patches and port_patches are also provided, but
+        should not be used in new plugins.
 
   Make your plugin a setuptools entry point under
   ``ironic_inspector.hooks.processing`` namespace and enable it in the

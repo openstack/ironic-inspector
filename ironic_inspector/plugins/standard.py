@@ -49,15 +49,13 @@ class SchedulerHook(base.ProcessingHook):
                      'memory %(memory_mb)s MiB, disk %(local_gb)s GiB'),
                  {key: introspection_data.get(key) for key in self.KEYS})
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         """Update node with scheduler properties."""
         overwrite = CONF.processing.overwrite_existing
-        patches = [{'op': 'add', 'path': '/properties/%s' % key,
-                    'value': str(introspection_data[key])}
-                   for key in self.KEYS
-                   if overwrite or not node_info.node().properties.get(key)]
-        node_patches.extend(patches)
+        properties = {key: str(introspection_data[key])
+                      for key in self.KEYS if overwrite or
+                      not node_info.node().properties.get(key)}
+        node_info.update_properties(**properties)
 
 
 class ValidateInterfacesHook(base.ProcessingHook):
@@ -129,8 +127,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
         valid_macs = [iface['mac'] for iface in valid_interfaces.values()]
         introspection_data['macs'] = valid_macs
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         """Drop ports that are not present in the data."""
         if CONF.processing.keep_ports == 'present':
             expected_macs = {

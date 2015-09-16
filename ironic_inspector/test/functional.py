@@ -147,7 +147,8 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_any_call(self.uuid, self.patch)
+        self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
@@ -176,8 +177,8 @@ class Test(Base):
         self.assertTrue(res['ipmi_setup_credentials'])
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_any_call(self.uuid, self.patch)
-        self.cli.node.update.assert_any_call(self.uuid, patch_credentials)
+        self.assertCalledWithPatch(self.patch + patch_credentials,
+                                   self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 

@@ -294,13 +294,13 @@ class TestProcessNode(BaseTest):
                                              address=self.macs[0])
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1])
-        self.cli.node.update.assert_called_once_with(self.uuid,
-                                                     self.patch_props)
+        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
 
         post_hook_mock.assert_called_once_with(self.data, self.node_info,
-                                               self.patch_props, {})
+                                               node_patches=mock.ANY,
+                                               ports_patches=mock.ANY)
         finished_mock.assert_called_once_with(mock.ANY)
 
     def test_overwrite_disabled(self, filters_mock, post_hook_mock):
@@ -312,7 +312,7 @@ class TestProcessNode(BaseTest):
 
         self.call()
 
-        self.cli.node.update.assert_called_once_with(self.uuid, patch)
+        self.assertCalledWithPatch(patch, self.cli.node.update)
 
     def test_port_failed(self, filters_mock, post_hook_mock):
         self.cli.port.create.side_effect = (
@@ -324,26 +324,25 @@ class TestProcessNode(BaseTest):
                                              address=self.macs[0])
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1])
-        self.cli.node.update.assert_called_once_with(self.uuid,
-                                                     self.patch_props)
+        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
 
     def test_hook_patches(self, filters_mock, post_hook_mock):
-        node_patches = ['node patch1', 'node patch2']
-        port_patch = ['port patch']
+        expected_node_patches = [{'path': 'foo', 'op': 'bar'}]
+        expected_port_patch = [{'path': 'foo', 'op': 'baz'}]
 
-        def fake_hook(data, node_info, node_p, ports_p):
-            node_p.extend(node_patches)
-            ports_p.setdefault(self.macs[1], []).extend(port_patch)
+        def fake_hook(data, node_info, node_patches, ports_patches):
+            node_patches.extend(expected_node_patches)
+            ports_patches.setdefault(self.macs[1],
+                                     []).extend(expected_port_patch)
 
         post_hook_mock.side_effect = fake_hook
 
         self.call()
 
-        self.cli.node.update.assert_called_once_with(self.uuid,
-                                                     self.patch_props
-                                                     + node_patches)
-        self.cli.port.update.assert_called_once_with(self.ports[1].uuid,
-                                                     port_patch)
+        self.assertCalledWithPatch(self.patch_props + expected_node_patches,
+                                   self.cli.node.update)
+        self.assertCalledWithPatch(expected_port_patch,
+                                   self.cli.port.update)
 
     def test_set_ipmi_credentials(self, filters_mock, post_hook_mock):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
@@ -381,7 +380,6 @@ class TestProcessNode(BaseTest):
         self.assertRaisesRegexp(utils.Error, 'Failed to validate',
                                 self.call)
 
-        self.cli.node.update.assert_any_call(self.uuid, self.patch_props)
         self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
         self.assertEqual(2, self.cli.node.update.call_count)
         self.assertEqual(process._CREDENTIALS_WAIT_RETRIES,
@@ -401,8 +399,7 @@ class TestProcessNode(BaseTest):
                                 self.call)
 
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.cli.node.update.assert_called_once_with(self.uuid,
-                                                     self.patch_props)
+        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
         finished_mock.assert_called_once_with(
             mock.ANY,
             error='Failed to power off node %s, check it\'s power management'
@@ -418,8 +415,7 @@ class TestProcessNode(BaseTest):
         self.call()
 
         swift_conn.create_object.assert_called_once_with(name, expected)
-        self.cli.node.update.assert_called_once_with(self.uuid,
-                                                     self.patch_props)
+        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
 
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data_location(self, swift_mock, filters_mock,
@@ -439,5 +435,4 @@ class TestProcessNode(BaseTest):
         self.call()
 
         swift_conn.create_object.assert_called_once_with(name, expected)
-        self.cli.node.update.assert_called_once_with(self.uuid,
-                                                     self.patch_props)
+        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
