@@ -46,6 +46,8 @@ disk_size=$(openstack flavor show baremetal -f value -c disk)
 ephemeral_size=$(openstack flavor show baremetal -f value -c "OS-FLV-EXT-DATA:ephemeral")
 expected_local_gb=$(($disk_size + $ephemeral_size))
 
+# FIXME(dtantsur): switch to OSC as soon as `openstack endpoint list` actually
+# works on devstack
 ironic_url=$(keystone endpoint-get --service baremetal | tail -n +4 | head -n -1 | tr '|' ' ' | awk '{ print $2; }')
 if [ -z "$ironic_url" ]; then
     echo "Cannot find Ironic URL"
@@ -56,12 +58,12 @@ fi
 # HTTP API and JQ instead.
 
 function curl_ir {
-    local token=$(keystone token-get | grep ' id ' | tr '|' ' ' | awk '{ print $2; }')
+    local token=$(openstack token issue -f value -c id)
     curl -H "X-Auth-Token: $token" -X $1 "$ironic_url/$2"
 }
 
 function curl_ins {
-    local token=$(keystone token-get | grep ' id ' | tr '|' ' ' | awk '{ print $2; }')
+    local token=$(openstack token issue -f value -c id)
     local args=${3:-}
     curl -f -H "X-Auth-Token: $token" -X $1 $args "http://127.0.0.1:5050/$2"
 }
@@ -188,7 +190,7 @@ done
 
 echo "Try nova boot for one instance"
 
-image=$(glance image-list | grep ami | head -n1 | awk '{ print $4 }')
+image=$(openstack image list --property disk_format=ami -f value -c ID | head -n1)
 net_id=$(neutron net-list | egrep "$PRIVATE_NETWORK_NAME"'[^-]' | awk '{ print $2 }')
 uuid=$(nova boot --flavor baremetal --nic net-id=$net_id --image $image testing | grep " id " | awk '{ print $4 }')
 
