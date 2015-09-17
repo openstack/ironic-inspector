@@ -7,7 +7,7 @@ Flask<1.0,>=0.10
 jsonpath-rw<2.0,>=1.2.0
 jsonschema!=2.5.0,<3.0.0,>=2.0.0
 keystonemiddleware>=2.0.0
-pbr<2.0,>=1.6
+pbr>=1.6
 python-ironicclient>=0.8.0
 python-keystoneclient>=1.6.0
 python-swiftclient>=2.2.0
