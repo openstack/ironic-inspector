@@ -30,16 +30,52 @@ class TestExtraHardware(test_base.NodeTest):
             'data': [['memory', 'total', 'size', '4294967296'],
                      ['cpu', 'physical', 'number', '1'],
                      ['cpu', 'logical', 'number', '1']]}
+        data = json.dumps(introspection_data['data'])
         self.hook.before_processing(introspection_data)
         self.hook.before_update(introspection_data, self.node_info)
 
         swift_conn = swift_mock.return_value
         name = 'extra_hardware-%s' % self.uuid
-        data = json.dumps(introspection_data['data'])
         swift_conn.create_object.assert_called_once_with(name, data)
         patch_mock.assert_called_once_with(
             [{'op': 'add', 'path': '/extra/hardware_swift_object',
               'value': name}])
+
+        expected = {
+            'memory': {
+                'total': {
+                    'size': 4294967296
+                }
+            },
+            'cpu': {
+                'physical': {
+                    'number': 1
+                },
+                'logical': {
+                    'number': 1
+                },
+            }
+        }
+
+        self.assertEqual(expected, introspection_data['extra'])
+
+    def test_data_not_in_edeploy_format(self, patch_mock, swift_mock):
+        introspection_data = {
+            'data': [['memory', 'total', 'size', '4294967296'],
+                     ['cpu', 'physical', 'number', '1'],
+                     {'interface': 'eth1'}]}
+        data = json.dumps(introspection_data['data'])
+        self.hook.before_processing(introspection_data)
+        self.hook.before_update(introspection_data, self.node_info)
+
+        swift_conn = swift_mock.return_value
+        name = 'extra_hardware-%s' % self.uuid
+        swift_conn.create_object.assert_called_once_with(name, data)
+        patch_mock.assert_called_once_with(
+            [{'op': 'add', 'path': '/extra/hardware_swift_object',
+              'value': name}])
+
+        self.assertFalse('data' in introspection_data)
 
     def test_no_data_recieved(self, patch_mock, swift_mock):
         introspection_data = {'cats': 'meow'}
