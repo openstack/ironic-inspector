@@ -18,6 +18,7 @@ import tempfile
 
 import mock
 from oslo_config import cfg
+from oslo_utils import units
 
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base
@@ -49,18 +50,16 @@ class TestSchedulerHook(test_base.NodeTest):
         ext = base.processing_hooks_manager()['scheduler']
         self.assertIsInstance(ext.obj, std_plugins.SchedulerHook)
 
-    def test_before_processing(self):
-        self.hook.before_processing(self.data)
-
-    def test_before_processing_missing(self):
+    def test_missing(self):
         for key in self.data:
             new_data = self.data.copy()
             del new_data[key]
             self.assertRaisesRegexp(utils.Error, key,
-                                    self.hook.before_processing, new_data)
+                                    self.hook.before_update, new_data,
+                                    self.node_info)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_before_update(self, mock_patch):
+    def test_ok(self, mock_patch):
         patch = [
             {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
@@ -72,7 +71,7 @@ class TestSchedulerHook(test_base.NodeTest):
         self.assertCalledWithPatch(patch, mock_patch)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_before_update_no_overwrite(self, mock_patch):
+    def test_no_overwrite(self, mock_patch):
         CONF.set_override('overwrite_existing', False, 'processing')
         self.node.properties = {
             'memory_mb': '4096',
@@ -81,6 +80,33 @@ class TestSchedulerHook(test_base.NodeTest):
         patch = [
             {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
             {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
+        ]
+
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_root_disk(self, mock_patch):
+        self.data['root_disk'] = {'name': '/dev/sda', 'size': 42 * units.Gi}
+        patch = [
+            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '41', 'op': 'add'}
+        ]
+
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_root_disk_no_spacing(self, mock_patch):
+        CONF.set_override('disk_partitioning_spacing', False, 'processing')
+        self.data['root_disk'] = {'name': '/dev/sda', 'size': 42 * units.Gi}
+        patch = [
+            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '42', 'op': 'add'}
         ]
 
         self.hook.before_update(self.data, self.node_info)
@@ -200,6 +226,85 @@ class TestValidateInterfacesHook(test_base.NodeTest):
 
         mock_delete_port.assert_any_call(self.existing_ports[0])
         mock_delete_port.assert_any_call(self.existing_ports[1])
+
+
+class TestRootDiskSelection(test_base.NodeTest):
+    def setUp(self):
+        super(TestRootDiskSelection, self).setUp()
+        self.hook = std_plugins.RootDiskSelectionHook()
+        self.data = {
+            'inventory': {
+                'disks': [
+                    {'model': 'Model 1', 'size': 20 * units.Gi,
+                     'name': '/dev/sdb'},
+                    {'model': 'Model 2', 'size': 5 * units.Gi,
+                     'name': '/dev/sda'},
+                    {'model': 'Model 3', 'size': 10 * units.Gi,
+                     'name': '/dev/sdc'},
+                    {'model': 'Model 4', 'size': 4 * units.Gi,
+                     'name': '/dev/sdd'},
+                    {'model': 'Too Small', 'size': 1 * units.Gi,
+                     'name': '/dev/sde'},
+                ]
+            }
+        }
+        self.matched = self.data['inventory']['disks'][2].copy()
+        self.node_info = mock.Mock(spec=node_cache.NodeInfo,
+                                   uuid=self.uuid,
+                                   **{'node.return_value': self.node})
+
+    def test_no_hints(self):
+        self.hook.before_update(self.data, self.node_info, None, None)
+
+        self.assertNotIn('local_gb', self.data)
+        self.assertNotIn('root_disk', self.data)
+
+    @mock.patch.object(std_plugins.LOG, 'error')
+    def test_no_inventory(self, mock_log):
+        self.node.properties['root_device'] = {'model': 'foo'}
+        del self.data['inventory']
+
+        self.hook.before_update(self.data, self.node_info, None, None)
+
+        self.assertNotIn('local_gb', self.data)
+        self.assertNotIn('root_disk', self.data)
+        self.assertTrue(mock_log.called)
+
+    def test_no_disks(self):
+        self.node.properties['root_device'] = {'size': 10}
+        self.data['inventory']['disks'] = []
+
+        self.assertRaisesRegexp(utils.Error,
+                                'No disks found',
+                                self.hook.before_update,
+                                self.data, self.node_info, None, None)
+
+    def test_one_matches(self):
+        self.node.properties['root_device'] = {'size': 10}
+
+        self.hook.before_update(self.data, self.node_info, None, None)
+
+        self.assertEqual(self.matched, self.data['root_disk'])
+
+    def test_all_match(self):
+        self.node.properties['root_device'] = {'size': 10,
+                                               'model': 'Model 3'}
+
+        self.hook.before_update(self.data, self.node_info, None, None)
+
+        self.assertEqual(self.matched, self.data['root_disk'])
+
+    def test_one_fails(self):
+        self.node.properties['root_device'] = {'size': 10,
+                                               'model': 'Model 42'}
+
+        self.assertRaisesRegexp(utils.Error,
+                                'No disks satisfied root device hints',
+                                self.hook.before_update,
+                                self.data, self.node_info, None, None)
+
+        self.assertNotIn('local_gb', self.data)
+        self.assertNotIn('root_disk', self.data)
 
 
 class TestRamdiskError(test_base.BaseTest):

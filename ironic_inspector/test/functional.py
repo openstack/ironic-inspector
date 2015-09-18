@@ -22,6 +22,7 @@ import tempfile
 import unittest
 
 import mock
+from oslo_utils import units
 import requests
 
 from ironic_inspector import main
@@ -76,12 +77,48 @@ class Base(base.NodeTest):
             },
             'boot_interface': '01-' + self.macs[0].replace(':', '-'),
             'ipmi_address': self.bmc_address,
+            'inventory': {
+                'disks': [
+                    {'name': '/dev/sda', 'model': 'Big Data Disk',
+                     'size': 1000 * units.Gi},
+                    {'name': '/dev/sdb', 'model': 'Small OS Disk',
+                     'size': 20 * units.Gi},
+                ]
+            },
+            'root_disk': {'name': '/dev/sda', 'model': 'Big Data Disk',
+                          'size': 1000 * units.Gi},
         }
+        self.data_old_ramdisk = {
+            'cpus': 4,
+            'cpu_arch': 'x86_64',
+            'memory_mb': 12288,
+            'local_gb': 464,
+            'interfaces': {
+                'eth1': {'mac': self.macs[0], 'ip': '1.2.1.2'},
+                'eth2': {'mac': '12:12:21:12:21:12'},
+                'eth3': {'mac': self.macs[1], 'ip': '1.2.1.1'},
+            },
+            'boot_interface': '01-' + self.macs[0].replace(':', '-'),
+            'ipmi_address': self.bmc_address,
+        }
+
         self.patch = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
             {'op': 'add', 'path': '/properties/memory_mb', 'value': '12288'},
+            {'path': '/properties/local_gb', 'value': '999', 'op': 'add'}
+        ]
+        self.patch_old_ramdisk = [
+            {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'op': 'add', 'path': '/properties/memory_mb', 'value': '12288'},
             {'path': '/properties/local_gb', 'value': '464', 'op': 'add'}
+        ]
+        self.patch_root_hints = [
+            {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'op': 'add', 'path': '/properties/memory_mb', 'value': '12288'},
+            {'path': '/properties/local_gb', 'value': '19', 'op': 'add'}
         ]
 
         self.node.power_state = 'power off'
@@ -149,6 +186,27 @@ class Test(Base):
 
         self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
+        self.cli.port.create.assert_called_once_with(
+            node_uuid=self.uuid, address='11:22:33:44:55:66')
+
+        status = self.call_get_status(self.uuid)
+        self.assertEqual({'finished': True, 'error': None}, status)
+
+    def test_old_ramdisk(self):
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+
+        status = self.call_get_status(self.uuid)
+        self.assertEqual({'finished': False, 'error': None}, status)
+
+        res = self.call_continue(self.data_old_ramdisk)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.assertCalledWithPatch(self.patch_old_ramdisk,
+                                   self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
@@ -235,8 +293,8 @@ class Test(Base):
             {
                 'conditions': [
                     {'field': 'memory_mb', 'op': 'eq', 'value': 12288},
-                    {'field': 'local_gb', 'op': 'gt', 'value': 400},
-                    {'field': 'local_gb', 'op': 'lt', 'value': 500},
+                    {'field': 'local_gb', 'op': 'gt', 'value': 998},
+                    {'field': 'local_gb', 'op': 'lt', 'value': 1000},
                 ],
                 'actions': [
                     {'action': 'set-attribute', 'path': '/extra/foo',
@@ -270,6 +328,28 @@ class Test(Base):
         self.cli.node.update.assert_any_call(
             self.uuid,
             [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
+
+    def test_root_device_hints(self):
+        self.node.properties['root_device'] = {'size': 20}
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+
+        status = self.call_get_status(self.uuid)
+        self.assertEqual({'finished': False, 'error': None}, status)
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.assertCalledWithPatch(self.patch_root_hints, self.cli.node.update)
+        self.cli.port.create.assert_called_once_with(
+            node_uuid=self.uuid, address='11:22:33:44:55:66')
+
+        status = self.call_get_status(self.uuid)
+        self.assertEqual({'finished': True, 'error': None}, status)
 
 
 @contextlib.contextmanager

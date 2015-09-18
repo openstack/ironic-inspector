@@ -131,7 +131,8 @@ PROCESSING_OPTS = [
                      'tested feature, use at your own risk.',
                 deprecated_group='discoverd'),
     cfg.StrOpt('default_processing_hooks',
-               default='ramdisk_error,scheduler,validate_interfaces',
+               default='ramdisk_error,root_disk_selection,scheduler,'
+                       'validate_interfaces',
                help='Comma-separated list of default hooks for processing '
                     'pipeline. Hook \'scheduler\' updates the node with the '
                     'minimum properties required by the Nova scheduler. '
@@ -171,6 +172,12 @@ PROCESSING_OPTS = [
                default=None,
                help='Name of the key to store the location of stored data in '
                     'the extra column of the Ironic database.'),
+    cfg.BoolOpt('disk_partitioning_spacing',
+                default=True,
+                help='Whether to leave 1 GiB of disk size untouched for '
+                     'partitioning. Only has effect when used with the IPA '
+                     'as a ramdisk, for older ramdisk local_gb is '
+                     'calculated on the ramdisk side.'),
 ]
 
 
