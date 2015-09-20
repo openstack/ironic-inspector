@@ -7,35 +7,33 @@ export IRONIC_API_VERSION=${IRONIC_API_VERSION:-latest}
 # Copied from devstack
 PRIVATE_NETWORK_NAME=${PRIVATE_NETWORK_NAME:-"private"}
 
-successful_rule=$(mktemp)
-cat > "$successful_rule" << EOM
-{
-    "description": "Successful Rule",
-    "conditions": [
-        {"op": "ge", "field": "memory_mb", "value": 256},
-        {"op": "ge", "field": "local_gb", "value": 1}
-    ],
-    "actions": [
-        {"action": "set-attribute", "path": "/extra/rule_success",
-         "value": "yes"}
-    ]
-}
-EOM
-
-failing_rule=$(mktemp)
-cat > "$failing_rule" << EOM
-{
-    "description": "Failing Rule",
-    "conditions": [
-        {"op": "lt", "field": "memory_mb", "value": 42},
-        {"op": "eq", "field": "local_gb", "value": 0}
-    ],
-    "actions": [
-        {"action": "set-attribute", "path": "/extra/rule_success",
-         "value": "no"},
-        {"action": "fail", "message": "This rule should not have run"}
-    ]
-}
+rules_file=$(mktemp)
+cat > "$rules_file" << EOM
+[
+    {
+        "description": "Successful Rule",
+        "conditions": [
+            {"op": "ge", "field": "memory_mb", "value": 256},
+            {"op": "ge", "field": "local_gb", "value": 1}
+        ],
+        "actions": [
+            {"action": "set-attribute", "path": "/extra/rule_success",
+             "value": "yes"}
+        ]
+    },
+    {
+        "description": "Failing Rule",
+        "conditions": [
+            {"op": "lt", "field": "memory_mb", "value": 42},
+            {"op": "eq", "field": "local_gb", "value": 0}
+        ],
+        "actions": [
+            {"action": "set-attribute", "path": "/extra/rule_success",
+             "value": "no"},
+            {"action": "fail", "message": "This rule should not have run"}
+        ]
+    }
+]
 EOM
 
 expected_cpus=$(openstack flavor show baremetal -f value -c vcpus)
@@ -81,9 +79,8 @@ for uuid in $nodes; do
     ironic node-set-provision-state $uuid manage
 done
 
-curl_ins DELETE v1/rules
-curl_ins POST v1/rules "--data-binary @$successful_rule"
-curl_ins POST v1/rules "--data-binary @$failing_rule"
+openstack baremetal introspection rule purge
+openstack baremetal introspection rule import "$rules_file"
 
 for uuid in $nodes; do
     ironic node-set-provision-state $uuid inspect
@@ -114,7 +111,7 @@ while true; do
     fi
 done
 
-curl_ins DELETE v1/rules
+openstack baremetal introspection rule purge
 
 function test_swift {
     # Basic sanity check of the data stored in Swift
