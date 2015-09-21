@@ -53,12 +53,37 @@ class TestRaidDeviceDetectionUpdate(test_base.NodeTest):
         self.assertCalledWithPatch(patch, mock_patch)
 
     def test_no_previous_block_devices(self):
+        introspection_data = {'inventory': {
+            'disks': [
+                {'name': '/dev/sda', 'serial': 'foo'},
+                {'name': '/dev/sdb', 'serial': 'bar'},
+            ]
+        }}
+        expected = [{'op': 'add', 'path': '/extra/block_devices',
+                     'value': {'serials': ['foo', 'bar']}}]
+        self._check(introspection_data, expected)
+
+    def test_no_previous_block_devices_old_ramdisk(self):
         introspection_data = {'block_devices': {'serials': ['foo', 'bar']}}
         expected = [{'op': 'add', 'path': '/extra/block_devices',
                      'value': introspection_data['block_devices']}]
         self._check(introspection_data, expected)
 
     def test_root_device_found(self):
+        self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
+        introspection_data = {'inventory': {
+            'disks': [
+                {'name': '/dev/sda', 'serial': 'foo'},
+                {'name': '/dev/sdb', 'serial': 'baz'},
+            ]
+        }}
+        expected = [{'op': 'remove', 'path': '/extra/block_devices'},
+                    {'op': 'add', 'path': '/properties/root_device',
+                     'value': {'serial': 'baz'}}]
+
+        self._check(introspection_data, expected)
+
+    def test_root_device_found_old_ramdisk(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
         introspection_data = {'block_devices': {'serials': ['foo', 'baz']}}
         expected = [{'op': 'remove', 'path': '/extra/block_devices'},
@@ -69,21 +94,35 @@ class TestRaidDeviceDetectionUpdate(test_base.NodeTest):
 
     def test_root_device_already_exposed(self):
         self.node.properties['root_device'] = {'serial': 'foo'}
-        introspection_data = {'block_devices': {'serials': ['foo', 'baz']}}
+        introspection_data = {'inventory': {
+            'disks': [
+                {'name': '/dev/sda', 'serial': 'foo'},
+                {'name': '/dev/sdb', 'serial': 'baz'},
+            ]
+        }}
 
         self._check(introspection_data, [])
 
     def test_multiple_new_devices(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
-        introspection_data = {
-            'block_devices': {'serials': ['foo', 'baz', 'qux']}
-        }
+        introspection_data = {'inventory': {
+            'disks': [
+                {'name': '/dev/sda', 'serial': 'foo'},
+                {'name': '/dev/sdb', 'serial': 'baz'},
+                {'name': '/dev/sdc', 'serial': 'qux'},
+            ]
+        }}
 
         self._check(introspection_data, [])
 
     def test_no_new_devices(self):
         self.node.extra['block_devices'] = {'serials': ['foo', 'bar']}
-        introspection_data = {'block_devices': {'serials': ['foo', 'bar']}}
+        introspection_data = {'inventory': {
+            'disks': [
+                {'name': '/dev/sda', 'serial': 'foo'},
+                {'name': '/dev/sdb', 'serial': 'bar'},
+            ]
+        }}
 
         self._check(introspection_data, [])
 
