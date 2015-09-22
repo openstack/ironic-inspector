@@ -171,6 +171,12 @@ class TestGetIpmiAddress(base.BaseTest):
         ip = utils.get_ipmi_address(node)
         self.assertEqual(ip, '192.168.1.1')
 
+    def test_ipmi_bridging_enabled(self):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'ipmi_address': 'www.example.com',
+                                      'ipmi_bridging': 'single'})
+        self.assertIsNone(utils.get_ipmi_address(node))
+
 
 class TestCapabilities(unittest.TestCase):
 
