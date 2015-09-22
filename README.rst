@@ -242,17 +242,13 @@ for now, but we plan on making IPA the default ramdisk in Mitaka cycle.
 
 To build an ironic-python-agent ramdisk, do the following:
 
-* Get the latest diskimage-builder_ source::
+* Get the latest diskimage-builder_::
 
-    git clone https://github.com/openstack/diskimage-builder
-    cd diskimage-builder
-    tox -evenv true
+    sudo pip install -U "diskimage-builder>=1.1.2"
 
 * Build the ramdisk::
 
-    source .tox/venv/bin/activate
-    bin/disk-image-create ironic-agent fedora -o ironic-agent
-    deactivate
+    disk-image-create ironic-agent fedora -o ironic-agent
 
   .. note::
     Replace "fedora" with your distribution of choice.
