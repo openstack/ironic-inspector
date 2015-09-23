@@ -126,7 +126,8 @@ def _background_introspect(ironic, node_info):
                  {'macs': macs, 'node': node_info.uuid})
         firewall.update_filters(ironic)
 
-    if not node_info.attributes:
+    attrs = node_info.attributes
+    if CONF.processing.node_not_found_hook is None and not attrs:
         raise utils.Error(
             _('No lookup attributes were found for node %s, inspector won\'t '
               'be able to find it after introspection. Consider creating '
@@ -134,7 +135,7 @@ def _background_introspect(ironic, node_info):
 
     LOG.info(_LI('The following attributes will be used for looking up '
                  'node %(uuid)s: %(attrs)s'),
-             {'attrs': node_info.attributes, 'uuid': node_info.uuid})
+             {'attrs': attrs, 'uuid': node_info.uuid})
 
     if not node_info.options.get('new_ipmi_credentials'):
         try:
