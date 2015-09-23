@@ -13,6 +13,7 @@
 
 """Cache for nodes currently under introspection."""
 
+import copy
 import json
 import time
 
@@ -267,6 +268,31 @@ class NodeInfo(object):
                 return getattr(self.node(), path)
         except AttributeError:
             raise KeyError(path)
+
+    def replace_field(self, path, func, **kwargs):
+        """Replace a field on ironic node.
+
+        :param path: path to a field as used by the ironic client
+        :param func: function accepting an old value and returning a new one
+        :param kwargs: if 'default' value is passed here, it will be used when
+                       no existing value is found.
+        :raises: KeyError if value is not found and default is not set
+        :raises: everything that patch() may raise
+        """
+        try:
+            value = self.get_by_path(path)
+            op = 'replace'
+        except KeyError:
+            if 'default' in kwargs:
+                value = kwargs['default']
+                op = 'add'
+            else:
+                raise
+
+        ref_value = copy.deepcopy(value)
+        value = func(value)
+        if value != ref_value:
+            self.patch([{'op': op, 'path': path, 'value': value}])
 
 
 def add_node(uuid, **attributes):

@@ -495,6 +495,39 @@ class TestUpdate(test_base.NodeTest):
         new_caps = utils.capabilities_to_dict(patch[0]['value'])
         self.assertEqual({'foo': 'bar', 'x': '1', 'y': '2'}, new_caps)
 
+    def test_replace_field(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+        self.node.extra['foo'] = 'bar'
+
+        self.node_info.replace_field('/extra/foo', lambda v: v + '1')
+
+        patch = [{'op': 'replace', 'path': '/extra/foo', 'value': 'bar1'}]
+        self.ironic.node.update.assert_called_once_with(self.uuid, patch)
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
+    def test_replace_field_not_found(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        self.assertRaises(KeyError, self.node_info.replace_field,
+                          '/extra/foo', lambda v: v + '1')
+
+    def test_replace_field_with_default(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        self.node_info.replace_field('/extra/foo', lambda v: v + [42],
+                                     default=[])
+
+        patch = [{'op': 'add', 'path': '/extra/foo', 'value': [42]}]
+        self.ironic.node.update.assert_called_once_with(self.uuid, patch)
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
+    def test_replace_field_same_value(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+        self.node.extra['foo'] = 'bar'
+
+        self.node_info.replace_field('/extra/foo', lambda v: v)
+        self.assertFalse(self.ironic.node.update.called)
+
     def test_patch_port(self):
         self.ironic.port.update.return_value = mock.sentinel.port
 
