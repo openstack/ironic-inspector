@@ -76,7 +76,9 @@ for uuid in $nodes; do
     for p in cpus cpu_arch memory_mb local_gb; do
         ironic node-update $uuid remove properties/$p > /dev/null || true
     done
-    ironic node-set-provision-state $uuid manage
+    if ! ironic node-show $uuid | grep provision_state | grep -iq manageable; then
+        ironic node-set-provision-state $uuid manage
+    fi
 done
 
 openstack baremetal introspection rule purge
