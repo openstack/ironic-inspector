@@ -29,8 +29,8 @@ from ironic_inspector.plugins import base
 
 CONF = cfg.CONF
 
-
 LOG = log.getLogger('ironic_inspector.plugins.extra_hardware')
+EDEPLOY_ITEM_SIZE = 4
 
 
 class ExtraHardwareHook(base.ProcessingHook):
@@ -54,10 +54,46 @@ class ExtraHardwareHook(base.ProcessingHook):
             LOG.warning(_LW('No extra hardware information was received from '
                             'the ramdisk'))
             return
+        data = introspection_data['data']
 
         name = 'extra_hardware-%s' % node_info.uuid
-        self._store_extra_hardware(name,
-                                   json.dumps(introspection_data['data']))
+        self._store_extra_hardware(name, json.dumps(data))
+
+        # NOTE(sambetts) If data is edeploy format, convert to dicts for rules
+        # processing, store converted data in introspection_data['extra'].
+        # Delete introspection_data['data'], it is assumed unusable
+        # by rules.
+        if self._is_edeploy_data(data):
+            LOG.debug('Extra hardware data is in eDeploy format, '
+                      'converting to usable format.')
+            introspection_data['extra'] = self._convert_edeploy_data(data)
+        else:
+            LOG.warning(_LW('Extra hardware data was not in a recognised '
+                            'format (eDeploy), and will not be forwarded to '
+                            'introspection rules.'))
+
+        LOG.debug('Deleting \"data\" key from introspection data as it is '
+                  'assumed unusable by introspection rules. Raw data is '
+                  'stored in swift.')
+        del introspection_data['data']
 
         node_info.patch([{'op': 'add', 'path': '/extra/hardware_swift_object',
                           'value': name}])
+
+    def _is_edeploy_data(self, data):
+        return all(isinstance(item, list) and len(item) == EDEPLOY_ITEM_SIZE
+                   for item in data)
+
+    def _convert_edeploy_data(self, data):
+        converted = {}
+        for item in data:
+            converted_0 = converted.setdefault(item[0], {})
+            converted_1 = converted_0.setdefault(item[1], {})
+
+            try:
+                item[3] = int(item[3])
+            except ValueError:
+                pass
+
+            converted_1[item[2]] = item[3]
+        return converted
