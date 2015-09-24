@@ -22,9 +22,11 @@ import tempfile
 import unittest
 
 import mock
+from oslo_config import cfg
 from oslo_utils import units
 import requests
 
+from ironic_inspector import dbsync
 from ironic_inspector import main
 from ironic_inspector import rules
 from ironic_inspector.test import base
@@ -364,6 +366,11 @@ def mocked_server():
 
         with mock.patch.object(utils, 'check_auth'):
             with mock.patch.object(utils, 'get_client'):
+                dbsync.main(args=['--config-file', conf_file, 'upgrade'])
+
+                cfg.CONF.reset()
+                cfg.CONF.unregister_opt(dbsync.command_opt)
+
                 eventlet.greenthread.spawn_n(main.main,
                                              args=['--config-file', conf_file],
                                              in_functional_test=True)

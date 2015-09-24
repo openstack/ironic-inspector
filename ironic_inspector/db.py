@@ -109,9 +109,6 @@ def init():
         db_opts.set_defaults(CONF,
                              connection='sqlite:///%s' %
                              str(CONF.discoverd.database).strip())
-    # TODO(yuikotakada) alembic migration
-    engine = get_engine()
-    Base.metadata.create_all(engine)
     return get_session()
 
 

@@ -2,6 +2,7 @@ IRONIC_INSPECTOR_DEBUG=${IRONIC_INSPECTOR_DEBUG:-false}
 IRONIC_INSPECTOR_DIR=$DEST/ironic-inspector
 IRONIC_INSPECTOR_BIN_DIR=$(get_python_exec_prefix)
 IRONIC_INSPECTOR_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector
+IRONIC_INSPECTOR_DBSYNC_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-dbsync
 IRONIC_INSPECTOR_CONF_DIR=${IRONIC_INSPECTOR_CONF_DIR:-/etc/ironic-inspector}
 IRONIC_INSPECTOR_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/inspector.conf
 IRONIC_INSPECTOR_CMD="$IRONIC_INSPECTOR_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE"
@@ -220,6 +221,10 @@ function cleanup_inspector {
     sudo ovs-vsctl --if-exists del-port brbm-inspector
 }
 
+function sync_inspector_database {
+    $IRONIC_INSPECTOR_DBSYNC_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE upgrade
+}
+
 ### Entry points
 
 if [[ "$1" == "stack" && "$2" == "install" ]]; then
@@ -236,6 +241,7 @@ elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
         configure_inspector_dhcp
     fi
     configure_inspector
+    sync_inspector_database
 elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
     echo_summary "Initializing ironic-inspector"
     prepare_environment
