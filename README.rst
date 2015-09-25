@@ -522,7 +522,11 @@ Here are some plugins that can be additionally enabled:
     runs.
 ``extra_hardware``
     stores the value of the 'data' key returned by the ramdisk as a JSON
-    encoded string in a Swift object.
+    encoded string in a Swift object. The plugin will also attempt to convert
+    the data into a format usable by introspection rules. If this is successful
+    then the new format will be stored in the 'extra' key. The 'data' key is
+    then deleted from the introspection data, as unless converted it's assumed
+    unusable by introspection rules.
 
 Refer to CONTRIBUTING.rst_ for information on how to write your own plugin.
 
