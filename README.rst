@@ -162,15 +162,24 @@ for the other possible configuration options.
     and should have access rights like ``0600``.
 
 **ironic-inspector** requires root rights for managing iptables. It gets them
-by running ``ironic-inspector-rootwrap`` utility with ``sudo``. To allow it,
-copy ``rootwrap.conf`` to the configuration directory (e.g. as
-``/etc/ironic-inspector/rootwrap.conf`` and create file
+by running ``ironic-inspector-rootwrap`` utility with ``sudo``.
+To allow it, copy file ``rootwrap.conf`` and directory ``rootwrap.d`` to the
+configuration directory (e.g. ``/etc/ironic-inspector/``) and create file
 ``/etc/sudoers.d/ironic-inspector-rootwrap`` with the following content::
 
    stack ALL=(root) NOPASSWD: /usr/bin/ironic-inspector-rootwrap /etc/ironic-inspector/rootwrap.conf *
 
 .. note::
-    ``rootwrap.conf`` must be writeable only by root.
+    ``rootwrap.conf`` and all files in ``rootwrap.d`` must be writeable
+    only by root.
+
+.. note::
+    If you store ``rootwrap.d`` in a different location, make sure to update
+    the *filters_path* option in ``rootwrap.conf`` to reflect the change.
+
+    If your ``rootwrap.conf`` is in a different location, then you need
+    to update the *rootwrap_config* option in ``ironic-inspector.conf``
+    to point to that location.
 
 Replace ``stack`` with whatever user you'll be using to run
 **ironic-inspector**.
