@@ -169,6 +169,11 @@ configuration directory (e.g. ``/etc/ironic-inspector/``) and create file
 
    stack ALL=(root) NOPASSWD: /usr/bin/ironic-inspector-rootwrap /etc/ironic-inspector/rootwrap.conf *
 
+.. DANGER::
+   Be very careful about typos in ``/etc/sudoers.d/ironic-inspector-rootwrap``
+   as any typo will break sudo for **ALL** users on the system. Especially,
+   make sure there is a new line at the end of this file.
+
 .. note::
     ``rootwrap.conf`` and all files in ``rootwrap.d`` must be writeable
     only by root.
