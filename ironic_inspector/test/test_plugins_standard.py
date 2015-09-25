@@ -183,8 +183,9 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.hook.before_processing(self.data)
 
         self.assertEqual(self.active_interfaces, self.data['interfaces'])
-        self.assertEqual([i['mac'] for i in self.active_interfaces.values()],
-                         self.data['macs'])
+        self.assertEqual(sorted(i['mac'] for i in
+                                self.active_interfaces.values()),
+                         sorted(self.data['macs']))
         self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
 
     def test_only_active(self):
@@ -192,8 +193,9 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.hook.before_processing(self.data)
 
         self.assertEqual(self.active_interfaces, self.data['interfaces'])
-        self.assertEqual([i['mac'] for i in self.active_interfaces.values()],
-                         self.data['macs'])
+        self.assertEqual(sorted(i['mac'] for i in
+                                self.active_interfaces.values()),
+                         sorted(self.data['macs']))
         self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
 
     def test_all(self):
@@ -201,8 +203,9 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.hook.before_processing(self.data)
 
         self.assertEqual(self.orig_interfaces, self.data['interfaces'])
-        self.assertEqual([i['mac'] for i in self.orig_interfaces.values()],
-                         self.data['macs'])
+        self.assertEqual(sorted(i['mac'] for i in
+                                self.orig_interfaces.values()),
+                         sorted(self.data['macs']))
         self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
 
     @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
