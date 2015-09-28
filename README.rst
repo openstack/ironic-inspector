@@ -639,3 +639,12 @@ Connect to the remote console as described in `Troubleshooting PXE boot`_ to
 see what is going on with the ramdisk. The ramdisk drops into emergency shell
 on failure, which you can use to look around. There should be file called
 ``logs`` with the current ramdisk logs.
+
+Troubleshooting DNS issues on Ubuntu
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Ubuntu uses local DNS caching, so tries localhost for DNS results first
+before calling out to an external DNS server. When DNSmasq is installed and
+configured for use with ironic-inspector, it can cause problems by interfering
+with the local DNS cache. To fix this issue ensure that ``/etc/resolve.conf``
+points to your external DNS servers and not to ``127.0.0.1``.
