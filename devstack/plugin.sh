@@ -8,7 +8,6 @@ IRONIC_INSPECTOR_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/inspector.conf
 IRONIC_INSPECTOR_CMD="$IRONIC_INSPECTOR_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE"
 IRONIC_INSPECTOR_DHCP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/dnsmasq.conf
 IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/rootwrap.conf
-IRONIC_INSPECTOR_DATA_DIR=$DATA_DIR/ironic-inspector
 IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
 IRONIC_INSPECTOR_MANAGE_FIREWALL=$(trueorfalse True $IRONIC_INSPECTOR_MANAGE_FIREWALL)
 IRONIC_INSPECTOR_HOST=$HOST_IP
@@ -115,7 +114,6 @@ EOF
 
 function configure_inspector {
     mkdir_chown_stack "$IRONIC_INSPECTOR_CONF_DIR"
-    mkdir_chown_stack "$IRONIC_INSPECTOR_DATA_DIR"
 
     create_service_user "$IRONIC_INSPECTOR_ADMIN_USER" "admin"
 
@@ -137,7 +135,7 @@ function configure_inspector {
 
     inspector_iniset firewall manage_firewall $IRONIC_INSPECTOR_MANAGE_FIREWALL
     inspector_iniset firewall dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
-    inspector_iniset database connection sqlite:///$IRONIC_INSPECTOR_DATA_DIR/inspector.sqlite
+    inspector_iniset database connection `database_connection_url ironic_inspector`
 
     is_service_enabled swift && configure_inspector_swift
 
@@ -201,7 +199,6 @@ function prepare_environment {
 }
 
 function cleanup_inspector {
-    rm -rf $IRONIC_INSPECTOR_DATA_DIR
     rm -f $IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default
     rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
     sudo rm -f /etc/sudoers.d/ironic-inspector-rootwrap
@@ -222,6 +219,7 @@ function cleanup_inspector {
 }
 
 function sync_inspector_database {
+    recreate_database ironic_inspector
     $IRONIC_INSPECTOR_DBSYNC_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE upgrade
 }
 
