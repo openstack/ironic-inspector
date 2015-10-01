@@ -145,8 +145,8 @@ Fill in at least these configuration values:
 * ``os_auth_url``, ``identity_uri`` - Keystone endpoints for validating
   authentication tokens and checking user roles;
 
-* ``database`` - where you want **ironic-inspector** SQLite database
-  to be placed;
+* ``connection`` in the ``database`` section - SQLAlchemy connection string
+  for the database;
 
 * ``dnsmasq_interface`` - interface on which ``dnsmasq`` (or another DHCP
   service) listens for PXE boot requests (defaults to ``br-ctlplane`` which is
@@ -322,7 +322,9 @@ database simply run:
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
 
 If you have previously run a version of **ironic-inspector** earlier than
-2.2.0, to ensure your database will work with the migrations, you'll need to
+2.2.0, the safest thing is to delete the existing SQLite database and run
+``upgrade`` as shown above. If you, however, want to save the existing
+database, to ensure your database will work with the migrations, you'll need to
 run an extra step before upgrading the database. You only need to do this the
 first time running version 2.2.0 or later.
 

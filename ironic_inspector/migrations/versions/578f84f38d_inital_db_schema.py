@@ -43,8 +43,8 @@ def upgrade():
 
     op.create_table(
         'attributes',
-        sa.Column('name', sa.Text, primary_key=True),
-        sa.Column('value', sa.Text, primary_key=True),
+        sa.Column('name', sa.String(255), primary_key=True),
+        sa.Column('value', sa.String(255), primary_key=True),
         sa.Column('uuid', sa.String(36), sa.ForeignKey('nodes.uuid'))
     )
 
@@ -52,7 +52,7 @@ def upgrade():
         'options',
         sa.Column('uuid', sa.String(36), sa.ForeignKey('nodes.uuid'),
                   primary_key=True),
-        sa.Column('name', sa.Text, primary_key=True),
+        sa.Column('name', sa.String(255), primary_key=True),
         sa.Column('value', sa.Text)
     )
 

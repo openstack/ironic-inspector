@@ -44,15 +44,15 @@ class Node(Base):
 
 class Attribute(Base):
     __tablename__ = 'attributes'
-    name = Column(Text, primary_key=True)
-    value = Column(Text, primary_key=True)
+    name = Column(String(255), primary_key=True)
+    value = Column(String(255), primary_key=True)
     uuid = Column(String(36), ForeignKey('nodes.uuid'))
 
 
 class Option(Base):
     __tablename__ = 'options'
     uuid = Column(String(36), ForeignKey('nodes.uuid'), primary_key=True)
-    name = Column(Text, primary_key=True)
+    name = Column(String(255), primary_key=True)
     value = Column(Text)
 
 
