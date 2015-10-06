@@ -45,6 +45,7 @@ manage_firewall = False
 enable_setting_ipmi_credentials = True
 [DEFAULT]
 debug = True
+auth_strategy = noauth
 [database]
 connection = sqlite:///%(db_file)s
 """
@@ -364,32 +365,31 @@ def mocked_server():
             content = CONF % {'db_file': db_file}
             fp.write(content.encode('utf-8'))
 
-        with mock.patch.object(utils, 'check_auth'):
-            with mock.patch.object(utils, 'get_client'):
-                dbsync.main(args=['--config-file', conf_file, 'upgrade'])
+        with mock.patch.object(utils, 'get_client'):
+            dbsync.main(args=['--config-file', conf_file, 'upgrade'])
 
-                cfg.CONF.reset()
-                cfg.CONF.unregister_opt(dbsync.command_opt)
+            cfg.CONF.reset()
+            cfg.CONF.unregister_opt(dbsync.command_opt)
 
-                eventlet.greenthread.spawn_n(main.main,
-                                             args=['--config-file', conf_file],
-                                             in_functional_test=True)
-                eventlet.greenthread.sleep(1)
-                # Wait for service to start up to 30 seconds
-                for i in range(10):
-                    try:
-                        requests.get('http://127.0.0.1:5050/v1')
-                    except requests.ConnectionError:
-                        if i == 9:
-                            raise
-                        print('Service did not start yet')
-                        eventlet.greenthread.sleep(3)
-                    else:
-                        break
-                # start testing
-                yield
-                # Make sure all processes finished executing
-                eventlet.greenthread.sleep(1)
+            eventlet.greenthread.spawn_n(main.main,
+                                         args=['--config-file', conf_file],
+                                         in_functional_test=True)
+            eventlet.greenthread.sleep(1)
+            # Wait for service to start up to 30 seconds
+            for i in range(10):
+                try:
+                    requests.get('http://127.0.0.1:5050/v1')
+                except requests.ConnectionError:
+                    if i == 9:
+                        raise
+                    print('Service did not start yet')
+                    eventlet.greenthread.sleep(3)
+                else:
+                    break
+            # start testing
+            yield
+            # Make sure all processes finished executing
+            eventlet.greenthread.sleep(1)
     finally:
         shutil.rmtree(d)
 
