@@ -372,8 +372,7 @@ def mocked_server():
             cfg.CONF.unregister_opt(dbsync.command_opt)
 
             eventlet.greenthread.spawn_n(main.main,
-                                         args=['--config-file', conf_file],
-                                         in_functional_test=True)
+                                         args=['--config-file', conf_file])
             eventlet.greenthread.sleep(1)
             # Wait for service to start up to 30 seconds
             for i in range(10):
