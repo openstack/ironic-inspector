@@ -37,6 +37,8 @@ def upgrade():
         sa.Column('created_at', sa.DateTime, nullable=False),
         sa.Column('description', sa.Text),
         sa.Column('disabled', sa.Boolean, default=False),
+        mysql_ENGINE='InnoDB',
+        mysql_DEFAULT_CHARSET='UTF8'
     )
 
     op.create_table(
@@ -46,7 +48,9 @@ def upgrade():
         sa.Column('op', sa.String(255), nullable=False),
         sa.Column('multiple', sa.String(255), nullable=False),
         sa.Column('field', sa.Text),
-        sa.Column('params', types.JsonEncodedDict)
+        sa.Column('params', types.JsonEncodedDict),
+        mysql_ENGINE='InnoDB',
+        mysql_DEFAULT_CHARSET='UTF8'
     )
 
     op.create_table(
@@ -54,7 +58,9 @@ def upgrade():
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('rule', sa.String(36), sa.ForeignKey('rules.uuid')),
         sa.Column('action', sa.String(255), nullable=False),
-        sa.Column('params', types.JsonEncodedDict)
+        sa.Column('params', types.JsonEncodedDict),
+        mysql_ENGINE='InnoDB',
+        mysql_DEFAULT_CHARSET='UTF8'
     )
 
 

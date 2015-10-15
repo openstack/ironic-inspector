@@ -28,7 +28,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
 
 
-Base = declarative_base(cls=models.ModelBase)
+class ModelBase(models.ModelBase):
+    __table_args__ = {'mysql_engine': "InnoDB",
+                      'mysql_charset': "utf8"}
+
+
+Base = declarative_base(cls=ModelBase)
 CONF = cfg.CONF
 
 _FACADE = None
