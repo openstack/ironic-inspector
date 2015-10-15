@@ -364,7 +364,7 @@ def create_ssl_context():
     return context
 
 
-def main(args=sys.argv[1:], in_functional_test=False):  # pragma: no cover
+def main(args=sys.argv[1:]):  # pragma: no cover
     log.register_options(CONF)
     CONF(args, project='ironic-inspector')
     debug = CONF.debug
@@ -377,8 +377,7 @@ def main(args=sys.argv[1:], in_functional_test=False):  # pragma: no cover
          'ironicclient.common.http=ERROR')])
     log.setup(CONF, 'ironic_inspector')
 
-    app_kwargs = {'debug': debug and not in_functional_test,
-                  'host': CONF.listen_address,
+    app_kwargs = {'host': CONF.listen_address,
                   'port': CONF.listen_port}
 
     context = create_ssl_context()
