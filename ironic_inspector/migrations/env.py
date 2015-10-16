@@ -14,7 +14,8 @@
 
 from alembic import context
 from logging.config import fileConfig
-from sqlalchemy import create_engine
+
+from ironic_inspector import db
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -29,7 +30,6 @@ fileConfig(config.config_file_name)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from ironic_inspector import db
 target_metadata = db.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -65,8 +65,7 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    connectable = create_engine(ironic_inspector_config.database.connection)
-
+    connectable = db.create_facade_lazily().get_engine()
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
