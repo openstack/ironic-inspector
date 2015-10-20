@@ -126,6 +126,27 @@ function test_swift {
     fi
 }
 
+function wait_for_provision_state {
+    local uuid=$1
+    local expected=$2
+    local max_attempts=${3:-6}
+
+    for attempt in $(seq 1 $max_attempts); do
+        local current=$(ironic node-show $uuid |  grep ' provision_state ' | awk '{ print $4; }')
+
+        if [ "$current" != "$expected" ]; then
+            if [ "$attempt" -eq "$max_attempts" ]; then
+                echo "Expected provision_state $expected, got $current:"
+                ironic node-show $uuid
+                exit 1
+            fi
+        else
+            break
+        fi
+        sleep 10
+    done
+}
+
 for uuid in $nodes; do
     node_json=$(curl_ir GET v1/nodes/$uuid)
     properties=$(echo $node_json | jq '.properties')
@@ -157,22 +178,13 @@ for uuid in $nodes; do
 
     openstack service list | grep swift && test_swift
 
-    for attempt in {1..12}; do
-        node_json=$(curl_ir GET v1/nodes/$uuid)
-        provision_state=$(echo $node_json | jq -r '.provision_state')
-
-        if [ "$provision_state" != "manageable" ]; then
-            if [ "$attempt" -eq 12 ]; then
-                echo "Expected provision_state manageable, got $provision_state"
-                exit 1
-            fi
-        else
-            break
-        fi
-        sleep 10
-    done
-
+    wait_for_provision_state $uuid manageable
     ironic node-set-provision-state $uuid provide
+done
+
+# Cleaning kicks in here, we have to wait until it finishes (~ 2 minutes)
+for uuid in $nodes; do
+    wait_for_provision_state $uuid available 30  # 5 minutes just in case
 done
 
 echo "Wait until nova becomes aware of bare metal instances"
@@ -181,7 +193,8 @@ for attempt in {1..24}; do
     if [ $(nova hypervisor-stats | grep ' vcpus ' | head -n1 | awk '{ print $4; }') -ge $expected_cpus ]; then
         break
     elif [ "$attempt" -eq 24 ]; then
-        echo "Timeout while waiting for nova hypervisor-stats"
+        echo "Timeout while waiting for nova hypervisor-stats, current:"
+        nova hypervisor-stats
         exit 1
     fi
     sleep 5
