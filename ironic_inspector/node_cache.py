@@ -165,8 +165,9 @@ class NodeInfo(object):
             if mac not in self.ports():
                 self._create_port(mac)
             else:
-                LOG.warn(_LW('Port %(mac)s already exists for node %(uuid)s, '
-                             'skipping'), {'mac': mac, 'uuid': self.uuid})
+                LOG.warning(
+                    _LW('Port %(mac)s already exists for node %(uuid)s, '
+                        'skipping'), {'mac': mac, 'uuid': self.uuid})
 
     def ports(self):
         """Get Ironic port objects associated with the cached node record.
@@ -184,8 +185,9 @@ class NodeInfo(object):
         try:
             port = self.ironic.port.create(node_uuid=self.uuid, address=mac)
         except exceptions.Conflict:
-            LOG.warn(_LW('Port %(mac)s already exists for node %(uuid)s, '
-                         'skipping'), {'mac': mac, 'uuid': self.uuid})
+            LOG.warning(
+                _LW('Port %(mac)s already exists for node %(uuid)s, '
+                    'skipping'), {'mac': mac, 'uuid': self.uuid})
             # NOTE(dtantsur): we didn't get port object back, so we have to
             # reload ports on next access
             self._ports = None
@@ -328,8 +330,9 @@ def delete_nodes_not_in_list(uuids):
     """
     inspector_uuids = _list_node_uuids()
     for uuid in inspector_uuids - uuids:
-        LOG.warn(_LW('Node %s was deleted from Ironic, dropping from Ironic '
-                     'Inspector database'), uuid)
+        LOG.warning(
+            _LW('Node %s was deleted from Ironic, dropping from Ironic '
+                'Inspector database'), uuid)
         _delete_node(uuid)
 
 

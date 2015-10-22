@@ -131,11 +131,11 @@ def _run_post_hooks(node_info, introspection_data):
                                    node_patches=node_patches,
                                    ports_patches=ports_patches)
         if node_patches:
-            LOG.warn(_LW('Using node_patches is deprecated'))
+            LOG.warning(_LW('Using node_patches is deprecated'))
             node_info.patch(node_patches)
 
         if ports_patches:
-            LOG.warn(_LW('Using ports_patches is deprecated'))
+            LOG.warning(_LW('Using ports_patches is deprecated'))
             for mac, patches in ports_patches.items():
                 node_info.patch_port(mac, patches)
 

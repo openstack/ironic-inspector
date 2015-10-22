@@ -71,8 +71,8 @@ def init():
             subprocess.check_call(BASE_COMMAND + ('-w', '-h'),
                                   stderr=null, stdout=null)
     except subprocess.CalledProcessError:
-        LOG.warn(_LW('iptables does not support -w flag, please update '
-                     'it to at least version 1.4.21'))
+        LOG.warning(_LW('iptables does not support -w flag, please update '
+                        'it to at least version 1.4.21'))
     else:
         BASE_COMMAND += ('-w',)
 

@@ -174,8 +174,9 @@ def get_ipmi_address(node):
 
 def check_provision_state(node, with_credentials=False):
     if node.maintenance:
-        LOG.warn(_LW('Introspecting nodes in maintenance mode is deprecated, '
-                     'accepted states: %s'), VALID_STATES)
+        LOG.warning(
+            _LW('Introspecting nodes in maintenance mode is deprecated, '
+                'accepted states: %s'), VALID_STATES)
         return
 
     state = node.provision_state.lower()
