@@ -279,16 +279,15 @@ Writing a Plugin
 .. _ironic_inspector.plugins.base: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py
 .. _Introspection Rules: https://github.com/openstack/ironic-inspector#introspection-rules
 
-Adding migrations to the database
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Making changes to the database
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In order to make any changes to the database, you must add a new migration.
-This can be done using alembic::
+In order to make a change to the ironic-inspector database you must update the
+database models found in ironic_inspector.db_ and then create a migration to
+reflect that change.
 
-    alembic --config ironic_inspector/alembic.ini revision -m "A short description"
-
-This will generate an empty migration file, with the correct revision
-information already included. In this file there are two functions:
+There are two ways to create a migration which are described below, both of
+these generate a new migration file. In this file there are two functions:
 
 * upgrade - The upgrade function is run when
     ``ironic-inspector-dbsync upgrade`` is run, and should be populated with
@@ -302,4 +301,31 @@ information already included. In this file there are two functions:
 For further information on creating a migration, refer to
 `Create a Migration Script`_ from the alembic documentation.
 
+Autogenerate
+------------
+
+This is the simplest way to create a migration. Alembic will compare the models
+to an up to date database, and then attempt to write a migration based on the
+differences. This should generate correct migrations in most cases however
+there are some cases when it can not detect some changes and may require
+manual modification, see `What does Autogenerate Detect (and what does it not
+detect?)`_ from the alembic documentation.
+
+::
+
+    ironic-inspector-dbsync upgrade
+    ironic-inspector-dbsync revision -m "A short description" --autogenerate
+
+Manual
+------
+
+This will generate an empty migration file, with the correct revision
+information already included. However upgrade and downgrade are left empty and
+must be manually populated in order to perform the correct actions on the
+database::
+
+    ironic-inspector-dbsync revision -m "A short description"
+
 .. _Create a Migration Script: https://alembic.readthedocs.org/en/latest/tutorial.html#create-a-migration-script
+.. _ironic_inspector.db: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/db.py
+.. _What does Autogenerate Detect (and what does it not detect?): http://alembic.readthedocs.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect

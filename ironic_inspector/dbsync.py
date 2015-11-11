@@ -22,13 +22,11 @@ from alembic import config as alembic_config
 from alembic import util as alembic_util
 
 from oslo_config import cfg
-from oslo_db import options as db_opts
 from oslo_log import log
 
 from ironic_inspector import conf  # noqa
 
 CONF = cfg.CONF
-db_opts.set_defaults(CONF)
 
 
 def add_alembic_command(subparsers, name):
@@ -53,6 +51,7 @@ def add_command_parsers(subparsers):
     parser = add_alembic_command(subparsers, 'revision')
     parser.set_defaults(func=do_revision)
     parser.add_argument('-m', '--message')
+    parser.add_argument('--autogenerate', action='store_true')
 
 
 command_opt = cfg.SubCommandOpt('command',
@@ -64,7 +63,8 @@ CONF.register_cli_opt(command_opt)
 
 
 def do_revision(config, cmd, *args, **kwargs):
-    do_alembic_command(config, cmd, message=CONF.command.message)
+    do_alembic_command(config, cmd, message=CONF.command.message,
+                       autogenerate=CONF.command.autogenerate)
 
 
 def with_revision(config, cmd, *args, **kwargs):

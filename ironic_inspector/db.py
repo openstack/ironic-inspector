@@ -27,6 +27,8 @@ from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
 
+from ironic_inspector import conf  # noqa
+
 
 class ModelBase(models.ModelBase):
     __table_args__ = {'mysql_engine': "InnoDB",
@@ -35,8 +37,15 @@ class ModelBase(models.ModelBase):
 
 Base = declarative_base(cls=ModelBase)
 CONF = cfg.CONF
-
+_DEFAULT_SQL_CONNECTION = 'sqlite:///ironic_inspector.sqlite'
 _FACADE = None
+
+db_opts.set_defaults(cfg.CONF, _DEFAULT_SQL_CONNECTION,
+                     'ironic_inspector.sqlite')
+if CONF.discoverd.database:
+    db_opts.set_defaults(CONF,
+                         connection='sqlite:///%s' %
+                         str(CONF.discoverd.database).strip())
 
 
 class Node(Base):
@@ -110,20 +119,16 @@ class RuleAction(Base):
 
 def init():
     """Initialize the database."""
-    if CONF.discoverd.database:
-        db_opts.set_defaults(CONF,
-                             connection='sqlite:///%s' %
-                             str(CONF.discoverd.database).strip())
     return get_session()
 
 
 def get_session(**kwargs):
-    facade = _create_facade_lazily()
+    facade = create_facade_lazily()
     return facade.get_session(**kwargs)
 
 
 def get_engine():
-    facade = _create_facade_lazily()
+    facade = create_facade_lazily()
     return facade.get_engine()
 
 
@@ -138,7 +143,7 @@ def model_query(model, *args, **kwargs):
     return query
 
 
-def _create_facade_lazily():
+def create_facade_lazily():
     global _FACADE
     if _FACADE is None:
         _FACADE = db_session.EngineFacade.from_config(cfg.CONF)
