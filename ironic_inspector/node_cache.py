@@ -340,14 +340,12 @@ def _delete_node(uuid, session=None):
     """Delete information about a node.
 
     :param uuid: Ironic node UUID
+    :param session: optional existing database session
     """
     with db.ensure_transaction(session) as session:
-        (db.model_query(db.Node, session=session).filter_by(uuid=uuid).
-            delete())
-        (db.model_query(db.Attribute, session=session).filter_by(uuid=uuid).
-            delete(synchronize_session=False))
-        (db.model_query(db.Option, session=session).filter_by(uuid=uuid).
-            delete())
+        for model in (db.Attribute, db.Option, db.Node):
+            db.model_query(model,
+                           session=session).filter_by(uuid=uuid).delete()
 
 
 def active_macs():
