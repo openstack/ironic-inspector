@@ -85,6 +85,10 @@ def process(introspection_data):
                               'in hook %s') % hook_ext.name)
 
     node_info = _find_node_info(introspection_data, failures)
+    if node_info:
+        # Locking is already done in find_node() but may be not done in a
+        # node_not_found hook
+        node_info.acquire_lock()
 
     if failures and node_info:
         msg = _('The following failures happened during running '

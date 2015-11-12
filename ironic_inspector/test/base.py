@@ -14,6 +14,7 @@
 import unittest
 
 import mock
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log
 
@@ -57,6 +58,7 @@ class BaseTest(unittest.TestCase):
         engine.connect()
         self.addCleanup(db.get_engine().dispose)
         plugins_base._HOOKS_MGR = None
+        node_cache._SEMAPHORES = lockutils.Semaphores()
         for name in ('_', '_LI', '_LW', '_LE', '_LC'):
             patch = mock.patch.object(i18n, name, lambda s: s)
             patch.start()

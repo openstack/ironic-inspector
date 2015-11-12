@@ -117,6 +117,26 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
 def _background_introspect(ironic, node_info):
     global _LAST_INTROSPECTION_TIME
 
+    if not node_info.options.get('new_ipmi_credentials'):
+        if re.match(CONF.introspection_delay_drivers, node_info.node().driver):
+            LOG.debug('Attempting to acquire lock on last introspection time')
+            with _LAST_INTROSPECTION_LOCK:
+                delay = (_LAST_INTROSPECTION_TIME - time.time()
+                         + CONF.introspection_delay)
+                if delay > 0:
+                    LOG.debug('Waiting %d seconds before sending the next '
+                              'node on introspection', delay)
+                    time.sleep(delay)
+                _LAST_INTROSPECTION_TIME = time.time()
+
+    node_info.acquire_lock()
+    try:
+        _background_introspect_locked(ironic, node_info)
+    finally:
+        node_info.release_lock()
+
+
+def _background_introspect_locked(ironic, node_info):
     # TODO(dtantsur): pagination
     macs = list(node_info.ports())
     if macs:
@@ -145,17 +165,6 @@ def _background_introspect(ironic, node_info):
             LOG.warning(_LW('Failed to set boot device to PXE for'
                             ' node %(node)s: %(exc)s') %
                         {'node': node_info.uuid, 'exc': exc})
-
-        if re.match(CONF.introspection_delay_drivers, node_info.node().driver):
-            LOG.debug('Attempting to acquire lock on last introspection time')
-            with _LAST_INTROSPECTION_LOCK:
-                delay = (_LAST_INTROSPECTION_TIME - time.time()
-                         + CONF.introspection_delay)
-                if delay > 0:
-                    LOG.debug('Waiting %d seconds before sending the next '
-                              'node on introspection', delay)
-                    time.sleep(delay)
-                _LAST_INTROSPECTION_TIME = time.time()
 
         try:
             ironic.node.set_power_state(node_info.uuid, 'reboot')
