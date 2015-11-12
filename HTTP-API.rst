@@ -48,6 +48,7 @@ Response:
 Response body: JSON dictionary with keys:
 
 * ``finished`` (boolean) whether introspection is finished
+  (``true`` on introspection completion or if it ends because of an error)
 * ``error`` error string or ``null``
 
 Get Introspection Data
