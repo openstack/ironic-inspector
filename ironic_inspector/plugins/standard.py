@@ -151,6 +151,10 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
         pxe_mac = introspection_data.get('boot_interface')
 
+        if CONF.processing.add_ports == 'pxe' and not pxe_mac:
+            LOG.warning(_LW('No boot interface provided in the introspection '
+                            'data, will add all ports with IP addresses'))
+
         if CONF.processing.add_ports == 'pxe' and pxe_mac:
             LOG.info(_LI('PXE boot interface was %s'), pxe_mac)
             if '-' in pxe_mac:
