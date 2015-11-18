@@ -1,0 +1,113 @@
+Troubleshooting
+===============
+
+Errors when starting introspection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* *Invalid provision state "available"*
+
+  In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
+  defaults to reporting provision state ``AVAILABLE`` for newly enrolled
+  nodes.  **ironic-inspector** will refuse to conduct introspection in
+  this state, as such nodes are supposed to be used by Nova for scheduling.
+  See :ref:`node_states` for instructions on how to put nodes into
+  the correct state.
+
+Introspection times out
+~~~~~~~~~~~~~~~~~~~~~~~
+
+There may be 3 reasons why introspection can time out after some time
+(defaulting to 60 minutes, altered by ``timeout`` configuration option):
+
+#. Fatal failure in processing chain before node was found in the local cache.
+   See `Troubleshooting data processing`_ for the hints.
+
+#. Failure to load the ramdisk on the target node. See `Troubleshooting
+   PXE boot`_ for the hints.
+
+#. Failure during ramdisk run. See `Troubleshooting ramdisk run`_ for the
+   hints.
+
+Troubleshooting data processing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In this case **ironic-inspector** logs should give a good idea what went wrong.
+E.g. for RDO or Fedora the following command will output the full log::
+
+    sudo journalctl -u openstack-ironic-inspector
+
+(use ``openstack-ironic-discoverd`` for version < 2.0.0).
+
+.. note::
+    Service name and specific command might be different for other Linux
+    distributions (and for old version of **ironic-inspector**).
+
+If ``ramdisk_error`` plugin is enabled and ``ramdisk_logs_dir`` configuration
+option is set, **ironic-inspector** will store logs received from the ramdisk
+to the ``ramdisk_logs_dir`` directory. This depends, however, on the ramdisk
+implementation.
+
+Troubleshooting PXE boot
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+PXE booting most often becomes a problem for bare metal environments with
+several physical networks. If the hardware vendor provides a remote console
+(e.g. iDRAC for DELL), use it to connect to the machine and see what is going
+on. You may need to restart introspection.
+
+Another source of information is DHCP and TFTP server logs. Their location
+depends on how the servers were installed and run. For RDO or Fedora use::
+
+    $ sudo journalctl -u openstack-ironic-inspector-dnsmasq
+
+(use ``openstack-ironic-discoverd-dnsmasq`` for version < 2.0.0).
+
+The last resort is ``tcpdump`` utility. Use something like
+::
+
+    $ sudo tcpdump -i any port 67 or port 68 or port 69
+
+to watch both DHCP and TFTP traffic going through your machine. Replace
+``any`` with a specific network interface to check that DHCP and TFTP
+requests really reach it.
+
+If you see node not attempting PXE boot or attempting PXE boot on the wrong
+network, reboot the machine into BIOS settings and make sure that only one
+relevant NIC is allowed to PXE boot.
+
+If you see node attempting PXE boot using the correct NIC but failing, make
+sure that:
+
+#. network switches configuration does not prevent PXE boot requests from
+   propagating,
+
+#. there is no additional firewall rules preventing access to port 67 on the
+   machine where *ironic-inspector* and its DHCP server are installed.
+
+If you see node receiving DHCP address and then failing to get kernel and/or
+ramdisk or to boot them, make sure that:
+
+#. TFTP server is running and accessible (use ``tftp`` utility to verify),
+
+#. no firewall rules prevent access to TFTP port,
+
+#. DHCP server is correctly set to point to the TFTP server,
+
+#. ``pxelinux.cfg/default`` within TFTP root contains correct reference to the
+   kernel and ramdisk.
+
+Troubleshooting ramdisk run
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Connect to the remote console as described in `Troubleshooting PXE boot`_ to
+see what is going on with the ramdisk. The ramdisk drops into emergency shell
+on failure, which you can use to look around. There should be file called
+``logs`` with the current ramdisk logs.
+
+Troubleshooting DNS issues on Ubuntu
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Ubuntu uses local DNS caching, so tries localhost for DNS results first
+before calling out to an external DNS server. When DNSmasq is installed and
+configured for use with ironic-inspector, it can cause problems by interfering
+with the local DNS cache. To fix this issue ensure that ``/etc/resolve.conf``
+points to your external DNS servers and not to ``127.0.0.1``.
