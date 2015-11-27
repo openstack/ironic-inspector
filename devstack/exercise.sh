@@ -184,7 +184,7 @@ done
 
 # Cleaning kicks in here, we have to wait until it finishes (~ 2 minutes)
 for uuid in $nodes; do
-    wait_for_provision_state $uuid available 30  # 5 minutes just in case
+    wait_for_provision_state $uuid available 60  # 10 minutes for cleaning
 done
 
 echo "Wait until nova becomes aware of bare metal instances"
