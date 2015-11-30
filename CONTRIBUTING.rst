@@ -143,9 +143,11 @@ Using IPA
     IRONIC_BAREMETAL_BASIC_OPS=True
     IRONIC_VM_COUNT=2
     IRONIC_VM_SPECS_RAM=1024
-    IRONIC_DEPLOY_FLAVOR="fedora ironic-agent"
 
-    IRONIC_INSPECTOR_RAMDISK_FLAVOR="fedora ironic-agent"
+    IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA=True
+    IRONIC_BUILD_DEPLOY_RAMDISK=False
+    IRONIC_INSPECTOR_RAMDISK_ELEMENT=ironic-agent
+    IRONIC_INSPECTOR_BUILD_RAMDISK=False
 
     VIRT_DRIVER=ironic
 
@@ -161,6 +163,9 @@ Notes
 
 * Set IRONIC_INSPECTOR_BUILD_RAMDISK to True if you want to build ramdisk.
   Default value is False and ramdisk will be download instead of building.
+* 1024 MiB of RAM is a minimum required for the default build of IPA based on
+  CoreOS. If you plan to use another operating system and build IPA with
+  diskimage-builder 2048 MiB is recommended.
 
 Test
 ----
