@@ -41,6 +41,7 @@ class TestNodeCache(test_base.NodeTest):
                                   bmc_address='1.2.3.4', foo=None)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 60)
+        self.assertFalse(res._locked)
 
         res = (db.model_query(db.Node.uuid,
                db.Node.started_at).order_by(db.Node.uuid).all())
@@ -80,10 +81,12 @@ class TestNodeCache(test_base.NodeTest):
             uuid=self.uuid).first()
         self.assertIsNone(row_option)
 
+    @mock.patch.object(node_cache, '_get_lock_ctx', autospec=True)
     @mock.patch.object(node_cache, '_list_node_uuids')
     @mock.patch.object(node_cache, '_delete_node')
     def test_delete_nodes_not_in_list(self, mock__delete_node,
-                                      mock__list_node_uuids):
+                                      mock__list_node_uuids,
+                                      mock__get_lock_ctx):
         uuid2 = 'uuid2'
         uuids = {self.uuid}
         mock__list_node_uuids.return_value = {self.uuid, uuid2}
@@ -91,6 +94,8 @@ class TestNodeCache(test_base.NodeTest):
         with session.begin():
             node_cache.delete_nodes_not_in_list(uuids)
         mock__delete_node.assert_called_once_with(uuid2)
+        mock__get_lock_ctx.assert_called_once_with(uuid2)
+        mock__get_lock_ctx.return_value.__enter__.assert_called_once_with()
 
     def test_add_node_duplicate_mac(self):
         session = db.get_session()
@@ -178,11 +183,13 @@ class TestNodeCacheFind(test_base.NodeTest):
         res = node_cache.find_node(bmc_address='1.2.3.4')
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
+        self.assertTrue(res._locked)
 
     def test_macs(self):
         res = node_cache.find_node(mac=['11:22:33:33:33:33', self.macs[1]])
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
+        self.assertTrue(res._locked)
 
     def test_macs_not_found(self):
         self.assertRaises(utils.Error, node_cache.find_node,
@@ -199,6 +206,7 @@ class TestNodeCacheFind(test_base.NodeTest):
                                    mac=self.macs)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
+        self.assertTrue(res._locked)
 
     def test_inconsistency(self):
         session = db.get_session()
@@ -244,8 +252,9 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                          db.model_query(db.Attribute).count())
         self.assertEqual(1, db.model_query(db.Option).count())
 
+    @mock.patch.object(node_cache, '_get_lock', autospec=True)
     @mock.patch.object(time, 'time')
-    def test_ok(self, time_mock):
+    def test_ok(self, time_mock, get_lock_mock):
         time_mock.return_value = 1000
 
         self.assertFalse(node_cache.clean_up())
@@ -256,9 +265,11 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual(len(self.macs),
                          db.model_query(db.Attribute).count())
         self.assertEqual(1, db.model_query(db.Option).count())
+        self.assertFalse(get_lock_mock.called)
 
+    @mock.patch.object(node_cache, '_get_lock', autospec=True)
     @mock.patch.object(time, 'time')
-    def test_timeout(self, time_mock):
+    def test_timeout(self, time_mock, get_lock_mock):
         # Add a finished node to confirm we don't try to timeout it
         time_mock.return_value = self.started_at
         session = db.get_session()
@@ -277,6 +288,8 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                          res)
         self.assertEqual([], db.model_query(db.Attribute).all())
         self.assertEqual([], db.model_query(db.Option).all())
+        get_lock_mock.assert_called_once_with(self.uuid)
+        get_lock_mock.return_value.acquire.assert_called_once_with()
 
     def test_old_status(self):
         CONF.set_override('node_status_keep_time', 42)
@@ -302,6 +315,20 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         self.assertEqual(started_at, info.started_at)
         self.assertIsNone(info.finished_at)
         self.assertIsNone(info.error)
+        self.assertFalse(info._locked)
+
+    def test_locked(self):
+        started_at = time.time() - 42
+        session = db.get_session()
+        with session.begin():
+            db.Node(uuid=self.uuid, started_at=started_at).save(session)
+        info = node_cache.get_node(self.uuid, locked=True)
+
+        self.assertEqual(self.uuid, info.uuid)
+        self.assertEqual(started_at, info.started_at)
+        self.assertIsNone(info.finished_at)
+        self.assertIsNone(info.error)
+        self.assertTrue(info._locked)
 
     def test_not_found(self):
         self.assertRaises(utils.Error, node_cache.get_node, 'foo')
@@ -342,6 +369,11 @@ class TestNodeInfoFinished(test_base.NodeTest):
                                db.Node.error).first()))
         self.assertEqual([], db.model_query(db.Attribute).all())
         self.assertEqual([], db.model_query(db.Option).all())
+
+    def test_release_lock(self):
+        self.node_info.acquire_lock()
+        self.node_info.finished()
+        self.assertFalse(self.node_info._locked)
 
 
 class TestInit(unittest.TestCase):
@@ -574,3 +606,43 @@ class TestNodeCacheGetByPath(test_base.NodeTest):
         self.assertEqual(42, self.node_info.get_by_path('/properties/answer'))
         self.assertRaises(KeyError, self.node_info.get_by_path, '/foo')
         self.assertRaises(KeyError, self.node_info.get_by_path, '/extra/foo')
+
+
+@mock.patch.object(node_cache, '_get_lock', autospec=True)
+class TestLock(test_base.NodeTest):
+    def test_acquire(self, get_lock_mock):
+        node_info = node_cache.NodeInfo(self.uuid)
+        self.assertFalse(node_info._locked)
+        get_lock_mock.assert_called_once_with(self.uuid)
+        self.assertFalse(get_lock_mock.return_value.acquire.called)
+
+        self.assertTrue(node_info.acquire_lock())
+        self.assertTrue(node_info._locked)
+        self.assertTrue(node_info.acquire_lock())
+        self.assertTrue(node_info._locked)
+        get_lock_mock.return_value.acquire.assert_called_once_with(True)
+
+    def test_release(self, get_lock_mock):
+        node_info = node_cache.NodeInfo(self.uuid)
+        node_info.acquire_lock()
+        self.assertTrue(node_info._locked)
+        node_info.release_lock()
+        self.assertFalse(node_info._locked)
+        node_info.release_lock()
+        self.assertFalse(node_info._locked)
+        get_lock_mock.return_value.acquire.assert_called_once_with(True)
+        get_lock_mock.return_value.release.assert_called_once_with()
+
+    def test_acquire_non_blocking(self, get_lock_mock):
+        node_info = node_cache.NodeInfo(self.uuid)
+        self.assertFalse(node_info._locked)
+        get_lock_mock.return_value.acquire.side_effect = iter([False, True])
+
+        self.assertFalse(node_info.acquire_lock(blocking=False))
+        self.assertFalse(node_info._locked)
+        self.assertTrue(node_info.acquire_lock(blocking=False))
+        self.assertTrue(node_info._locked)
+        self.assertTrue(node_info.acquire_lock(blocking=False))
+        self.assertTrue(node_info._locked)
+        get_lock_mock.return_value.acquire.assert_called_with(False)
+        self.assertEqual(2, get_lock_mock.return_value.acquire.call_count)
