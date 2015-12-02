@@ -1,13 +1,12 @@
+.. _usage:
+
 Usage
 =====
 
-
-Refer to HTTP-API.rst_ for information on the HTTP API.
+Refer to :ref:`api` for information on the HTTP API.
 Refer to the `client page`_ for information on how to use CLI and Python
 library.
 
-.. _HTTP-API.rst: https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst
-.. _HTTP API: https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst
 .. _client page: https://pypi.python.org/pypi/python-ironic-inspector-client
 
 Using from Ironic API
@@ -39,7 +38,7 @@ Node States
     before Nova becomes aware of available nodes after issuing this command.
     Use ``nova hypervisor-stats`` command output to check it.
 
-.. _introspection_rules:
+.. _rules:
 
 Introspection Rules
 ~~~~~~~~~~~~~~~~~~~
@@ -54,8 +53,8 @@ All actions have "rollback actions" associated with them, which are run when
 conditions evaluate to false. This way we can safely rerun introspection.
 
 Available conditions and actions are defined by plugins, and can be extended,
-see :ref:`contributing_link` for details. See `HTTP API`_ for specific calls to define
-introspection rules.
+see :ref:`contributing_link` for details. See :ref:`api` for specific calls
+to define introspection rules.
 
 Conditions
 ^^^^^^^^^^
@@ -105,6 +104,8 @@ Default available actions include:
   value as a list and appends value to it. If optional ``unique`` parameter is
   set to ``True``, nothing will be added if given value is already in a list.
 
+.. _setting-ipmi-creds:
+
 Setting IPMI Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -149,6 +150,8 @@ Note that due to various limitations on password value in different BMC,
 **ironic-inspector** will only accept passwords with length between 1 and 20
 consisting only of letters and numbers.
 
+.. _plugins:
+
 Plugins
 ~~~~~~~
 
@@ -162,7 +165,7 @@ unless you understand what you're doing:
 
 ``ramdisk_error``
     reports error, if ``error`` field is set by the ramdisk, also optionally
-    stores logs from ``logs`` field, see `HTTP API`_ for details.
+    stores logs from ``logs`` field, see :ref:`api` for details.
 ``scheduler``
     validates and updates basic hardware scheduling properties: CPU number and
     architecture, memory and disk size.
@@ -184,4 +187,5 @@ Here are some plugins that can be additionally enabled:
     then deleted from the introspection data, as unless converted it's assumed
     unusable by introspection rules.
 
-Refer to :ref:`contributing_link` for information on how to write your own plugin.
+Refer to :ref:`contributing_link` for information on how to write your
+own plugin.

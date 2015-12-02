@@ -9,12 +9,38 @@ environment)::
     pip install ironic-inspector
 
 Also there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
-plugin for **ironic-inspector** - see :ref:`contributing_link` for the current status.
+plugin for **ironic-inspector** - see :ref:`contributing_link` for the current
+status.
 
 Finally, some distributions (e.g. Fedora) provide **ironic-inspector**
 packaged, some of them - under its old name *ironic-discoverd*.
 
 .. _PyPI: https://pypi.python.org/pypi/ironic-inspector
+
+Version Support Matrix
+~~~~~~~~~~~~~~~~~~~~~~
+
+**ironic-inspector** currently requires bare metal API version ``1.6`` to be
+provided by Ironic. This version is available starting with Ironic Kilo
+release.
+
+Here is a mapping between Ironic versions and supported **ironic-inspector**
+versions. The Standalone column shows which **ironic-inspector** versions can
+be used in standalone mode with each Ironic version. The Inspection Interface
+column shows which **ironic-inspector** versions can be used with the Ironic
+inspection interface in each version of Ironic.
+
+============== ========== ====================
+Ironic Version Standalone Inspection Interface
+============== ========== ====================
+Juno           1.0        N/A
+Kilo           1.0 - 2.2  1.0 - 1.1
+Liberty        1.1 - 2.X  2.0 - 2.X
+============== ========== ====================
+
+.. note::
+    ``2.X`` means we don't have specific plans on deprecating support for this
+    Ironic version. This does not imply that we'll support it forever though.
 
 Configuration
 ~~~~~~~~~~~~~
@@ -219,7 +245,7 @@ If you are upgrading from **ironic-inspector** version 2.1.0 or lower:
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
 
 If you are upgrading from a git master install of **ironic-inspector** from
-after :ref:`introspection_rules` were introduced:
+after :ref:`rules` were introduced:
 ::
 
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf stamp --revision d588418040d

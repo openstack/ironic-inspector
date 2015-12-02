@@ -1,69 +1,31 @@
-Hardware introspection for OpenStack Bare Metal
-===============================================
+.. include:: ../../README.rst
 
-This is an auxiliary service for discovering hardware properties for a
-node managed by `Ironic`_. Hardware introspection or hardware
-properties discovery is a process of getting hardware parameters required for
-scheduling from a bare metal node, given it's power management credentials
-(e.g. IPMI address, user name and password).
+User Guide
+===========
 
-A special ramdisk is required to collect the information on a
-node. The default one can be built using diskimage-builder_ and
-`ironic-discoverd-ramdisk element`_ (see :ref:`install_guide`).
+.. toctree::
+  :maxdepth: 2
 
-* Free software: Apache license
-* Source: http://git.openstack.org/cgit/openstack/ironic-inspector
-* Bugs: http://bugs.launchpad.net/ironic-inspector
-* Blueprints: https://blueprints.launchpad.net/ironic-inspector
-* Downloads: https://pypi.python.org/pypi/ironic-inspector
-* Python client library and CLI tool: `python-ironic-inspector-client
-  <https://pypi.python.org/pypi/python-ironic-inspector-client>`_.
-
-.. _Ironic: https://wiki.openstack.org/wiki/Ironic
-.. _PyPI: https://pypi.python.org/pypi/ironic-inspector
-.. _diskimage-builder: https://github.com/openstack/diskimage-builder
-.. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
-
-.. note::
-    **ironic-inspector** was called *ironic-discoverd* before version 2.0.0.
-
-For information on any current or prior version, see `the release
-notes`_ and `the wiki pages`_.
-
-.. _the release notes: releasenotes/index.html
-.. _the wiki pages: https://wiki.openstack.org/wiki/Ironic/ReleaseNotes
+  Workflow <workflow>
+  Usage <usage>
+  HTTP API <http-api>
+  Troubleshooting <troubleshooting>
 
 Admin Guide
 ===========
 
-Overview
---------
-
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
 
-  Installation Guide <deploy/install-guide>
-  Usage <usage/usage>
-  Troubleshooting <troubleshooting/troubleshooting>
+  Installation <install>
 
 Developer Guide
 ===============
 
-Introduction
-------------
-
 .. toctree::
   :maxdepth: 1
 
-  Contribution Guide <dev/contributing_link>
-
-API References
---------------
-
-.. toctree::
-  :maxdepth: 1
-
-  HTTP API description <api/HTTP-API>
+  Contributing <contributing>
 
 Indices and tables
 ==================
