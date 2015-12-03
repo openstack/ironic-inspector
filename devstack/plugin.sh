@@ -9,6 +9,7 @@ IRONIC_INSPECTOR_CMD="$IRONIC_INSPECTOR_BIN_FILE --config-file $IRONIC_INSPECTOR
 IRONIC_INSPECTOR_DHCP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/dnsmasq.conf
 IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/rootwrap.conf
 IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
+IRONIC_INSPECTOR_AUTH_CACHE_DIR=${IRONIC_INSPECTOR_AUTH_CACHE_DIR:-/var/cache/ironic-inspector}
 IRONIC_INSPECTOR_MANAGE_FIREWALL=$(trueorfalse True IRONIC_INSPECTOR_MANAGE_FIREWALL)
 IRONIC_INSPECTOR_HOST=$HOST_IP
 IRONIC_INSPECTOR_PORT=5050
@@ -152,11 +153,7 @@ function configure_inspector {
     inspector_iniset ironic os_password $SERVICE_PASSWORD
     inspector_iniset ironic os_tenant_name $SERVICE_TENANT_NAME
 
-    inspector_iniset keystone_authtoken identity_uri "$KEYSTONE_AUTH_URI"
-    inspector_iniset keystone_authtoken auth_uri "$KEYSTONE_SERVICE_URI/v2.0"
-    inspector_iniset keystone_authtoken admin_user $IRONIC_INSPECTOR_ADMIN_USER
-    inspector_iniset keystone_authtoken admin_password $SERVICE_PASSWORD
-    inspector_iniset keystone_authtoken admin_tenant_name $SERVICE_TENANT_NAME
+    configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
 
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT
     inspector_iniset DEFAULT listen_address 0.0.0.0  # do not change
@@ -213,6 +210,7 @@ EOF
 
 function prepare_environment {
     prepare_tftp
+    create_ironic_inspector_cache_dir
 
     sudo ip link add brbm-inspector type veth peer name $IRONIC_INSPECTOR_INTERFACE
     sudo ip link set dev brbm-inspector up
@@ -226,10 +224,20 @@ function prepare_environment {
         --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
 }
 
+# create_ironic_inspector_cache_dir() - Part of the prepare_environment() process
+function create_ironic_inspector_cache_dir {
+    # Create cache dir
+    mkdir_chown_stack $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
+    rm -f $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api/*
+    mkdir_chown_stack $IRONIC_INSPECTOR_AUTH_CACHE_DIR/registry
+    rm -f $IRONIC_INSPECTOR_AUTH_CACHE_DIR/registry/*
+}
+
 function cleanup_inspector {
     rm -f $IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default
     rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
     sudo rm -f /etc/sudoers.d/ironic-inspector-rootwrap
+    sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
 
     # Try to clean up firewall rules
     sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
