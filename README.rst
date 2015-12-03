@@ -12,6 +12,7 @@ scheduling from a bare metal node, given it's power management credentials
 * Bugs: http://bugs.launchpad.net/ironic-inspector
 * Blueprints: https://blueprints.launchpad.net/ironic-inspector
 * Downloads: https://pypi.python.org/pypi/ironic-inspector
+* Documentation: http://docs.openstack.org/developer/ironic-inspector
 * Python client library and CLI tool: `python-ironic-inspector-client
   <https://pypi.python.org/pypi/python-ironic-inspector-client>`_.
 
