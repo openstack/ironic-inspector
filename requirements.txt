@@ -7,7 +7,7 @@ eventlet>=0.17.4
 Flask<1.0,>=0.10
 jsonpath-rw<2.0,>=1.2.0
 jsonschema!=2.5.0,<3.0.0,>=2.0.0
-keystonemiddleware!=2.4.0,>=2.0.0
+keystonemiddleware>=4.0.0
 netaddr!=0.7.16,>=0.7.12
 pbr>=1.6
 python-ironicclient>=0.8.0
