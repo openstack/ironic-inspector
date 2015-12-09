@@ -367,14 +367,18 @@ def create_ssl_context():
 def main(args=sys.argv[1:]):  # pragma: no cover
     log.register_options(CONF)
     CONF(args, project='ironic-inspector')
-    debug = CONF.debug
 
     log.set_defaults(default_log_levels=[
-        'urllib3.connectionpool=WARN',
-        'keystonemiddleware.auth_token=WARN',
-        'requests.packages.urllib3.connectionpool=WARN',
-        ('ironicclient.common.http=INFO' if debug else
-         'ironicclient.common.http=ERROR')])
+        'sqlalchemy=WARNING',
+        'keystoneclient=INFO',
+        'iso8601=WARNING',
+        'requests=WARNING',
+        'urllib3.connectionpool=WARNING',
+        'keystonemiddleware=WARNING',
+        'swiftclient=WARNING',
+        'keystoneauth=WARNING',
+        'ironicclient=WARNING'
+    ])
     log.setup(CONF, 'ironic_inspector')
 
     app_kwargs = {'host': CONF.listen_address,
