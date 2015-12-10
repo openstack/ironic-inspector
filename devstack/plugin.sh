@@ -1,5 +1,6 @@
 IRONIC_INSPECTOR_DEBUG=${IRONIC_INSPECTOR_DEBUG:-True}
 IRONIC_INSPECTOR_DIR=$DEST/ironic-inspector
+IRONIC_INSPECTOR_DATA_DIR=$DATA_DIR/ironic-inspector
 IRONIC_INSPECTOR_BIN_DIR=$(get_python_exec_prefix)
 IRONIC_INSPECTOR_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector
 IRONIC_INSPECTOR_DBSYNC_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-dbsync
@@ -19,6 +20,9 @@ IRONIC_AGENT_KERNEL_URL=${IRONIC_AGENT_KERNEL_URL:-http://tarballs.openstack.org
 IRONIC_AGENT_RAMDISK_URL=${IRONIC_AGENT_RAMDISK_URL:-http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe_image-oem.cpio.gz}
 IRONIC_INSPECTOR_RAMDISK_ELEMENT=${IRONIC_INSPECTOR_RAMDISK_ELEMENT:-ironic-discoverd-ramdisk}
 IRONIC_INSPECTOR_RAMDISK_FLAVOR=${IRONIC_INSPECTOR_RAMDISK_FLAVOR:-fedora $IRONIC_INSPECTOR_RAMDISK_ELEMENT}
+IRONIC_INSPECTOR_COLLECTORS=${IRONIC_INSPECTOR_COLLECTORS:-default,logs}
+IRONIC_INSPECTOR_RAMDISK_LOGDIR=${IRONIC_INSPECTOR_RAMDISK_LOGDIR:-$IRONIC_INSPECTOR_DATA_DIR/ramdisk-logs}
+IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS=${IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS:-True}
 # These should not overlap with other ranges/networks
 IRONIC_INSPECTOR_INTERNAL_IP=${IRONIC_INSPECTOR_INTERNAL_IP:-172.24.42.254}
 IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE=${IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE:-24}
@@ -98,6 +102,7 @@ function prepare_tftp {
 
     if  inspector_uses_ipa; then
         IRONIC_INSPECTOR_KERNEL_CMDLINE="ipa-inspection-callback-url=$IRONIC_INSPECTOR_CALLBACK_URI systemd.journald.forward_to_console=yes"
+        IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-inspection-collectors=$IRONIC_INSPECTOR_COLLECTORS"
         if [[ "$IRONIC_INSPECTOR_BUILD_RAMDISK" == "True" ]]; then
             IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.vmlinuz"
             if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
@@ -143,6 +148,7 @@ EOF
 
 function configure_inspector {
     mkdir_chown_stack "$IRONIC_INSPECTOR_CONF_DIR"
+    mkdir_chown_stack "$IRONIC_INSPECTOR_DATA_DIR"
 
     create_service_user "$IRONIC_INSPECTOR_ADMIN_USER" "admin"
 
@@ -184,6 +190,10 @@ function configure_inspector {
     sudo mv $tempfile /etc/sudoers.d/ironic-inspector-rootwrap
 
     inspector_iniset DEFAULT rootwrap_config $IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE
+
+    mkdir_chown_stack "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
+    inspector_iniset processing ramdisk_logs_dir "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
+    inspector_iniset processing always_store_ramdisk_logs "$IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS"
 }
 
 function configure_inspector_swift {
@@ -238,6 +248,7 @@ function cleanup_inspector {
     rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
     sudo rm -f /etc/sudoers.d/ironic-inspector-rootwrap
     sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
+    sudo rm -rf "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
 
     # Try to clean up firewall rules
     sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
