@@ -109,24 +109,30 @@ class TestApiIntrospect(BaseAPITest):
         self.assertEqual(400, res.status_code)
 
 
+@mock.patch.object(process, 'process', autospec=True)
 class TestApiContinue(BaseAPITest):
-    @mock.patch.object(process, 'process', autospec=True)
     def test_continue(self, process_mock):
         # should be ignored
         CONF.set_override('auth_strategy', 'keystone')
         process_mock.return_value = {'result': 42}
-        res = self.app.post('/v1/continue', data='"JSON"')
+        res = self.app.post('/v1/continue', data='{"foo": "bar"}')
         self.assertEqual(200, res.status_code)
-        process_mock.assert_called_once_with("JSON")
+        process_mock.assert_called_once_with({"foo": "bar"})
         self.assertEqual({"result": 42}, json.loads(res.data.decode()))
 
-    @mock.patch.object(process, 'process', autospec=True)
     def test_continue_failed(self, process_mock):
         process_mock.side_effect = iter([utils.Error("boom")])
-        res = self.app.post('/v1/continue', data='"JSON"')
+        res = self.app.post('/v1/continue', data='{"foo": "bar"}')
         self.assertEqual(400, res.status_code)
-        process_mock.assert_called_once_with("JSON")
+        process_mock.assert_called_once_with({"foo": "bar"})
         self.assertEqual('boom', _get_error(res))
+
+    def test_continue_wrong_type(self, process_mock):
+        res = self.app.post('/v1/continue', data='42')
+        self.assertEqual(400, res.status_code)
+        self.assertEqual('Invalid data: expected a JSON object, got int',
+                         _get_error(res))
+        self.assertFalse(process_mock.called)
 
 
 class TestApiGetStatus(BaseAPITest):

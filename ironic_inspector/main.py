@@ -165,8 +165,11 @@ def version_root(version):
 @convert_exceptions
 def api_continue():
     data = flask.request.get_json(force=True)
-    LOG.debug("/v1/continue got JSON %s", data)
+    if not isinstance(data, dict):
+        raise utils.Error(_('Invalid data: expected a JSON object, got %s') %
+                          data.__class__.__name__)
 
+    LOG.debug("/v1/continue got JSON %s", data)
     return flask.jsonify(process.process(data))
 
 
