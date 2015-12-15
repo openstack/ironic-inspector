@@ -122,16 +122,12 @@ is as follows:
   equivalent driver-specific property, as per ``ipmi_address_fields``
   configuration option).
 
-  With Ironic Liberty use ironic API version ``1.11``, so that new node gets
-  into ``enroll`` provision state::
+  Use ironic API version ``1.11`` (introduced in ironic 4.0.0),
+  so that new node gets into ``enroll`` provision state::
 
     ironic --ironic-api-version 1.11 node-create -d <DRIVER> -i ipmi_address=<ADDRESS>
 
   Providing ``ipmi_address`` allows **ironic-inspector** to distinguish nodes.
-
-* With Ironic Kilo or older, set maintenance mode on nodes.
-  That's an important step, otherwise Ironic might interfere with introspection
-  process. This is replaced by ``enroll`` state in Ironic Liberty.
 
 * Start introspection with providing additional parameters:
 
@@ -143,8 +139,7 @@ is as follows:
 
 * After introspection is finished (watch nodes power state or use
   **ironic-inspector** status API) you can move node to ``manageable`` and
-  then ``available`` states - see `Node States`_. With Ironic Kilo you have to
-  move a node out of maintenance mode.
+  then ``available`` states - see `Node States`_.
 
 Note that due to various limitations on password value in different BMC,
 **ironic-inspector** will only accept passwords with length between 1 and 20

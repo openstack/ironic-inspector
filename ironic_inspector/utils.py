@@ -22,7 +22,7 @@ from oslo_config import cfg
 from oslo_log import log
 import six
 
-from ironic_inspector.common.i18n import _, _LE, _LW
+from ironic_inspector.common.i18n import _, _LE
 
 CONF = cfg.CONF
 
@@ -173,12 +173,6 @@ def get_ipmi_address(node):
 
 
 def check_provision_state(node, with_credentials=False):
-    if node.maintenance:
-        LOG.warning(
-            _LW('Introspecting nodes in maintenance mode is deprecated, '
-                'accepted states: %s'), VALID_STATES)
-        return
-
     state = node.provision_state.lower()
     if with_credentials and state not in SET_CREDENTIALS_VALID_STATES:
         msg = _('Invalid provision state "%(state)s" for setting IPMI '
