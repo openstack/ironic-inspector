@@ -81,8 +81,11 @@ def process(introspection_data):
             LOG.exception(_LE('Hook %(hook)s failed, delaying error report '
                               'until node look up: %(error)s'),
                           {'hook': hook_ext.name, 'error': exc})
-            failures.append(_('Unexpected exception during preprocessing '
-                              'in hook %s') % hook_ext.name)
+            failures.append(_('Unexpected exception %(exc_class)s during '
+                              'preprocessing in hook %(hook)s: %(error)s') %
+                            {'hook': hook_ext.name,
+                             'exc_class': exc.__class__.__name__,
+                             'error': exc})
 
     node_info = _find_node_info(introspection_data, failures)
     if node_info:
@@ -96,7 +99,7 @@ def process(introspection_data):
             'uuid': node_info.uuid,
             'failures': '\n'.join(failures)
         }
-        node_info.finished(error=_('Data pre-processing failed'))
+        node_info.finished(error='\n'.join(failures))
         raise utils.Error(msg)
     elif not node_info:
         msg = _('The following failures happened during running '
@@ -119,8 +122,10 @@ def process(introspection_data):
         node_info.finished(error=str(exc))
         raise
     except Exception as exc:
-        msg = _('Unexpected exception during processing')
-        LOG.exception(msg)
+        LOG.exception(_LE('Unexpected exception during processing'))
+        msg = _('Unexpected exception %(exc_class)s during processing: '
+                '%(error)s') % {'exc_class': exc.__class__.__name__,
+                                'error': exc}
         node_info.finished(error=msg)
         raise utils.Error(msg)
 

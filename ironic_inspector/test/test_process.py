@@ -144,7 +144,7 @@ class TestProcess(BaseTest):
                                 process.process, self.data)
 
         pop_mock.return_value.finished.assert_called_once_with(
-            error='Unexpected exception during processing')
+            error='Unexpected exception RuntimeError during processing: boom')
 
     @prepare_mocks
     def test_hook_unexpected_exceptions(self, cli, pop_mock, process_mock):
@@ -158,7 +158,10 @@ class TestProcess(BaseTest):
                                 process.process, self.data)
 
         pop_mock.return_value.finished.assert_called_once_with(
-            error='Data pre-processing failed')
+            error=mock.ANY)
+        error_message = pop_mock.return_value.finished.call_args[1]['error']
+        self.assertIn('RuntimeError', error_message)
+        self.assertIn('boom', error_message)
 
     @prepare_mocks
     def test_hook_unexpected_exceptions_no_node(self, cli, pop_mock,
