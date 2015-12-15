@@ -227,8 +227,11 @@ class RamdiskErrorHook(base.ProcessingHook):
         error = introspection_data.get('error')
         logs = introspection_data.get('logs')
 
-        if logs and (error or CONF.processing.always_store_ramdisk_logs):
-            self._store_logs(logs, introspection_data)
+        if error or CONF.processing.always_store_ramdisk_logs:
+            if logs:
+                self._store_logs(logs, introspection_data)
+            else:
+                LOG.debug('No logs received from the ramdisk')
 
         if error:
             raise utils.Error(_('Ramdisk reported error: %s') % error)
@@ -250,3 +253,4 @@ class RamdiskErrorHook(base.ProcessingHook):
         with open(os.path.join(CONF.processing.ramdisk_logs_dir, file_name),
                   'wb') as fp:
             fp.write(base64.b64decode(logs))
+        LOG.info(_LI('Ramdisk logs stored in file %s'), file_name)

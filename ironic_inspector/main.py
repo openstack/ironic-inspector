@@ -49,6 +49,7 @@ CURRENT_API_VERSION = (1, 2)
 _MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
 _MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
 _VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
+_LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
 def _format_version(ver):
@@ -169,7 +170,10 @@ def api_continue():
         raise utils.Error(_('Invalid data: expected a JSON object, got %s') %
                           data.__class__.__name__)
 
-    LOG.debug("/v1/continue got JSON %s", data)
+    logged_data = {k: (v if k not in _LOGGING_EXCLUDED_KEYS else '<hidden>')
+                   for k, v in data.items()}
+    LOG.debug("Received data from the ramdisk: %s", logged_data)
+
     return flask.jsonify(process.process(data))
 
 
