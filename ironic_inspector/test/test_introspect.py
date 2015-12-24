@@ -33,13 +33,6 @@ class BaseTest(test_base.NodeTest):
         super(BaseTest, self).setUp()
         introspect._LAST_INTROSPECTION_TIME = 0
         self.node.power_state = 'power off'
-        self.node_compat = mock.Mock(driver='pxe_ssh',
-                                     uuid='uuid_compat',
-                                     driver_info={},
-                                     maintenance=True,
-                                     # allowed with maintenance=True
-                                     power_state='power on',
-                                     provision_state='foobar')
         self.ports = [mock.Mock(address=m) for m in self.macs]
         self.ports_dict = collections.OrderedDict((p.address, p)
                                                   for p in self.ports)
@@ -139,34 +132,6 @@ class TestIntrospect(BaseTest):
             error=mock.ANY)
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
-
-    def test_with_maintenance(self, client_mock, add_mock, filters_mock):
-        cli = client_mock.return_value
-        cli.node.get.return_value = self.node_compat
-        cli.node.validate.return_value = mock.Mock(power={'result': True})
-        add_mock.return_value = mock.Mock(uuid=self.node_compat.uuid,
-                                          options={},
-                                          **{'node.return_value': self.node})
-        add_mock.return_value.ports.return_value = collections.OrderedDict(
-            (p.address, p) for p in self.ports)
-
-        introspect.introspect(self.node_compat.uuid)
-
-        cli.node.get.assert_called_once_with(self.node_compat.uuid)
-        cli.node.validate.assert_called_once_with(self.node_compat.uuid)
-        add_mock.return_value.ports.assert_called_once_with()
-
-        add_mock.assert_called_once_with(self.node_compat.uuid,
-                                         bmc_address=None,
-                                         ironic=cli)
-        add_mock.return_value.add_attribute.assert_called_once_with('mac',
-                                                                    self.macs)
-        filters_mock.assert_called_with(cli)
-        cli.node.set_boot_device.assert_called_once_with(self.node_compat.uuid,
-                                                         'pxe',
-                                                         persistent=False)
-        cli.node.set_power_state.assert_called_once_with(self.node_compat.uuid,
-                                                         'reboot')
 
     def test_no_macs(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
@@ -383,25 +348,6 @@ class TestSetIpmiCredentials(BaseTest):
         self.node.provision_state = 'enroll'
 
     def test_ok(self, client_mock, add_mock, filters_mock):
-        cli = self._prepare(client_mock)
-        add_mock.return_value = self.node_info
-
-        introspect.introspect(self.uuid, new_ipmi_credentials=self.new_creds)
-
-        add_mock.assert_called_once_with(self.uuid,
-                                         bmc_address=self.bmc_address,
-                                         ironic=cli)
-        filters_mock.assert_called_with(cli)
-        self.assertFalse(cli.node.validate.called)
-        self.assertFalse(cli.node.set_boot_device.called)
-        self.assertFalse(cli.node.set_power_state.called)
-        add_mock.return_value.set_option.assert_called_once_with(
-            'new_ipmi_credentials', self.new_creds)
-
-    def test_any_state_with_maintenance(self, client_mock, add_mock,
-                                        filters_mock):
-        self.node.provision_state = 'manageable'
-        self.node.maintenance = True
         cli = self._prepare(client_mock)
         add_mock.return_value = self.node_info
 
