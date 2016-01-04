@@ -154,20 +154,29 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
   PXE booted from either in standard format ``11:22:33:44:55:66`` or
   in *PXELinux* ``BOOTIF`` format ``01-11-22-33-44-55-66``.
 
-* ``error`` optional error happened during ramdisk run, interpreted by
-  ``ramdisk_error`` plugin
+Optionally the following keys might be provided:
 
-* ``logs`` optional base64-encoded logs from the ramdisk
+* ``inventory`` full hardware inventory from the ironic-python-agent (will be
+  required in the future). Required for root device hints support.
 
-* ``block_devices`` optional block devices information for
-  ``root_device_hint`` plugin, dictionary with keys:
+* ``root_disk`` default deployment root disk as calculated by the
+  ironic-python-agent algorithm. Will be required in the future.
 
-  * ``serials`` list of serial numbers of block devices.
+* ``error`` error happened during ramdisk run, interpreted by
+  ``ramdisk_error`` plugin.
+
+* ``logs`` base64-encoded logs from the ramdisk.
+
+* ``block_devices`` block devices information for the ``raid_device`` plugin,
+  dictionary with one key: ``serials`` list of serial numbers of block devices.
+
+  This is deprecated and only supported for backward compatibility. Full
+  ``inventory`` should be provided instead.
 
 .. note::
-      This list highly depends on enabled plugins, provided above are
-      expected keys for the default set of plugins. See :ref:`plugins`
-      for details.
+    This list highly depends on enabled plugins, provided above are
+    expected keys for the default set of plugins. See :ref:`plugins`
+    for details.
 
 .. note::
     This endpoint is not expected to be versioned, though versioning will work
