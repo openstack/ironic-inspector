@@ -142,8 +142,73 @@ Here is *inspector.conf* you may end up with::
 .. note::
     Set ``debug = true`` if you want to see complete logs.
 
+Using IPA
+^^^^^^^^^
+
+ironic-python-agent_ is a ramdisk developed for Ironic. During the Liberty
+cycle support for **ironic-inspector** was added. This is the default ramdisk
+starting with the Mitaka release.
+
+.. note::
+    You need at least 1.5 GiB of RAM on the machines to use this ramdisk,
+    2 GiB is recommended.
+
+To build an ironic-python-agent ramdisk, do the following:
+
+* Get the new enough version of diskimage-builder_::
+
+    sudo pip install -U "diskimage-builder>=1.1.2"
+
+* Build the ramdisk::
+
+    disk-image-create ironic-agent fedora -o ironic-agent
+
+  .. note::
+    Replace "fedora" with your distribution of choice.
+
+* Copy resulting files ``ironic-agent.vmlinuz`` and ``ironic-agent.initramfs``
+  to the TFTP root directory.
+
+Alternatively, you can download a `prebuilt IPA image
+<http://tarballs.openstack.org/ironic-python-agent/coreos/files/>`_ or use
+the `CoreOS-based IPA builder
+<http://docs.openstack.org/developer/ironic-python-agent/#coreos>`_.
+
+Next, set up ``$TFTPROOT/pxelinux.cfg/default`` as follows::
+
+    default introspect
+
+    label introspect
+    kernel ironic-agent.vmlinuz
+    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
+
+    ipappend 3
+
+Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
+will be accessed by ramdisk on a booting machine).
+
+.. note::
+    While ``systemd.journald.forward_to_console=yes`` is not actually
+    required, it will substantially simplify debugging if something goes wrong.
+
+This ramdisk is pluggable: you can insert introspection plugins called
+*collectors* into it. For example, to enable a very handy ``logs`` collector
+(sending ramdisk logs to **ironic-inspector**), modify the ``append`` line in
+``$TFTPROOT/pxelinux.cfg/default``::
+
+    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default,logs systemd.journald.forward_to_console=yes
+
+.. note::
+    You probably want to always keep ``default`` collector, as it provides the
+    basic information required for introspection.
+
+.. _diskimage-builder: https://github.com/openstack/diskimage-builder
+.. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
+
 Using simple ramdisk
 ^^^^^^^^^^^^^^^^^^^^
+
+This ramdisk is deprecated, its use is not recommended.
 
 * Build and put into your TFTP the kernel and ramdisk created using the
   diskimage-builder_ `ironic-discoverd-ramdisk element`_::
@@ -166,57 +231,7 @@ Using simple ramdisk
   Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
   will be accessed by ramdisk on a booting machine).
 
-  .. note::
-    There are some prebuilt images which use obsolete ``ironic_callback_url``
-    instead of ``discoverd_callback_url``. Modify ``pxelinux.cfg/default``
-    accordingly if you have one of these.
-
-Using IPA
-^^^^^^^^^
-
-ironic-python-agent_ is a new ramdisk developed for Ironic. During the Liberty
-cycle support for **ironic-inspector** was added. This is experimental
-for now, but we plan on making IPA the default ramdisk in Mitaka cycle.
-
-.. note::
-    You need at least 1.5 GiB of RAM on the machines to use this ramdisk.
-
-To build an ironic-python-agent ramdisk, do the following:
-
-* Get the latest diskimage-builder_::
-
-    sudo pip install -U "diskimage-builder>=1.1.2"
-
-* Build the ramdisk::
-
-    disk-image-create ironic-agent fedora -o ironic-agent
-
-  .. note::
-    Replace "fedora" with your distribution of choice.
-
-* Copy resulting files ``ironic-agent.vmlinuz`` and ``ironic-agent.initramfs``
-  to the TFTP root directory.
-
-Next, set up ``$TFTPROOT/pxelinux.cfg/default`` as follows::
-
-    default introspect
-
-    label introspect
-    kernel ironic-agent.vmlinuz
-    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
-
-    ipappend 3
-
-Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
-will be accessed by ramdisk on a booting machine).
-
-.. note::
-    While ``systemd.journald.forward_to_console=yes`` is not actually
-    required, it will substantially simplify debugging if something goes wrong.
-
-.. _diskimage-builder: https://github.com/openstack/diskimage-builder
 .. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
-.. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
 
 Managing the **ironic-inspector** database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

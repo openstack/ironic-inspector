@@ -139,39 +139,55 @@ Ramdisk Callback
 discovered data. Should not be used for anything other than implementing
 the ramdisk. Request body: JSON dictionary with at least these keys:
 
-* ``cpus`` number of CPU
-* ``cpu_arch`` architecture of the CPU
-* ``memory_mb`` RAM in MiB
-* ``local_gb`` hard drive size in GiB
-* ``interfaces`` dictionary filled with data from all NIC's, keys being
-  interface names, values being dictionaries with keys:
+* ``inventory`` full hardware inventory from the ironic-python-agent with at
+  least the following keys:
 
-  * ``mac`` MAC address
-  * ``ip`` IP address
+  * ``memory`` memory information containing at least key ``physical_mb`` -
+    physical memory size as reported by dmidecode,
 
-* ``ipmi_address`` IP address of BMC, may be missing on VM
-* ``boot_interface`` optional MAC address of the NIC that the machine
-  PXE booted from either in standard format ``11:22:33:44:55:66`` or
-  in *PXELinux* ``BOOTIF`` format ``01-11-22-33-44-55-66``.
+  * ``cpu`` CPU infromation containing at least keys ``count`` (CPU count) and
+    ``architecture`` (CPU architecture, e.g. ``x86_64``),
 
-Optionally the following keys might be provided:
+  * ``bmc_address`` IP address of the node's BMC,
 
-* ``inventory`` full hardware inventory from the ironic-python-agent (will be
-  required in the future). Required for root device hints support.
+  * ``interfaces`` list of dictionaries with the following keys:
+
+    * ``name`` interface name,
+
+    * ``ipv4_address`` IPv4 address of the interface,
+
+    * ``mac_address`` MAC (physical) address of the interface.
 
 * ``root_disk`` default deployment root disk as calculated by the
-  ironic-python-agent algorithm. Will be required in the future.
+  ironic-python-agent algorithm.
+
+* ``boot_interface`` MAC address of the NIC that the machine PXE booted from
+  either in standard format ``11:22:33:44:55:66`` or in *PXELinux* ``BOOTIF``
+  format ``01-11-22-33-44-55-66``. Strictly speaking, this key is optional,
+  but some features will now work as expected, if it is not provided.
+
+Optionally the following keys might be provided:
 
 * ``error`` error happened during ramdisk run, interpreted by
   ``ramdisk_error`` plugin.
 
 * ``logs`` base64-encoded logs from the ramdisk.
 
+The following keys are supported for backward compatibility with the old
+bash-based ramdisk, when ``inventory`` is not provided:
+
+* ``cpus`` number of CPU
+
+* ``cpu_arch`` architecture of the CPU
+
+* ``memory_mb`` RAM in MiB
+
+* ``local_gb`` hard drive size in GiB
+
+* ``ipmi_address`` IP address of BMC, may be missing on VM
+
 * ``block_devices`` block devices information for the ``raid_device`` plugin,
   dictionary with one key: ``serials`` list of serial numbers of block devices.
-
-  This is deprecated and only supported for backward compatibility. Full
-  ``inventory`` should be provided instead.
 
 .. note::
     This list highly depends on enabled plugins, provided above are
