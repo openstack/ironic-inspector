@@ -86,7 +86,7 @@ class TestCheckAuth(base.BaseTest):
         self.assertEqual('admin', args1['admin_user'])
         self.assertEqual('admin', args1['admin_tenant_name'])
         self.assertEqual('password', args1['admin_password'])
-        self.assertEqual(True, args1['delay_auth_decision'])
+        self.assertTrue(args1['delay_auth_decision'])
         self.assertEqual('http://127.0.0.1:5000/v2.0', args1['auth_uri'])
         self.assertEqual('http://127.0.0.1:35357', args1['identity_uri'])
 
