@@ -159,6 +159,9 @@ class Base(base.NodeTest):
     def call_get_status(self, uuid):
         return self.call('get', '/v1/introspection/%s' % uuid).json()
 
+    def call_abort_introspect(self, uuid):
+        return self.call('post', '/v1/introspection/%s/abort' % uuid)
+
     def call_continue(self, data):
         return self.call('post', '/v1/continue', data=data).json()
 
@@ -360,6 +363,30 @@ class Test(Base):
 
         status = self.call_get_status(self.uuid)
         self.assertEqual({'finished': True, 'error': None}, status)
+
+    def test_abort_introspection(self):
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+        status = self.call_get_status(self.uuid)
+        self.assertEqual({'finished': False, 'error': None}, status)
+
+        res = self.call_abort_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.assertEqual(res.status_code, 202)
+        status = self.call_get_status(self.uuid)
+        self.assertTrue(status['finished'])
+        self.assertEqual('Canceled by operator', status['error'])
+
+        # Note(mkovacik): we're checking just this doesn't pass OK as
+        # there might be either a race condition (hard to test) that
+        # yields a 'Node already finished.' or an attribute-based
+        # look-up error from some pre-processing hooks because
+        # node_info.finished() deletes the look-up attributes only
+        # after releasing the node lock
+        self.call('post', '/v1/continue', self.data, expect_error=400)
 
 
 @contextlib.contextmanager

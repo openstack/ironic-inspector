@@ -135,6 +135,50 @@ class TestApiContinue(BaseAPITest):
         self.assertFalse(process_mock.called)
 
 
+@mock.patch.object(introspect, 'abort', autospec=True)
+class TestApiAbort(BaseAPITest):
+    def test_ok(self, abort_mock):
+        abort_mock.return_value = '', 202
+
+        res = self.app.post('/v1/introspection/%s/abort' % self.uuid,
+                            headers={'X-Auth-Token': 'token'})
+
+        abort_mock.assert_called_once_with(self.uuid, token='token')
+        self.assertEqual(202, res.status_code)
+        self.assertEqual(b'', res.data)
+
+    def test_no_authentication(self, abort_mock):
+        abort_mock.return_value = b'', 202
+
+        res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
+
+        abort_mock.assert_called_once_with(self.uuid, token=None)
+        self.assertEqual(202, res.status_code)
+        self.assertEqual(b'', res.data)
+
+    def test_node_not_found(self, abort_mock):
+        exc = utils.Error("Not Found.", code=404)
+        abort_mock.side_effect = iter([exc])
+
+        res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
+
+        abort_mock.assert_called_once_with(self.uuid, token=None)
+        self.assertEqual(404, res.status_code)
+        data = json.loads(str(res.data.decode()))
+        self.assertEqual(str(exc), data['error']['message'])
+
+    def test_abort_failed(self, abort_mock):
+        exc = utils.Error("Locked.", code=409)
+        abort_mock.side_effect = iter([exc])
+
+        res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
+
+        abort_mock.assert_called_once_with(self.uuid, token=None)
+        self.assertEqual(409, res.status_code)
+        data = json.loads(res.data.decode())
+        self.assertEqual(str(exc), data['error']['message'])
+
+
 class TestApiGetStatus(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_in_progress(self, get_mock):

@@ -104,6 +104,12 @@ def process(introspection_data):
     LOG.info(_LI('Matching node is %s'), node_info.uuid,
              node_info=node_info, data=introspection_data)
 
+    if node_info.finished_at is not None:
+        # race condition or introspection canceled
+        raise utils.Error(_('Node processing already finished with '
+                            'error: %s') % node_info.error,
+                          node_info=node_info, code=400)
+
     try:
         node = node_info.node()
     except exceptions.NotFound:

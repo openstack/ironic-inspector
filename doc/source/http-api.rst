@@ -51,7 +51,25 @@ Response body: JSON dictionary with keys:
 
 * ``finished`` (boolean) whether introspection is finished
   (``true`` on introspection completion or if it ends because of an error)
-* ``error`` error string or ``null``
+* ``error`` error string or ``null``; ``Canceled by operator`` in
+  case introspection was aborted
+
+
+Abort Running Introspection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``POST /v1/introspection/<UUID>/abort`` abort running introspection.
+
+Requires X-Auth-Token header with Keystone token for authentication.
+
+Response:
+
+* 202 - accepted
+* 400 - bad request
+* 401, 403 - missing or invalid authentication
+* 404 - node cannot be found
+* 409 - inspector has locked this node for processing
+
 
 Get Introspection Data
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -295,3 +313,4 @@ Version History
 * **1.0** version of API at the moment of introducing versioning.
 * **1.1** adds endpoint to retrieve stored introspection data.
 * **1.2** endpoints for manipulating introspection rules.
+* **1.3** endpoint for canceling running introspection

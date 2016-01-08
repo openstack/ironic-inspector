@@ -174,3 +174,54 @@ def _background_introspect_locked(ironic, node_info):
         LOG.info(_LI('Introspection environment is ready, manual power on is '
                      'required within %d seconds'), CONF.timeout,
                  node_info=node_info)
+
+
+def abort(uuid, token=None):
+    """Abort running introspection.
+
+    :param uuid: node uuid
+    :param token: authentication token
+    :raises: Error
+    """
+    LOG.debug('Aborting introspection for node %s', uuid)
+    ironic = utils.get_client(token)
+    node_info = node_cache.get_node(uuid, ironic=ironic, locked=False)
+
+    # check pending operations
+    locked = node_info.acquire_lock(blocking=False)
+    if not locked:
+        # Node busy --- cannot abort atm
+        raise utils.Error(_('Node is locked, please, retry later'),
+                          node_info=node_info, code=409)
+
+    utils.spawn_n(_abort, node_info, ironic)
+
+
+def _abort(node_info, ironic):
+    # runs in background
+    if node_info.finished_at is not None:
+        # introspection already finished; nothing to do
+        LOG.info(_LI('Cannot abort introspection as it is already '
+                     'finished'), node_info=node_info)
+        node_info.release_lock()
+        return
+
+    # block this node from PXE Booting the introspection image
+    try:
+        firewall.update_filters(ironic)
+    except Exception as exc:
+        # Note(mkovacik): this will be retried in firewall update
+        # periodic task; we continue aborting
+        LOG.warning(_LW('Failed to update firewall filters: %s'), exc,
+                    node_info=node_info)
+
+    # finish the introspection
+    LOG.debug('Forcing power-off', node_info=node_info)
+    try:
+        ironic.node.set_power_state(node_info.uuid, 'off')
+    except Exception as exc:
+        LOG.warning(_LW('Failed to power off node: %s'), exc,
+                    node_info=node_info)
+
+    node_info.finished(error=_('Canceled by operator'))
+    LOG.info(_LI('Introspection aborted'), node_info=node_info)

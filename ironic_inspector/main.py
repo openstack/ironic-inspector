@@ -45,7 +45,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 2)
+CURRENT_API_VERSION = (1, 3)
 _MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
 _MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
 _VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
@@ -207,6 +207,18 @@ def api_introspection(uuid):
         node_info = node_cache.get_node(uuid)
         return flask.json.jsonify(finished=bool(node_info.finished_at),
                                   error=node_info.error or None)
+
+
+@app.route('/v1/introspection/<uuid>/abort', methods=['POST'])
+@convert_exceptions
+def api_introspection_abort(uuid):
+    utils.check_auth(flask.request)
+
+    if not uuidutils.is_uuid_like(uuid):
+        raise utils.Error(_('Invalid UUID value'), code=400)
+
+    introspect.abort(uuid, token=flask.request.headers.get('X-Auth-Token'))
+    return '', 202
 
 
 @app.route('/v1/introspection/<uuid>/data', methods=['GET'])

@@ -128,6 +128,18 @@ class TestProcess(BaseTest):
         pop_mock.return_value.finished.assert_called_once_with(error=mock.ANY)
 
     @prepare_mocks
+    def test_already_finished(self, cli, pop_mock, process_mock):
+        old_finished_at = pop_mock.return_value.finished_at
+        pop_mock.return_value.finished_at = time.time()
+        try:
+            self.assertRaisesRegexp(utils.Error, 'already finished',
+                                    process.process, self.data)
+            self.assertFalse(process_mock.called)
+            self.assertFalse(pop_mock.return_value.finished.called)
+        finally:
+            pop_mock.return_value.finished_at = old_finished_at
+
+    @prepare_mocks
     def test_expected_exception(self, cli, pop_mock, process_mock):
         process_mock.side_effect = iter([utils.Error('boom')])
 
