@@ -213,7 +213,7 @@ class TestIntrospect(BaseTest):
 
         self.assertRaisesRegexp(
             utils.Error,
-            'Failed validation of power interface for node',
+            'Failed validation of power interface',
             introspect.introspect, self.uuid)
 
         cli.node.validate.assert_called_once_with(self.uuid)
@@ -229,7 +229,7 @@ class TestIntrospect(BaseTest):
         cli.node.get.return_value = self.node
 
         self.assertRaisesRegexp(
-            utils.Error, 'Invalid provision state "active"',
+            utils.Error, 'Invalid provision state for introspection: "active"',
             introspect.introspect, self.uuid)
 
         self.assertEqual(0, self.node_info.ports.call_count)

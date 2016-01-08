@@ -16,13 +16,12 @@
 import operator
 
 import netaddr
-from oslo_log import log
 
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
 
-LOG = log.getLogger(__name__)
+LOG = utils.getProcessingLogger(__name__)
 
 
 def coerce(value, expected):
@@ -84,7 +83,7 @@ class FailAction(base.RuleActionPlugin):
     REQUIRED_PARAMS = {'message'}
 
     def apply(self, node_info, params, **kwargs):
-        raise utils.Error(params['message'])
+        raise utils.Error(params['message'], node_info=node_info)
 
 
 class SetAttributeAction(base.RuleActionPlugin):
@@ -99,9 +98,8 @@ class SetAttributeAction(base.RuleActionPlugin):
         try:
             node_info.get_by_path(params['path'])
         except KeyError:
-            LOG.debug('Field %(path)s was not set on node %(node)s, '
-                      'no need for rollback',
-                      {'path': params['path'], 'node': node_info.uuid})
+            LOG.debug('Field %s was not set, no need for rollback',
+                      params['path'], node_info=node_info)
             return
 
         node_info.patch([{'op': 'remove', 'path': params['path']}])

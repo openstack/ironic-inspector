@@ -42,7 +42,7 @@ CONF = cfg.CONF
 
 
 app = flask.Flask(__name__)
-LOG = log.getLogger('ironic_inspector.main')
+LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
 CURRENT_API_VERSION = (1, 2)
@@ -172,7 +172,8 @@ def api_continue():
 
     logged_data = {k: (v if k not in _LOGGING_EXCLUDED_KEYS else '<hidden>')
                    for k, v in data.items()}
-    LOG.debug("Received data from the ramdisk: %s", logged_data)
+    LOG.debug("Received data from the ramdisk: %s", logged_data,
+              data=data)
 
     return flask.jsonify(process.process(data))
 

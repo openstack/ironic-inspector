@@ -19,7 +19,6 @@ import os
 import sys
 
 from oslo_config import cfg
-from oslo_log import log
 from oslo_utils import units
 
 from ironic_inspector.common.i18n import _, _LC, _LI, _LW
@@ -30,7 +29,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-LOG = log.getLogger('ironic_inspector.plugins.standard')
+LOG = utils.getProcessingLogger('ironic_inspector.plugins.standard')
 KNOWN_ROOT_DEVICE_HINTS = ('model', 'vendor', 'serial', 'wwn', 'hctl',
                            'size')
 
@@ -47,21 +46,22 @@ class RootDiskSelectionHook(base.ProcessingHook):
         """Detect root disk from root device hints and IPA inventory."""
         hints = node_info.node().properties.get('root_device')
         if not hints:
-            LOG.debug('Root device hints are not provided for node %s',
-                      node_info.uuid)
+            LOG.debug('Root device hints are not provided',
+                      node_info=node_info, data=introspection_data)
             return
 
         inventory = introspection_data.get('inventory')
         if not inventory:
             LOG.error(_LW('Root device selection require ironic-python-agent '
-                          'as an inspection ramdisk'))
+                          'as an inspection ramdisk'),
+                      node_info=node_info, data=introspection_data)
             # TODO(dtantsur): make it a real error in Mitaka cycle
             return
 
         disks = inventory.get('disks', [])
         if not disks:
-            raise utils.Error(_('No disks found on a node %s') %
-                              node_info.uuid)
+            raise utils.Error(_('No disks found'),
+                              node_info=node_info, data=introspection_data)
 
         for disk in disks:
             properties = disk.copy()
@@ -72,22 +72,21 @@ class RootDiskSelectionHook(base.ProcessingHook):
                 actual = properties.get(name)
                 if actual != value:
                     LOG.debug('Disk %(disk)s does not satisfy hint '
-                              '%(name)s=%(value)s for node %(node)s, '
-                              'actual value is %(actual)s',
-                              {'disk': disk.get('name'),
-                               'name': name, 'value': value,
-                               'node': node_info.uuid, 'actual': actual})
+                              '%(name)s=%(value)s, actual value is %(actual)s',
+                              {'disk': disk.get('name'), 'name': name,
+                               'value': value, 'actual': actual},
+                              node_info=node_info, data=introspection_data)
                     break
             else:
                 LOG.debug('Disk %(disk)s of size %(size)s satisfies '
-                          'root device hints for node %(node)s',
-                          {'disk': disk.get('name'), 'node': node_info.uuid,
-                           'size': disk['size']})
+                          'root device hints',
+                          {'disk': disk.get('name'), 'size': disk['size']},
+                          node_info=node_info, data=introspection_data)
                 introspection_data['root_disk'] = disk
                 return
 
-        raise utils.Error(_('No disks satisfied root device hints for node %s')
-                          % node_info.uuid)
+        raise utils.Error(_('No disks satisfied root device hints'),
+                          node_info=node_info, data=introspection_data)
 
 
 class SchedulerHook(base.ProcessingHook):
@@ -107,11 +106,12 @@ class SchedulerHook(base.ProcessingHook):
         if missing:
             raise utils.Error(
                 _('The following required parameters are missing: %s') %
-                missing)
+                missing, node_info=node_info, data=introspection_data)
 
         LOG.info(_LI('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
                      'memory %(memory_mb)s MiB, disk %(local_gb)s GiB'),
-                 {key: introspection_data.get(key) for key in self.KEYS})
+                 {key: introspection_data.get(key) for key in self.KEYS},
+                 node_info=node_info, data=introspection_data)
 
         overwrite = CONF.processing.overwrite_existing
         properties = {key: str(introspection_data[key])
@@ -140,28 +140,23 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
     def before_processing(self, introspection_data, **kwargs):
         """Validate information about network interfaces."""
-        bmc_address = introspection_data.get('ipmi_address')
         if not introspection_data.get('interfaces'):
-            raise utils.Error(_('No interfaces supplied by the ramdisk'))
+            raise utils.Error(_('No interfaces supplied by the ramdisk'),
+                              data=introspection_data)
 
         valid_interfaces = {
             n: iface for n, iface in introspection_data['interfaces'].items()
             if utils.is_valid_mac(iface.get('mac'))
         }
 
-        pxe_mac = introspection_data.get('boot_interface')
+        pxe_mac = utils.get_pxe_mac(introspection_data)
 
         if CONF.processing.add_ports == 'pxe' and not pxe_mac:
             LOG.warning(_LW('No boot interface provided in the introspection '
-                            'data, will add all ports with IP addresses'))
+                            'data, will add all ports with IP addresses'),
+                        data=introspection_data)
 
         if CONF.processing.add_ports == 'pxe' and pxe_mac:
-            LOG.info(_LI('PXE boot interface was %s'), pxe_mac)
-            if '-' in pxe_mac:
-                # pxelinux format: 01-aa-bb-cc-dd-ee-ff
-                pxe_mac = pxe_mac.split('-', 1)[1]
-                pxe_mac = pxe_mac.replace('-', ':').lower()
-
             valid_interfaces = {
                 n: iface for n, iface in valid_interfaces.items()
                 if iface['mac'].lower() == pxe_mac
@@ -173,20 +168,19 @@ class ValidateInterfacesHook(base.ProcessingHook):
             }
 
         if not valid_interfaces:
-            raise utils.Error(_('No valid interfaces found for node with '
-                                'BMC %(ipmi_address)s, got %(interfaces)s') %
-                              {'ipmi_address': bmc_address,
-                               'interfaces': introspection_data['interfaces']})
+            raise utils.Error(_('No valid interfaces found in %s') %
+                              introspection_data['interfaces'],
+                              data=introspection_data)
         elif valid_interfaces != introspection_data['interfaces']:
             invalid = {n: iface
                        for n, iface in introspection_data['interfaces'].items()
                        if n not in valid_interfaces}
             LOG.warning(_LW(
                 'The following interfaces were invalid or not eligible in '
-                'introspection data for node with BMC %(ipmi_address)s and '
-                'were excluded: %(invalid)s'),
-                {'invalid': invalid, 'ipmi_address': bmc_address})
-            LOG.info(_LI('Eligible interfaces are %s'), valid_interfaces)
+                'introspection data and were excluded: %s'), invalid,
+                data=introspection_data)
+            LOG.info(_LI('Eligible interfaces are %s'), valid_interfaces,
+                     data=introspection_data)
 
         introspection_data['all_interfaces'] = introspection_data['interfaces']
         introspection_data['interfaces'] = valid_interfaces
@@ -209,12 +203,11 @@ class ValidateInterfacesHook(base.ProcessingHook):
         for port in list(node_info.ports().values()):
             if port.address not in expected_macs:
                 LOG.info(_LI("Deleting port %(port)s as its MAC %(mac)s is "
-                             "not in expected MAC list %(expected)s for node "
-                             "%(node)s"),
+                             "not in expected MAC list %(expected)s"),
                          {'port': port.uuid,
                           'mac': port.address,
-                          'expected': list(sorted(expected_macs)),
-                          'node': node_info.uuid})
+                          'expected': list(sorted(expected_macs))},
+                         node_info=node_info, data=introspection_data)
                 node_info.delete_port(port)
 
 
@@ -231,17 +224,20 @@ class RamdiskErrorHook(base.ProcessingHook):
             if logs:
                 self._store_logs(logs, introspection_data)
             else:
-                LOG.debug('No logs received from the ramdisk')
+                LOG.debug('No logs received from the ramdisk',
+                          data=introspection_data)
 
         if error:
-            raise utils.Error(_('Ramdisk reported error: %s') % error)
+            raise utils.Error(_('Ramdisk reported error: %s') % error,
+                              data=introspection_data)
 
     def _store_logs(self, logs, introspection_data):
         if not CONF.processing.ramdisk_logs_dir:
             LOG.warning(
                 _LW('Failed to store logs received from the ramdisk '
                     'because ramdisk_logs_dir configuration option '
-                    'is not set'))
+                    'is not set'),
+                data=introspection_data)
             return
 
         if not os.path.exists(CONF.processing.ramdisk_logs_dir):
@@ -253,4 +249,5 @@ class RamdiskErrorHook(base.ProcessingHook):
         with open(os.path.join(CONF.processing.ramdisk_logs_dir, file_name),
                   'wb') as fp:
             fp.write(base64.b64decode(logs))
-        LOG.info(_LI('Ramdisk logs stored in file %s'), file_name)
+        LOG.info(_LI('Ramdisk logs stored in file %s'), file_name,
+                 data=introspection_data)

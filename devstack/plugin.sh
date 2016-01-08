@@ -194,6 +194,7 @@ function configure_inspector {
     mkdir_chown_stack "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
     inspector_iniset processing ramdisk_logs_dir "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
     inspector_iniset processing always_store_ramdisk_logs "$IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS"
+    inspector_iniset processing log_bmc_address False
 }
 
 function configure_inspector_swift {

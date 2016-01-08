@@ -21,7 +21,6 @@ from ironicclient import exceptions
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_db import exception as db_exc
-from oslo_log import log
 from oslo_utils import excutils
 from sqlalchemy import text
 
@@ -32,7 +31,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-LOG = log.getLogger("ironic_inspector.node_cache")
+LOG = utils.getProcessingLogger(__name__)
 
 
 MACS_ATTRIBUTE = 'mac'
@@ -96,13 +95,13 @@ class NodeInfo(object):
         if self._locked:
             return True
 
-        LOG.debug('Attempting to acquire lock on node %s', self.uuid)
+        LOG.debug('Attempting to acquire lock', node_info=self)
         if self._lock.acquire(blocking):
             self._locked = True
-            LOG.debug('Successfully acquired lock on node %s', self.uuid)
+            LOG.debug('Successfully acquired lock', node_info=self)
             return True
         else:
-            LOG.debug('Unable to acquire lock on node %s', self.uuid)
+            LOG.debug('Unable to acquire lock', node_info=self)
             return False
 
     def release_lock(self):
@@ -111,7 +110,7 @@ class NodeInfo(object):
         Does nothing if lock was not acquired using this NodeInfo object.
         """
         if self._locked:
-            LOG.debug('Successfully released lock on node %s', self.uuid)
+            LOG.debug('Successfully released lock', node_info=self)
             self._lock.release()
         self._locked = False
 
@@ -192,10 +191,11 @@ class NodeInfo(object):
                         session)
             except db_exc.DBDuplicateEntry as exc:
                 LOG.error(_LE('Database integrity error %s during '
-                              'adding attributes'), exc)
+                              'adding attributes'), exc, node_info=self)
                 raise utils.Error(_(
                     'Some or all of %(name)s\'s %(value)s are already '
-                    'on introspection') % {'name': name, 'value': value})
+                    'on introspection') % {'name': name, 'value': value},
+                    node_info=self)
             # Invalidate attributes so they're loaded on next usage
             self._attributes = None
 
@@ -229,9 +229,8 @@ class NodeInfo(object):
             if mac not in self.ports():
                 self._create_port(mac)
             else:
-                LOG.warning(
-                    _LW('Port %(mac)s already exists for node %(uuid)s, '
-                        'skipping'), {'mac': mac, 'uuid': self.uuid})
+                LOG.warning(_LW('Port %s already exists, skipping'),
+                            mac, node_info=self)
 
     def ports(self):
         """Get Ironic port objects associated with the cached node record.
@@ -249,9 +248,8 @@ class NodeInfo(object):
         try:
             port = self.ironic.port.create(node_uuid=self.uuid, address=mac)
         except exceptions.Conflict:
-            LOG.warning(
-                _LW('Port %(mac)s already exists for node %(uuid)s, '
-                    'skipping'), {'mac': mac, 'uuid': self.uuid})
+            LOG.warning(_LW('Port %s already exists, skipping'),
+                        mac, node_info=self)
             # NOTE(dtantsur): we didn't get port object back, so we have to
             # reload ports on next access
             self._ports = None
@@ -266,8 +264,7 @@ class NodeInfo(object):
         :param patches: JSON patches to apply
         :raises: ironicclient exceptions
         """
-        LOG.debug('Updating node %(uuid)s with patches %(patches)s',
-                  {'uuid': self.uuid, 'patches': patches})
+        LOG.debug('Updating node with patches %s', patches, node_info=self)
         self._node = self.ironic.node.update(self.uuid, patches)
 
     def patch_port(self, port, patches):
@@ -280,9 +277,9 @@ class NodeInfo(object):
         if isinstance(port, str):
             port = ports[port]
 
-        LOG.debug('Updating port %(mac)s of node %(uuid)s with patches '
-                  '%(patches)s',
-                  {'mac': port.address, 'uuid': self.uuid, 'patches': patches})
+        LOG.debug('Updating port %(mac)s with patches %(patches)s',
+                  {'mac': port.address, 'patches': patches},
+                  node_info=self)
         new_port = self.ironic.port.update(port.uuid, patches)
         ports[port.address] = new_port
 

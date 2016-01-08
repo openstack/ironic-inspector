@@ -178,6 +178,10 @@ PROCESSING_OPTS = [
                      'partitioning. Only has effect when used with the IPA '
                      'as a ramdisk, for older ramdisk local_gb is '
                      'calculated on the ramdisk side.'),
+    cfg.BoolOpt('log_bmc_address',
+                default=True,
+                help='Whether to log node BMC address with every message '
+                     'during processing.'),
 ]
 
 

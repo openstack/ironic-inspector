@@ -17,7 +17,6 @@
 import jsonpath_rw as jsonpath
 import jsonschema
 from oslo_db import exception as db_exc
-from oslo_log import log
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from sqlalchemy import orm
@@ -28,7 +27,7 @@ from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
 
 
-LOG = log.getLogger(__name__)
+LOG = utils.getProcessingLogger(__name__)
 _CONDITIONS_SCHEMA = None
 _ACTIONS_SCHEMA = None
 
@@ -128,8 +127,8 @@ class IntrospectionRule(object):
         :param data: introspection data
         :returns: True if conditions match, otherwise False
         """
-        LOG.debug('Checking rule "%(descr)s" on node %(uuid)s',
-                  {'descr': self.description, 'uuid': node_info.uuid})
+        LOG.debug('Checking rule "%s"', self.description,
+                  node_info=node_info, data=data)
         ext_mgr = plugins_base.rule_conditions_manager()
         for cond in self._conditions:
             field_values = jsonpath.parse(cond.field).find(data)
@@ -138,16 +137,15 @@ class IntrospectionRule(object):
 
             if not field_values:
                 if cond_ext.ALLOW_NONE:
-                    LOG.debug('Field with JSON path %(path)s was not found in '
-                              'data for node %(uuid)s',
-                              {'path': cond.field, 'uuid': node_info.uuid})
+                    LOG.debug('Field with JSON path %s was not found in data',
+                              cond.field, node_info=node_info, data=data)
                     field_values = [None]
                 else:
                     LOG.info(_LI('Field with JSON path %(path)s was not found '
-                                 'in data for node %(uuid)s, rule "%(rule)s" '
-                                 'will not be applied'),
-                             {'path': cond.field, 'uuid': node_info.uuid,
-                              'rule': self.description})
+                                 'in data, rule "%(rule)s" will not '
+                                 'be applied'),
+                             {'path': cond.field, 'rule': self.description},
+                             node_info=node_info, data=data)
                     return False
 
             for value in field_values:
@@ -158,46 +156,45 @@ class IntrospectionRule(object):
                     break
 
             if not result:
-                LOG.info(_LI('Rule "%(rule)s" will not be applied to node '
-                             '%(uuid)s: condition %(field)s %(op)s %(params)s '
-                             'failed'),
-                         {'rule': self.description, 'uuid': node_info.uuid,
-                          'field': cond.field, 'op': cond.op,
-                          'params': cond.params})
+                LOG.info(_LI('Rule "%(rule)s" will not be applied: condition '
+                             '%(field)s %(op)s %(params)s failed'),
+                         {'rule': self.description, 'field': cond.field,
+                          'op': cond.op, 'params': cond.params},
+                         node_info=node_info, data=data)
                 return False
 
-        LOG.info(_LI('Rule "%(rule)s" will be applied to node %(uuid)s'),
-                 {'rule': self.description, 'uuid': node_info.uuid})
+        LOG.info(_LI('Rule "%s" will be applied'), self.description,
+                 node_info=node_info, data=data)
         return True
 
-    def apply_actions(self, node_info, rollback=False):
+    def apply_actions(self, node_info, rollback=False, data=None):
         """Run actions on a node.
 
         :param node_info: NodeInfo instance
         :param rollback: if True, rollback actions are executed
+        :param data: introspection data (only used for logging)
         """
         if rollback:
             method = 'rollback'
         else:
             method = 'apply'
 
-        LOG.debug('Running %(what)s actions for rule "%(rule)s" '
-                  'on node %(node)s',
-                  {'what': method, 'rule': self.description,
-                   'node': node_info.uuid})
+        LOG.debug('Running %(what)s actions for rule "%(rule)s"',
+                  {'what': method, 'rule': self.description},
+                  node_info=node_info, data=data)
 
         ext_mgr = plugins_base.rule_actions_manager()
         for act in self._actions:
-            LOG.debug('Running %(what)s action `%(action)s %(params)s` for '
-                      'node %(node)s',
+            LOG.debug('Running %(what)s action `%(action)s %(params)s`',
                       {'action': act.action, 'params': act.params,
-                       'node': node_info.uuid, 'what': method})
+                       'what': method},
+                      node_info=node_info, data=data)
             ext = ext_mgr[act.action].obj
             getattr(ext, method)(node_info, act.params)
 
-        LOG.debug('Successfully applied %(what)s to node %(node)s',
-                  {'what': 'rollback actions' if rollback else 'actions',
-                   'node': node_info.uuid})
+        LOG.debug('Successfully applied %s',
+                  'rollback actions' if rollback else 'actions',
+                  node_info=node_info, data=data)
 
 
 def create(conditions_json, actions_json, uuid=None,
@@ -349,11 +346,12 @@ def apply(node_info, data):
     """Apply rules to a node."""
     rules = get_all()
     if not rules:
-        LOG.debug('No custom introspection rules to apply to node %s',
-                  node_info.uuid)
+        LOG.debug('No custom introspection rules to apply',
+                  node_info=node_info, data=data)
         return
 
-    LOG.debug('Applying custom introspection rules to node %s', node_info.uuid)
+    LOG.debug('Applying custom introspection rules',
+              node_info=node_info, data=data)
 
     to_rollback = []
     to_apply = []
@@ -364,18 +362,19 @@ def apply(node_info, data):
             to_rollback.append(rule)
 
     if to_rollback:
-        LOG.debug('Running rollback actions on node %s', node_info.uuid)
+        LOG.debug('Running rollback actions', node_info=node_info, data=data)
         for rule in to_rollback:
             rule.apply_actions(node_info, rollback=True)
     else:
-        LOG.debug('No rollback actions to apply on node %s', node_info.uuid)
+        LOG.debug('No rollback actions to apply',
+                  node_info=node_info, data=data)
 
     if to_apply:
-        LOG.debug('Running actions on node %s', node_info.uuid)
+        LOG.debug('Running actions', node_info=node_info, data=data)
         for rule in to_apply:
             rule.apply_actions(node_info, rollback=False)
     else:
-        LOG.debug('No actions to apply on node %s', node_info.uuid)
+        LOG.debug('No actions to apply', node_info=node_info, data=data)
 
-    LOG.info(_LI('Successfully applied custom introspection rules to node %s'),
-             node_info.uuid)
+    LOG.info(_LI('Successfully applied custom introspection rules'),
+             node_info=node_info, data=data)

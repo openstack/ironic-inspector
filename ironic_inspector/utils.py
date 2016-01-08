@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging as pylog
 import re
 import socket
 
@@ -23,6 +24,7 @@ from oslo_log import log
 import six
 
 from ironic_inspector.common.i18n import _, _LE
+from ironic_inspector import conf  # noqa
 
 CONF = cfg.CONF
 
@@ -30,21 +32,107 @@ CONF = cfg.CONF
 VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
 SET_CREDENTIALS_VALID_STATES = {'enroll'}
 
-
-LOG = log.getLogger('ironic_inspector.utils')
-
 GREEN_POOL = None
 
 # 1.6 is a Kilo API version, which has all we need and is pretty well tested
 DEFAULT_IRONIC_API_VERSION = '1.6'
 
 
+def get_ipmi_address(node):
+    ipmi_fields = ['ipmi_address'] + CONF.ipmi_address_fields
+    # NOTE(sambetts): IPMI Address is useless to us if bridging is enabled so
+    # just ignore it and return None
+    if node.driver_info.get("ipmi_bridging", "no") != "no":
+        return
+    for name in ipmi_fields:
+        value = node.driver_info.get(name)
+        if value:
+            try:
+                ip = socket.gethostbyname(value)
+                return ip
+            except socket.gaierror:
+                msg = ('Failed to resolve the hostname (%s) for node %s')
+                raise Error(msg % (value, node.uuid), node_info=node)
+
+
+def get_ipmi_address_from_data(introspection_data):
+    try:
+        return introspection_data['inventory']['bmc_address']
+    except KeyError:
+        return introspection_data.get('ipmi_address')
+
+
+def get_pxe_mac(introspection_data):
+    pxe_mac = introspection_data.get('boot_interface')
+    if pxe_mac and '-' in pxe_mac:
+        # pxelinux format: 01-aa-bb-cc-dd-ee-ff
+        pxe_mac = pxe_mac.split('-', 1)[1]
+        pxe_mac = pxe_mac.replace('-', ':').lower()
+    return pxe_mac
+
+
+def processing_logger_prefix(data=None, node_info=None):
+    """Calculate prefix for logging.
+
+    Tries to use:
+    * node UUID,
+    * node PXE MAC,
+    * node BMC address
+
+    :param data: introspection data
+    :param node_info: NodeInfo or ironic node object
+    :return: logging prefix as a string
+    """
+    # TODO(dtantsur): try to get MAC and BMC address for node_info as well
+    parts = []
+    data = data or {}
+
+    if node_info is not None:
+        parts.append(node_info.uuid)
+
+    pxe_mac = get_pxe_mac(data)
+    if pxe_mac:
+        parts.append('MAC %s' % pxe_mac)
+
+    if CONF.processing.log_bmc_address:
+        bmc_address = get_ipmi_address_from_data(data) if data else None
+        if bmc_address:
+            parts.append('BMC %s' % bmc_address)
+
+    if parts:
+        return _('[node: %s]') % ' '.join(parts)
+    else:
+        return _('[unidentified node]')
+
+
+class ProcessingLoggerAdapter(log.KeywordArgumentAdapter):
+    def process(self, msg, kwargs):
+        if 'data' not in kwargs and 'node_info' not in kwargs:
+            return super(ProcessingLoggerAdapter, self).process(msg, kwargs)
+
+        data = kwargs.get('data', {})
+        node_info = kwargs.get('node_info')
+        prefix = processing_logger_prefix(data, node_info)
+
+        msg, kwargs = super(ProcessingLoggerAdapter, self).process(msg, kwargs)
+        return ('%s %s' % (prefix, msg)), kwargs
+
+
+def getProcessingLogger(name):
+    # We can't use getLogger from oslo_log, as it's an adapter itself
+    logger = pylog.getLogger(name)
+    return ProcessingLoggerAdapter(logger, {})
+
+
+LOG = getProcessingLogger(__name__)
+
+
 class Error(Exception):
     """Inspector exception."""
 
-    def __init__(self, msg, code=400):
+    def __init__(self, msg, code=400, **kwargs):
         super(Error, self).__init__(msg)
-        LOG.error(msg)
+        LOG.error(msg, **kwargs)
         self.http_code = code
 
 
@@ -155,35 +243,19 @@ def get_auth_strategy():
     return CONF.auth_strategy
 
 
-def get_ipmi_address(node):
-    ipmi_fields = ['ipmi_address'] + CONF.ipmi_address_fields
-    # NOTE(sambetts): IPMI Address is useless to us if bridging is enabled so
-    # just ignore it and return None
-    if node.driver_info.get("ipmi_bridging", "no") != "no":
-        return
-    for name in ipmi_fields:
-        value = node.driver_info.get(name)
-        if value:
-            try:
-                ip = socket.gethostbyname(value)
-                return ip
-            except socket.gaierror:
-                msg = ('Failed to resolve the hostname (%s) for node %s')
-                raise Error(msg % (value, node.uuid))
-
-
 def check_provision_state(node, with_credentials=False):
     state = node.provision_state.lower()
     if with_credentials and state not in SET_CREDENTIALS_VALID_STATES:
-        msg = _('Invalid provision state "%(state)s" for setting IPMI '
-                'credentials on node %(node)s, valid states are %(valid)s')
-        raise Error(msg % {'node': node.uuid, 'state': state,
-                           'valid': list(SET_CREDENTIALS_VALID_STATES)})
+        msg = _('Invalid provision state for setting IPMI credentials: '
+                '"%(state)s", valid states are %(valid)s')
+        raise Error(msg % {'state': state,
+                           'valid': list(SET_CREDENTIALS_VALID_STATES)},
+                    node_info=node)
     elif not with_credentials and state not in VALID_STATES:
-        msg = _('Invalid provision state "%(state)s" for introspection of '
-                'node %(node)s, valid states are "%(valid)s"')
-        raise Error(msg % {'node': node.uuid, 'state': state,
-                           'valid': list(VALID_STATES)})
+        msg = _('Invalid provision state for introspection: '
+                '"%(state)s", valid states are "%(valid)s"')
+        raise Error(msg % {'state': state, 'valid': list(VALID_STATES)},
+                    node_info=node)
 
 
 def capabilities_to_dict(caps):

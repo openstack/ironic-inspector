@@ -20,7 +20,6 @@ import time
 from eventlet import semaphore
 from ironicclient import exceptions
 from oslo_config import cfg
-from oslo_log import log
 
 from ironic_inspector.common.i18n import _, _LI, _LW
 from ironic_inspector import firewall
@@ -30,7 +29,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-LOG = log.getLogger("ironic_inspector.introspect")
+LOG = utils.getProcessingLogger(__name__)
 PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
 PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
@@ -47,20 +46,19 @@ def _validate_ipmi_credentials(node, new_ipmi_credentials):
     if not new_username:
         new_username = node.driver_info.get('ipmi_username')
     if not new_username:
-        raise utils.Error(_('Setting IPMI credentials requested for node %s,'
-                            ' but neither new user name nor'
-                            ' driver_info[ipmi_username] are provided')
-                          % node.uuid)
+        raise utils.Error(_('Setting IPMI credentials requested, but neither '
+                            'new user name nor driver_info[ipmi_username] '
+                            'are provided'),
+                          node_info=node)
     wrong_chars = {c for c in new_password
                    if c not in PASSWORD_ACCEPTED_CHARS}
     if wrong_chars:
         raise utils.Error(_('Forbidden characters encountered in new IPMI '
-                            'password for node %(node)s: "%(chars)s"; '
-                            'use only letters and numbers') %
-                          {'node': node.uuid, 'chars': ''.join(wrong_chars)})
+                            'password: "%s"; use only letters and numbers')
+                          % ''.join(wrong_chars), node_info=node)
     if not 0 < len(new_password) <= PASSWORD_MAX_LENGTH:
         raise utils.Error(_('IPMI password length should be > 0 and <= %d')
-                          % PASSWORD_MAX_LENGTH)
+                          % PASSWORD_MAX_LENGTH, node_info=node)
 
     return new_username, new_password
 
@@ -91,10 +89,9 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
     else:
         validation = ironic.node.validate(node.uuid)
         if not validation.power['result']:
-            msg = _('Failed validation of power interface for node %(node)s, '
-                    'reason: %(reason)s')
-            raise utils.Error(msg % {'node': node.uuid,
-                                     'reason': validation.power['reason']})
+            msg = _('Failed validation of power interface, reason: %s')
+            raise utils.Error(msg % validation.power['reason'],
+                              node_info=node)
 
     node_info = node_cache.add_node(node.uuid,
                                     bmc_address=utils.get_ipmi_address(node),
@@ -105,10 +102,11 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
         try:
             _background_introspect(ironic, node_info)
         except utils.Error as exc:
+            # Logging has already happened in Error.__init__
             node_info.finished(error=str(exc))
         except Exception as exc:
             msg = _('Unexpected exception in background introspection thread')
-            LOG.exception(msg)
+            LOG.exception(msg, node_info=node_info)
             node_info.finished(error=msg)
 
     utils.spawn_n(_handle_exceptions)
@@ -141,42 +139,38 @@ def _background_introspect_locked(ironic, node_info):
     macs = list(node_info.ports())
     if macs:
         node_info.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
-        LOG.info(_LI('Whitelisting MAC\'s %(macs)s for node %(node)s on the'
-                     ' firewall') %
-                 {'macs': macs, 'node': node_info.uuid})
+        LOG.info(_LI('Whitelisting MAC\'s %s on the firewall'), macs,
+                 node_info=node_info)
         firewall.update_filters(ironic)
 
     attrs = node_info.attributes
     if CONF.processing.node_not_found_hook is None and not attrs:
         raise utils.Error(
-            _('No lookup attributes were found for node %s, inspector won\'t '
-              'be able to find it after introspection. Consider creating '
-              'ironic ports or providing an IPMI address.') % node_info.uuid)
+            _('No lookup attributes were found, inspector won\'t '
+              'be able to find it after introspection, consider creating '
+              'ironic ports or providing an IPMI address'),
+            node_info=node_info)
 
-    LOG.info(_LI('The following attributes will be used for looking up '
-                 'node %(uuid)s: %(attrs)s'),
-             {'attrs': attrs, 'uuid': node_info.uuid})
+    LOG.info(_LI('The following attributes will be used for look up: %s'),
+             attrs, node_info=node_info)
 
     if not node_info.options.get('new_ipmi_credentials'):
         try:
             ironic.node.set_boot_device(node_info.uuid, 'pxe',
                                         persistent=False)
         except Exception as exc:
-            LOG.warning(_LW('Failed to set boot device to PXE for'
-                            ' node %(node)s: %(exc)s') %
-                        {'node': node_info.uuid, 'exc': exc})
+            LOG.warning(_LW('Failed to set boot device to PXE: %s'),
+                        exc, node_info=node_info)
 
         try:
             ironic.node.set_power_state(node_info.uuid, 'reboot')
         except Exception as exc:
-            raise utils.Error(_('Failed to power on node %(node)s,'
-                                ' check it\'s power '
-                                'management configuration:\n%(exc)s')
-                              % {'node': node_info.uuid, 'exc': exc})
-        LOG.info(_LI('Introspection started successfully for node %s'),
-                 node_info.uuid)
+            raise utils.Error(_('Failed to power on the node, check it\'s '
+                                'power management configuration: %s'),
+                              exc, node_info=node_info)
+        LOG.info(_LI('Introspection started successfully'),
+                 node_info=node_info)
     else:
-        LOG.info(_LI('Introspection environment is ready for node %(node)s, '
-                 'manual power on is required within %(timeout)d seconds') %
-                 {'node': node_info.uuid,
-                  'timeout': CONF.timeout})
+        LOG.info(_LI('Introspection environment is ready, manual power on is '
+                     'required within %d seconds'), CONF.timeout,
+                 node_info=node_info)

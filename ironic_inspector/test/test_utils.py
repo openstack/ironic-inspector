@@ -158,7 +158,8 @@ class TestGetIpmiAddress(base.BaseTest):
     @mock.patch('socket.gethostbyname')
     def test_bad_hostname_errors(self, mock_socket):
         node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': 'meow'})
+                         driver_info={'ipmi_address': 'meow'},
+                         uuid='uuid1')
         mock_socket.side_effect = socket.gaierror('Boom')
         self.assertRaises(utils.Error, utils.get_ipmi_address, node)
 
@@ -212,3 +213,66 @@ class TestSpawnN(unittest.TestCase):
         greenpool.spawn_n.assert_called_with(func, "goodbye")
 
         mock_green_pool.assert_called_once_with(CONF.max_concurrency)
+
+
+class TestProcessingLogger(base.BaseTest):
+    def test_prefix_no_info(self):
+        self.assertEqual('[unidentified node]',
+                         utils.processing_logger_prefix())
+
+    def test_prefix_only_uuid(self):
+        node_info = mock.Mock(uuid='NNN')
+        self.assertEqual('[node: NNN]',
+                         utils.processing_logger_prefix(node_info=node_info))
+
+    def test_prefix_only_bmc(self):
+        data = {'inventory': {'bmc_address': '1.2.3.4'}}
+        self.assertEqual('[node: BMC 1.2.3.4]',
+                         utils.processing_logger_prefix(data=data))
+
+    def test_prefix_only_mac(self):
+        data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff'}
+        self.assertEqual('[node: MAC aa:bb:cc:dd:ee:ff]',
+                         utils.processing_logger_prefix(data=data))
+
+    def test_prefix_everything(self):
+        node_info = mock.Mock(uuid='NNN')
+        data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
+                'inventory': {'bmc_address': '1.2.3.4'}}
+        self.assertEqual('[node: NNN MAC aa:bb:cc:dd:ee:ff BMC 1.2.3.4]',
+                         utils.processing_logger_prefix(node_info=node_info,
+                                                        data=data))
+
+    def test_adapter_no_bmc(self):
+        CONF.set_override('log_bmc_address', False, 'processing')
+        node_info = mock.Mock(uuid='NNN')
+        data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
+                'inventory': {'bmc_address': '1.2.3.4'}}
+        logger = utils.getProcessingLogger(__name__)
+        msg, _kwargs = logger.process('foo', {'node_info': node_info,
+                                              'data': data})
+        self.assertEqual(
+            '[node: NNN MAC aa:bb:cc:dd:ee:ff] foo',
+            msg)
+
+    def test_adapter_with_bmc(self):
+        node_info = mock.Mock(uuid='NNN')
+        data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
+                'inventory': {'bmc_address': '1.2.3.4'}}
+        logger = utils.getProcessingLogger(__name__)
+        msg, _kwargs = logger.process('foo', {'node_info': node_info,
+                                              'data': data})
+        self.assertEqual(
+            '[node: NNN MAC aa:bb:cc:dd:ee:ff BMC 1.2.3.4] foo',
+            msg)
+
+    def test_adapter_empty_data(self):
+        logger = utils.getProcessingLogger(__name__)
+        msg, _kwargs = logger.process('foo', {'node_info': None,
+                                              'data': None})
+        self.assertEqual('[unidentified node] foo', msg)
+
+    def test_adapter_no_data(self):
+        logger = utils.getProcessingLogger(__name__)
+        msg, _kwargs = logger.process('foo', {})
+        self.assertEqual('foo', msg)

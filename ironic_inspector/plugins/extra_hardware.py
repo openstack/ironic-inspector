@@ -21,15 +21,15 @@ is stored in the 'inspector' container.
 import json
 
 from oslo_config import cfg
-from oslo_log import log
 
 from ironic_inspector.common.i18n import _LW
 from ironic_inspector.common import swift
 from ironic_inspector.plugins import base
+from ironic_inspector import utils
 
 CONF = cfg.CONF
 
-LOG = log.getLogger('ironic_inspector.plugins.extra_hardware')
+LOG = utils.getProcessingLogger(__name__)
 EDEPLOY_ITEM_SIZE = 4
 
 
@@ -52,7 +52,8 @@ class ExtraHardwareHook(base.ProcessingHook):
         """
         if 'data' not in introspection_data:
             LOG.warning(_LW('No extra hardware information was received from '
-                            'the ramdisk'))
+                            'the ramdisk'),
+                        node_info=node_info, data=introspection_data)
             return
         data = introspection_data['data']
 
@@ -65,16 +66,19 @@ class ExtraHardwareHook(base.ProcessingHook):
         # by rules.
         if self._is_edeploy_data(data):
             LOG.debug('Extra hardware data is in eDeploy format, '
-                      'converting to usable format.')
+                      'converting to usable format',
+                      node_info=node_info, data=introspection_data)
             introspection_data['extra'] = self._convert_edeploy_data(data)
         else:
             LOG.warning(_LW('Extra hardware data was not in a recognised '
                             'format (eDeploy), and will not be forwarded to '
-                            'introspection rules.'))
+                            'introspection rules'),
+                        node_info=node_info, data=introspection_data)
 
         LOG.debug('Deleting \"data\" key from introspection data as it is '
                   'assumed unusable by introspection rules. Raw data is '
-                  'stored in swift.')
+                  'stored in swift',
+                  node_info=node_info, data=introspection_data)
         del introspection_data['data']
 
         node_info.patch([{'op': 'add', 'path': '/extra/hardware_swift_object',

@@ -13,13 +13,12 @@
 
 """Gather root device hint from recognized block devices."""
 
-from oslo_log import log
-
 from ironic_inspector.common.i18n import _LI, _LW
 from ironic_inspector.plugins import base
+from ironic_inspector import utils
 
 
-LOG = log.getLogger(__name__)
+LOG = utils.getProcessingLogger(__name__)
 
 
 class RaidDeviceDetection(base.ProcessingHook):
@@ -55,19 +54,22 @@ class RaidDeviceDetection(base.ProcessingHook):
         """Adds fake local_gb value if it's missing from introspection_data."""
         if not introspection_data.get('local_gb'):
             LOG.info(_LI('No volume is found on the node. Adding a fake '
-                         'value for "local_gb"'))
+                         'value for "local_gb"'),
+                     data=introspection_data)
             introspection_data['local_gb'] = 1
 
     def before_update(self, introspection_data, node_info, **kwargs):
         current_devices = self._get_serials(introspection_data)
         if not current_devices:
-            LOG.warning(_LW('No block device was received from ramdisk'))
+            LOG.warning(_LW('No block device was received from ramdisk'),
+                        node_info=node_info, data=introspection_data)
             return
 
         node = node_info.node()
 
         if 'root_device' in node.properties:
-            LOG.info(_LI('Root device is already known for the node'))
+            LOG.info(_LI('Root device is already known for the node'),
+                     node_info=node_info, data=introspection_data)
             return
 
         if 'block_devices' in node.extra:
@@ -78,10 +80,12 @@ class RaidDeviceDetection(base.ProcessingHook):
 
             if len(new_devices) > 1:
                 LOG.warning(_LW('Root device cannot be identified because '
-                            'multiple new devices were found'))
+                                'multiple new devices were found'),
+                            node_info=node_info, data=introspection_data)
                 return
             elif len(new_devices) == 0:
-                LOG.warning(_LW('No new devices were found'))
+                LOG.warning(_LW('No new devices were found'),
+                            node_info=node_info, data=introspection_data)
                 return
 
             node_info.patch([

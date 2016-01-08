@@ -16,7 +16,6 @@
 import eventlet
 from ironicclient import exceptions
 from oslo_config import cfg
-from oslo_log import log
 
 from ironic_inspector.common.i18n import _, _LE, _LI, _LW
 from ironic_inspector.common import swift
@@ -28,7 +27,7 @@ from ironic_inspector import utils
 
 CONF = cfg.CONF
 
-LOG = log.getLogger("ironic_inspector.process")
+LOG = utils.getProcessingLogger(__name__)
 
 _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
@@ -74,13 +73,15 @@ def process(introspection_data):
         except utils.Error as exc:
             LOG.error(_LE('Hook %(hook)s failed, delaying error report '
                           'until node look up: %(error)s'),
-                      {'hook': hook_ext.name, 'error': exc})
+                      {'hook': hook_ext.name, 'error': exc},
+                      data=introspection_data)
             failures.append('Preprocessing hook %(hook)s: %(error)s' %
                             {'hook': hook_ext.name, 'error': exc})
         except Exception as exc:
             LOG.exception(_LE('Hook %(hook)s failed, delaying error report '
                               'until node look up: %(error)s'),
-                          {'hook': hook_ext.name, 'error': exc})
+                          {'hook': hook_ext.name, 'error': exc},
+                          data=introspection_data)
             failures.append(_('Unexpected exception %(exc_class)s during '
                               'preprocessing in hook %(hook)s: %(error)s') %
                             {'hook': hook_ext.name,
@@ -93,28 +94,23 @@ def process(introspection_data):
         # node_not_found hook
         node_info.acquire_lock()
 
-    if failures and node_info:
+    if failures or node_info is None:
         msg = _('The following failures happened during running '
-                'pre-processing hooks for node %(uuid)s:\n%(failures)s') % {
-            'uuid': node_info.uuid,
-            'failures': '\n'.join(failures)
-        }
-        node_info.finished(error='\n'.join(failures))
-        raise utils.Error(msg)
-    elif not node_info:
-        msg = _('The following failures happened during running '
-                'pre-processing hooks for unknown node:\n%(failures)s') % {
-            'failures': '\n'.join(failures)
-        }
-        raise utils.Error(msg)
+                'pre-processing hooks:\n%s') % '\n'.join(failures)
+        if node_info is not None:
+            node_info.finished(error='\n'.join(failures))
+        raise utils.Error(msg, node_info=node_info, data=introspection_data)
+
+    LOG.info(_LI('Matching node is %s'), node_info.uuid,
+             node_info=node_info, data=introspection_data)
 
     try:
         node = node_info.node()
     except exceptions.NotFound:
-        msg = (_('Node UUID %s was found in cache, but is not found in Ironic')
-               % node_info.uuid)
+        msg = _('Node was found in cache, but is not found in Ironic')
         node_info.finished(error=msg)
-        raise utils.Error(msg, code=404)
+        raise utils.Error(msg, code=404, node_info=node_info,
+                          data=introspection_data)
 
     try:
         return _process_node(node, introspection_data, node_info)
@@ -127,7 +123,7 @@ def process(introspection_data):
                 '%(error)s') % {'exc_class': exc.__class__.__name__,
                                 'error': exc}
         node_info.finished(error=msg)
-        raise utils.Error(msg)
+        raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
 
 def _run_post_hooks(node_info, introspection_data):
@@ -160,16 +156,17 @@ def _process_node(node, introspection_data, node_info):
     if CONF.processing.store_data == 'swift':
         swift_object_name = swift.store_introspection_data(introspection_data,
                                                            node_info.uuid)
-        LOG.info(_LI('Introspection data for node %(node)s was stored in '
-                     'Swift in object %(obj)s'),
-                 {'node': node_info.uuid, 'obj': swift_object_name})
+        LOG.info(_LI('Introspection data was stored in Swift in object %s'),
+                 swift_object_name,
+                 node_info=node_info, data=introspection_data)
         if CONF.processing.store_data_location:
             node_info.patch([{'op': 'add', 'path': '/extra/%s' %
                               CONF.processing.store_data_location,
                               'value': swift_object_name}])
     else:
-        LOG.debug('Swift support is disabled, introspection data for node %s '
-                  'won\'t be stored', node_info.uuid)
+        LOG.debug('Swift support is disabled, introspection data '
+                  'won\'t be stored',
+                  node_info=node_info, data=introspection_data)
 
     ironic = utils.get_client()
     firewall.update_filters(ironic)
@@ -189,7 +186,7 @@ def _process_node(node, introspection_data, node_info):
         resp['ipmi_username'] = new_username
         resp['ipmi_password'] = new_password
     else:
-        utils.spawn_n(_finish, ironic, node_info)
+        utils.spawn_n(_finish, ironic, node_info, introspection_data)
 
     return resp
 
@@ -212,22 +209,22 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
             # We don't care about boot device, obviously.
             ironic.node.get_boot_device(node_info.uuid)
         except Exception as exc:
-            LOG.info(_LI('Waiting for credentials update on node %(node)s,'
-                         ' attempt %(attempt)d current error is %(exc)s') %
-                     {'node': node_info.uuid,
-                      'attempt': attempt, 'exc': exc})
+            LOG.info(_LI('Waiting for credentials update, attempt %(attempt)d '
+                         'current error is %(exc)s') %
+                     {'attempt': attempt, 'exc': exc},
+                     node_info=node_info, data=introspection_data)
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
         else:
-            _finish(ironic, node_info)
+            _finish(ironic, node_info, introspection_data)
             return
 
     msg = (_('Failed to validate updated IPMI credentials for node '
              '%s, node might require maintenance') % node_info.uuid)
     node_info.finished(error=msg)
-    raise utils.Error(msg)
+    raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
 
-def _finish(ironic, node_info):
+def _finish(ironic, node_info, introspection_data):
     LOG.debug('Forcing power off of node %s', node_info.uuid)
     try:
         ironic.node.set_power_state(node_info.uuid, 'off')
@@ -236,8 +233,8 @@ def _finish(ironic, node_info):
                  'management configuration: %(exc)s') %
                {'node': node_info.uuid, 'exc': exc})
         node_info.finished(error=msg)
-        raise utils.Error(msg)
+        raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
     node_info.finished()
-    LOG.info(_LI('Introspection finished successfully for node %s'),
-             node_info.uuid)
+    LOG.info(_LI('Introspection finished successfully'),
+             node_info=node_info, data=introspection_data)
