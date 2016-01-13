@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import functools
 import json
 import time
@@ -97,6 +98,37 @@ class TestProcess(BaseTest):
         cli.node.get.assert_called_once_with(self.uuid)
         process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
+
+    @prepare_mocks
+    def test_save_unprocessed_data(self, cli, pop_mock, process_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        expected = copy.deepcopy(self.data)
+
+        with mock.patch.object(process, '_store_unprocessed_data',
+                               autospec=True) as store_mock:
+            process.process(self.data)
+
+        store_mock.assert_called_once_with(mock.ANY, expected)
+
+    @prepare_mocks
+    def test_save_unprocessed_data_failure(self, cli, pop_mock,
+                                           process_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        name = 'inspector_data-%s-%s' % (
+            self.uuid,
+            process._UNPROCESSED_DATA_STORE_SUFFIX
+        )
+
+        with mock.patch.object(process.swift, 'SwiftAPI',
+                               autospec=True) as swift_mock:
+            swift_conn = swift_mock.return_value
+            swift_conn.create_object.side_effect = iter([utils.Error('Oops')])
+
+            res = process.process(self.data)
+
+        # assert store failure doesn't break processing
+        self.assertEqual(self.fake_result_json, res)
+        swift_conn.create_object.assert_called_once_with(name, mock.ANY)
 
     @prepare_mocks
     def test_no_ipmi(self, cli, pop_mock, process_mock):
@@ -396,8 +428,9 @@ class TestProcessNode(BaseTest):
         self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
         finished_mock.assert_called_once_with(
             mock.ANY,
-            error='Failed to power off node %s, check it\'s power management'
-            ' configuration: boom' % self.uuid)
+            error='Failed to power off node %s, check its power '
+                  'management configuration: boom' % self.uuid
+        )
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_power_off_enroll_state(self, finished_mock, filters_mock,
@@ -462,3 +495,201 @@ class TestProcessNode(BaseTest):
         self.assertEqual(expected,
                          json.loads(swift_conn.create_object.call_args[0][1]))
         self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
+
+
+@mock.patch.object(process, '_reapply', autospec=True)
+@mock.patch.object(node_cache, 'get_node', autospec=True)
+class TestReapply(BaseTest):
+    def prepare_mocks(func):
+        @functools.wraps(func)
+        def wrapper(self, pop_mock, *args, **kw):
+            pop_mock.return_value = node_cache.NodeInfo(
+                uuid=self.node.uuid,
+                started_at=self.started_at)
+            pop_mock.return_value.finished = mock.Mock()
+            pop_mock.return_value.acquire_lock = mock.Mock()
+            return func(self, pop_mock, *args, **kw)
+
+        return wrapper
+
+    def setUp(self):
+        super(TestReapply, self).setUp()
+        CONF.set_override('store_data', 'swift', 'processing')
+
+    @prepare_mocks
+    def test_ok(self, pop_mock, reapply_mock):
+        process.reapply(self.uuid)
+        pop_mock.assert_called_once_with(self.uuid, locked=False)
+        pop_mock.return_value.acquire_lock.assert_called_once_with(
+            blocking=False
+        )
+
+        reapply_mock.assert_called_once_with(pop_mock.return_value)
+
+    @prepare_mocks
+    def test_locking_failed(self, pop_mock, reapply_mock):
+        pop_mock.return_value.acquire_lock.return_value = False
+        exc = utils.Error('Node locked, please, try again later')
+
+        with self.assertRaises(type(exc)) as cm:
+            process.reapply(self.uuid)
+
+        self.assertEqual(str(exc), str(cm.exception))
+
+        pop_mock.assert_called_once_with(self.uuid, locked=False)
+        pop_mock.return_value.acquire_lock.assert_called_once_with(
+            blocking=False
+        )
+
+
+@mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
+@mock.patch.object(process.rules, 'apply', autospec=True)
+@mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
+@mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+@mock.patch.object(node_cache.NodeInfo, 'release_lock', autospec=True)
+class TestReapplyNode(BaseTest):
+    def setUp(self):
+        super(TestReapplyNode, self).setUp()
+        CONF.set_override('processing_hooks',
+                          '$processing.default_processing_hooks,example',
+                          'processing')
+        CONF.set_override('store_data', 'swift', 'processing')
+        self.data['macs'] = self.macs
+        self.data['all_interfaces'] = self.data['interfaces']
+        self.ports = self.all_ports
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid,
+                                             started_at=self.started_at,
+                                             node=self.node)
+        self.node_info.invalidate_cache = mock.Mock()
+        self.new_creds = ('user', 'password')
+        self.cli = mock.Mock()
+        self.cli.port.create.side_effect = self.ports
+        self.cli.node.update.return_value = self.node
+        self.cli.node.list_ports.return_value = []
+
+    @mock.patch.object(ir_utils, 'get_client', autospec=True)
+    def call(self, cli_mock):
+        cli_mock.return_value = self.cli
+        process._reapply(self.node_info)
+        # make sure node_info lock is released after a call
+        self.node_info.release_lock.assert_called_once_with(self.node_info)
+
+    def prepare_mocks(fn):
+        @functools.wraps(fn)
+        def wrapper(self, release_mock, finished_mock, swift_mock,
+                    *args, **kw):
+            finished_mock.side_effect = lambda *a, **kw: \
+                release_mock(self.node_info)
+            swift_client_mock = swift_mock.return_value
+            fn(self, finished_mock, swift_client_mock, *args, **kw)
+        return wrapper
+
+    @prepare_mocks
+    def test_ok(self, finished_mock, swift_mock, apply_mock,
+                post_hook_mock):
+        swift_name = 'inspector_data-%s' % self.uuid
+        swift_mock.get_object.return_value = json.dumps(self.data)
+
+        with mock.patch.object(process.LOG, 'error',
+                               autospec=True) as log_mock:
+            self.call()
+
+        # no failures logged
+        self.assertFalse(log_mock.called)
+
+        post_hook_mock.assert_called_once_with(mock.ANY, self.node_info)
+        swift_mock.create_object.assert_called_once_with(swift_name,
+                                                         mock.ANY)
+        swifted_data = json.loads(swift_mock.create_object.call_args[0][1])
+
+        self.node_info.invalidate_cache.assert_called_once_with()
+        apply_mock.assert_called_once_with(self.node_info, swifted_data)
+
+        # assert no power operations were performed
+        self.assertFalse(self.cli.node.set_power_state.called)
+        finished_mock.assert_called_once_with(self.node_info)
+
+        # asserting validate_interfaces was called
+        self.assertEqual({'em2': self.data['interfaces']['em2']},
+                         swifted_data['interfaces'])
+        self.assertEqual([self.pxe_mac], swifted_data['macs'])
+
+        # assert ports were created with whatever there was left
+        # behind validate_interfaces
+        self.cli.port.create.assert_called_once_with(
+            node_uuid=self.uuid,
+            address=swifted_data['macs'][0]
+        )
+
+    @prepare_mocks
+    def test_get_incomming_data_exception(self, finished_mock,
+                                          swift_mock, apply_mock,
+                                          post_hook_mock, ):
+        exc = Exception('Oops')
+        swift_mock.get_object.side_effect = exc
+        with mock.patch.object(process.LOG, 'exception',
+                               autospec=True) as log_mock:
+            self.call()
+
+        log_mock.assert_called_once_with('Encountered exception '
+                                         'while fetching stored '
+                                         'introspection data',
+                                         node_info=self.node_info)
+
+        self.assertFalse(swift_mock.create_object.called)
+        self.assertFalse(apply_mock.called)
+        self.assertFalse(post_hook_mock.called)
+        self.assertFalse(finished_mock.called)
+
+    @prepare_mocks
+    def test_prehook_failure(self, finished_mock, swift_mock,
+                             apply_mock, post_hook_mock, ):
+        CONF.set_override('processing_hooks', 'example',
+                          'processing')
+        plugins_base._HOOKS_MGR = None
+
+        exc = Exception('Failed.')
+        swift_mock.get_object.return_value = json.dumps(self.data)
+
+        with mock.patch.object(example_plugin.ExampleProcessingHook,
+                               'before_processing') as before_processing_mock:
+            before_processing_mock.side_effect = exc
+            with mock.patch.object(process.LOG, 'error',
+                                   autospec=True) as log_mock:
+                self.call()
+
+        exc_failure = ('Unexpected exception %(exc_class)s during '
+                       'preprocessing in hook example: %(error)s' %
+                       {'exc_class': type(exc).__name__, 'error':
+                        exc})
+        log_mock.assert_called_once_with('Pre-processing failures '
+                                         'detected reapplying '
+                                         'introspection on stored '
+                                         'data:\n%s', exc_failure,
+                                         node_info=self.node_info)
+        finished_mock.assert_called_once_with(self.node_info,
+                                              error=exc_failure)
+        # assert _reapply ended having detected the failure
+        self.assertFalse(swift_mock.create_object.called)
+        self.assertFalse(apply_mock.called)
+        self.assertFalse(post_hook_mock.called)
+
+    @prepare_mocks
+    def test_generic_exception_creating_ports(self, finished_mock,
+                                              swift_mock, apply_mock,
+                                              post_hook_mock):
+        swift_mock.get_object.return_value = json.dumps(self.data)
+        exc = Exception('Oops')
+        self.cli.port.create.side_effect = exc
+
+        with mock.patch.object(process.LOG, 'exception') as log_mock:
+            self.call()
+
+        log_mock.assert_called_once_with('Encountered exception reapplying'
+                                         ' introspection on stored data',
+                                         node_info=self.node_info,
+                                         data=mock.ANY)
+        finished_mock.assert_called_once_with(self.node_info, error=str(exc))
+        self.assertFalse(swift_mock.create_object.called)
+        self.assertFalse(apply_mock.called)
+        self.assertFalse(post_hook_mock.called)

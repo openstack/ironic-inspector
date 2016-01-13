@@ -234,6 +234,78 @@ class TestApiGetData(BaseAPITest):
         self.assertEqual(404, res.status_code)
 
 
+@mock.patch.object(process, 'reapply', autospec=True)
+class TestApiReapply(BaseAPITest):
+
+    def setUp(self):
+        super(TestApiReapply, self).setUp()
+        CONF.set_override('store_data', 'swift', 'processing')
+
+    def test_ok(self, reapply_mock):
+
+        self.app.post('/v1/introspection/%s/data/unprocessed' %
+                      self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid)
+
+    def test_user_data(self, reapply_mock):
+        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
+                            self.uuid, data='some data')
+        self.assertEqual(400, res.status_code)
+        message = json.loads(res.data.decode())['error']['message']
+        self.assertEqual('User data processing is not supported yet',
+                         message)
+        self.assertFalse(reapply_mock.called)
+
+    def test_swift_disabled(self, reapply_mock):
+        CONF.set_override('store_data', 'none', 'processing')
+
+        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
+                            self.uuid)
+        self.assertEqual(400, res.status_code)
+        message = json.loads(res.data.decode())['error']['message']
+        self.assertEqual('Inspector is not configured to store '
+                         'data. Set the [processing] store_data '
+                         'configuration option to change this.',
+                         message)
+        self.assertFalse(reapply_mock.called)
+
+    def test_node_locked(self, reapply_mock):
+        exc = utils.Error('Locked.', code=409)
+        reapply_mock.side_effect = exc
+
+        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
+                            self.uuid)
+
+        self.assertEqual(409, res.status_code)
+        message = json.loads(res.data.decode())['error']['message']
+        self.assertEqual(str(exc), message)
+        reapply_mock.assert_called_once_with(self.uuid)
+
+    def test_node_not_found(self, reapply_mock):
+        exc = utils.Error('Not found.', code=404)
+        reapply_mock.side_effect = exc
+
+        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
+                            self.uuid)
+
+        self.assertEqual(404, res.status_code)
+        message = json.loads(res.data.decode())['error']['message']
+        self.assertEqual(str(exc), message)
+        reapply_mock.assert_called_once_with(self.uuid)
+
+    def test_generic_error(self, reapply_mock):
+        exc = utils.Error('Oops', code=400)
+        reapply_mock.side_effect = exc
+
+        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
+                            self.uuid)
+
+        self.assertEqual(400, res.status_code)
+        message = json.loads(res.data.decode())['error']['message']
+        self.assertEqual(str(exc), message)
+        reapply_mock.assert_called_once_with(self.uuid)
+
+
 class TestApiRules(BaseAPITest):
     @mock.patch.object(rules, 'get_all')
     def test_get_all(self, get_all_mock):

@@ -196,27 +196,35 @@ class SwiftAPI(object):
         return obj
 
 
-def store_introspection_data(data, uuid):
+def store_introspection_data(data, uuid, suffix=None):
     """Uploads introspection data to Swift.
 
     :param data: data to store in Swift
     :param uuid: UUID of the Ironic node that the data came from
+    :param suffix: optional suffix to add to the underlying swift
+                   object name
     :returns: name of the Swift object that the data is stored in
     """
     swift_api = SwiftAPI()
     swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
+    if suffix is not None:
+        swift_object_name = '%s-%s' % (swift_object_name, suffix)
     swift_api.create_object(swift_object_name, json.dumps(data))
     return swift_object_name
 
 
-def get_introspection_data(uuid):
+def get_introspection_data(uuid, suffix=None):
     """Downloads introspection data from Swift.
 
     :param uuid: UUID of the Ironic node that the data came from
+    :param suffix: optional suffix to add to the underlying swift
+                   object name
     :returns: Swift object with the introspection data
     """
     swift_api = SwiftAPI()
     swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
+    if suffix is not None:
+        swift_object_name = '%s-%s' % (swift_object_name, suffix)
     return swift_api.get_object(swift_object_name)
 
 

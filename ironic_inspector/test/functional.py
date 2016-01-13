@@ -15,6 +15,7 @@ import eventlet
 eventlet.monkey_patch()
 
 import contextlib
+import copy
 import json
 import os
 import shutil
@@ -27,6 +28,7 @@ from oslo_utils import units
 import requests
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import swift
 from ironic_inspector import dbsync
 from ironic_inspector import main
 from ironic_inspector import rules
@@ -163,6 +165,10 @@ class Base(base.NodeTest):
 
     def call_abort_introspect(self, uuid):
         return self.call('post', '/v1/introspection/%s/abort' % uuid)
+
+    def call_reapply(self, uuid):
+        return self.call('post', '/v1/introspection/%s/data/unprocessed' %
+                         uuid)
 
     def call_continue(self, data):
         return self.call('post', '/v1/continue', data=data).json()
@@ -431,6 +437,66 @@ class Test(Base):
         # node_info.finished() deletes the look-up attributes only
         # after releasing the node lock
         self.call('post', '/v1/continue', self.data, expect_error=400)
+
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_stored_data_processing(self, get_mock, store_mock):
+        cfg.CONF.set_override('store_data', 'swift', 'processing')
+
+        # ramdisk data copy
+        # please mind the data is changed during processing
+        ramdisk_data = json.dumps(copy.deepcopy(self.data))
+        get_mock.return_value = ramdisk_data
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        status = self.call_get_status(self.uuid)
+        self.assertEqual({'finished': True, 'error': None}, status)
+
+        res = self.call_reapply(self.uuid)
+        self.assertEqual(202, res.status_code)
+        self.assertEqual(b'', res.text)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        # reapply request data
+        get_mock.assert_called_once_with(self.uuid,
+                                         suffix='UNPROCESSED')
+
+        # store ramdisk data, store processing result data, store
+        # reapply processing result data; the ordering isn't
+        # guaranteed as store ramdisk data runs in a background
+        # thread; hower, last call has to always be reapply processing
+        # result data
+        store_ramdisk_call = mock.call(mock.ANY, self.uuid,
+                                       suffix='UNPROCESSED')
+        store_processing_call = mock.call(mock.ANY, self.uuid,
+                                          suffix=None)
+        self.assertEqual(3, len(store_mock.call_args_list))
+        self.assertIn(store_ramdisk_call,
+                      store_mock.call_args_list[0:2])
+        self.assertIn(store_processing_call,
+                      store_mock.call_args_list[0:2])
+        self.assertEqual(store_processing_call,
+                         store_mock.call_args_list[2])
+
+        # second reapply call
+        get_mock.return_value = ramdisk_data
+        res = self.call_reapply(self.uuid)
+        self.assertEqual(202, res.status_code)
+        self.assertEqual(b'', res.text)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        # reapply saves the result
+        self.assertEqual(4, len(store_mock.call_args_list))
+        self.assertEqual(store_processing_call,
+                         store_mock.call_args_list[-1])
 
 
 @contextlib.contextmanager

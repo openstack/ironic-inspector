@@ -93,6 +93,25 @@ Response body: JSON dictionary with introspection data
     format and contents of the stored data. Notably, it depends on the ramdisk
     used and plugins enabled both in the ramdisk and in inspector itself.
 
+Reapply introspection on stored data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``POST /v1/introspection/<UUID>/data/unprocessed`` to trigger
+introspection on stored unprocessed data.  No data is allowed to be
+sent along with the request.
+
+Requires X-Auth-Token header with Keystone token for authentication.
+Requires enabling Swift store in processing section of the
+configuration file.
+
+Response:
+
+* 202 - accepted
+* 400 - bad request or store not configured
+* 401, 403 - missing or invalid authentication
+* 404 - node not found for UUID
+* 409 - inspector locked node for processing
+
 Introspection Rules
 ~~~~~~~~~~~~~~~~~~~
 
@@ -323,3 +342,4 @@ Version History
 * **1.1** adds endpoint to retrieve stored introspection data.
 * **1.2** endpoints for manipulating introspection rules.
 * **1.3** endpoint for canceling running introspection
+* **1.4** endpoint for reapplying the introspection over stored data.

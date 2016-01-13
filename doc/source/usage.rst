@@ -278,3 +278,51 @@ nodes in the introspection rules using the rule condition ``eq``::
     "conditions": [
         {'op': 'eq', 'field': 'data://auto_discovered', 'value': True}
     ]
+
+Reapplying introspection on stored data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To allow correcting mistakes in introspection rules the API provides
+an entry point that triggers the introspection over stored data.  The
+data to use for processing is kept in Swift separately from the data
+already processed.  Reapplying introspection overwrites processed data
+in the store.  Updating the introspection data through the endpoint
+isn't supported yet.  Following preconditions are checked before
+reapplying introspection:
+
+* no data is being sent along with the request
+* Swift store is configured and enabled
+* introspection data is stored in Swift for the node UUID
+* node record is kept in database for the UUID
+* introspection is not ongoing for the node UUID
+
+Should the preconditions fail an immediate response is given to the
+user:
+
+* ``400`` if the request contained data or in case Swift store is not
+  enabled in configuration
+* ``404`` in case Ironic doesn't keep track of the node UUID
+* ``409`` if an introspection is already ongoing for the node
+
+If the preconditions are met a background task is executed to carry
+out the processing and a ``202 Accepted`` response is returned to the
+endpoint user.  As requested, these steps are performed in the
+background task:
+
+* preprocessing hooks
+* post processing hooks, storing result in Swift
+* introspection rules
+
+These steps are avoided, based on the feature requirements:
+
+* ``node_not_found_hook`` is skipped
+* power operations
+* roll-back actions done by hooks
+
+Limitations:
+
+* IPMI credentials are not updated --- ramdisk not running
+* there's no way to update the unprocessed data atm.
+* the unprocessed data is never cleaned from the store
+* check for stored data presence is performed in background;
+  missing data situation still results in a ``202`` response

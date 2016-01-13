@@ -13,7 +13,10 @@
 
 """Handling introspection data from the ramdisk."""
 
+import copy
 import eventlet
+import json
+
 from ironicclient import exceptions
 from oslo_config import cfg
 
@@ -33,6 +36,7 @@ LOG = utils.getProcessingLogger(__name__)
 _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
 _STORAGE_EXCLUDED_KEYS = {'logs'}
+_UNPROCESSED_DATA_STORE_SUFFIX = 'UNPROCESSED'
 
 
 def _find_node_info(introspection_data, failures):
@@ -60,13 +64,8 @@ def _find_node_info(introspection_data, failures):
         failures.append(_('Look up error: %s') % exc)
 
 
-def process(introspection_data):
-    """Process data from the ramdisk.
-
-    This function heavily relies on the hooks to do the actual data processing.
-    """
+def _run_pre_hooks(introspection_data, failures):
     hooks = plugins_base.processing_hooks_manager()
-    failures = []
     for hook_ext in hooks:
         # NOTE(dtantsur): catch exceptions, so that we have changes to update
         # node introspection status after look up
@@ -90,6 +89,64 @@ def process(introspection_data):
                              'exc_class': exc.__class__.__name__,
                              'error': exc})
 
+
+def _filter_data_excluded_keys(data):
+    return {k: v for k, v in data.items()
+            if k not in _STORAGE_EXCLUDED_KEYS}
+
+
+def _store_data(node_info, data, suffix=None):
+    if CONF.processing.store_data != 'swift':
+        LOG.debug("Swift support is disabled, introspection data "
+                  "won't be stored", node_info=node_info)
+        return
+
+    swift_object_name = swift.store_introspection_data(
+        _filter_data_excluded_keys(data),
+        node_info.uuid,
+        suffix=suffix
+    )
+    LOG.info(_LI('Introspection data was stored in Swift in object '
+                 '%s'), swift_object_name, node_info=node_info)
+    if CONF.processing.store_data_location:
+        node_info.patch([{'op': 'add', 'path': '/extra/%s' %
+                          CONF.processing.store_data_location,
+                          'value': swift_object_name}])
+
+
+def _store_unprocessed_data(node_info, data):
+    # runs in background
+    try:
+        _store_data(node_info, data,
+                    suffix=_UNPROCESSED_DATA_STORE_SUFFIX)
+    except Exception:
+        LOG.exception(_LE('Encountered exception saving unprocessed '
+                          'introspection data'), node_info=node_info,
+                      data=data)
+
+
+def _get_unprocessed_data(uuid):
+    if CONF.processing.store_data == 'swift':
+        LOG.debug('Fetching unprocessed introspection data from '
+                  'Swift for %s', uuid)
+        return json.loads(
+            swift.get_introspection_data(
+                uuid,
+                suffix=_UNPROCESSED_DATA_STORE_SUFFIX
+            )
+        )
+    else:
+        raise utils.Error(_('Swift support is disabled'), code=400)
+
+
+def process(introspection_data):
+    """Process data from the ramdisk.
+
+    This function heavily relies on the hooks to do the actual data processing.
+    """
+    unprocessed_data = copy.deepcopy(introspection_data)
+    failures = []
+    _run_pre_hooks(introspection_data, failures)
     node_info = _find_node_info(introspection_data, failures)
     if node_info:
         # Locking is already done in find_node() but may be not done in a
@@ -111,6 +168,12 @@ def process(introspection_data):
         raise utils.Error(_('Node processing already finished with '
                             'error: %s') % node_info.error,
                           node_info=node_info, code=400)
+
+    # Note(mkovacik): store data now when we're sure that a background
+    # thread won't race with other process() or introspect.abort()
+    # call
+    utils.executor().submit(_store_unprocessed_data, node_info,
+                            unprocessed_data)
 
     try:
         node = node_info.node()
@@ -148,23 +211,7 @@ def _process_node(node, introspection_data, node_info):
     node_info.create_ports(introspection_data.get('macs') or ())
 
     _run_post_hooks(node_info, introspection_data)
-
-    if CONF.processing.store_data == 'swift':
-        stored_data = {k: v for k, v in introspection_data.items()
-                       if k not in _STORAGE_EXCLUDED_KEYS}
-        swift_object_name = swift.store_introspection_data(stored_data,
-                                                           node_info.uuid)
-        LOG.info(_LI('Introspection data was stored in Swift in object %s'),
-                 swift_object_name,
-                 node_info=node_info, data=introspection_data)
-        if CONF.processing.store_data_location:
-            node_info.patch([{'op': 'add', 'path': '/extra/%s' %
-                              CONF.processing.store_data_location,
-                              'value': swift_object_name}])
-    else:
-        LOG.debug('Swift support is disabled, introspection data '
-                  'won\'t be stored',
-                  node_info=node_info, data=introspection_data)
+    _store_data(node_info, introspection_data)
 
     ironic = ir_utils.get_client()
     firewall.update_filters(ironic)
@@ -222,23 +269,93 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
     raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
 
-def _finish(ironic, node_info, introspection_data):
-    LOG.debug('Forcing power off of node %s', node_info.uuid)
-    try:
-        ironic.node.set_power_state(node_info.uuid, 'off')
-    except Exception as exc:
-        if node_info.node().provision_state == 'enroll':
-            LOG.info(_LI("Failed to power off the node in 'enroll' state, "
-                         "ignoring; error was %s") % exc,
-                     node_info=node_info, data=introspection_data)
-        else:
-            msg = (_('Failed to power off node %(node)s, check it\'s '
-                     'power management configuration: %(exc)s') %
-                   {'node': node_info.uuid, 'exc': exc})
-            node_info.finished(error=msg)
-            raise utils.Error(msg, node_info=node_info,
-                              data=introspection_data)
+def _finish(ironic, node_info, introspection_data, power_off=True):
+    if power_off:
+        LOG.debug('Forcing power off of node %s', node_info.uuid)
+        try:
+            ironic.node.set_power_state(node_info.uuid, 'off')
+        except Exception as exc:
+            if node_info.node().provision_state == 'enroll':
+                LOG.info(_LI("Failed to power off the node in"
+                             "'enroll' state, ignoring; error was "
+                             "%s") % exc, node_info=node_info,
+                         data=introspection_data)
+            else:
+                msg = (_('Failed to power off node %(node)s, check '
+                         'its power management configuration: '
+                         '%(exc)s') % {'node': node_info.uuid, 'exc':
+                                       exc})
+                node_info.finished(error=msg)
+                raise utils.Error(msg, node_info=node_info,
+                                  data=introspection_data)
+        LOG.info(_LI('Node powered-off'), node_info=node_info,
+                 data=introspection_data)
 
     node_info.finished()
     LOG.info(_LI('Introspection finished successfully'),
              node_info=node_info, data=introspection_data)
+
+
+def reapply(uuid):
+    """Re-apply introspection steps.
+
+    Re-apply preprocessing, postprocessing and introspection rules on
+    stored data.
+
+    :param uuid: node uuid to use
+    :raises: utils.Error
+
+    """
+
+    LOG.debug('Processing re-apply introspection request for node '
+              'UUID: %s', uuid)
+    node_info = node_cache.get_node(uuid, locked=False)
+    if not node_info.acquire_lock(blocking=False):
+        # Note (mkovacik): it should be sufficient to check data
+        # presence & locking. If either introspection didn't start
+        # yet, was in waiting state or didn't finish yet, either data
+        # won't be available or locking would fail
+        raise utils.Error(_('Node locked, please, try again later'),
+                          node_info=node_info, code=409)
+
+    utils.executor().submit(_reapply, node_info)
+
+
+def _reapply(node_info):
+    # runs in background
+    try:
+        introspection_data = _get_unprocessed_data(node_info.uuid)
+    except Exception:
+        LOG.exception(_LE('Encountered exception while fetching '
+                          'stored introspection data'),
+                      node_info=node_info)
+        node_info.release_lock()
+        return
+
+    failures = []
+    _run_pre_hooks(introspection_data, failures)
+    if failures:
+        LOG.error(_LE('Pre-processing failures detected reapplying '
+                      'introspection on stored data:\n%s'),
+                  '\n'.join(failures), node_info=node_info)
+        node_info.finished(error='\n'.join(failures))
+        return
+
+    try:
+        ironic = ir_utils.get_client()
+        node_info.create_ports(introspection_data.get('macs') or ())
+        _run_post_hooks(node_info, introspection_data)
+        _store_data(node_info, introspection_data)
+        node_info.invalidate_cache()
+        rules.apply(node_info, introspection_data)
+        _finish(ironic, node_info, introspection_data,
+                power_off=False)
+    except Exception as exc:
+        LOG.exception(_LE('Encountered exception reapplying '
+                          'introspection on stored data'),
+                      node_info=node_info,
+                      data=introspection_data)
+        node_info.finished(error=str(exc))
+    else:
+        LOG.info(_LI('Successfully reapplied introspection on stored '
+                     'data'), node_info=node_info, data=introspection_data)

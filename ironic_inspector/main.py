@@ -47,7 +47,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 3)
+CURRENT_API_VERSION = (1, 4)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -232,6 +232,25 @@ def api_introspection_data(uuid):
                                 'Set the [processing] store_data '
                                 'configuration option to change this.'),
                               code=404)
+
+
+@app.route('/v1/introspection/<uuid>/data/unprocessed', methods=['POST'])
+@convert_exceptions
+def api_introspection_reapply(uuid):
+    utils.check_auth(flask.request)
+
+    if flask.request.content_length:
+        return error_response(_('User data processing is not '
+                                'supported yet'), code=400)
+
+    if CONF.processing.store_data == 'swift':
+        process.reapply(uuid)
+        return '', 202
+    else:
+        return error_response(_('Inspector is not configured to store'
+                                ' data. Set the [processing] '
+                                'store_data configuration option to '
+                                'change this.'), code=400)
 
 
 def rule_repr(rule, short):
