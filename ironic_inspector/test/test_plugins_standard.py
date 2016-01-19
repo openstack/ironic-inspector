@@ -35,13 +35,21 @@ class TestSchedulerHook(test_base.NodeTest):
         super(TestSchedulerHook, self).setUp()
         self.hook = std_plugins.SchedulerHook()
         self.data = {
+            'inventory': {
+                'cpu': {'count': 2, 'architecture': 'x86_64'},
+                'memory': {'physical_mb': 1024},
+            },
+            'root_disk': {
+                'name': '/dev/sda',
+                'size': 21 * units.Gi
+            }
+        }
+        self.old_data = {
             'local_gb': 20,
             'memory_mb': 1024,
             'cpus': 2,
             'cpu_arch': 'x86_64'
         }
-        self.node_patches = []
-        self.ports_patches = {}
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node)
 
@@ -50,13 +58,18 @@ class TestSchedulerHook(test_base.NodeTest):
         ext = base.processing_hooks_manager()['scheduler']
         self.assertIsInstance(ext.obj, std_plugins.SchedulerHook)
 
-    def test_missing(self):
-        for key in self.data:
-            new_data = self.data.copy()
+    def test_compat_missing(self):
+        for key in self.old_data:
+            new_data = self.old_data.copy()
             del new_data[key]
             self.assertRaisesRegexp(utils.Error, key,
                                     self.hook.before_update, new_data,
                                     self.node_info)
+
+    def test_no_root_disk(self):
+        self.assertRaisesRegexp(utils.Error, 'root disk is not supplied',
+                                self.hook.before_update,
+                                {'inventory': {'disks': []}}, self.node_info)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_ok(self, mock_patch):
@@ -68,6 +81,18 @@ class TestSchedulerHook(test_base.NodeTest):
         ]
 
         self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_compat_ok(self, mock_patch):
+        patch = [
+            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
+        ]
+
+        self.hook.before_update(self.old_data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
@@ -86,8 +111,9 @@ class TestSchedulerHook(test_base.NodeTest):
         self.assertCalledWithPatch(patch, mock_patch)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_root_disk(self, mock_patch):
-        self.data['root_disk'] = {'name': '/dev/sda', 'size': 42 * units.Gi}
+    def test_compat_root_disk(self, mock_patch):
+        self.old_data['root_disk'] = {'name': '/dev/sda',
+                                      'size': 42 * units.Gi}
         patch = [
             {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
@@ -95,7 +121,7 @@ class TestSchedulerHook(test_base.NodeTest):
             {'path': '/properties/local_gb', 'value': '41', 'op': 'add'}
         ]
 
-        self.hook.before_update(self.data, self.node_info)
+        self.hook.before_update(self.old_data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
@@ -118,6 +144,19 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         super(TestValidateInterfacesHook, self).setUp()
         self.hook = std_plugins.ValidateInterfacesHook()
         self.data = {
+            'inventory': {
+                'interfaces': [
+                    {'name': 'em1', 'mac_address': '11:11:11:11:11:11',
+                     'ipv4_address': '1.1.1.1'},
+                    {'name': 'em2', 'mac_address': '22:22:22:22:22:22',
+                     'ipv4_address': '2.2.2.2'},
+                    {'name': 'em3', 'mac_address': '33:33:33:33:33:33',
+                     'ipv4_address': None},
+                ],
+            },
+            'boot_interface': '01-22-22-22-22-22-22'
+        }
+        self.old_data = {
             'interfaces': {
                 'em1': {'mac': '11:11:11:11:11:11', 'ip': '1.1.1.1'},
                 'em2': {'mac': '22:22:22:22:22:22', 'ip': '2.2.2.2'},
@@ -125,8 +164,9 @@ class TestValidateInterfacesHook(test_base.NodeTest):
             },
             'boot_interface': '01-22-22-22-22-22-22',
         }
-        self.orig_interfaces = self.data['interfaces'].copy()
-        self.pxe_interface = self.data['interfaces']['em2']
+        self.orig_interfaces = self.old_data['interfaces'].copy()
+        self.orig_interfaces['em3']['ip'] = None
+        self.pxe_interface = self.old_data['interfaces']['em2']
         self.active_interfaces = {
             'em1': {'mac': '11:11:11:11:11:11', 'ip': '1.1.1.1'},
             'em2': {'mac': '22:22:22:22:22:22', 'ip': '2.2.2.2'},
@@ -157,6 +197,12 @@ class TestValidateInterfacesHook(test_base.NodeTest):
     def test_no_interfaces(self):
         self.assertRaisesRegexp(utils.Error, 'No interfaces',
                                 self.hook.before_processing, {})
+        self.assertRaisesRegexp(utils.Error, 'No interfaces',
+                                self.hook.before_processing, {'inventory': {}})
+        self.assertRaisesRegexp(utils.Error, 'No interfaces',
+                                self.hook.before_processing, {'inventory': {
+                                    'interfaces': []
+                                }})
 
     def test_only_pxe(self):
         self.hook.before_processing(self.data)
@@ -175,7 +221,7 @@ class TestValidateInterfacesHook(test_base.NodeTest):
 
     def test_only_pxe_not_found(self):
         self.data['boot_interface'] = 'aa:bb:cc:dd:ee:ff'
-        self.assertRaisesRegexp(utils.Error, 'No valid interfaces',
+        self.assertRaisesRegexp(utils.Error, 'No suitable interfaces',
                                 self.hook.before_processing, self.data)
 
     def test_only_pxe_no_boot_interface(self):
@@ -207,6 +253,43 @@ class TestValidateInterfacesHook(test_base.NodeTest):
                                 self.orig_interfaces.values()),
                          sorted(self.data['macs']))
         self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
+
+    def test_malformed_interfaces(self):
+        self.data = {
+            'inventory': {
+                'interfaces': [
+                    # no name
+                    {'mac_address': '11:11:11:11:11:11',
+                     'ipv4_address': '1.1.1.1'},
+                    # empty
+                    {},
+                ],
+            },
+        }
+        self.assertRaisesRegexp(utils.Error, 'No interfaces supplied',
+                                self.hook.before_processing, self.data)
+
+    def test_skipped_interfaces(self):
+        CONF.set_override('add_ports', 'all', 'processing')
+        self.data = {
+            'inventory': {
+                'interfaces': [
+                    # local interface (by name)
+                    {'name': 'lo', 'mac_address': '11:11:11:11:11:11',
+                     'ipv4_address': '1.1.1.1'},
+                    # local interface (by IP address)
+                    {'name': 'em1', 'mac_address': '22:22:22:22:22:22',
+                     'ipv4_address': '127.0.0.1'},
+                    # no MAC provided
+                    {'name': 'em3', 'ipv4_address': '2.2.2.2'},
+                    # malformed MAC provided
+                    {'name': 'em4', 'mac_address': 'foobar',
+                     'ipv4_address': '2.2.2.2'},
+                ],
+            },
+        }
+        self.assertRaisesRegexp(utils.Error, 'No suitable interfaces found',
+                                self.hook.before_processing, self.data)
 
     @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
     def test_keep_all(self, mock_delete_port):
@@ -262,16 +345,17 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
 
-    @mock.patch.object(std_plugins.LOG, 'error')
-    def test_no_inventory(self, mock_log):
+    def test_no_inventory(self):
         self.node.properties['root_device'] = {'model': 'foo'}
         del self.data['inventory']
 
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.assertRaisesRegexp(utils.Error,
+                                'requires ironic-python-agent',
+                                self.hook.before_update,
+                                self.data, self.node_info, None, None)
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
-        self.assertTrue(mock_log.called)
 
     def test_no_disks(self):
         self.node.properties['root_device'] = {'size': 10}
