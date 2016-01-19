@@ -123,9 +123,8 @@ function prepare_tftp {
         IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
         IRONIC_INSPECTOR_KERNEL_CMDLINE="discoverd_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI inspector_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI"
         if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
-            if [[ $(type -P ramdisk-image-create) == "" ]]; then
-                pip_install diskimage_builder
-            fi
+            # FIXME: revert once 1.7.2 is out and hits the gate
+            sudo pip install 'diskimage-builder!=1.6.0,!=1.7.0,!=1.7.1'
             ramdisk-image-create $IRONIC_INSPECTOR_RAMDISK_FLAVOR \
                 -o $IRONIC_INSPECTOR_IMAGE_PATH
         fi
