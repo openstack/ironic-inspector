@@ -1,0 +1,4 @@
+---
+fixes:
+    - Fixed an issue with deleting nodes from cache on MySQL, see
+      https://bugs.launchpad.net/ironic-inspector/+bug/1511187 for details.
