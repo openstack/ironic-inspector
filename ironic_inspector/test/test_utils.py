@@ -243,6 +243,11 @@ class TestProcessingLogger(base.BaseTest):
                          utils.processing_logger_prefix(node_info=node_info,
                                                         data=data))
 
+    def test_prefix_uuid_not_str(self):
+        node_info = mock.Mock(uuid=None)
+        self.assertEqual('[node: None]',
+                         utils.processing_logger_prefix(node_info=node_info))
+
     def test_adapter_no_bmc(self):
         CONF.set_override('log_bmc_address', False, 'processing')
         node_info = mock.Mock(uuid='NNN')

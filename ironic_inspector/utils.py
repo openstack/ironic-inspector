@@ -88,7 +88,7 @@ def processing_logger_prefix(data=None, node_info=None):
     data = data or {}
 
     if node_info is not None:
-        parts.append(node_info.uuid)
+        parts.append(str(node_info.uuid))
 
     pxe_mac = get_pxe_mac(data)
     if pxe_mac:
