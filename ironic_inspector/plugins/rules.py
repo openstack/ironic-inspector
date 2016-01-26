@@ -14,9 +14,11 @@
 """Standard plugins for rules API."""
 
 import operator
+import re
 
 import netaddr
 
+from ironic_inspector.common.i18n import _
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -77,6 +79,27 @@ class NetCondition(base.RuleConditionPlugin):
     def check(self, node_info, field, params, **kwargs):
         network = netaddr.IPNetwork(params['value'])
         return netaddr.IPAddress(field) in network
+
+
+class ReCondition(base.RuleConditionPlugin):
+    def validate(self, params, **kwargs):
+        try:
+            re.compile(params['value'])
+        except re.error as exc:
+            raise ValueError(_('invalid regular expression: %s') % exc)
+
+
+class MatchesCondition(ReCondition):
+    def check(self, node_info, field, params, **kwargs):
+        regexp = params['value']
+        if regexp[-1] != '$':
+            regexp += '$'
+        return re.match(regexp, str(field)) is not None
+
+
+class ContainsCondition(ReCondition):
+    def check(self, node_info, field, params, **kwargs):
+        return re.search(params['value'], str(field)) is not None
 
 
 class FailAction(base.RuleActionPlugin):

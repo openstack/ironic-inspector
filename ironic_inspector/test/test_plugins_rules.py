@@ -73,6 +73,34 @@ class TestSimpleConditions(test_base.BaseTest):
             self._test(cond, expected, *values)
 
 
+class TestReConditions(test_base.BaseTest):
+    def test_validate(self):
+        for cond in (rules_plugins.MatchesCondition(),
+                     rules_plugins.ContainsCondition()):
+            cond.validate({'value': r'[a-z]?(foo|b.r).+'})
+            self.assertRaises(ValueError, cond.validate,
+                              {'value': '**'})
+
+    def test_matches(self):
+        cond = rules_plugins.MatchesCondition()
+        for reg, field, res in [(r'.*', 'foo', True),
+                                (r'fo{1,2}', 'foo', True),
+                                (r'o{1,2}', 'foo', False),
+                                (r'[1-9]*', 42, True),
+                                (r'^(foo|bar)$', 'foo', True),
+                                (r'fo', 'foo', False)]:
+            self.assertEqual(res, cond.check(None, field, {'value': reg}))
+
+    def test_contains(self):
+        cond = rules_plugins.ContainsCondition()
+        for reg, field, res in [(r'.*', 'foo', True),
+                                (r'fo{1,2}', 'foo', True),
+                                (r'o{1,2}', 'foo', True),
+                                (r'[1-9]*', 42, True),
+                                (r'bar', 'foo', False)]:
+            self.assertEqual(res, cond.check(None, field, {'value': reg}))
+
+
 class TestNetCondition(test_base.BaseTest):
     cond = rules_plugins.NetCondition()
 
