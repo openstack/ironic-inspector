@@ -117,7 +117,7 @@ openstack baremetal introspection rule purge
 
 function test_swift {
     # Basic sanity check of the data stored in Swift
-    stored_data_json=$(curl_ins GET v1/introspection/$uuid/data)
+    stored_data_json=$(openstack baremetal introspection data save $uuid)
     stored_cpu_arch=$(echo $stored_data_json | jq -r '.cpu_arch')
     echo CPU arch for $uuid from stored data: $stored_cpu_arch
     if [ "$stored_cpu_arch" != "$expected_cpu_arch" ]; then
