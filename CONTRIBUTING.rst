@@ -52,8 +52,7 @@ interpreter of one of supported versions (currently 2.7 and 3.4), use
     Support for Python 3 is highly experimental, stay with Python 2 for the
     production environment for now.
 
-There is a simple functional test that involves fetching the ramdisk from
-Github::
+To run the functional tests, use::
 
     tox -e func
 
