@@ -16,7 +16,7 @@ import socket
 
 import eventlet
 from ironicclient import client
-import keystoneclient.v2_0.client as keystone_client
+from keystoneclient import client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 from oslo_log import log
@@ -82,6 +82,9 @@ def get_client(token=None,
                           'auth_url': CONF.ironic.os_auth_url,
                           'tenant_name': CONF.ironic.os_tenant_name}
         keystone = keystone_client.Client(**keystone_creds)
+        # FIXME(sambetts): Work around for Bug 1539839 as client.authenticate
+        # is not called.
+        keystone.authenticate()
         ironic_url = keystone.service_catalog.url_for(
             service_type=CONF.ironic.os_service_type,
             endpoint_type=CONF.ironic.os_endpoint_type)
