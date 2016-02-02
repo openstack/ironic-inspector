@@ -204,6 +204,10 @@ function configure_inspector {
     inspector_iniset processing always_store_ramdisk_logs "$IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS"
     inspector_iniset processing log_bmc_address False
     inspector_iniset DEFAULT timeout $IRONIC_INSPECTOR_TIMEOUT
+
+    get_or_create_service "ironic-inspector" "baremetal-introspection" "Ironic Inspector baremetal introspection service"
+    get_or_create_endpoint "baremetal-introspection" "$REGION_NAME" \
+        "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI"
 }
 
 function configure_inspector_swift {
