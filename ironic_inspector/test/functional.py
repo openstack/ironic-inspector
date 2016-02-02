@@ -303,6 +303,8 @@ class Test(Base):
                     {'field': 'memory_mb', 'op': 'eq', 'value': 12288},
                     {'field': 'local_gb', 'op': 'gt', 'value': 998},
                     {'field': 'local_gb', 'op': 'lt', 'value': 1000},
+                    {'field': 'local_gb', 'op': 'matches', 'value': '[0-9]+'},
+                    {'field': 'cpu_arch', 'op': 'contains', 'value': '[0-9]+'},
                 ],
                 'actions': [
                     {'action': 'set-attribute', 'path': '/extra/foo',

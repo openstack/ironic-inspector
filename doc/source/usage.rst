@@ -63,7 +63,9 @@ A condition is represented by an object with fields:
 
 ``op`` the type of comparison operation, default available operators include :
 ``eq``, ``le``, ``ge``, ``ne``, ``lt``, ``gt`` (basic comparison operators),
-``in-net`` (checks that IP address is in a given network).
+``in-net`` (checks that IP address is in a given network), ``contains``,
+``matches`` (check field against a regular expression, matches require a full
+match).
 
 ``field`` a `JSON path <http://goessner.net/articles/JsonPath/>`_ to the field
 in the introspection data to use in comparison.
