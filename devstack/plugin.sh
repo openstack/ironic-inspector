@@ -162,7 +162,7 @@ function configure_inspector {
 
     cp "$IRONIC_INSPECTOR_DIR/example.conf" "$IRONIC_INSPECTOR_CONF_FILE"
     inspector_iniset DEFAULT debug $IRONIC_INSPECTOR_DEBUG
-    inspector_iniset ironic os_auth_url "$KEYSTONE_SERVICE_URI/v2.0"
+    inspector_iniset ironic os_auth_url "$KEYSTONE_SERVICE_URI"
     inspector_iniset ironic os_username $IRONIC_INSPECTOR_ADMIN_USER
     inspector_iniset ironic os_password $SERVICE_PASSWORD
     inspector_iniset ironic os_tenant_name $SERVICE_TENANT_NAME
