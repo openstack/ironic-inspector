@@ -92,24 +92,18 @@ function inspector_uses_ipa {
 
 function prepare_tftp {
     IRONIC_INSPECTOR_IMAGE_PATH="$TOP_DIR/files/ironic-inspector"
+    IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
     IRONIC_INSPECTOR_INITRAMFS_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.initramfs"
     IRONIC_INSPECTOR_CALLBACK_URI="$IRONIC_INSPECTOR_INTERNAL_URI/v1/continue"
 
-    if  inspector_uses_ipa; then
+    if inspector_uses_ipa; then
         IRONIC_INSPECTOR_KERNEL_CMDLINE="ipa-inspection-callback-url=$IRONIC_INSPECTOR_CALLBACK_URI systemd.journald.forward_to_console=yes"
         if [[ "$IRONIC_INSPECTOR_BUILD_RAMDISK" == "True" ]]; then
-            IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.vmlinuz"
             if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
-                if [[ $(type -P disk-image-create) == "" ]]; then
-                    pip_install_gr diskimage-builder
-                fi
-                disk-image-create $IRONIC_INSPECTOR_RAMDISK_FLAVOR \
-                    -o $IRONIC_INSPECTOR_IMAGE_PATH
-                sudo chown $STACK_USER $IRONIC_INSPECTOR_KERNEL_PATH
+                build_ipa_coreos_ramdisk "$IRONIC_INSPECTOR_KERNEL_PATH" "$IRONIC_INSPECTOR_INITRAMFS_PATH"
             fi
         else
             # download the agent image tarball
-            IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
             if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
                 if [ -e "$IRONIC_DEPLOY_KERNEL_PATH" -a -e "$IRONIC_DEPLOY_RAMDISK_PATH" ]; then
                     cp $IRONIC_DEPLOY_KERNEL_PATH $IRONIC_INSPECTOR_KERNEL_PATH
@@ -121,7 +115,6 @@ function prepare_tftp {
             fi
         fi
     else
-        IRONIC_INSPECTOR_KERNEL_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.kernel"
         IRONIC_INSPECTOR_KERNEL_CMDLINE="discoverd_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI inspector_callback_url=$IRONIC_INSPECTOR_CALLBACK_URI"
         if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
             if [[ $(type -P ramdisk-image-create) == "" ]]; then
