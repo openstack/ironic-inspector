@@ -264,6 +264,12 @@ class NodeInfo(object):
         :param patches: JSON patches to apply
         :raises: ironicclient exceptions
         """
+        # NOTE(aarefiev): support path w/o ahead forward slash
+        # as Ironic cli does
+        for patch in patches:
+            if patch.get('path') and not patch['path'].startswith('/'):
+                patch['path'] = '/' + patch['path']
+
         LOG.debug('Updating node with patches %s', patches, node_info=self)
         self._node = self.ironic.node.update(self.uuid, patches)
 
