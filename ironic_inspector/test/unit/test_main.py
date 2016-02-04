@@ -104,12 +104,6 @@ class TestApiIntrospect(BaseAPITest):
         self.assertEqual(403, res.status_code)
         self.assertFalse(introspect_mock.called)
 
-    @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_introspect_invalid_uuid(self, introspect_mock):
-        uuid_dummy = 'invalid-uuid'
-        res = self.app.post('/v1/introspection/%s' % uuid_dummy)
-        self.assertEqual(400, res.status_code)
-
 
 @mock.patch.object(process, 'process', autospec=True)
 class TestApiContinue(BaseAPITest):
@@ -232,6 +226,30 @@ class TestApiGetData(BaseAPITest):
         res = self.app.get('/v1/introspection/%s/data' % self.uuid)
         self.assertFalse(swift_conn.get_object.called)
         self.assertEqual(404, res.status_code)
+
+    @mock.patch.object(ir_utils, 'get_node', autospec=True)
+    @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
+    def test_with_name(self, swift_mock, get_mock):
+        get_mock.return_value = mock.Mock(uuid=self.uuid)
+        CONF.set_override('store_data', 'swift', 'processing')
+        data = {
+            'ipmi_address': '1.2.3.4',
+            'cpus': 2,
+            'cpu_arch': 'x86_64',
+            'memory_mb': 1024,
+            'local_gb': 20,
+            'interfaces': {
+                'em1': {'mac': '11:22:33:44:55:66', 'ip': '1.2.0.1'},
+            }
+        }
+        swift_conn = swift_mock.return_value
+        swift_conn.get_object.return_value = json.dumps(data)
+        res = self.app.get('/v1/introspection/name1/data')
+        name = 'inspector_data-%s' % self.uuid
+        swift_conn.get_object.assert_called_once_with(name)
+        self.assertEqual(200, res.status_code)
+        self.assertEqual(data, json.loads(res.data.decode('utf-8')))
+        get_mock.assert_called_once_with('name1', fields=['uuid'])
 
 
 @mock.patch.object(process, 'reapply', autospec=True)

@@ -18,7 +18,6 @@ import string
 import time
 
 from eventlet import semaphore
-from ironicclient import exceptions
 from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _, _LI, _LW
@@ -64,23 +63,16 @@ def _validate_ipmi_credentials(node, new_ipmi_credentials):
     return new_username, new_password
 
 
-def introspect(uuid, new_ipmi_credentials=None, token=None):
+def introspect(node_id, new_ipmi_credentials=None, token=None):
     """Initiate hardware properties introspection for a given node.
 
-    :param uuid: node uuid
+    :param node_id: node UUID or name
     :param new_ipmi_credentials: tuple (new username, new password) or None
     :param token: authentication token
     :raises: Error
     """
     ironic = ir_utils.get_client(token)
-
-    try:
-        node = ironic.node.get(uuid)
-    except exceptions.NotFound:
-        raise utils.Error(_("Cannot find node %s") % uuid, code=404)
-    except exceptions.HttpError as exc:
-        raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
-                          {'node': uuid, 'exc': exc})
+    node = ir_utils.get_node(node_id, ironic=ironic)
 
     ir_utils.check_provision_state(node, with_credentials=new_ipmi_credentials)
 
@@ -179,16 +171,16 @@ def _background_introspect_locked(ironic, node_info):
                  node_info=node_info)
 
 
-def abort(uuid, token=None):
+def abort(node_id, token=None):
     """Abort running introspection.
 
-    :param uuid: node uuid
+    :param node_id: node UUID or name
     :param token: authentication token
     :raises: Error
     """
-    LOG.debug('Aborting introspection for node %s', uuid)
+    LOG.debug('Aborting introspection for node %s', node_id)
     ironic = ir_utils.get_client(token)
-    node_info = node_cache.get_node(uuid, ironic=ironic, locked=False)
+    node_info = node_cache.get_node(node_id, ironic=ironic, locked=False)
 
     # check pending operations
     locked = node_info.acquire_lock(blocking=False)

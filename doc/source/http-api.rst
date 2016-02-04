@@ -343,3 +343,4 @@ Version History
 * **1.2** endpoints for manipulating introspection rules.
 * **1.3** endpoint for canceling running introspection
 * **1.4** endpoint for reapplying the introspection over stored data.
+* **1.5** support for Ironic node names.
