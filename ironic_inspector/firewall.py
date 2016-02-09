@@ -30,6 +30,7 @@ CHAIN = None
 INTERFACE = None
 LOCK = semaphore.BoundedSemaphore()
 BASE_COMMAND = None
+BLACKLIST_CACHE = None
 
 
 def _iptables(*args, **kwargs):
@@ -57,7 +58,8 @@ def init():
     if not CONF.firewall.manage_firewall:
         return
 
-    global INTERFACE, CHAIN, NEW_CHAIN, BASE_COMMAND
+    global INTERFACE, CHAIN, NEW_CHAIN, BASE_COMMAND, BLACKLIST_CACHE
+    BLACKLIST_CACHE = None
     INTERFACE = CONF.firewall.dnsmasq_interface
     CHAIN = CONF.firewall.firewall_chain
     NEW_CHAIN = CHAIN + '_temp'
@@ -116,6 +118,8 @@ def update_filters(ironic=None):
 
     :param ironic: Ironic client instance, optional.
     """
+    global BLACKLIST_CACHE
+
     if not CONF.firewall.manage_firewall:
         return
 
@@ -125,7 +129,14 @@ def update_filters(ironic=None):
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
         to_blacklist = macs_active - node_cache.active_macs()
+        if BLACKLIST_CACHE is not None and to_blacklist == BLACKLIST_CACHE:
+            LOG.debug('Not updating iptables - no changes in MAC list %s',
+                      to_blacklist)
+            return
+
         LOG.debug('Blacklisting active MAC\'s %s', to_blacklist)
+        # Force update on the next iteration if this attempt fails
+        BLACKLIST_CACHE = None
 
         # Clean up a bit to account for possible troubles on previous run
         _clean_up(NEW_CHAIN)
@@ -147,3 +158,6 @@ def update_filters(ironic=None):
         _iptables('-F', CHAIN, ignore=True)
         _iptables('-X', CHAIN, ignore=True)
         _iptables('-E', NEW_CHAIN, CHAIN)
+
+        # Cache result of successful iptables update
+        BLACKLIST_CACHE = to_blacklist
