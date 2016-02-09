@@ -210,10 +210,6 @@ Writing a Plugin
       updated on a node.  Please refer to the docstring for details
       and examples.
 
-      .. note::
-        Keyword arguments node_patches and port_patches are also provided, but
-        should not be used in new plugins.
-
   Make your plugin a setuptools entry point under
   ``ironic_inspector.hooks.processing`` namespace and enable it in the
   configuration file (``processing.processing_hooks`` option).

@@ -17,7 +17,7 @@ import eventlet
 from ironicclient import exceptions
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LE, _LI, _LW
+from ironic_inspector.common.i18n import _, _LE, _LI
 from ironic_inspector.common import swift
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
@@ -130,19 +130,7 @@ def _run_post_hooks(node_info, introspection_data):
     hooks = plugins_base.processing_hooks_manager()
 
     for hook_ext in hooks:
-        node_patches = []
-        ports_patches = {}
-        hook_ext.obj.before_update(introspection_data, node_info,
-                                   node_patches=node_patches,
-                                   ports_patches=ports_patches)
-        if node_patches:
-            LOG.warning(_LW('Using node_patches is deprecated'))
-            node_info.patch(node_patches)
-
-        if ports_patches:
-            LOG.warning(_LW('Using ports_patches is deprecated'))
-            for mac, patches in ports_patches.items():
-                node_info.patch_port(mac, patches)
+        hook_ext.obj.before_update(introspection_data, node_info)
 
 
 def _process_node(node, introspection_data, node_info):
