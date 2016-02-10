@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import json
 import time
 import unittest
@@ -502,9 +503,33 @@ class TestUpdate(test_base.NodeTest):
     def test_patch(self):
         self.ironic.node.update.return_value = mock.sentinel.node
 
-        self.node_info.patch(['patch'])
+        self.node_info.patch([{'patch': 'patch'}])
 
-        self.ironic.node.update.assert_called_once_with(self.uuid, ['patch'])
+        self.ironic.node.update.assert_called_once_with(self.uuid,
+                                                        [{'patch': 'patch'}])
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
+    def test_patch_path_wo_leading_slash(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        patch = [{'op': 'add', 'path': 'driver_info/test', 'value': 42}]
+        expected_patch = copy.deepcopy(patch)
+        expected_patch[0]['path'] = '/' + 'driver_info/test'
+
+        self.node_info.patch(patch)
+
+        self.ironic.node.update.assert_called_once_with(self.uuid,
+                                                        expected_patch)
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
+    def test_patch_path_with_leading_slash(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        patch = [{'op': 'add', 'path': '/driver_info/test', 'value': 42}]
+
+        self.node_info.patch(patch)
+
+        self.ironic.node.update.assert_called_once_with(self.uuid, patch)
         self.assertIs(mock.sentinel.node, self.node_info.node())
 
     def test_update_properties(self):
