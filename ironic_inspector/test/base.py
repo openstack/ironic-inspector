@@ -17,6 +17,7 @@ import mock
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log
+from oslo_utils import uuidutils
 
 from ironic_inspector.common import i18n
 # Import configuration options
@@ -84,7 +85,7 @@ class BaseTest(unittest.TestCase):
 class NodeTest(BaseTest):
     def setUp(self):
         super(NodeTest, self).setUp()
-        self.uuid = '1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e'
+        self.uuid = uuidutils.generate_uuid()
         self.bmc_address = '1.2.3.4'
         self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
         self.node = mock.Mock(driver='pxe_ipmitool',

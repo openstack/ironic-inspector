@@ -15,6 +15,7 @@
 """Tests for introspection rules."""
 
 import mock
+from oslo_utils import uuidutils
 
 from ironic_inspector import db
 from ironic_inspector import node_cache
@@ -27,7 +28,7 @@ from ironic_inspector import utils
 class BaseTest(test_base.BaseTest):
     def setUp(self):
         super(BaseTest, self).setUp()
-        self.uuid = 'uuid'
+        self.uuid = uuidutils.generate_uuid()
         self.conditions_json = [
             {'op': 'eq', 'field': 'memory_mb', 'value': 1024},
             {'op': 'eq', 'field': 'local_gb', 'value': 60},
@@ -139,7 +140,7 @@ class TestGetRule(BaseTest):
     def test_get(self):
         rule_json = rules.get(self.uuid).as_dict()
 
-        self.assertTrue(rule_json.pop(self.uuid))
+        self.assertTrue(rule_json.pop('uuid'))
         self.assertEqual({'description': None,
                           'conditions': self.conditions_json,
                           'actions': self.actions_json},
@@ -149,15 +150,16 @@ class TestGetRule(BaseTest):
         self.assertRaises(utils.Error, rules.get, 'foobar')
 
     def test_get_all(self):
-        rules.create(self.conditions_json, self.actions_json, uuid='uuid2')
-        self.assertEqual([self.uuid, 'uuid2'],
-                         [r.as_dict()['uuid'] for r in rules.get_all()])
+        uuid2 = uuidutils.generate_uuid()
+        rules.create(self.conditions_json, self.actions_json, uuid=uuid2)
+        self.assertEqual({self.uuid, uuid2},
+                         {r.as_dict()['uuid'] for r in rules.get_all()})
 
 
 class TestDeleteRule(BaseTest):
     def setUp(self):
         super(TestDeleteRule, self).setUp()
-        self.uuid2 = self.uuid + '-2'
+        self.uuid2 = uuidutils.generate_uuid()
         rules.create(self.conditions_json, self.actions_json, uuid=self.uuid)
         rules.create(self.conditions_json, self.actions_json, uuid=self.uuid2)
 

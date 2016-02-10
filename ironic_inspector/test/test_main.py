@@ -104,7 +104,7 @@ class TestApiIntrospect(BaseAPITest):
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_invalid_uuid(self, introspect_mock):
-        uuid_dummy = 'uuid1'
+        uuid_dummy = 'invalid-uuid'
         res = self.app.post('/v1/introspection/%s' % uuid_dummy)
         self.assertEqual(400, res.status_code)
 

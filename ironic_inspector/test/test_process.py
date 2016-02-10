@@ -19,6 +19,7 @@ import eventlet
 from ironicclient import exceptions
 import mock
 from oslo_config import cfg
+from oslo_utils import uuidutils
 
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
@@ -49,10 +50,8 @@ class BaseTest(test_base.NodeTest):
             },
             'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
         }
-        self.all_ports = [
-            mock.Mock(uuid='port_uuid%d' % i, address=mac)
-            for i, mac in enumerate(self.macs)
-        ]
+        self.all_ports = [mock.Mock(uuid=uuidutils.generate_uuid(),
+                                    address=mac) for mac in self.macs]
         self.ports = [self.all_ports[1]]
 
 
