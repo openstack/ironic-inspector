@@ -115,6 +115,26 @@ class TestNetCondition(test_base.BaseTest):
                                          {'value': '192.0.2.1/24'}))
 
 
+class TestEmptyCondition(test_base.BaseTest):
+    cond = rules_plugins.EmptyCondition()
+
+    def test_check_none(self):
+        self.assertTrue(self.cond.check(None, None, {}))
+        self.assertFalse(self.cond.check(None, 0, {}))
+
+    def test_check_empty_string(self):
+        self.assertTrue(self.cond.check(None, '', {}))
+        self.assertFalse(self.cond.check(None, '16', {}))
+
+    def test_check_empty_list(self):
+        self.assertTrue(self.cond.check(None, [], {}))
+        self.assertFalse(self.cond.check(None, ['16'], {}))
+
+    def test_check_empty_dict(self):
+        self.assertTrue(self.cond.check(None, {}, {}))
+        self.assertFalse(self.cond.check(None, {'test': '16'}, {}))
+
+
 class TestFailAction(test_base.BaseTest):
     act = rules_plugins.FailAction()
 

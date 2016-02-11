@@ -94,7 +94,8 @@ class Base(base.NodeTest):
                 'bmc_address': self.bmc_address
             },
             'root_disk': {'name': '/dev/sda', 'model': 'Big Data Disk',
-                          'size': 1000 * units.Gi},
+                          'size': 1000 * units.Gi,
+                          'wwn': None},
         }
         self.data_old_ramdisk = {
             'cpus': 4,
@@ -308,6 +309,7 @@ class Test(Base):
                     {'field': 'local_gb', 'op': 'lt', 'value': 1000},
                     {'field': 'local_gb', 'op': 'matches', 'value': '[0-9]+'},
                     {'field': 'cpu_arch', 'op': 'contains', 'value': '[0-9]+'},
+                    {'field': 'root_disk.wwn', 'op': 'is-empty'}
                 ],
                 'actions': [
                     {'action': 'set-attribute', 'path': '/extra/foo',

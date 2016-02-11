@@ -69,7 +69,10 @@ A condition is represented by an object with fields:
 
 * ``matches`` - requires a full match against a given regular expression;
 
-* ``contains`` - requires a value to contain a given regular expression.
+* ``contains`` - requires a value to contain a given regular expression;
+
+* ``is-empty`` - checks that field is an empty string, list, dict or
+  None value.
 
 ``field`` a `JSON path <http://goessner.net/articles/JsonPath/>`_ to the field
 in the introspection data to use in comparison.
