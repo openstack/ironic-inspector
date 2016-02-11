@@ -192,3 +192,55 @@ class TestFirewall(test_base.NodeTest):
         for (args, call) in zip(update_filters_expected_args,
                                 call_args_list):
             self.assertEqual(args, call[0])
+
+        # check caching
+
+        mock_iptables.reset_mock()
+        firewall.update_filters(mock_get_client)
+        self.assertFalse(mock_iptables.called)
+
+    def test_update_filters_clean_cache_on_error(self, mock_call,
+                                                 mock_get_client,
+                                                 mock_iptables):
+        active_macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
+        inactive_mac = ['AA:BB:CC:DD:EE:FF']
+        self.macs = active_macs + inactive_mac
+        self.ports = [mock.Mock(address=m) for m in self.macs]
+        mock_get_client.port.list.return_value = self.ports
+        node_cache.add_node(self.node.uuid, mac=active_macs,
+                            bmc_address='1.2.3.4', foo=None)
+        firewall.init()
+
+        update_filters_expected_args = [
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', firewall.NEW_CHAIN),
+            ('-F', firewall.NEW_CHAIN),
+            ('-X', firewall.NEW_CHAIN),
+            ('-N', firewall.NEW_CHAIN),
+            # Blacklist
+            ('-A', firewall.NEW_CHAIN, '-m', 'mac', '--mac-source',
+             inactive_mac[0], '-j', 'DROP'),
+            ('-A', firewall.NEW_CHAIN, '-j', 'ACCEPT'),
+            ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', firewall.NEW_CHAIN),
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', CONF.firewall.firewall_chain),
+            ('-F', CONF.firewall.firewall_chain),
+            ('-X', CONF.firewall.firewall_chain),
+            ('-E', firewall.NEW_CHAIN, CONF.firewall.firewall_chain)
+        ]
+
+        mock_iptables.side_effect = [None, None, RuntimeError()]
+        self.assertRaises(RuntimeError, firewall.update_filters,
+                          mock_get_client)
+
+        # check caching
+
+        mock_iptables.reset_mock()
+        mock_iptables.side_effect = None
+        firewall.update_filters(mock_get_client)
+        call_args_list = mock_iptables.call_args_list
+
+        for (args, call) in zip(update_filters_expected_args,
+                                call_args_list):
+            self.assertEqual(args, call[0])
