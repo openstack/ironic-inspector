@@ -17,6 +17,10 @@ packaged, some of them - under its old name *ironic-discoverd*.
 
 .. _PyPI: https://pypi.python.org/pypi/ironic-inspector
 
+Note for Ubuntu users
+  Please beware :ref:`possible DNS issues <ubuntu-dns>` when installing
+  Ironic-Inspector on Ubuntu.
+
 Version Support Matrix
 ~~~~~~~~~~~~~~~~~~~~~~
 

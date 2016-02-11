@@ -103,6 +103,8 @@ see what is going on with the ramdisk. The ramdisk drops into emergency shell
 on failure, which you can use to look around. There should be file called
 ``logs`` with the current ramdisk logs.
 
+.. _ubuntu-dns:
+
 Troubleshooting DNS issues on Ubuntu
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -111,3 +113,8 @@ before calling out to an external DNS server. When DNSmasq is installed and
 configured for use with ironic-inspector, it can cause problems by interfering
 with the local DNS cache. To fix this issue ensure that ``/etc/resolve.conf``
 points to your external DNS servers and not to ``127.0.0.1``.
+
+On Ubuntu 14.04 this can be done by editing your
+``/etc/resolvconf/resolv.conf.d/head`` and adding your nameservers there.
+This will ensure they will come up first when ``/etc/resolv.conf``
+is regenerated.
