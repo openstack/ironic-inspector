@@ -340,7 +340,7 @@ class TestRootDiskSelection(test_base.NodeTest):
                                    **{'node.return_value': self.node})
 
     def test_no_hints(self):
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.hook.before_update(self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
@@ -352,7 +352,7 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.assertRaisesRegexp(utils.Error,
                                 'requires ironic-python-agent',
                                 self.hook.before_update,
-                                self.data, self.node_info, None, None)
+                                self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
@@ -364,12 +364,12 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.assertRaisesRegexp(utils.Error,
                                 'No disks found',
                                 self.hook.before_update,
-                                self.data, self.node_info, None, None)
+                                self.data, self.node_info)
 
     def test_one_matches(self):
         self.node.properties['root_device'] = {'size': 10}
 
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.hook.before_update(self.data, self.node_info)
 
         self.assertEqual(self.matched, self.data['root_disk'])
 
@@ -377,7 +377,7 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.node.properties['root_device'] = {'size': 10,
                                                'model': 'Model 3'}
 
-        self.hook.before_update(self.data, self.node_info, None, None)
+        self.hook.before_update(self.data, self.node_info)
 
         self.assertEqual(self.matched, self.data['root_disk'])
 
@@ -388,7 +388,7 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.assertRaisesRegexp(utils.Error,
                                 'No disks satisfied root device hints',
                                 self.hook.before_update,
-                                self.data, self.node_info, None, None)
+                                self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)

@@ -41,8 +41,7 @@ class RootDiskSelectionHook(base.ProcessingHook):
     might not be updated.
     """
 
-    def before_update(self, introspection_data, node_info, node_patches,
-                      ports_patches, **kwargs):
+    def before_update(self, introspection_data, node_info, **kwargs):
         """Detect root disk from root device hints and IPA inventory."""
         hints = node_info.node().properties.get('root_device')
         if not hints:

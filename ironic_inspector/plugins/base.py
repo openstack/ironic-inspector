@@ -48,9 +48,7 @@ class ProcessingHook(object):  # pragma: no cover
 
         :param introspection_data: processed data from the ramdisk.
         :param node_info: NodeInfo instance.
-        :param kwargs: used for extensibility without breaking existing hooks,
-                       currently deprecated arguments node_patches and
-                       ports_patches are provided here.
+        :param kwargs: used for extensibility without breaking existing hooks.
         :returns: nothing.
 
         [RFC 6902] - http://tools.ietf.org/html/rfc6902

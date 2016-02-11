@@ -312,9 +312,7 @@ class TestProcessNode(BaseTest):
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
 
-        post_hook_mock.assert_called_once_with(self.data, self.node_info,
-                                               node_patches=mock.ANY,
-                                               ports_patches=mock.ANY)
+        post_hook_mock.assert_called_once_with(self.data, self.node_info)
         finished_mock.assert_called_once_with(mock.ANY)
 
     def test_overwrite_disabled(self, filters_mock, post_hook_mock):
@@ -339,24 +337,6 @@ class TestProcessNode(BaseTest):
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1])
         self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
-
-    def test_hook_patches(self, filters_mock, post_hook_mock):
-        expected_node_patches = [{'path': 'foo', 'op': 'bar'}]
-        expected_port_patch = [{'path': 'foo', 'op': 'baz'}]
-
-        def fake_hook(data, node_info, node_patches, ports_patches):
-            node_patches.extend(expected_node_patches)
-            ports_patches.setdefault(self.macs[1],
-                                     []).extend(expected_port_patch)
-
-        post_hook_mock.side_effect = fake_hook
-
-        self.call()
-
-        self.assertCalledWithPatch(self.patch_props + expected_node_patches,
-                                   self.cli.node.update)
-        self.assertCalledWithPatch(expected_port_patch,
-                                   self.cli.port.update)
 
     def test_set_ipmi_credentials(self, filters_mock, post_hook_mock):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
