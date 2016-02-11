@@ -79,14 +79,9 @@ OBJECT_NAME_PREFIX = 'inspector_data'
 class SwiftAPI(object):
     """API for communicating with Swift."""
 
-    def __init__(self,
-                 user=CONF.swift.username,
-                 tenant_name=CONF.swift.tenant_name,
-                 key=CONF.swift.password,
-                 auth_url=CONF.swift.os_auth_url,
-                 auth_version=CONF.swift.os_auth_version,
-                 service_type=CONF.swift.os_service_type,
-                 endpoint_type=CONF.swift.os_endpoint_type):
+    def __init__(self, user=None, tenant_name=None, key=None,
+                 auth_url=None, auth_version=None,
+                 service_type=None, endpoint_type=None):
         """Constructor for creating a SwiftAPI object.
 
         :param user: the name of the user for Swift account
@@ -94,17 +89,21 @@ class SwiftAPI(object):
         :param key: the 'password' or key to authenticate with
         :param auth_url: the url for authentication
         :param auth_version: the version of api to use for authentication
+        :param service_type: service type in the service catalog
+        :param endpoint_type: service endpoint type
         """
-        params = {'retries': CONF.swift.max_retries,
-                  'user': user,
-                  'tenant_name': tenant_name,
-                  'key': key,
-                  'authurl': auth_url,
-                  'auth_version': auth_version,
-                  'os_options': {'service_type': service_type,
-                                 'endpoint_type': endpoint_type}}
-
-        self.connection = swift_client.Connection(**params)
+        self.connection = swift_client.Connection(
+            retries=CONF.swift.max_retries,
+            user=user or CONF.swift.username,
+            tenant_name=tenant_name or CONF.swift.tenant_name,
+            key=key or CONF.swift.password,
+            authurl=auth_url or CONF.swift.os_auth_url,
+            auth_version=auth_version or CONF.swift.os_auth_version,
+            os_options={
+                'service_type': service_type or CONF.swift.os_service_type,
+                'endpoint_type': endpoint_type or CONF.swift.os_endpoint_type
+            }
+        )
 
     def create_object(self, object, data, container=CONF.swift.container,
                       headers=None):
@@ -168,11 +167,7 @@ def store_introspection_data(data, uuid):
     :param uuid: UUID of the Ironic node that the data came from
     :returns: name of the Swift object that the data is stored in
     """
-    swift_api = SwiftAPI(user=CONF.swift.username,
-                         tenant_name=CONF.swift.tenant_name,
-                         key=CONF.swift.password,
-                         auth_url=CONF.swift.os_auth_url,
-                         auth_version=CONF.swift.os_auth_version)
+    swift_api = SwiftAPI()
     swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
     swift_api.create_object(swift_object_name, json.dumps(data))
     return swift_object_name
@@ -184,10 +179,6 @@ def get_introspection_data(uuid):
     :param uuid: UUID of the Ironic node that the data came from
     :returns: Swift object with the introspection data
     """
-    swift_api = SwiftAPI(user=CONF.swift.username,
-                         tenant_name=CONF.swift.tenant_name,
-                         key=CONF.swift.password,
-                         auth_url=CONF.swift.os_auth_url,
-                         auth_version=CONF.swift.os_auth_version)
+    swift_api = SwiftAPI()
     swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
     return swift_api.get_object(swift_object_name)

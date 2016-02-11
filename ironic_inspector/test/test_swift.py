@@ -89,6 +89,18 @@ class SwiftTestCase(BaseTest):
                                  'endpoint_type': 'internalURL'}}
         connection_mock.assert_called_once_with(**params)
 
+    def test___init__defaults(self, connection_mock):
+        swift.SwiftAPI()
+        params = {'retries': 2,
+                  'user': 'swift',
+                  'tenant_name': 'tenant',
+                  'key': 'password',
+                  'authurl': 'http://authurl/v2.0',
+                  'auth_version': '2',
+                  'os_options': {'service_type': 'object-store',
+                                 'endpoint_type': 'internalURL'}}
+        connection_mock.assert_called_once_with(**params)
+
     def test_create_object(self, connection_mock):
         swiftapi = swift.SwiftAPI(user=CONF.swift.username,
                                   tenant_name=CONF.swift.tenant_name,
