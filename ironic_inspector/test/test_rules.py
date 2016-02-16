@@ -206,6 +206,23 @@ class TestCheckConditions(BaseTest):
                          self.cond_mock.check.call_count)
         self.assertTrue(res)
 
+    def test_invert(self, mock_ext_mgr):
+        self.conditions_json = [
+            {'op': 'eq', 'field': 'memory_mb', 'value': 42,
+             'invert': True},
+        ]
+        self.rule = rules.create(conditions_json=self.conditions_json,
+                                 actions_json=self.actions_json)
+
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+        self.cond_mock.check.return_value = False
+
+        res = self.rule.check_conditions(self.node_info, self.data)
+
+        self.cond_mock.check.assert_called_once_with(self.node_info, 1024,
+                                                     {'value': 42})
+        self.assertTrue(res)
+
     def test_no_field(self, mock_ext_mgr):
         mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
         self.cond_mock.check.return_value = True

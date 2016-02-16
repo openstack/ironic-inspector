@@ -59,6 +59,10 @@ def conditions_schema():
                         "description": "how to treat multiple values",
                         "enum": ["all", "any", "first"]
                     },
+                    "invert": {
+                        "description": "whether to invert the result",
+                        "type": "boolean"
+                    },
                 },
                 # other properties are validated by plugins
                 "additionalProperties": True
@@ -157,6 +161,9 @@ class IntrospectionRule(object):
 
             for value in field_values:
                 result = cond_ext.check(node_info, value, cond.params)
+                if cond.invert:
+                    result = not result
+
                 if (cond.multiple == 'first'
                         or (cond.multiple == 'all' and not result)
                         or (cond.multiple == 'any' and result)):
@@ -276,6 +283,7 @@ def create(conditions_json, actions_json, uuid=None,
     act_mgr = plugins_base.rule_actions_manager()
 
     conditions = []
+    reserved_params = {'op', 'field', 'multiple', 'invert'}
     for cond_json in conditions_json:
         field = cond_json['field']
 
@@ -293,7 +301,7 @@ def create(conditions_json, actions_json, uuid=None,
 
         plugin = cond_mgr[cond_json['op']].obj
         params = {k: v for k, v in cond_json.items()
-                  if k not in ('op', 'field', 'multiple')}
+                  if k not in reserved_params}
         try:
             plugin.validate(params)
         except ValueError as exc:
@@ -301,8 +309,11 @@ def create(conditions_json, actions_json, uuid=None,
                                 '%(error)s') %
                               {'op': cond_json['op'], 'error': exc})
 
-        conditions.append((cond_json['field'], cond_json['op'],
-                           cond_json.get('multiple', 'any'), params))
+        conditions.append((cond_json['field'],
+                           cond_json['op'],
+                           cond_json.get('multiple', 'any'),
+                           cond_json.get('invert', False),
+                           params))
 
     actions = []
     for action_json in actions_json:
@@ -322,9 +333,11 @@ def create(conditions_json, actions_json, uuid=None,
             rule = db.Rule(uuid=uuid, description=description,
                            disabled=False, created_at=timeutils.utcnow())
 
-            for field, op, multiple, params in conditions:
-                rule.conditions.append(db.RuleCondition(op=op, field=field,
+            for field, op, multiple, invert, params in conditions:
+                rule.conditions.append(db.RuleCondition(op=op,
+                                                        field=field,
                                                         multiple=multiple,
+                                                        invert=invert,
                                                         params=params))
 
             for action, params in actions:

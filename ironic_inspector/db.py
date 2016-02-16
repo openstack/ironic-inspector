@@ -92,6 +92,7 @@ class RuleCondition(Base):
     rule = Column(String(36), ForeignKey('rules.uuid'))
     op = Column(String(255), nullable=False)
     multiple = Column(String(255), nullable=False)
+    invert = Column(Boolean, default=False)
     # NOTE(dtantsur): while all operations now require a field, I can also
     # imagine user-defined operations that do not, thus it's nullable.
     field = Column(Text)
