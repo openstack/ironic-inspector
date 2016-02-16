@@ -144,19 +144,6 @@ class TestSetAttributeAction(test_base.NodeTest):
                                              'path': '/extra/value',
                                              'value': 42}])
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_rollback_with_existing(self, mock_patch):
-        self.node.extra = {'value': 'value'}
-        self.act.rollback(self.node_info, self.params)
-        mock_patch.assert_called_once_with([{'op': 'remove',
-                                             'path': '/extra/value'}])
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_rollback_no_existing(self, mock_patch):
-        self.node.extra = {}
-        self.act.rollback(self.node_info, self.params)
-        self.assertFalse(mock_patch.called)
-
 
 class TestSetCapabilityAction(test_base.NodeTest):
     act = rules_plugins.SetCapabilityAction()
@@ -181,23 +168,6 @@ class TestSetCapabilityAction(test_base.NodeTest):
         patch = mock_patch.call_args[0][0]
         new_caps = utils.capabilities_to_dict(patch[0]['value'])
         self.assertEqual({'cap1': 'val', 'x': 'y', 'answer': '42'}, new_caps)
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_rollback_with_existing(self, mock_patch):
-        self.node.properties = {'capabilities': 'foo:bar,cap1:val'}
-        self.act.rollback(self.node_info, self.params)
-        mock_patch.assert_called_once_with(
-            [{'op': 'add', 'path': '/properties/capabilities',
-              'value': 'foo:bar'}])
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_rollback_no_existing(self, mock_patch):
-        self.node.properties = {'capabilities': 'foo:bar'}
-        self.act.rollback(self.node_info, self.params)
-        # TODO(dtantsur): make sure it's not called at all
-        mock_patch.assert_called_once_with(
-            [{'op': 'add', 'path': '/properties/capabilities',
-              'value': 'foo:bar'}])
 
 
 class TestExtendAttributeAction(test_base.NodeTest):
@@ -227,18 +197,4 @@ class TestExtendAttributeAction(test_base.NodeTest):
         params = dict(unique=True, **self.params)
         self.node.extra['value'] = [42]
         self.act.apply(self.node_info, params)
-        self.assertFalse(mock_patch.called)
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_rollback_with_existing(self, mock_patch):
-        self.node.extra['value'] = [1, 42, 0]
-        self.act.rollback(self.node_info, self.params)
-
-        mock_patch.assert_called_once_with(
-            [{'op': 'replace', 'path': '/extra/value', 'value': [1, 0]}])
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_rollback_no_existing(self, mock_patch):
-        self.node.extra['value'] = [1, 0]
-        self.act.rollback(self.node_info, self.params)
         self.assertFalse(mock_patch.called)

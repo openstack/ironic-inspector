@@ -117,16 +117,6 @@ class SetAttributeAction(base.RuleActionPlugin):
         node_info.patch([{'op': 'add', 'path': params['path'],
                           'value': params['value']}])
 
-    def rollback(self, node_info, params, **kwargs):
-        try:
-            node_info.get_by_path(params['path'])
-        except KeyError:
-            LOG.debug('Field %s was not set, no need for rollback',
-                      params['path'], node_info=node_info)
-            return
-
-        node_info.patch([{'op': 'remove', 'path': params['path']}])
-
 
 class SetCapabilityAction(base.RuleActionPlugin):
     REQUIRED_PARAMS = {'name'}
@@ -135,9 +125,6 @@ class SetCapabilityAction(base.RuleActionPlugin):
     def apply(self, node_info, params, **kwargs):
         node_info.update_capabilities(
             **{params['name']: params.get('value')})
-
-    def rollback(self, node_info, params, **kwargs):
-        node_info.update_capabilities(**{params['name']: None})
 
 
 class ExtendAttributeAction(base.RuleActionPlugin):
@@ -151,11 +138,5 @@ class ExtendAttributeAction(base.RuleActionPlugin):
             if not params.get('unique') or value not in values:
                 values.append(value)
             return values
-
-        node_info.replace_field(params['path'], _replace, default=[])
-
-    def rollback(self, node_info, params, **kwargs):
-        def _replace(values):
-            return [v for v in values if v != params['value']]
 
         node_info.replace_field(params['path'], _replace, default=[])

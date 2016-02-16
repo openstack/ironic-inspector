@@ -333,11 +333,6 @@ class Test(Base):
         self.call_continue(self.data)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        # clean up for second rule
-        self.cli.node.update.assert_any_call(
-            self.uuid,
-            [{'op': 'remove', 'path': '/extra/bar'}])
-        # applying first rule
         self.cli.node.update.assert_any_call(
             self.uuid,
             [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
