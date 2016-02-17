@@ -24,8 +24,8 @@ Note for Ubuntu users
 Version Support Matrix
 ~~~~~~~~~~~~~~~~~~~~~~
 
-**ironic-inspector** currently requires bare metal API version ``1.6`` to be
-provided by Ironic. This version is available starting with Ironic Kilo
+**ironic-inspector** currently requires bare metal API version ``1.11`` to be
+provided by Ironic. This version is available starting with Ironic Liberty
 release.
 
 Here is a mapping between Ironic versions and supported **ironic-inspector**

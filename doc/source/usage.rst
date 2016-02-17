@@ -207,3 +207,71 @@ Here are some plugins that can be additionally enabled:
 
 Refer to :ref:`contributing_link` for information on how to write your
 own plugin.
+
+Discovery
+~~~~~~~~~
+
+Starting from Mitaka, **ironic-inspector** is able to register new nodes
+in Ironic.
+
+The existing ``node-not-found-hook`` handles what happens if
+**ironic-inspector** receives inspection data from a node it can not identify.
+This can happen if a node is manually booted without registering it with
+Ironic first.
+
+For discovery, the configuration file option ``node_not_found_hook`` should be
+set to load the hook called ``enroll``. This hook will enroll the unidentified
+node into Ironic using the ``fake`` driver (this driver is a configurable
+option, set ``enroll_node_driver`` in the **ironic-inspector** configuration
+file, to the Ironic driver you want).
+
+The ``enroll`` hook will also set the ``ipmi_address`` property on the new
+node, if its available in the introspection data we received,
+see :ref:`ramdisk_callback`.
+
+Once the ``enroll`` hook is finished, **ironic-inspector** will process the
+introspection data in the same way it would for an identified node. It runs
+the processing plugins :ref:`_plugins`, and after that it runs introspection
+rules, which would allow for more customisable node configuration,
+see :ref:`_rules`.
+
+A rule to set a node's Ironic driver to the ``agent_ipmitool`` driver and
+populate the required driver_info for that driver would look like::
+
+    "description": "Set IPMI driver_info if no credentials",
+    "actions": [
+        {'action': 'set-attribute', 'path': 'driver', 'value': 'agent_ipmitool'},
+        {'action': 'set-attribute', 'path': 'driver_info/ipmi_username',
+         'value': 'username'},
+        {'action': 'set-attribute', 'path': 'driver_info/ipmi_password',
+         'value': 'password'}
+    ]
+    "conditions": [
+        {'op': 'is-empty', 'field': 'node://driver_info.ipmi_password'},
+        {'op': 'is-empty', 'field': 'node://driver_info.ipmi_username'}
+    ]
+
+    "description": "Set deploy info if not already set on node",
+    "actions": [
+        {'action': 'set-attribute', 'path': 'driver_info/deploy_kernel',
+         'value': '<glance uuid>'},
+        {'action': 'set-attribute', 'path': 'driver_info/deploy_ramdisk',
+         'value': '<glance uuid>'},
+    ]
+    "conditions": [
+        {'op': 'is-empty', 'field': 'node://driver_info.deploy_ramdisk'},
+        {'op': 'is-empty', 'field': 'node://driver_info.deploy_kernel'}
+    ]
+
+All nodes discovered and enrolled via the ``enroll`` hook, will contain an
+``auto_discovered`` flag in the introspection data, this flag makes it
+possible to distinguish between manually enrolled nodes and auto-discovered
+nodes in the introspection rules using the rule condition ``eq``::
+
+    "description": "Enroll auto-discovered nodes with fake driver",
+    "actions": [
+        {'action': 'set-attribute', 'path': 'driver', 'value': 'fake'}
+    ]
+    "conditions": [
+        {'op': 'eq', 'field': 'data://auto_discovered', 'value': True}
+    ]

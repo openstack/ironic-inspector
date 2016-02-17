@@ -675,3 +675,44 @@ class TestLock(test_base.NodeTest):
         self.assertTrue(node_info._locked)
         get_lock_mock.return_value.acquire.assert_called_with(False)
         self.assertEqual(2, get_lock_mock.return_value.acquire.call_count)
+
+
+@mock.patch.object(node_cache, 'add_node', autospec=True)
+@mock.patch.object(utils, 'get_client', autospec=True)
+class TestNodeCreate(test_base.NodeTest):
+    def setUp(self):
+        super(TestNodeCreate, self).setUp()
+        self.mock_client = mock.Mock()
+
+    def test_default_create(self, mock_get_client, mock_add_node):
+        mock_get_client.return_value = self.mock_client
+        self.mock_client.node.create.return_value = self.node
+
+        node_cache.create_node('fake')
+
+        self.mock_client.node.create.assert_called_once_with(driver='fake')
+        mock_add_node.assert_called_once_with(self.node.uuid,
+                                              ironic=self.mock_client)
+
+    def test_create_with_args(self, mock_get_client, mock_add_node):
+        mock_get_client.return_value = self.mock_client
+        self.mock_client.node.create.return_value = self.node
+
+        node_cache.create_node('agent_ipmitool', ironic=self.mock_client)
+
+        self.assertFalse(mock_get_client.called)
+        self.mock_client.node.create.assert_called_once_with(
+            driver='agent_ipmitool')
+        mock_add_node.assert_called_once_with(self.node.uuid,
+                                              ironic=self.mock_client)
+
+    def test_create_client_error(self, mock_get_client, mock_add_node):
+        mock_get_client.return_value = self.mock_client
+        self.mock_client.node.create.side_effect = (
+            node_cache.exceptions.InvalidAttribute)
+
+        node_cache.create_node('fake')
+
+        mock_get_client.assert_called_once_with()
+        self.mock_client.node.create.assert_called_once_with(driver='fake')
+        self.assertFalse(mock_add_node.called)

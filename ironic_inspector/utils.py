@@ -34,8 +34,8 @@ SET_CREDENTIALS_VALID_STATES = {'enroll'}
 
 GREEN_POOL = None
 
-# 1.6 is a Kilo API version, which has all we need and is pretty well tested
-DEFAULT_IRONIC_API_VERSION = '1.6'
+# 1.11 is API version, which support 'enroll' state
+DEFAULT_IRONIC_API_VERSION = '1.11'
 
 
 def get_ipmi_address(node):

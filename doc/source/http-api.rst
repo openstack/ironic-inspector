@@ -150,6 +150,8 @@ authentication.
   * 204 - OK
   * 404 - not found
 
+.. _ramdisk_callback:
+
 Ramdisk Callback
 ~~~~~~~~~~~~~~~~
 
