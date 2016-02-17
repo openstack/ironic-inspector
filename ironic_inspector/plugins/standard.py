@@ -172,31 +172,38 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           'actual': CONF.processing.keep_ports})
             sys.exit(1)
 
-    def _get_interfaces(self, inventory, data=None):
+    def _get_interfaces(self, data=None):
         """Convert inventory to a dict with interfaces.
 
         :return: dict interface name -> dict with keys 'mac' and 'ip'
         """
         result = {}
+        inventory = data.get('inventory', {})
 
-        for iface in inventory.get('interfaces', ()):
-            name = iface.get('name')
-            mac = iface.get('mac_address')
-            ip = iface.get('ipv4_address')
+        if inventory:
+            for iface in inventory.get('interfaces', ()):
+                name = iface.get('name')
+                mac = iface.get('mac_address')
+                ip = iface.get('ipv4_address')
 
-            if not name:
-                LOG.error(_LE('Malformed interface record: %s'),
-                          iface, data=data)
-                continue
+                if not name:
+                    LOG.error(_LE('Malformed interface record: %s'),
+                              iface, data=data)
+                    continue
 
-            LOG.debug('Found interface %(name)s with MAC "%(mac)s" and '
-                      'IP address "%(ip)s"',
-                      {'name': name, 'mac': mac, 'ip': ip}, data=data)
-            result[name] = {'ip': ip, 'mac': mac}
+                LOG.debug('Found interface %(name)s with MAC "%(mac)s" and '
+                          'IP address "%(ip)s"',
+                          {'name': name, 'mac': mac, 'ip': ip}, data=data)
+                result[name] = {'ip': ip, 'mac': mac}
+        else:
+            LOG.warning(_LW('No inventory provided: using old bash ramdisk '
+                            'is deprecated, please switch to '
+                            'ironic-python-agent'), data=data)
+            result = data.get('interfaces')
 
         return result
 
-    def _validate_interfaces(self, interfaces, pxe_mac, data=None):
+    def _validate_interfaces(self, interfaces, data=None):
         """Validate interfaces on correctness and suitability.
 
         :return: dict interface name -> dict with keys 'mac' and 'ip'
@@ -204,6 +211,11 @@ class ValidateInterfacesHook(base.ProcessingHook):
         if not interfaces:
             raise utils.Error(_('No interfaces supplied by the ramdisk'),
                               data=data)
+
+        pxe_mac = utils.get_pxe_mac(data)
+        if not pxe_mac and CONF.processing.add_ports == 'pxe':
+            LOG.warning(_LW('No boot interface provided in the introspection '
+                            'data, will add all ports with IP addresses'))
 
         result = {}
 
@@ -242,11 +254,13 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
             result[name] = {'ip': ip, 'mac': mac.lower()}
 
+        if not result:
+            raise utils.Error(_('No suitable interfaces found in %s') %
+                              interfaces, data=data)
         return result
 
     def before_processing(self, introspection_data, **kwargs):
         """Validate information about network interfaces."""
-        inventory = introspection_data.get('inventory', {})
 
         bmc_address = utils.get_ipmi_address_from_data(introspection_data)
         if bmc_address:
@@ -255,26 +269,10 @@ class ValidateInterfacesHook(base.ProcessingHook):
             LOG.debug('No BMC address provided in introspection data, '
                       'assuming virtual environment', data=introspection_data)
 
-        if inventory:
-            all_interfaces = self._get_interfaces(inventory,
-                                                  introspection_data)
-        else:
-            LOG.warning(_LW('No inventory provided: using old bash ramdisk '
-                            'is deprecated, please switch to '
-                            'ironic-python-agent'),
-                        data=introspection_data)
-            all_interfaces = introspection_data.get('interfaces')
+        all_interfaces = self._get_interfaces(introspection_data)
 
-        pxe_mac = utils.get_pxe_mac(introspection_data)
-        if not pxe_mac and CONF.processing.add_ports == 'pxe':
-            LOG.warning(_LW('No boot interface provided in the introspection '
-                            'data, will add all ports with IP addresses'))
-
-        interfaces = self._validate_interfaces(all_interfaces, pxe_mac,
+        interfaces = self._validate_interfaces(all_interfaces,
                                                introspection_data)
-        if not interfaces:
-            raise utils.Error(_('No suitable interfaces found in %s') %
-                              all_interfaces, data=introspection_data)
 
         LOG.info(_LI('Using network interface(s): %s'),
                  ', '.join('%s %s' % (name, items)
