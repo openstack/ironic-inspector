@@ -113,6 +113,8 @@ class SetAttributeAction(base.RuleActionPlugin):
     REQUIRED_PARAMS = {'path', 'value'}
     # TODO(dtantsur): proper validation of path
 
+    FORMATTED_PARAMS = ['value']
+
     def apply(self, node_info, params, **kwargs):
         node_info.patch([{'op': 'add', 'path': params['path'],
                           'value': params['value']}])
@@ -132,6 +134,8 @@ class SetCapabilityAction(base.RuleActionPlugin):
     REQUIRED_PARAMS = {'name'}
     OPTIONAL_PARAMS = {'value'}
 
+    FORMATTED_PARAMS = ['value']
+
     def apply(self, node_info, params, **kwargs):
         node_info.update_capabilities(
             **{params['name']: params.get('value')})
@@ -144,6 +148,8 @@ class ExtendAttributeAction(base.RuleActionPlugin):
     REQUIRED_PARAMS = {'path', 'value'}
     OPTIONAL_PARAMS = {'unique'}
     # TODO(dtantsur): proper validation of path
+
+    FORMATTED_PARAMS = ['value']
 
     def apply(self, node_info, params, **kwargs):
         def _replace(values):

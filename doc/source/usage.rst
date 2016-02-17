@@ -74,6 +74,16 @@ A condition is represented by an object with fields:
 ``field`` a `JSON path <http://goessner.net/articles/JsonPath/>`_ to the field
 in the introspection data to use in comparison.
 
+Starting with the Mitaka release, you can also apply conditions to ironic node
+field. Prefix field with schema (``data://`` or ``node://``) to distinguish
+between values from introspection data and node. Both schemes use JSON path::
+
+    {'field': 'node://property.path', 'op': 'eq', 'value': 'val'}
+    {'field': 'data://introspection.path', 'op': 'eq', 'value': 'val'}
+
+if scheme (node or data) is missing, condition compares data with
+introspection data.
+
 ``multiple`` how to treat situations where the ``field`` query returns multiple
 results (e.g. the field contains a list), available options are:
 
@@ -109,6 +119,13 @@ Default available actions include:
 * ``extend-attribute`` the same as ``set-attribute``, but treats existing
   value as a list and appends value to it. If optional ``unique`` parameter is
   set to ``True``, nothing will be added if given value is already in a list.
+
+Starting from Mitaka release, ``value`` field in actions supports fetching data
+from introspection, it's using `python string formatting notation
+<https://docs.python.org/2/library/string.html#formatspec>`_ ::
+
+        {'action': 'set-attribute', 'path': '/driver_info/ipmi_address',
+                   'value': '{data[inventory][bmc_address]}'}
 
 .. _setting-ipmi-creds:
 
