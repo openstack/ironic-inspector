@@ -116,6 +116,9 @@ class RuleConditionPlugin(WithValidation):  # pragma: no cover
 class RuleActionPlugin(WithValidation):  # pragma: no cover
     """Abstract base class for rule action plugins."""
 
+    FORMATTED_PARAMS = []
+    """List of params will be formatted with python format."""
+
     @abc.abstractmethod
     def apply(self, node_info, params, **kwargs):
         """Run action on successful rule match.

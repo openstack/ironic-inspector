@@ -337,6 +337,49 @@ class Test(Base):
             self.uuid,
             [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
 
+    def test_conditions_scheme_actions_path(self):
+        rules = [
+            {
+                'conditions': [
+                    {'field': 'node://properties.local_gb', 'op': 'eq',
+                     'value': 40},
+                    {'field': 'node://driver_info.ipmi_address', 'op': 'eq',
+                     'value': self.bmc_address},
+                ],
+                'actions': [
+                    {'action': 'set-attribute', 'path': '/extra/foo',
+                     'value': 'bar'}
+                ]
+            },
+            {
+                'conditions': [
+                    {'field': 'data://inventory.cpu.count', 'op': 'eq',
+                     'value': self.data['inventory']['cpu']['count']},
+                ],
+                'actions': [
+                    {'action': 'set-attribute',
+                     'path': '/driver_info/ipmi_address',
+                     'value': '{data[inventory][bmc_address]}'}
+                ]
+            }
+        ]
+        for rule in rules:
+            self.call_add_rule(rule)
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.call_continue(self.data)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.cli.node.update.assert_any_call(
+            self.uuid,
+            [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
+
+        self.cli.node.update.assert_any_call(
+            self.uuid,
+            [{'op': 'add', 'path': '/driver_info/ipmi_address',
+              'value': self.data['inventory']['bmc_address']}])
+
     def test_root_device_hints(self):
         self.node.properties['root_device'] = {'size': 20}
 
