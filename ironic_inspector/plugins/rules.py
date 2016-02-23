@@ -67,6 +67,13 @@ class NeCondition(SimpleCondition):
     op = operator.ne
 
 
+class EmptyCondition(base.RuleConditionPlugin):
+    REQUIRED_PARAMS = set()
+
+    def check(self, node_info, field, params, **kwargs):
+        return field in ('', None, [], {})
+
+
 class NetCondition(base.RuleConditionPlugin):
     def validate(self, params, **kwargs):
         super(NetCondition, self).validate(params, **kwargs)
