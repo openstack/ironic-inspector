@@ -61,9 +61,3 @@ def upgrade():
         mysql_ENGINE='InnoDB',
         mysql_DEFAULT_CHARSET='UTF8'
     )
-
-
-def downgrade():
-    op.drop_table('nodes')
-    op.drop_table('attributes')
-    op.drop_table('options')

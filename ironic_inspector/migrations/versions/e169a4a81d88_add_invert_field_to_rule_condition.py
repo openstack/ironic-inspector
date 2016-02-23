@@ -31,7 +31,3 @@ import sqlalchemy as sa
 def upgrade():
     op.add_column('rule_conditions', sa.Column('invert', sa.Boolean(),
                                                nullable=True, default=False))
-
-
-def downgrade():
-    op.drop_column('rule_conditions', 'invert')

@@ -39,7 +39,7 @@ def add_command_parsers(subparsers):
         parser = add_alembic_command(subparsers, name)
         parser.set_defaults(func=do_alembic_command)
 
-    for name in ['downgrade', 'stamp', 'show', 'edit']:
+    for name in ['stamp', 'show', 'edit']:
         parser = add_alembic_command(subparsers, name)
         parser.set_defaults(func=with_revision)
         parser.add_argument('--revision', nargs='?', required=True)
