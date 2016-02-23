@@ -158,7 +158,7 @@ function configure_inspector {
     inspector_iniset ironic os_auth_url "$KEYSTONE_SERVICE_URI"
     inspector_iniset ironic os_username $IRONIC_INSPECTOR_ADMIN_USER
     inspector_iniset ironic os_password $SERVICE_PASSWORD
-    inspector_iniset ironic os_tenant_name $SERVICE_TENANT_NAME
+    inspector_iniset ironic os_tenant_name $SERVICE_PROJECT_NAME
 
     configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
 
@@ -207,7 +207,7 @@ function configure_inspector_swift {
     inspector_iniset swift os_auth_url "$KEYSTONE_SERVICE_URI/v2.0"
     inspector_iniset swift username $IRONIC_INSPECTOR_ADMIN_USER
     inspector_iniset swift password $SERVICE_PASSWORD
-    inspector_iniset swift tenant_name $SERVICE_TENANT_NAME
+    inspector_iniset swift tenant_name $SERVICE_PROJECT_NAME
 
     inspector_iniset processing store_data swift
 }
