@@ -104,7 +104,9 @@ function prepare_tftp {
 
     if inspector_uses_ipa; then
         IRONIC_INSPECTOR_KERNEL_CMDLINE="ipa-inspection-callback-url=$IRONIC_INSPECTOR_CALLBACK_URI systemd.journald.forward_to_console=yes"
+        IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE vga=normal console=tty0 console=ttyS0"
         IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-inspection-collectors=$IRONIC_INSPECTOR_COLLECTORS"
+        IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-debug=1"
         if [[ "$IRONIC_INSPECTOR_BUILD_RAMDISK" == "True" ]]; then
             if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
                 build_ipa_coreos_ramdisk "$IRONIC_INSPECTOR_KERNEL_PATH" "$IRONIC_INSPECTOR_INITRAMFS_PATH"
