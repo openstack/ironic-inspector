@@ -20,6 +20,7 @@ import mock
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db
 from ironic_inspector import node_cache
 from ironic_inspector.test import base as test_base
@@ -421,7 +422,7 @@ class TestNodeInfoOptions(test_base.NodeTest):
         self.assertEqual(data, new.options['name'])
 
 
-@mock.patch.object(utils, 'get_client', autospec=True)
+@mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestNodeCacheIronicObjects(unittest.TestCase):
     def setUp(self):
         super(TestNodeCacheIronicObjects, self).setUp()
@@ -553,7 +554,7 @@ class TestUpdate(test_base.NodeTest):
 
         self.ironic.node.update.assert_called_once_with(self.uuid, mock.ANY)
         patch = self.ironic.node.update.call_args[0][1]
-        new_caps = utils.capabilities_to_dict(patch[0]['value'])
+        new_caps = ir_utils.capabilities_to_dict(patch[0]['value'])
         self.assertEqual({'foo': 'bar', 'x': '1', 'y': '2'}, new_caps)
 
     def test_replace_field(self):
@@ -678,7 +679,7 @@ class TestLock(test_base.NodeTest):
 
 
 @mock.patch.object(node_cache, 'add_node', autospec=True)
-@mock.patch.object(utils, 'get_client', autospec=True)
+@mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestNodeCreate(test_base.NodeTest):
     def setUp(self):
         super(TestNodeCreate, self).setUp()

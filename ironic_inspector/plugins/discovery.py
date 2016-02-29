@@ -16,6 +16,7 @@
 from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _, _LW
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 from ironic_inspector import utils
 
@@ -73,7 +74,7 @@ def _check_existing_nodes(introspection_data, node_driver_info, ironic):
         #                  impact on performance on big clusters
         nodes = ironic.node.list(fields=('uuid', 'driver_info'), limit=0)
         for node in nodes:
-            if ipmi_address == utils.get_ipmi_address(node):
+            if ipmi_address == ir_utils.get_ipmi_address(node):
                 raise utils.Error(
                     _('Node %(uuid)s already has BMC address '
                       '%(ipmi_address)s, not enrolling') %
@@ -83,7 +84,7 @@ def _check_existing_nodes(introspection_data, node_driver_info, ironic):
 
 def enroll_node_not_found_hook(introspection_data, **kwargs):
     node_attr = {}
-    ironic = utils.get_client()
+    ironic = ir_utils.get_client()
 
     node_driver_info = _extract_node_driver_info(introspection_data)
     node_attr['driver_info'] = node_driver_info

@@ -19,6 +19,7 @@ from ironicclient import exceptions
 import mock
 from oslo_config import cfg
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
 from ironic_inspector import introspect
 from ironic_inspector import node_cache
@@ -52,7 +53,7 @@ class BaseTest(test_base.NodeTest):
                    lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
-@mock.patch.object(utils, 'get_client', autospec=True)
+@mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestIntrospect(BaseTest):
     def test_ok(self, client_mock, add_mock, filters_mock):
         cli = self._prepare(client_mock)
@@ -337,7 +338,7 @@ class TestIntrospect(BaseTest):
                    lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
-@mock.patch.object(utils, 'get_client', autospec=True)
+@mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestSetIpmiCredentials(BaseTest):
     def setUp(self):
         super(TestSetIpmiCredentials, self).setUp()
@@ -422,7 +423,7 @@ class TestSetIpmiCredentials(BaseTest):
                    lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'get_node', autospec=True)
-@mock.patch.object(utils, 'get_client', autospec=True)
+@mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestAbort(BaseTest):
     def setUp(self):
         super(TestAbort, self).setUp()

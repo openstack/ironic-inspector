@@ -21,6 +21,7 @@ import mock
 from oslo_config import cfg
 from oslo_utils import uuidutils
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -57,7 +58,7 @@ class BaseTest(test_base.NodeTest):
 
 @mock.patch.object(process, '_process_node', autospec=True)
 @mock.patch.object(node_cache, 'find_node', autospec=True)
-@mock.patch.object(utils, 'get_client', autospec=True)
+@mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestProcess(BaseTest):
     def setUp(self):
         super(TestProcess, self).setUp()
@@ -278,7 +279,7 @@ class TestProcessNode(BaseTest):
         self.cli.node.update.return_value = self.node
         self.cli.node.list_ports.return_value = []
 
-    @mock.patch.object(utils, 'get_client')
+    @mock.patch.object(ir_utils, 'get_client')
     def call(self, mock_cli):
         mock_cli.return_value = self.cli
         return process._process_node(self.node, self.data, self.node_info)

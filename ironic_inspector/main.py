@@ -28,6 +28,7 @@ import werkzeug
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import conf  # noqa
 from ironic_inspector import firewall
@@ -308,7 +309,7 @@ def periodic_clean_up(period):  # pragma: no cover
 
 
 def sync_with_ironic():
-    ironic = utils.get_client()
+    ironic = ir_utils.get_client()
     # TODO(yuikotakada): pagination
     ironic_nodes = ironic.node.list(limit=0)
     ironic_node_uuids = {node.uuid for node in ironic_nodes}

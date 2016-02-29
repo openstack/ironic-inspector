@@ -26,11 +26,11 @@ from oslo_config import cfg
 from oslo_utils import units
 import requests
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import dbsync
 from ironic_inspector import main
 from ironic_inspector import rules
 from ironic_inspector.test import base
-from ironic_inspector import utils
 
 
 CONF = """
@@ -61,7 +61,7 @@ class Base(base.NodeTest):
         super(Base, self).setUp()
         rules.delete_all()
 
-        self.cli = utils.get_client()
+        self.cli = ir_utils.get_client()
         self.cli.reset_mock()
         self.cli.node.get.return_value = self.node
         self.cli.node.update.return_value = self.node
@@ -442,7 +442,7 @@ def mocked_server():
             content = CONF % {'db_file': db_file}
             fp.write(content.encode('utf-8'))
 
-        with mock.patch.object(utils, 'get_client'):
+        with mock.patch.object(ir_utils, 'get_client'):
             dbsync.main(args=['--config-file', conf_file, 'upgrade'])
 
             cfg.CONF.reset()

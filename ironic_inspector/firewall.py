@@ -19,8 +19,8 @@ from oslo_config import cfg
 from oslo_log import log
 
 from ironic_inspector.common.i18n import _LE, _LW
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
-from ironic_inspector import utils
 
 
 CONF = cfg.CONF
@@ -125,7 +125,7 @@ def update_filters(ironic=None):
         return
 
     assert INTERFACE is not None
-    ironic = utils.get_client() if ironic is None else ironic
+    ironic = ir_utils.get_client() if ironic is None else ironic
 
     with LOCK:
         macs_active = set(p.address for p in ironic.port.list(limit=0))
