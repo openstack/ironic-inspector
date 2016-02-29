@@ -240,8 +240,6 @@ class TestProcess(BaseTest):
             hook_mock.assert_called_once_with(self.data)
 
 
-@mock.patch.object(utils, 'spawn_n',
-                   lambda f, *a: f(*a) and None)
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
 @mock.patch.object(firewall, 'update_filters', autospec=True)
@@ -371,8 +369,7 @@ class TestProcessNode(BaseTest):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
         self.cli.node.get_boot_device.side_effect = RuntimeError('boom')
 
-        self.assertRaisesRegexp(utils.Error, 'Failed to validate',
-                                self.call)
+        self.call()
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
         self.assertEqual(2, self.cli.node.update.call_count)
@@ -389,8 +386,7 @@ class TestProcessNode(BaseTest):
                               post_hook_mock):
         self.cli.node.set_power_state.side_effect = RuntimeError('boom')
 
-        self.assertRaisesRegexp(utils.Error, 'Failed to power off',
-                                self.call)
+        self.call()
 
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertCalledWithPatch(self.patch_props, self.cli.node.update)

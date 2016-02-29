@@ -21,6 +21,7 @@ import ssl
 import sys
 
 import flask
+from futurist import periodics
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import uuidutils
@@ -286,26 +287,23 @@ def handle_404(error):
     return error_response(error, code=404)
 
 
-def periodic_update(period):  # pragma: no cover
-    while True:
-        LOG.debug('Running periodic update of filters')
-        try:
+@periodics.periodic(spacing=CONF.firewall.firewall_update_period,
+                    enabled=CONF.firewall.manage_firewall)
+def periodic_update():  # pragma: no cover
+    try:
+        firewall.update_filters()
+    except Exception:
+        LOG.exception(_LE('Periodic update of firewall rules failed'))
+
+
+@periodics.periodic(spacing=CONF.clean_up_period)
+def periodic_clean_up():  # pragma: no cover
+    try:
+        if node_cache.clean_up():
             firewall.update_filters()
-        except Exception:
-            LOG.exception(_LE('Periodic update failed'))
-        eventlet.greenthread.sleep(period)
-
-
-def periodic_clean_up(period):  # pragma: no cover
-    while True:
-        LOG.debug('Running periodic clean up of node cache')
-        try:
-            if node_cache.clean_up():
-                firewall.update_filters()
-            sync_with_ironic()
-        except Exception:
-            LOG.exception(_LE('Periodic clean up of node cache failed'))
-        eventlet.greenthread.sleep(period)
+        sync_with_ironic()
+    except Exception:
+        LOG.exception(_LE('Periodic clean up of node cache failed'))
 
 
 def sync_with_ironic():
@@ -316,7 +314,12 @@ def sync_with_ironic():
     node_cache.delete_nodes_not_in_list(ironic_node_uuids)
 
 
+_PERIODICS_WORKER = None
+
+
 def init():
+    global _PERIODICS_WORKER
+
     if utils.get_auth_strategy() != 'noauth':
         utils.add_auth_middleware(app)
     else:
@@ -344,14 +347,29 @@ def init():
 
     if CONF.firewall.manage_firewall:
         firewall.init()
-        period = CONF.firewall.firewall_update_period
-        utils.spawn_n(periodic_update, period)
 
-    if CONF.timeout > 0:
-        period = CONF.clean_up_period
-        utils.spawn_n(periodic_clean_up, period)
-    else:
-        LOG.warning(_LW('Timeout is disabled in configuration'))
+    _PERIODICS_WORKER = periodics.PeriodicWorker(
+        callables=[(periodic_update, None, None),
+                   (periodic_clean_up, None, None)],
+        executor_factory=periodics.ExistingExecutor(utils.executor()))
+    utils.executor().submit(_PERIODICS_WORKER.start)
+
+
+def shutdown():
+    global _PERIODICS_WORKER
+    LOG.debug('Shutting down')
+
+    firewall.clean_up()
+
+    if _PERIODICS_WORKER is not None:
+        _PERIODICS_WORKER.stop()
+        _PERIODICS_WORKER.wait()
+        _PERIODICS_WORKER = None
+
+    if utils.executor().alive:
+        utils.executor().shutdown(wait=True)
+
+    LOG.info(_LI('Shut down successfully'))
 
 
 def create_ssl_context():
@@ -416,4 +434,4 @@ def main(args=sys.argv[1:]):  # pragma: no cover
     try:
         app.run(**app_kwargs)
     finally:
-        firewall.clean_up()
+        shutdown()

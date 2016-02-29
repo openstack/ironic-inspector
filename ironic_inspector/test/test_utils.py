@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 
@@ -104,27 +102,6 @@ class TestCheckAuth(base.BaseTest):
         CONF.set_override('auth_strategy', 'noauth')
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         utils.check_auth(request)
-
-
-class TestSpawnN(unittest.TestCase):
-
-    def setUp(self):
-        super(TestSpawnN, self).setUp()
-        utils.GREEN_POOL = None
-
-    @mock.patch('eventlet.greenpool.GreenPool', autospec=True)
-    def test_spawn_n(self, mock_green_pool):
-        greenpool = mock_green_pool.return_value
-        func = lambda x: x
-
-        utils.spawn_n(func, "hello")
-        self.assertEqual(greenpool, utils.GREEN_POOL)
-        greenpool.spawn_n.assert_called_with(func, "hello")
-
-        utils.spawn_n(func, "goodbye")
-        greenpool.spawn_n.assert_called_with(func, "goodbye")
-
-        mock_green_pool.assert_called_once_with(CONF.max_concurrency)
 
 
 class TestProcessingLogger(base.BaseTest):
