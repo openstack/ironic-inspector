@@ -87,6 +87,8 @@ between values from introspection data and node. Both schemes use JSON path::
 if scheme (node or data) is missing, condition compares data with
 introspection data.
 
+``invert`` boolean value, whether to invert the result of the comparison.
+
 ``multiple`` how to treat situations where the ``field`` query returns multiple
 results (e.g. the field contains a list), available options are:
 

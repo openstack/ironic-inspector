@@ -309,7 +309,10 @@ class Test(Base):
                     {'field': 'local_gb', 'op': 'lt', 'value': 1000},
                     {'field': 'local_gb', 'op': 'matches', 'value': '[0-9]+'},
                     {'field': 'cpu_arch', 'op': 'contains', 'value': '[0-9]+'},
-                    {'field': 'root_disk.wwn', 'op': 'is-empty'}
+                    {'field': 'root_disk.wwn', 'op': 'is-empty'},
+                    {'field': 'inventory.interfaces[*].ipv4_address',
+                     'op': 'contains', 'value': r'127\.0\.0\.1',
+                     'invert': True, 'multiple': 'all'},
                 ],
                 'actions': [
                     {'action': 'set-attribute', 'path': '/extra/foo',
