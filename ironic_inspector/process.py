@@ -31,6 +31,7 @@ LOG = utils.getProcessingLogger(__name__)
 
 _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
+_STORAGE_EXCLUDED_KEYS = {'logs'}
 
 
 def _find_node_info(introspection_data, failures):
@@ -148,7 +149,9 @@ def _process_node(node, introspection_data, node_info):
     _run_post_hooks(node_info, introspection_data)
 
     if CONF.processing.store_data == 'swift':
-        swift_object_name = swift.store_introspection_data(introspection_data,
+        stored_data = {k: v for k, v in introspection_data.items()
+                       if k not in _STORAGE_EXCLUDED_KEYS}
+        swift_object_name = swift.store_introspection_data(stored_data,
                                                            node_info.uuid)
         LOG.info(_LI('Introspection data was stored in Swift in object %s'),
                  swift_object_name,

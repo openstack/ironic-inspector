@@ -403,11 +403,29 @@ class TestProcessNode(BaseTest):
         CONF.set_override('store_data', 'swift', 'processing')
         swift_conn = swift_mock.return_value
         name = 'inspector_data-%s' % self.uuid
-        expected = json.dumps(self.data)
+        expected = self.data.copy()
 
         self.call()
 
-        swift_conn.create_object.assert_called_once_with(name, expected)
+        swift_conn.create_object.assert_called_once_with(name, mock.ANY)
+        self.assertEqual(expected,
+                         json.loads(swift_conn.create_object.call_args[0][1]))
+        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
+
+    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
+    def test_store_data_no_logs(self, swift_mock, filters_mock,
+                                post_hook_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        swift_conn = swift_mock.return_value
+        name = 'inspector_data-%s' % self.uuid
+        expected = self.data.copy()
+        self.data['logs'] = 'something'
+
+        self.call()
+
+        swift_conn.create_object.assert_called_once_with(name, mock.ANY)
+        self.assertEqual(expected,
+                         json.loads(swift_conn.create_object.call_args[0][1]))
         self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
 
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
@@ -423,9 +441,11 @@ class TestProcessNode(BaseTest):
              'value': name,
              'op': 'add'}
         )
-        expected = json.dumps(self.data)
+        expected = self.data.copy()
 
         self.call()
 
-        swift_conn.create_object.assert_called_once_with(name, expected)
+        swift_conn.create_object.assert_called_once_with(name, mock.ANY)
+        self.assertEqual(expected,
+                         json.loads(swift_conn.create_object.call_args[0][1]))
         self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
