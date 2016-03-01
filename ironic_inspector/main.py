@@ -401,6 +401,9 @@ def main(args=sys.argv[1:]):  # pragma: no cover
     ])
     log.setup(CONF, 'ironic_inspector')
 
+    LOG.debug("Configuration:")
+    CONF.log_opt_values(LOG, log.DEBUG)
+
     app_kwargs = {'host': CONF.listen_address,
                   'port': CONF.listen_port}
 
