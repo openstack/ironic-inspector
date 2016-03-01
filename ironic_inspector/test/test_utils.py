@@ -46,7 +46,7 @@ class TestCheckAuth(base.BaseTest):
         utils.get_client(fake_token)
         args = {'os_auth_token': fake_token,
                 'ironic_url': fake_ironic_url,
-                'os_ironic_api_version': '1.6',
+                'os_ironic_api_version': '1.11',
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, **args)
@@ -60,7 +60,7 @@ class TestCheckAuth(base.BaseTest):
                 'os_tenant_name': CONF.ironic.os_tenant_name,
                 'os_endpoint_type': CONF.ironic.os_endpoint_type,
                 'os_service_type': CONF.ironic.os_service_type,
-                'os_ironic_api_version': '1.6',
+                'os_ironic_api_version': '1.11',
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, **args)

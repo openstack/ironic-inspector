@@ -25,7 +25,7 @@ from oslo_utils import excutils
 from sqlalchemy import text
 
 from ironic_inspector import db
-from ironic_inspector.common.i18n import _, _LE, _LW
+from ironic_inspector.common.i18n import _, _LE, _LW, _LI
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -568,3 +568,26 @@ def clean_up():
                 node_info.release_lock()
 
     return uuids
+
+
+def create_node(driver,  ironic=None, **attributes):
+    """Create ironic node and cache it.
+
+    * Create new node in ironic.
+    * Cache it in inspector.
+
+    :param driver: driver for Ironic node.
+    :param ironic: ronic client instance.
+    :param attributes: dict, additional keyword arguments to pass
+                             to the ironic client on node creation.
+    :return: NodeInfo, or None in case error happened.
+    """
+    if ironic is None:
+        ironic = utils.get_client()
+    try:
+        node = ironic.node.create(driver=driver, **attributes)
+    except exceptions.InvalidAttribute as e:
+        LOG.error(_LE('Failed to create new node: %s'), e)
+    else:
+        LOG.info(_LI('Node %s was created successfully'), node.uuid)
+        return add_node(node.uuid, ironic=ironic)
