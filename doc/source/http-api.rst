@@ -88,6 +88,11 @@ Response:
 
 Response body: JSON dictionary with introspection data
 
+.. note::
+    We do not provide any backward compatibility guarantees regarding the
+    format and contents of the stored data. Notably, it depends on the ramdisk
+    used and plugins enabled both in the ramdisk and in inspector itself.
+
 Introspection Rules
 ~~~~~~~~~~~~~~~~~~~
 
