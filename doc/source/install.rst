@@ -125,6 +125,12 @@ As for PXE boot environment, you'll need:
     enable-tftp
     tftp-root={TFTP ROOT, e.g. /tftpboot}
     dhcp-boot=pxelinux.0
+    dhcp-sequential-ip
+
+  .. note::
+    ``dhcp-sequential-ip`` is used because otherwise a lot of nodes booting
+    simultaneously cause conflicts - the same IP address is suggested to
+    several nodes.
 
 * You have to install and configure one of 2 available ramdisks: simple
   bash-based (see `Using simple ramdisk`_) or more complex based on
