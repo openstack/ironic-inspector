@@ -13,6 +13,7 @@
 import copy
 import mock
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import discovery
 from ironic_inspector.test import base as test_base
@@ -37,7 +38,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
         self.ironic = mock.MagicMock()
 
     @mock.patch.object(node_cache, 'create_node', autospec=True)
-    @mock.patch.object(utils, 'get_client', autospec=True)
+    @mock.patch.object(ir_utils, 'get_client', autospec=True)
     @mock.patch.object(discovery, '_check_existing_nodes', autospec=True)
     def test_enroll_default(self, mock_check_existing, mock_client,
                             mock_create_node):
@@ -52,7 +53,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
             introspection_data, {}, self.ironic)
 
     @mock.patch.object(node_cache, 'create_node', autospec=True)
-    @mock.patch.object(utils, 'get_client', autospec=True)
+    @mock.patch.object(ir_utils, 'get_client', autospec=True)
     @mock.patch.object(discovery, '_check_existing_nodes', autospec=True)
     def test_enroll_with_ipmi_address(self, mock_check_existing, mock_client,
                                       mock_create_node):
@@ -72,7 +73,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
                          introspection_data)
 
     @mock.patch.object(node_cache, 'create_node', autospec=True)
-    @mock.patch.object(utils, 'get_client', autospec=True)
+    @mock.patch.object(ir_utils, 'get_client', autospec=True)
     @mock.patch.object(discovery, '_check_existing_nodes', autospec=True)
     def test_enroll_with_non_default_driver(self, mock_check_existing,
                                             mock_client, mock_create_node):

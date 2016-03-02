@@ -11,11 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import socket
 import unittest
 
-from ironicclient import client
-from keystoneclient import client as keystone_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 
@@ -34,36 +31,6 @@ class TestCheckAuth(base.BaseTest):
     def setUp(self):
         super(TestCheckAuth, self).setUp()
         CONF.set_override('auth_strategy', 'keystone')
-
-    @mock.patch.object(client, 'get_client')
-    @mock.patch.object(keystone_client, 'Client')
-    def test_get_client_with_auth_token(self, mock_keystone_client,
-                                        mock_client):
-        fake_token = 'token'
-        fake_ironic_url = 'http://127.0.0.1:6385'
-        mock_keystone_client().service_catalog.url_for.return_value = (
-            fake_ironic_url)
-        utils.get_client(fake_token)
-        args = {'os_auth_token': fake_token,
-                'ironic_url': fake_ironic_url,
-                'os_ironic_api_version': '1.11',
-                'max_retries': CONF.ironic.max_retries,
-                'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, **args)
-
-    @mock.patch.object(client, 'get_client')
-    def test_get_client_without_auth_token(self, mock_client):
-        utils.get_client(None)
-        args = {'os_password': CONF.ironic.os_password,
-                'os_username': CONF.ironic.os_username,
-                'os_auth_url': CONF.ironic.os_auth_url,
-                'os_tenant_name': CONF.ironic.os_tenant_name,
-                'os_endpoint_type': CONF.ironic.os_endpoint_type,
-                'os_service_type': CONF.ironic.os_service_type,
-                'os_ironic_api_version': '1.11',
-                'max_retries': CONF.ironic.max_retries,
-                'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, **args)
 
     @mock.patch.object(auth_token, 'AuthProtocol')
     def test_middleware(self, mock_auth):
@@ -137,61 +104,6 @@ class TestCheckAuth(base.BaseTest):
         CONF.set_override('auth_strategy', 'noauth')
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         utils.check_auth(request)
-
-
-class TestGetIpmiAddress(base.BaseTest):
-    def test_ipv4_in_resolves(self):
-        node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': '192.168.1.1'})
-        ip = utils.get_ipmi_address(node)
-        self.assertEqual(ip, '192.168.1.1')
-
-    @mock.patch('socket.gethostbyname')
-    def test_good_hostname_resolves(self, mock_socket):
-        node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': 'www.example.com'})
-        mock_socket.return_value = '192.168.1.1'
-        ip = utils.get_ipmi_address(node)
-        mock_socket.assert_called_once_with('www.example.com')
-        self.assertEqual(ip, '192.168.1.1')
-
-    @mock.patch('socket.gethostbyname')
-    def test_bad_hostname_errors(self, mock_socket):
-        node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': 'meow'},
-                         uuid='uuid1')
-        mock_socket.side_effect = socket.gaierror('Boom')
-        self.assertRaises(utils.Error, utils.get_ipmi_address, node)
-
-    def test_additional_fields(self):
-        node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'foo': '192.168.1.1'})
-        self.assertIsNone(utils.get_ipmi_address(node))
-
-        CONF.set_override('ipmi_address_fields', ['foo', 'bar', 'baz'])
-        ip = utils.get_ipmi_address(node)
-        self.assertEqual(ip, '192.168.1.1')
-
-    def test_ipmi_bridging_enabled(self):
-        node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': 'www.example.com',
-                                      'ipmi_bridging': 'single'})
-        self.assertIsNone(utils.get_ipmi_address(node))
-
-
-class TestCapabilities(unittest.TestCase):
-
-    def test_capabilities_to_dict(self):
-        capabilities = 'cat:meow,dog:wuff'
-        expected_output = {'cat': 'meow', 'dog': 'wuff'}
-        output = utils.capabilities_to_dict(capabilities)
-        self.assertEqual(expected_output, output)
-
-    def test_dict_to_capabilities(self):
-        capabilities_dict = {'cat': 'meow', 'dog': 'wuff'}
-        output = utils.dict_to_capabilities(capabilities_dict)
-        self.assertIn('cat:meow', output)
-        self.assertIn('dog:wuff', output)
 
 
 class TestSpawnN(unittest.TestCase):

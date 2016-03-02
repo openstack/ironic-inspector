@@ -18,17 +18,17 @@ import subprocess
 import mock
 from oslo_config import cfg
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector.test import base as test_base
-from ironic_inspector import utils
 
 
 CONF = cfg.CONF
 
 
 @mock.patch.object(firewall, '_iptables')
-@mock.patch.object(utils, 'get_client')
+@mock.patch.object(ir_utils, 'get_client')
 @mock.patch.object(subprocess, 'check_call')
 class TestFirewall(test_base.NodeTest):
     def test_update_filters_without_manage_firewall(self, mock_call,

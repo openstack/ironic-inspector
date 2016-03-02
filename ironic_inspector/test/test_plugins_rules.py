@@ -16,6 +16,7 @@
 
 import mock
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import rules as rules_plugins
 from ironic_inspector.test import base as test_base
@@ -186,7 +187,7 @@ class TestSetCapabilityAction(test_base.NodeTest):
         self.act.apply(self.node_info, self.params)
 
         patch = mock_patch.call_args[0][0]
-        new_caps = utils.capabilities_to_dict(patch[0]['value'])
+        new_caps = ir_utils.capabilities_to_dict(patch[0]['value'])
         self.assertEqual({'cap1': 'val', 'x': 'y', 'answer': '42'}, new_caps)
 
 

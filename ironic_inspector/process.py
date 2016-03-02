@@ -18,6 +18,7 @@ from ironicclient import exceptions
 from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _, _LE, _LI
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
@@ -142,7 +143,7 @@ def _run_post_hooks(node_info, introspection_data):
 
 def _process_node(node, introspection_data, node_info):
     # NOTE(dtantsur): repeat the check in case something changed
-    utils.check_provision_state(node)
+    ir_utils.check_provision_state(node)
 
     node_info.create_ports(introspection_data.get('macs') or ())
 
@@ -165,7 +166,7 @@ def _process_node(node, introspection_data, node_info):
                   'won\'t be stored',
                   node_info=node_info, data=introspection_data)
 
-    ironic = utils.get_client()
+    ironic = ir_utils.get_client()
     firewall.update_filters(ironic)
 
     node_info.invalidate_cache()
@@ -194,7 +195,7 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
               'value': new_username},
              {'op': 'add', 'path': '/driver_info/ipmi_password',
               'value': new_password}]
-    if (not utils.get_ipmi_address(node) and
+    if (not ir_utils.get_ipmi_address(node) and
             introspection_data.get('ipmi_address')):
         patch.append({'op': 'add', 'path': '/driver_info/ipmi_address',
                       'value': introspection_data['ipmi_address']})

@@ -26,6 +26,7 @@ from sqlalchemy import text
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LE, _LW, _LI
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -139,7 +140,7 @@ class NodeInfo(object):
     def ironic(self):
         """Ironic client instance."""
         if self._ironic is None:
-            self._ironic = utils.get_client()
+            self._ironic = ir_utils.get_client()
         return self._ironic
 
     def set_option(self, name, value):
@@ -303,11 +304,11 @@ class NodeInfo(object):
 
         :param props: capabilities to update
         """
-        existing = utils.capabilities_to_dict(
+        existing = ir_utils.capabilities_to_dict(
             self.node().properties.get('capabilities'))
         existing.update(caps)
         self.update_properties(
-            capabilities=utils.dict_to_capabilities(existing))
+            capabilities=ir_utils.dict_to_capabilities(existing))
 
     def delete_port(self, port):
         """Delete port.
@@ -583,7 +584,7 @@ def create_node(driver,  ironic=None, **attributes):
     :return: NodeInfo, or None in case error happened.
     """
     if ironic is None:
-        ironic = utils.get_client()
+        ironic = ir_utils.get_client()
     try:
         node = ironic.node.create(driver=driver, **attributes)
     except exceptions.InvalidAttribute as e:

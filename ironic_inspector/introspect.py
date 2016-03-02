@@ -22,6 +22,7 @@ from ironicclient import exceptions
 from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _, _LI, _LW
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
 from ironic_inspector import node_cache
 from ironic_inspector import utils
@@ -71,7 +72,7 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
     :param token: authentication token
     :raises: Error
     """
-    ironic = utils.get_client(token)
+    ironic = ir_utils.get_client(token)
 
     try:
         node = ironic.node.get(uuid)
@@ -81,7 +82,7 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
         raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
                           {'node': uuid, 'exc': exc})
 
-    utils.check_provision_state(node, with_credentials=new_ipmi_credentials)
+    ir_utils.check_provision_state(node, with_credentials=new_ipmi_credentials)
 
     if new_ipmi_credentials:
         new_ipmi_credentials = (
@@ -93,8 +94,9 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
             raise utils.Error(msg % validation.power['reason'],
                               node_info=node)
 
+    bmc_address = ir_utils.get_ipmi_address(node)
     node_info = node_cache.add_node(node.uuid,
-                                    bmc_address=utils.get_ipmi_address(node),
+                                    bmc_address=bmc_address,
                                     ironic=ironic)
     node_info.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
@@ -184,7 +186,7 @@ def abort(uuid, token=None):
     :raises: Error
     """
     LOG.debug('Aborting introspection for node %s', uuid)
-    ironic = utils.get_client(token)
+    ironic = ir_utils.get_client(token)
     node_info = node_cache.get_node(uuid, ironic=ironic, locked=False)
 
     # check pending operations
