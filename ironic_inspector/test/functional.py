@@ -56,6 +56,7 @@ DEFAULT_SLEEP = 2
 
 class Base(base.NodeTest):
     ROOT_URL = 'http://127.0.0.1:5050'
+    IS_FUNCTIONAL = True
 
     def setUp(self):
         super(Base, self).setUp()
