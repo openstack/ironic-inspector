@@ -52,6 +52,12 @@ interpreter of one of supported versions (currently 2.7 and 3.4), use
     Support for Python 3 is highly experimental, stay with Python 2 for the
     production environment for now.
 
+.. note::
+    This command also runs tests for database migrations. By default the sqlite
+    backend is used. For testing with mysql or postgresql, you need to set up
+    a db named 'openstack_citest' with user 'openstack_citest' and password
+    'openstack_citest' on localhost.
+
 To run the functional tests, use::
 
     tox -e func
