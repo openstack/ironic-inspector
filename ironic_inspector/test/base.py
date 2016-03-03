@@ -102,7 +102,7 @@ class NodeTest(BaseTest):
         mock_to_dict = mock.Mock(return_value=fake_node)
 
         self.node = mock.Mock(**fake_node)
-        self.node.dict = mock_to_dict
+        self.node.to_dict = mock_to_dict
 
         self.ports = []
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,

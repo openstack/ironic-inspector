@@ -138,7 +138,7 @@ class IntrospectionRule(object):
             scheme, path = _parse_path(cond.field)
 
             if scheme == 'node':
-                source_data = node_info.node().dict()
+                source_data = node_info.node().to_dict()
             elif scheme == 'data':
                 source_data = data
 
