@@ -103,9 +103,9 @@ LOG = getProcessingLogger(__name__)
 class Error(Exception):
     """Inspector exception."""
 
-    def __init__(self, msg, code=400, **kwargs):
+    def __init__(self, msg, code=400, log_level='error', **kwargs):
         super(Error, self).__init__(msg)
-        LOG.error(msg, **kwargs)
+        getattr(LOG, log_level)(msg, **kwargs)
         self.http_code = code
 
 
@@ -113,7 +113,8 @@ class NotFoundInCacheError(Error):
     """Exception when node was not found in cache during processing."""
 
     def __init__(self, msg, code=404):
-        super(NotFoundInCacheError, self).__init__(msg, code)
+        super(NotFoundInCacheError, self).__init__(msg, code,
+                                                   log_level='info')
 
 
 def spawn_n(*args, **kwargs):
