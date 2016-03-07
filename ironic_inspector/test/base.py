@@ -13,6 +13,7 @@
 
 import unittest
 
+import futurist
 import mock
 from oslo_concurrency import lockutils
 from oslo_config import cfg
@@ -25,6 +26,7 @@ from ironic_inspector import conf  # noqa
 from ironic_inspector import db
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
+from ironic_inspector import utils
 
 CONF = cfg.CONF
 
@@ -65,6 +67,7 @@ class BaseTest(unittest.TestCase):
             patch.start()
             # 'p=patch' magic is due to how closures work
             self.addCleanup(lambda p=patch: p.stop())
+        utils._EXECUTOR = futurist.SynchronousExecutor(green=True)
 
     def assertPatchEqual(self, expected, actual):
         expected = sorted(expected, key=lambda p: p['path'])

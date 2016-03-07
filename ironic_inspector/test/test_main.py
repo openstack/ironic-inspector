@@ -457,31 +457,30 @@ class TestPlugins(unittest.TestCase):
                       plugins_base.processing_hooks_manager())
 
 
-@mock.patch.object(utils, 'spawn_n')
 @mock.patch.object(firewall, 'init')
 @mock.patch.object(utils, 'add_auth_middleware')
 @mock.patch.object(ir_utils, 'get_client')
 @mock.patch.object(db, 'init')
 class TestInit(test_base.BaseTest):
+    def setUp(self):
+        super(TestInit, self).setUp()
+        # Tests default to a synchronous executor which can't be used here
+        utils._EXECUTOR = None
+
+    @mock.patch.object(firewall, 'clean_up', lambda: None)
+    def tearDown(self):
+        main.shutdown()
+
     def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
-                mock_firewall, mock_spawn_n):
+                mock_firewall):
         CONF.set_override('auth_strategy', 'keystone')
         main.init()
         mock_auth.assert_called_once_with(main.app)
         mock_node_cache.assert_called_once_with()
         mock_firewall.assert_called_once_with()
 
-        spawn_n_expected_args = [
-            (main.periodic_update, CONF.firewall.firewall_update_period),
-            (main.periodic_clean_up, CONF.clean_up_period)]
-        spawn_n_call_args_list = mock_spawn_n.call_args_list
-
-        for (args, call) in zip(spawn_n_expected_args,
-                                spawn_n_call_args_list):
-            self.assertEqual(args, call[0])
-
     def test_init_without_authenticate(self, mock_node_cache, mock_get_client,
-                                       mock_auth, mock_firewall, mock_spawn_n):
+                                       mock_auth, mock_firewall):
         CONF.set_override('auth_strategy', 'noauth')
         main.init()
         self.assertFalse(mock_auth.called)
@@ -489,7 +488,7 @@ class TestInit(test_base.BaseTest):
     @mock.patch.object(main.LOG, 'warning')
     def test_init_with_no_data_storage(self, mock_log, mock_node_cache,
                                        mock_get_client, mock_auth,
-                                       mock_firewall, mock_spawn_n):
+                                       mock_firewall):
         msg = ('Introspection data will not be stored. Change '
                '"[processing] store_data" option if this is not the '
                'desired behavior')
@@ -499,7 +498,7 @@ class TestInit(test_base.BaseTest):
     @mock.patch.object(main.LOG, 'info')
     def test_init_with_swift_storage(self, mock_log, mock_node_cache,
                                      mock_get_client, mock_auth,
-                                     mock_firewall, mock_spawn_n):
+                                     mock_firewall):
         CONF.set_override('store_data', 'swift', 'processing')
         msg = mock.call('Introspection data will be stored in Swift in the '
                         'container %s', CONF.swift.container)
@@ -508,33 +507,15 @@ class TestInit(test_base.BaseTest):
 
     def test_init_without_manage_firewall(self, mock_node_cache,
                                           mock_get_client, mock_auth,
-                                          mock_firewall, mock_spawn_n):
+                                          mock_firewall):
         CONF.set_override('manage_firewall', False, 'firewall')
         main.init()
         self.assertFalse(mock_firewall.called)
-        spawn_n_expected_args = [
-            (main.periodic_clean_up, CONF.clean_up_period)]
-        spawn_n_call_args_list = mock_spawn_n.call_args_list
-        for (args, call) in zip(spawn_n_expected_args,
-                                spawn_n_call_args_list):
-            self.assertEqual(args, call[0])
-
-    def test_init_with_timeout_0(self, mock_node_cache, mock_get_client,
-                                 mock_auth, mock_firewall, mock_spawn_n):
-        CONF.set_override('timeout', 0)
-        main.init()
-        spawn_n_expected_args = [
-            (main.periodic_update, CONF.firewall.firewall_update_period)]
-        spawn_n_call_args_list = mock_spawn_n.call_args_list
-
-        for (args, call) in zip(spawn_n_expected_args,
-                                spawn_n_call_args_list):
-            self.assertEqual(args, call[0])
 
     @mock.patch.object(main.LOG, 'critical')
     def test_init_failed_processing_hook(self, mock_log, mock_node_cache,
                                          mock_get_client, mock_auth,
-                                         mock_firewall, mock_spawn_n):
+                                         mock_firewall):
         CONF.set_override('processing_hooks', 'foo!', 'processing')
         plugins_base._HOOKS_MGR = None
 

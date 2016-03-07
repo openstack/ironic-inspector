@@ -100,9 +100,9 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
                                     ironic=ironic)
     node_info.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
-    def _handle_exceptions():
+    def _handle_exceptions(fut):
         try:
-            _background_introspect(ironic, node_info)
+            fut.result()
         except utils.Error as exc:
             # Logging has already happened in Error.__init__
             node_info.finished(error=str(exc))
@@ -111,7 +111,8 @@ def introspect(uuid, new_ipmi_credentials=None, token=None):
             LOG.exception(msg, node_info=node_info)
             node_info.finished(error=msg)
 
-    utils.spawn_n(_handle_exceptions)
+    future = utils.executor().submit(_background_introspect, ironic, node_info)
+    future.add_done_callback(_handle_exceptions)
 
 
 def _background_introspect(ironic, node_info):
@@ -196,7 +197,7 @@ def abort(uuid, token=None):
         raise utils.Error(_('Node is locked, please, retry later'),
                           node_info=node_info, code=409)
 
-    utils.spawn_n(_abort, node_info, ironic)
+    utils.executor().submit(_abort, node_info, ironic)
 
 
 def _abort(node_info, ironic):

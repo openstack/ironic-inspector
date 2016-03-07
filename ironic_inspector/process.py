@@ -177,14 +177,14 @@ def _process_node(node, introspection_data, node_info):
     if node_info.options.get('new_ipmi_credentials'):
         new_username, new_password = (
             node_info.options.get('new_ipmi_credentials'))
-        utils.spawn_n(_finish_set_ipmi_credentials,
-                      ironic, node, node_info, introspection_data,
-                      new_username, new_password)
+        utils.executor().submit(_finish_set_ipmi_credentials,
+                                ironic, node, node_info, introspection_data,
+                                new_username, new_password)
         resp['ipmi_setup_credentials'] = True
         resp['ipmi_username'] = new_username
         resp['ipmi_password'] = new_password
     else:
-        utils.spawn_n(_finish, ironic, node_info, introspection_data)
+        utils.executor().submit(_finish, ironic, node_info, introspection_data)
 
     return resp
 

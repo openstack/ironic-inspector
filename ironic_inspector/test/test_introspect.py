@@ -49,8 +49,6 @@ class BaseTest(test_base.NodeTest):
 
 
 @mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
-@mock.patch.object(utils, 'spawn_n',
-                   lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
@@ -334,8 +332,6 @@ class TestIntrospect(BaseTest):
         self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
 
 
-@mock.patch.object(utils, 'spawn_n',
-                   lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
@@ -419,8 +415,6 @@ class TestSetIpmiCredentials(BaseTest):
                           new_ipmi_credentials=self.new_creds)
 
 
-@mock.patch.object(utils, 'spawn_n',
-                   lambda f, *a, **kw: f(*a, **kw) and None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'get_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)

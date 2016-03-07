@@ -14,7 +14,7 @@
 import logging as pylog
 import re
 
-import eventlet
+import futurist
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 from oslo_log import log
@@ -25,7 +25,7 @@ from ironic_inspector import conf  # noqa
 
 CONF = cfg.CONF
 
-GREEN_POOL = None
+_EXECUTOR = None
 
 
 def get_ipmi_address_from_data(introspection_data):
@@ -116,11 +116,13 @@ class NotFoundInCacheError(Error):
         super(NotFoundInCacheError, self).__init__(msg, code)
 
 
-def spawn_n(*args, **kwargs):
-    global GREEN_POOL
-    if not GREEN_POOL:
-        GREEN_POOL = eventlet.greenpool.GreenPool(CONF.max_concurrency)
-    return GREEN_POOL.spawn_n(*args, **kwargs)
+def executor():
+    """Return the current futures executor."""
+    global _EXECUTOR
+    if _EXECUTOR is None:
+        _EXECUTOR = futurist.GreenThreadPoolExecutor(
+            max_workers=CONF.max_concurrency)
+    return _EXECUTOR
 
 
 def add_auth_middleware(app):

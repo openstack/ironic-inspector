@@ -240,7 +240,7 @@ SERVICE_OPTS = [
                default='',
                help='Path to SSL key'),
     cfg.IntOpt('max_concurrency',
-               default=1000,
+               default=1000, min=2,
                help='The green thread pool size.'),
     cfg.IntOpt('introspection_delay',
                default=5,
