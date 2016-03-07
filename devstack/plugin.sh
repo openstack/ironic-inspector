@@ -224,6 +224,7 @@ interface=$IRONIC_INSPECTOR_INTERFACE
 bind-interfaces
 dhcp-range=$IRONIC_INSPECTOR_DHCP_RANGE
 dhcp-boot=pxelinux.0
+dhcp-sequential-ip
 EOF
 }
 
