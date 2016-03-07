@@ -466,15 +466,16 @@ class TestInit(test_base.BaseTest):
         super(TestInit, self).setUp()
         # Tests default to a synchronous executor which can't be used here
         utils._EXECUTOR = None
+        self.service = main.Service()
 
     @mock.patch.object(firewall, 'clean_up', lambda: None)
     def tearDown(self):
-        main.shutdown()
+        self.service.shutdown()
 
     def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
                 mock_firewall):
         CONF.set_override('auth_strategy', 'keystone')
-        main.init()
+        self.service.init()
         mock_auth.assert_called_once_with(main.app)
         mock_node_cache.assert_called_once_with()
         mock_firewall.assert_called_once_with()
@@ -482,7 +483,7 @@ class TestInit(test_base.BaseTest):
     def test_init_without_authenticate(self, mock_node_cache, mock_get_client,
                                        mock_auth, mock_firewall):
         CONF.set_override('auth_strategy', 'noauth')
-        main.init()
+        self.service.init()
         self.assertFalse(mock_auth.called)
 
     @mock.patch.object(main.LOG, 'warning')
@@ -492,7 +493,7 @@ class TestInit(test_base.BaseTest):
         msg = ('Introspection data will not be stored. Change '
                '"[processing] store_data" option if this is not the '
                'desired behavior')
-        main.init()
+        self.service.init()
         mock_log.assert_called_once_with(msg)
 
     @mock.patch.object(main.LOG, 'info')
@@ -502,14 +503,14 @@ class TestInit(test_base.BaseTest):
         CONF.set_override('store_data', 'swift', 'processing')
         msg = mock.call('Introspection data will be stored in Swift in the '
                         'container %s', CONF.swift.container)
-        main.init()
+        self.service.init()
         self.assertIn(msg, mock_log.call_args_list)
 
     def test_init_without_manage_firewall(self, mock_node_cache,
                                           mock_get_client, mock_auth,
                                           mock_firewall):
         CONF.set_override('manage_firewall', False, 'firewall')
-        main.init()
+        self.service.init()
         self.assertFalse(mock_firewall.called)
 
     @mock.patch.object(main.LOG, 'critical')
@@ -519,7 +520,7 @@ class TestInit(test_base.BaseTest):
         CONF.set_override('processing_hooks', 'foo!', 'processing')
         plugins_base._HOOKS_MGR = None
 
-        self.assertRaises(SystemExit, main.init)
+        self.assertRaises(SystemExit, self.service.init)
         mock_log.assert_called_once_with(mock.ANY, "'foo!'")
 
 
