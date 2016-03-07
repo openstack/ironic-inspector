@@ -12,7 +12,12 @@
 # limitations under the License.
 
 from oslo_config import cfg
+from oslo_middleware import cors
 
+
+MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
+MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
+VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
 
 VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe')
 VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
@@ -215,3 +220,22 @@ def list_opts():
         ('processing', PROCESSING_OPTS),
         ('discoverd', DISCOVERD_OPTS),
     ]
+
+
+def set_config_defaults():
+    """This method updates all configuration default values."""
+    set_cors_middleware_defaults()
+
+
+def set_cors_middleware_defaults():
+    """Update default configuration options for oslo.middleware."""
+    # TODO(krotscheck): Update with https://review.openstack.org/#/c/285368/
+    cfg.set_defaults(
+        cors.CORS_OPTS,
+        allow_headers=['X-Auth-Token',
+                       MIN_VERSION_HEADER,
+                       MAX_VERSION_HEADER,
+                       VERSION_HEADER],
+        allow_methods=['GET', 'POST', 'PUT', 'HEAD',
+                       'PATCH', 'DELETE', 'OPTIONS']
+    )

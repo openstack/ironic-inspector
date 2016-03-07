@@ -18,6 +18,7 @@ import futurist
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 from oslo_log import log
+from oslo_middleware import cors as cors_middleware
 import six
 
 from ironic_inspector.common.i18n import _, _LE
@@ -157,6 +158,17 @@ def add_auth_middleware(app):
                       CONF.keystone_authtoken.identity_uri})
     auth_conf['delay_auth_decision'] = True
     app.wsgi_app = auth_token.AuthProtocol(app.wsgi_app, auth_conf)
+
+
+def add_cors_middleware(app):
+    """Create a CORS wrapper
+
+    Attach ironic-inspector-specific defaults that must be included
+    in all CORS responses.
+
+    :param app: application
+    """
+    app.wsgi_app = cors_middleware.CORS(app.wsgi_app, CONF)
 
 
 def check_auth(request):
