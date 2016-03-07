@@ -11,12 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 
+import fixtures
 import futurist
 import mock
 from oslo_concurrency import lockutils
 from oslo_config import cfg
+from oslo_config import fixture as config_fixture
 from oslo_log import log
 from oslo_utils import uuidutils
 
@@ -31,30 +32,14 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-def init_test_conf():
-    try:
-        # Functional tests
-        CONF.reload_config_files()
-        # Unit tests
-    except Exception:
-        CONF.reset()
-    for group in ('firewall', 'processing', 'ironic', 'discoverd'):
-        CONF.register_group(cfg.OptGroup(group))
-    try:
-        # Functional tests
-        log.register_options(CONF)
-    except Exception:
-        # Unit tests
-        pass
-    CONF.set_default('connection', "sqlite:///", group='database')
-    CONF.set_default('slave_connection', False, group='database')
-    CONF.set_default('max_retries', 10, group='database')
+class BaseTest(fixtures.TestWithFixtures):
 
+    IS_FUNCTIONAL = False
 
-class BaseTest(unittest.TestCase):
     def setUp(self):
         super(BaseTest, self).setUp()
-        init_test_conf()
+        if not self.IS_FUNCTIONAL:
+            self.init_test_conf()
         self.session = db.get_session()
         engine = db.get_engine()
         db.Base.metadata.create_all(engine)
@@ -68,6 +53,14 @@ class BaseTest(unittest.TestCase):
             # 'p=patch' magic is due to how closures work
             self.addCleanup(lambda p=patch: p.stop())
         utils._EXECUTOR = futurist.SynchronousExecutor(green=True)
+
+    def init_test_conf(self):
+        CONF.reset()
+        log.register_options(CONF)
+        self.cfg = self.useFixture(config_fixture.Config(CONF))
+        self.cfg.set_default('connection', "sqlite:///", group='database')
+        self.cfg.set_default('slave_connection', False, group='database')
+        self.cfg.set_default('max_retries', 10, group='database')
 
     def assertPatchEqual(self, expected, actual):
         expected = sorted(expected, key=lambda p: p['path'])
