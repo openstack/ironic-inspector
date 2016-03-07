@@ -102,3 +102,10 @@ class RaidDeviceDetection(base.ProcessingHook):
             node_info.patch([{'op': 'add',
                               'path': '/extra/block_devices',
                               'value': {'serials': current_devices}}])
+
+
+class RootDeviceHintHook(RaidDeviceDetection):
+    def __init__(self):
+        LOG.warning(_LW('Using the root_device_hint alias for the '
+                        'raid_device plugin is deprecated'))
+        super(RaidDeviceDetection, self).__init__()
