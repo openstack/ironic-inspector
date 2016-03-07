@@ -29,6 +29,68 @@ SET_CREDENTIALS_VALID_STATES = {'enroll'}
 # 1.11 is API version, which support 'enroll' state
 DEFAULT_IRONIC_API_VERSION = '1.11'
 
+IRONIC_GROUP = 'ironic'
+
+IRONIC_OPTS = [
+    cfg.StrOpt('os_auth_url',
+               default='',
+               help='Keystone authentication endpoint for accessing Ironic '
+                    'API. Use [keystone_authtoken]/auth_uri for keystone '
+                    'authentication.',
+               deprecated_group='discoverd'),
+    cfg.StrOpt('os_username',
+               default='',
+               help='User name for accessing Ironic API. '
+                    'Use [keystone_authtoken]/admin_user for keystone '
+                    'authentication.',
+               deprecated_group='discoverd'),
+    cfg.StrOpt('os_password',
+               default='',
+               help='Password for accessing Ironic API. '
+                    'Use [keystone_authtoken]/admin_password for keystone '
+                    'authentication.',
+               secret=True,
+               deprecated_group='discoverd'),
+    cfg.StrOpt('os_tenant_name',
+               default='',
+               help='Tenant name for accessing Ironic API. '
+                    'Use [keystone_authtoken]/admin_tenant_name for keystone '
+                    'authentication.',
+               deprecated_group='discoverd'),
+    cfg.StrOpt('identity_uri',
+               default='',
+               help='Keystone admin endpoint. '
+                    'DEPRECATED: use [keystone_authtoken]/identity_uri.',
+               deprecated_group='discoverd',
+               deprecated_for_removal=True),
+    cfg.StrOpt('auth_strategy',
+               default='keystone',
+               choices=('keystone', 'noauth'),
+               help='Method to use for authentication: noauth or keystone.'),
+    cfg.StrOpt('ironic_url',
+               default='http://localhost:6385/',
+               help='Ironic API URL, used to set Ironic API URL when '
+                    'auth_strategy option is noauth to work with standalone '
+                    'Ironic without keystone.'),
+    cfg.StrOpt('os_service_type',
+               default='baremetal',
+               help='Ironic service type.'),
+    cfg.StrOpt('os_endpoint_type',
+               default='internalURL',
+               help='Ironic endpoint type.'),
+    cfg.IntOpt('retry_interval',
+               default=2,
+               help='Interval between retries in case of conflict error '
+               '(HTTP 409).'),
+    cfg.IntOpt('max_retries',
+               default=30,
+               help='Maximum number of retries in case of conflict error '
+               '(HTTP 409).'),
+]
+
+
+CONF.register_opts(IRONIC_OPTS, group=IRONIC_GROUP)
+
 
 def get_ipmi_address(node):
     ipmi_fields = ['ipmi_address'] + CONF.ipmi_address_fields
@@ -108,3 +170,7 @@ def dict_to_capabilities(caps_dict):
     return ','.join(["%s:%s" % (key, value)
                      for key, value in caps_dict.items()
                      if value is not None])
+
+
+def list_opts():
+    return [(IRONIC_GROUP, IRONIC_OPTS)]
