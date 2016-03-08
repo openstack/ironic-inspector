@@ -134,11 +134,25 @@ function prepare_tftp {
         fi
     fi
 
-    mkdir_chown_stack "$IRONIC_TFTPBOOT_DIR/pxelinux.cfg"
-    cp $IRONIC_INSPECTOR_KERNEL_PATH $IRONIC_TFTPBOOT_DIR/ironic-inspector.kernel
-    cp $IRONIC_INSPECTOR_INITRAMFS_PATH $IRONIC_TFTPBOOT_DIR
+    if [[ "$IRONIC_IPXE_ENABLED" == "True" ]] ; then
+        cp $IRONIC_INSPECTOR_KERNEL_PATH $IRONIC_HTTP_DIR/ironic-inspector.kernel
+        cp $IRONIC_INSPECTOR_INITRAMFS_PATH $IRONIC_HTTP_DIR
 
-    cat > "$IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default" <<EOF
+        cat > "$IRONIC_HTTP_DIR/ironic-inspector.ipxe" <<EOF
+#!ipxe
+
+dhcp
+
+kernel http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.kernel BOOTIF=\${mac} $IRONIC_INSPECTOR_KERNEL_CMDLINE
+initrd http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.initramfs
+boot
+EOF
+    else
+        mkdir_chown_stack "$IRONIC_TFTPBOOT_DIR/pxelinux.cfg"
+        cp $IRONIC_INSPECTOR_KERNEL_PATH $IRONIC_TFTPBOOT_DIR/ironic-inspector.kernel
+        cp $IRONIC_INSPECTOR_INITRAMFS_PATH $IRONIC_TFTPBOOT_DIR
+
+        cat > "$IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default" <<EOF
 default inspect
 
 label inspect
@@ -147,6 +161,7 @@ append initrd=ironic-inspector.initramfs $IRONIC_INSPECTOR_KERNEL_CMDLINE
 
 ipappend 3
 EOF
+    fi
 }
 
 function configure_inspector {
@@ -217,7 +232,20 @@ function configure_inspector_swift {
 function configure_inspector_dhcp {
     mkdir_chown_stack "$IRONIC_INSPECTOR_CONF_DIR"
 
-    cat > "$IRONIC_INSPECTOR_DHCP_CONF_FILE" <<EOF
+    if [[ "$IRONIC_IPXE_ENABLED" == "True" ]] ; then
+        cat > "$IRONIC_INSPECTOR_DHCP_CONF_FILE" <<EOF
+no-daemon
+port=0
+interface=$IRONIC_INSPECTOR_INTERFACE
+bind-interfaces
+dhcp-range=$IRONIC_INSPECTOR_DHCP_RANGE
+dhcp-match=ipxe,175
+dhcp-boot=tag:!ipxe,undionly.kpxe
+dhcp-boot=tag:ipxe,http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.ipxe
+dhcp-sequential-ip
+EOF
+    else
+        cat > "$IRONIC_INSPECTOR_DHCP_CONF_FILE" <<EOF
 no-daemon
 port=0
 interface=$IRONIC_INSPECTOR_INTERFACE
@@ -226,6 +254,7 @@ dhcp-range=$IRONIC_INSPECTOR_DHCP_RANGE
 dhcp-boot=pxelinux.0
 dhcp-sequential-ip
 EOF
+    fi
 }
 
 function prepare_environment {
@@ -256,6 +285,9 @@ function create_ironic_inspector_cache_dir {
 function cleanup_inspector {
     rm -f $IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default
     rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
+    if [[ "$IRONIC_IPXE_ENABLED" == "True" ]] ; then
+        rm -f $IRONIC_HTTP_DIR/ironic-inspector.*
+    fi
     sudo rm -f /etc/sudoers.d/ironic-inspector-rootwrap
     sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
     sudo rm -rf "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
