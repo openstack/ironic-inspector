@@ -16,13 +16,15 @@
 import abc
 
 from oslo_config import cfg
+from oslo_log import log
 import six
 import stevedore
 
-from ironic_inspector.common.i18n import _
+from ironic_inspector.common.i18n import _, _LW
 
 
 CONF = cfg.CONF
+LOG = log.getLogger(__name__)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -195,4 +197,10 @@ def rule_actions_manager():
         _ACTIONS_MGR = stevedore.ExtensionManager(
             'ironic_inspector.rules.actions',
             invoke_on_load=True)
+        for act in _ACTIONS_MGR:
+            # a trick to detect if function was overriden
+            if "rollback" in act.obj.__class__.__dict__:
+                LOG.warning(_LW('Defining "rollback" for introspection rules '
+                                'actions is deprecated (action "%s")'),
+                            act.name)
     return _ACTIONS_MGR

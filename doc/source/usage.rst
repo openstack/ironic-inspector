@@ -49,8 +49,6 @@ them automatically after running all processing hooks.
 
 A rule consists of conditions to check, and actions to run. If conditions
 evaluate to true on the introspection data, then actions are run on a node.
-All actions have "rollback actions" associated with them, which are run when
-conditions evaluate to false. This way we can safely rerun introspection.
 
 Available conditions and actions are defined by plugins, and can be extended,
 see :ref:`contributing_link` for details. See :ref:`api` for specific calls
