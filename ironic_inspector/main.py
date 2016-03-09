@@ -380,8 +380,8 @@ def create_ssl_context():
 
     if sys.version_info < MIN_VERSION:
         LOG.warning(_LW('Unable to use SSL in this version of Python: '
-                        '%{current}, please ensure your version of Python is '
-                        'greater than %{min} to enable this feature.'),
+                        '%(current)s, please ensure your version of Python is '
+                        'greater than %(min)s to enable this feature.'),
                     {'current': '.'.join(map(str, sys.version_info[:3])),
                      'min': '.'.join(map(str, MIN_VERSION))})
         return
@@ -392,8 +392,8 @@ def create_ssl_context():
             context.load_cert_chain(CONF.ssl_cert_path, CONF.ssl_key_path)
         except IOError as exc:
             LOG.warning(_LW('Failed to load certificate or key from defined '
-                            'locations: %{cert} and %{key}, will continue to '
-                            'run with the default settings: %{exc}'),
+                            'locations: %(cert)s and %(key)s, will continue '
+                            'to run with the default settings: %(exc)s'),
                         {'cert': CONF.ssl_cert_path, 'key': CONF.ssl_key_path,
                          'exc': exc})
         except ssl.SSLError as exc:
