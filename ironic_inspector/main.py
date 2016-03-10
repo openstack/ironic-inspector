@@ -314,64 +314,6 @@ def sync_with_ironic():
     node_cache.delete_nodes_not_in_list(ironic_node_uuids)
 
 
-_PERIODICS_WORKER = None
-
-
-def init():
-    global _PERIODICS_WORKER
-
-    if utils.get_auth_strategy() != 'noauth':
-        utils.add_auth_middleware(app)
-    else:
-        LOG.warning(_LW('Starting unauthenticated, please check'
-                        ' configuration'))
-
-    if CONF.processing.store_data == 'none':
-        LOG.warning(_LW('Introspection data will not be stored. Change '
-                        '"[processing] store_data" option if this is not the '
-                        'desired behavior'))
-    elif CONF.processing.store_data == 'swift':
-        LOG.info(_LI('Introspection data will be stored in Swift in the '
-                     'container %s'), CONF.swift.container)
-
-    db.init()
-
-    try:
-        hooks = [ext.name for ext in plugins_base.processing_hooks_manager()]
-    except KeyError as exc:
-        # stevedore raises KeyError on missing hook
-        LOG.critical(_LC('Hook %s failed to load or was not found'), str(exc))
-        sys.exit(1)
-
-    LOG.info(_LI('Enabled processing hooks: %s'), hooks)
-
-    if CONF.firewall.manage_firewall:
-        firewall.init()
-
-    _PERIODICS_WORKER = periodics.PeriodicWorker(
-        callables=[(periodic_update, None, None),
-                   (periodic_clean_up, None, None)],
-        executor_factory=periodics.ExistingExecutor(utils.executor()))
-    utils.executor().submit(_PERIODICS_WORKER.start)
-
-
-def shutdown():
-    global _PERIODICS_WORKER
-    LOG.debug('Shutting down')
-
-    firewall.clean_up()
-
-    if _PERIODICS_WORKER is not None:
-        _PERIODICS_WORKER.stop()
-        _PERIODICS_WORKER.wait()
-        _PERIODICS_WORKER = None
-
-    if utils.executor().alive:
-        utils.executor().shutdown(wait=True)
-
-    LOG.info(_LI('Shut down successfully'))
-
-
 def create_ssl_context():
     if not CONF.use_ssl:
         return
@@ -403,35 +345,98 @@ def create_ssl_context():
     return context
 
 
+class Service(object):
+    _periodics_worker = None
+
+    def setup_logging(self, args):
+        log.register_options(CONF)
+        CONF(args, project='ironic-inspector')
+
+        log.set_defaults(default_log_levels=[
+            'sqlalchemy=WARNING',
+            'keystoneclient=INFO',
+            'iso8601=WARNING',
+            'requests=WARNING',
+            'urllib3.connectionpool=WARNING',
+            'keystonemiddleware=WARNING',
+            'swiftclient=WARNING',
+            'keystoneauth=WARNING',
+            'ironicclient=WARNING'
+        ])
+        log.setup(CONF, 'ironic_inspector')
+
+        LOG.debug("Configuration:")
+        CONF.log_opt_values(LOG, log.DEBUG)
+
+    def init(self):
+        if utils.get_auth_strategy() != 'noauth':
+            utils.add_auth_middleware(app)
+        else:
+            LOG.warning(_LW('Starting unauthenticated, please check'
+                            ' configuration'))
+
+        if CONF.processing.store_data == 'none':
+            LOG.warning(_LW('Introspection data will not be stored. Change '
+                            '"[processing] store_data" option if this is not '
+                            'the desired behavior'))
+        elif CONF.processing.store_data == 'swift':
+            LOG.info(_LI('Introspection data will be stored in Swift in the '
+                         'container %s'), CONF.swift.container)
+
+        db.init()
+
+        try:
+            hooks = [ext.name for ext in
+                     plugins_base.processing_hooks_manager()]
+        except KeyError as exc:
+            # stevedore raises KeyError on missing hook
+            LOG.critical(_LC('Hook %s failed to load or was not found'),
+                         str(exc))
+            sys.exit(1)
+
+        LOG.info(_LI('Enabled processing hooks: %s'), hooks)
+
+        if CONF.firewall.manage_firewall:
+            firewall.init()
+
+        self._periodics_worker = periodics.PeriodicWorker(
+            callables=[(periodic_update, None, None),
+                       (periodic_clean_up, None, None)],
+            executor_factory=periodics.ExistingExecutor(utils.executor()))
+        utils.executor().submit(self._periodics_worker.start)
+
+    def shutdown(self):
+        LOG.debug('Shutting down')
+
+        firewall.clean_up()
+
+        if self._periodics_worker is not None:
+            self._periodics_worker.stop()
+            self._periodics_worker.wait()
+            self._periodics_worker = None
+
+        if utils.executor().alive:
+            utils.executor().shutdown(wait=True)
+
+        LOG.info(_LI('Shut down successfully'))
+
+    def run(self, args, application):
+        self.setup_logging(args)
+
+        app_kwargs = {'host': CONF.listen_address,
+                      'port': CONF.listen_port}
+
+        context = create_ssl_context()
+        if context:
+            app_kwargs['ssl_context'] = context
+
+        self.init()
+        try:
+            application.run(**app_kwargs)
+        finally:
+            self.shutdown()
+
+
 def main(args=sys.argv[1:]):  # pragma: no cover
-    log.register_options(CONF)
-    CONF(args, project='ironic-inspector')
-
-    log.set_defaults(default_log_levels=[
-        'sqlalchemy=WARNING',
-        'keystoneclient=INFO',
-        'iso8601=WARNING',
-        'requests=WARNING',
-        'urllib3.connectionpool=WARNING',
-        'keystonemiddleware=WARNING',
-        'swiftclient=WARNING',
-        'keystoneauth=WARNING',
-        'ironicclient=WARNING'
-    ])
-    log.setup(CONF, 'ironic_inspector')
-
-    LOG.debug("Configuration:")
-    CONF.log_opt_values(LOG, log.DEBUG)
-
-    app_kwargs = {'host': CONF.listen_address,
-                  'port': CONF.listen_port}
-
-    context = create_ssl_context()
-    if context:
-        app_kwargs['ssl_context'] = context
-
-    init()
-    try:
-        app.run(**app_kwargs)
-    finally:
-        shutdown()
+    service = Service()
+    service.run(args, app)
