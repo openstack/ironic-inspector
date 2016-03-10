@@ -268,10 +268,6 @@ Writing a Plugin
 
   The following methods and attributes may also be overridden:
 
-  ``rollback(node_info,params,**)``
-      called to clean up when conditions were not met.
-      Default implementation does nothing.
-
   ``validate(params,**)``
       called to validate parameters provided during actions creating.
       Default implementation requires keys listed in ``REQUIRED_PARAMS`` (and
