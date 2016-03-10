@@ -400,7 +400,7 @@ class TestProcessNode(BaseTest):
         CONF.set_override('store_data', 'swift', 'processing')
         swift_conn = swift_mock.return_value
         name = 'inspector_data-%s' % self.uuid
-        expected = self.data.copy()
+        expected = self.data
 
         self.call()
 
@@ -438,7 +438,7 @@ class TestProcessNode(BaseTest):
              'value': name,
              'op': 'add'}
         )
-        expected = self.data.copy()
+        expected = self.data
 
         self.call()
 
