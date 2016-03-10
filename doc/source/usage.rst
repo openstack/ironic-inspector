@@ -234,9 +234,9 @@ see :ref:`ramdisk_callback`.
 
 Once the ``enroll`` hook is finished, **ironic-inspector** will process the
 introspection data in the same way it would for an identified node. It runs
-the processing plugins :ref:`_plugins`, and after that it runs introspection
+the processing :ref:`plugins`, and after that it runs introspection
 rules, which would allow for more customisable node configuration,
-see :ref:`_rules`.
+see :ref:`rules`.
 
 A rule to set a node's Ironic driver to the ``agent_ipmitool`` driver and
 populate the required driver_info for that driver would look like::
