@@ -23,9 +23,17 @@ Developer Guide
 ===============
 
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
 
   Contributing <contributing>
+
+Python API
+----------
+
+.. toctree::
+  :maxdepth: 1
+
+  api/autoindex
 
 Indices and tables
 ==================
