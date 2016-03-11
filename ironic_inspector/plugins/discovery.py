@@ -61,7 +61,7 @@ def _check_existing_nodes(introspection_data, node_driver_info, ironic):
                 continue
             raise utils.Error(
                 _('Port %(mac)s already exists, uuid: %(uuid)s') %
-                {'mac': mac, 'uuid': ports.uuid}, data=introspection_data)
+                {'mac': mac, 'uuid': ports[0].uuid}, data=introspection_data)
     else:
         LOG.warning(_LW('No suitable interfaces found for discovered node. '
                         'Check that validate_interfaces hook is listed in '
