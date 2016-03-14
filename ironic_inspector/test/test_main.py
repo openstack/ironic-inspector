@@ -20,6 +20,7 @@ import mock
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import conf
 from ironic_inspector import db
 from ironic_inspector import firewall
 from ironic_inspector import introspect
@@ -352,9 +353,9 @@ class TestApiMisc(BaseAPITest):
 class TestApiVersions(BaseAPITest):
     def _check_version_present(self, res):
         self.assertEqual('%d.%d' % main.MINIMUM_API_VERSION,
-                         res.headers.get(main._MIN_VERSION_HEADER))
+                         res.headers.get(conf.MIN_VERSION_HEADER))
         self.assertEqual('%d.%d' % main.CURRENT_API_VERSION,
-                         res.headers.get(main._MAX_VERSION_HEADER))
+                         res.headers.get(conf.MAX_VERSION_HEADER))
 
     def test_root_endpoint(self):
         res = self.app.get("/")
@@ -420,14 +421,14 @@ class TestApiVersions(BaseAPITest):
             self.app.post('/v1/introspection/foobar'))
 
     def test_request_correct_version(self):
-        headers = {main._VERSION_HEADER:
+        headers = {conf.VERSION_HEADER:
                    main._format_version(main.CURRENT_API_VERSION)}
         self._check_version_present(self.app.get('/', headers=headers))
 
     def test_request_unsupported_version(self):
         bad_version = (main.CURRENT_API_VERSION[0],
                        main.CURRENT_API_VERSION[1] + 1)
-        headers = {main._VERSION_HEADER:
+        headers = {conf.VERSION_HEADER:
                    main._format_version(bad_version)}
         res = self.app.get('/', headers=headers)
         self._check_version_present(res)

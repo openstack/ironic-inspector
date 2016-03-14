@@ -48,9 +48,6 @@ LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
 CURRENT_API_VERSION = (1, 3)
-_MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
-_MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
-_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -89,7 +86,7 @@ def convert_exceptions(func):
 
 @app.before_request
 def check_api_version():
-    requested = flask.request.headers.get(_VERSION_HEADER,
+    requested = flask.request.headers.get(conf.VERSION_HEADER,
                                           _DEFAULT_API_VERSION)
     try:
         requested = tuple(int(x) for x in requested.split('.'))
@@ -108,8 +105,8 @@ def check_api_version():
 
 @app.after_request
 def add_version_headers(res):
-    res.headers[_MIN_VERSION_HEADER] = '%s.%s' % MINIMUM_API_VERSION
-    res.headers[_MAX_VERSION_HEADER] = '%s.%s' % CURRENT_API_VERSION
+    res.headers[conf.MIN_VERSION_HEADER] = '%s.%s' % MINIMUM_API_VERSION
+    res.headers[conf.MAX_VERSION_HEADER] = '%s.%s' % CURRENT_API_VERSION
     return res
 
 
@@ -382,6 +379,8 @@ class Service(object):
         elif CONF.processing.store_data == 'swift':
             LOG.info(_LI('Introspection data will be stored in Swift in the '
                          'container %s'), CONF.swift.container)
+
+        utils.add_cors_middleware(app)
 
         db.init()
 
