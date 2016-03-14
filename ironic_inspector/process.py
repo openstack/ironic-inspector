@@ -227,11 +227,17 @@ def _finish(ironic, node_info, introspection_data):
     try:
         ironic.node.set_power_state(node_info.uuid, 'off')
     except Exception as exc:
-        msg = (_('Failed to power off node %(node)s, check it\'s power '
-                 'management configuration: %(exc)s') %
-               {'node': node_info.uuid, 'exc': exc})
-        node_info.finished(error=msg)
-        raise utils.Error(msg, node_info=node_info, data=introspection_data)
+        if node_info.node().provision_state == 'enroll':
+            LOG.info(_LI("Failed to power off the node in 'enroll' state, "
+                         "ignoring; error was %s") % exc,
+                     node_info=node_info, data=introspection_data)
+        else:
+            msg = (_('Failed to power off node %(node)s, check it\'s '
+                     'power management configuration: %(exc)s') %
+                   {'node': node_info.uuid, 'exc': exc})
+            node_info.finished(error=msg)
+            raise utils.Error(msg, node_info=node_info,
+                              data=introspection_data)
 
     node_info.finished()
     LOG.info(_LI('Introspection finished successfully'),

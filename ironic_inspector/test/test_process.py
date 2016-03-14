@@ -395,6 +395,18 @@ class TestProcessNode(BaseTest):
             error='Failed to power off node %s, check it\'s power management'
             ' configuration: boom' % self.uuid)
 
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_power_off_enroll_state(self, finished_mock, filters_mock,
+                                    post_hook_mock):
+        self.node.provision_state = 'enroll'
+        self.node_info.node = mock.Mock(return_value=self.node)
+
+        self.call()
+
+        self.assertTrue(post_hook_mock.called)
+        self.assertTrue(self.cli.node.set_power_state.called)
+        finished_mock.assert_called_once_with(self.node_info)
+
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data(self, swift_mock, filters_mock, post_hook_mock):
         CONF.set_override('store_data', 'swift', 'processing')
