@@ -30,7 +30,9 @@ IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE=${IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE:-2
 IRONIC_INSPECTOR_DHCP_RANGE=${IRONIC_INSPECTOR_DHCP_RANGE:-172.24.42.100,172.24.42.253}
 IRONIC_INSPECTOR_INTERFACE=${IRONIC_INSPECTOR_INTERFACE:-br-inspector}
 IRONIC_INSPECTOR_INTERNAL_URI="http://$IRONIC_INSPECTOR_INTERNAL_IP:$IRONIC_INSPECTOR_PORT"
-IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET=$IRONIC_INSPECTOR_INTERNAL_IP/$IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE
+IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET="$IRONIC_INSPECTOR_INTERNAL_IP/$IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE"
+
+IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=${IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK:-""}
 
 GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
 GITREPO["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_REPO:-${GIT_BASE}/openstack/python-ironic-inspector-client.git}
@@ -198,11 +200,15 @@ function configure_inspector {
     inspector_iniset processing ramdisk_logs_dir "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
     inspector_iniset processing always_store_ramdisk_logs "$IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS"
     inspector_iniset processing log_bmc_address False
+    if [ -n "$IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK" ]; then
+        inspector_iniset processing node_not_found_hook "$IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK"
+    fi
     inspector_iniset DEFAULT timeout $IRONIC_INSPECTOR_TIMEOUT
 
     get_or_create_service "ironic-inspector" "baremetal-introspection" "Ironic Inspector baremetal introspection service"
     get_or_create_endpoint "baremetal-introspection" "$REGION_NAME" \
         "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI"
+
 }
 
 function configure_inspector_swift {
