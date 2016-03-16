@@ -94,6 +94,9 @@ class TestFirewall(test_base.NodeTest):
 
     def test_update_filters_args(self, mock_call, mock_get_client,
                                  mock_iptables):
+        # Pretend that we have nodes on introspection
+        node_cache.add_node(self.node.uuid, bmc_address='1.2.3.4')
+
         firewall.init()
 
         update_filters_expected_args = [
@@ -244,3 +247,86 @@ class TestFirewall(test_base.NodeTest):
         for (args, call) in zip(update_filters_expected_args,
                                 call_args_list):
             self.assertEqual(args, call[0])
+
+    def test_update_filters_args_node_not_found_hook(self, mock_call,
+                                                     mock_get_client,
+                                                     mock_iptables):
+        # DHCP should be always opened if node_not_found hook is set
+        CONF.set_override('node_not_found_hook', 'enroll', 'processing')
+
+        firewall.init()
+
+        update_filters_expected_args = [
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', CONF.firewall.firewall_chain),
+            ('-F', CONF.firewall.firewall_chain),
+            ('-X', CONF.firewall.firewall_chain),
+            ('-N', CONF.firewall.firewall_chain),
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', firewall.NEW_CHAIN),
+            ('-F', firewall.NEW_CHAIN),
+            ('-X', firewall.NEW_CHAIN),
+            ('-N', firewall.NEW_CHAIN),
+            ('-A', firewall.NEW_CHAIN, '-j', 'ACCEPT'),
+            ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', firewall.NEW_CHAIN),
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', CONF.firewall.firewall_chain),
+            ('-F', CONF.firewall.firewall_chain),
+            ('-X', CONF.firewall.firewall_chain),
+            ('-E', firewall.NEW_CHAIN, CONF.firewall.firewall_chain)
+        ]
+
+        firewall.update_filters()
+        call_args_list = mock_iptables.call_args_list
+
+        for (args, call) in zip(update_filters_expected_args,
+                                call_args_list):
+            self.assertEqual(args, call[0])
+
+    def test_update_filters_args_no_introspection(self, mock_call,
+                                                  mock_get_client,
+                                                  mock_iptables):
+        firewall.init()
+
+        update_filters_expected_args = [
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', CONF.firewall.firewall_chain),
+            ('-F', CONF.firewall.firewall_chain),
+            ('-X', CONF.firewall.firewall_chain),
+            ('-N', CONF.firewall.firewall_chain),
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', firewall.NEW_CHAIN),
+            ('-F', firewall.NEW_CHAIN),
+            ('-X', firewall.NEW_CHAIN),
+            ('-N', firewall.NEW_CHAIN),
+            ('-A', firewall.NEW_CHAIN, '-j', 'REJECT'),
+            ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', firewall.NEW_CHAIN),
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             '67', '-j', CONF.firewall.firewall_chain),
+            ('-F', CONF.firewall.firewall_chain),
+            ('-X', CONF.firewall.firewall_chain),
+            ('-E', firewall.NEW_CHAIN, CONF.firewall.firewall_chain)
+        ]
+
+        firewall.update_filters()
+        call_args_list = mock_iptables.call_args_list
+
+        for (args, call) in zip(update_filters_expected_args,
+                                call_args_list):
+            self.assertEqual(args, call[0])
+
+        # Check caching enabled flag
+
+        mock_iptables.reset_mock()
+        firewall.update_filters()
+        self.assertFalse(mock_iptables.called)
+
+        # Adding a node changes it back
+
+        node_cache.add_node(self.node.uuid, bmc_address='1.2.3.4')
+        mock_iptables.reset_mock()
+        firewall.update_filters()
+
+        mock_iptables.assert_any_call('-A', firewall.NEW_CHAIN, '-j', 'ACCEPT')

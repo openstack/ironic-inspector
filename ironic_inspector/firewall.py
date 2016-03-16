@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import os
 import subprocess
 
@@ -31,6 +32,7 @@ INTERFACE = None
 LOCK = semaphore.BoundedSemaphore()
 BASE_COMMAND = None
 BLACKLIST_CACHE = None
+ENABLED = True
 
 
 def _iptables(*args, **kwargs):
@@ -100,6 +102,53 @@ def clean_up():
     _clean_up(NEW_CHAIN)
 
 
+def _should_enable_dhcp():
+    """Check whether we should enable DHCP at all.
+
+    We won't even open our DHCP if no nodes are on introspection and
+    node_not_found_hook is not set.
+    """
+    return (node_cache.introspection_active() or
+            CONF.processing.node_not_found_hook)
+
+
+@contextlib.contextmanager
+def _temporary_chain(chain, main_chain):
+    """Context manager to operate on a temporary chain."""
+    # Clean up a bit to account for possible troubles on previous run
+    _clean_up(chain)
+    _iptables('-N', chain)
+
+    yield
+
+    # Swap chains
+    _iptables('-I', 'INPUT', '-i', INTERFACE, '-p', 'udp',
+              '--dport', '67', '-j', chain)
+    _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
+              '--dport', '67', '-j', main_chain,
+              ignore=True)
+    _iptables('-F', main_chain, ignore=True)
+    _iptables('-X', main_chain, ignore=True)
+    _iptables('-E', chain, main_chain)
+
+
+def _disable_dhcp():
+    """Disable DHCP completely."""
+    global ENABLED
+
+    if not ENABLED:
+        LOG.debug('DHCP is already disabled, not updating')
+        return
+
+    LOG.debug('No nodes on introspection and node_not_found_hook is '
+              'not set - disabling DHCP')
+    with _temporary_chain(NEW_CHAIN, CHAIN):
+        # Blacklist everything
+        _iptables('-A', NEW_CHAIN, '-j', 'REJECT')
+
+    ENABLED = False
+
+
 def update_filters(ironic=None):
     """Update firewall filter rules for introspection.
 
@@ -118,7 +167,7 @@ def update_filters(ironic=None):
 
     :param ironic: Ironic client instance, optional.
     """
-    global BLACKLIST_CACHE
+    global BLACKLIST_CACHE, ENABLED
 
     if not CONF.firewall.manage_firewall:
         return
@@ -127,6 +176,10 @@ def update_filters(ironic=None):
     ironic = utils.get_client() if ironic is None else ironic
 
     with LOCK:
+        if not _should_enable_dhcp():
+            _disable_dhcp()
+            return
+
         macs_active = set(p.address for p in ironic.port.list(limit=0))
         to_blacklist = macs_active - node_cache.active_macs()
         if BLACKLIST_CACHE is not None and to_blacklist == BLACKLIST_CACHE:
@@ -138,26 +191,14 @@ def update_filters(ironic=None):
         # Force update on the next iteration if this attempt fails
         BLACKLIST_CACHE = None
 
-        # Clean up a bit to account for possible troubles on previous run
-        _clean_up(NEW_CHAIN)
-        # Operate on temporary chain
-        _iptables('-N', NEW_CHAIN)
-        # - Blacklist active macs, so that nova can boot them
-        for mac in to_blacklist:
-            _iptables('-A', NEW_CHAIN, '-m', 'mac',
-                      '--mac-source', mac, '-j', 'DROP')
-        # - Whitelist everything else
-        _iptables('-A', NEW_CHAIN, '-j', 'ACCEPT')
-
-        # Swap chains
-        _iptables('-I', 'INPUT', '-i', INTERFACE, '-p', 'udp',
-                  '--dport', '67', '-j', NEW_CHAIN)
-        _iptables('-D', 'INPUT', '-i', INTERFACE, '-p', 'udp',
-                  '--dport', '67', '-j', CHAIN,
-                  ignore=True)
-        _iptables('-F', CHAIN, ignore=True)
-        _iptables('-X', CHAIN, ignore=True)
-        _iptables('-E', NEW_CHAIN, CHAIN)
+        with _temporary_chain(NEW_CHAIN, CHAIN):
+            # - Blacklist active macs, so that nova can boot them
+            for mac in to_blacklist:
+                _iptables('-A', NEW_CHAIN, '-m', 'mac',
+                          '--mac-source', mac, '-j', 'DROP')
+            # - Whitelist everything else
+            _iptables('-A', NEW_CHAIN, '-j', 'ACCEPT')
 
         # Cache result of successful iptables update
+        ENABLED = True
         BLACKLIST_CACHE = to_blacklist
