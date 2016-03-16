@@ -417,6 +417,13 @@ def _delete_node(uuid, session=None):
                            session=session).filter_by(uuid=uuid).delete()
 
 
+def introspection_active():
+    """Check if introspection is active for at least one node."""
+    # FIXME(dtantsur): is there a better way to express it?
+    return (db.model_query(db.Node.uuid).filter_by(finished_at=None).first()
+            is not None)
+
+
 def active_macs():
     """List all MAC's that are on introspection right now."""
     return ({x.value for x in db.model_query(db.Attribute.value).
