@@ -164,7 +164,7 @@ Ramdisk Callback
 discovered data. Should not be used for anything other than implementing
 the ramdisk. Request body: JSON dictionary with at least these keys:
 
-* ``inventory`` full hardware inventory from the ironic-python-agent with at
+* ``inventory`` full `hardware inventory`_ from the ironic-python-agent with at
   least the following keys:
 
   * ``memory`` memory information containing at least key ``physical_mb`` -
@@ -236,6 +236,8 @@ body will contain the following keys:
 * ``ipmi_setup_credentials`` boolean ``True``
 * ``ipmi_username`` new IPMI user name
 * ``ipmi_password`` new IPMI password
+
+.. _hardware inventory: http://docs.openstack.org/developer/ironic-python-agent/#hardware-inventory
 
 Error Response
 ~~~~~~~~~~~~~~

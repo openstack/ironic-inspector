@@ -284,8 +284,8 @@ Writing a Plugin
     ``**`` argument is needed so that we can add optional arguments without
     breaking out-of-tree plugins. Please make sure to include and ignore it.
 
-.. _ironic_inspector.plugins.base: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/plugins/base.py
-.. _Introspection Rules: https://github.com/openstack/ironic-inspector#introspection-rules
+.. _ironic_inspector.plugins.base: http://docs.openstack.org/developer/ironic-inspector/api/ironic_inspector.plugins.base.html
+.. _Introspection Rules: http://docs.openstack.org/developer/ironic-inspector/usage.html#introspection-rules
 
 Making changes to the database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -335,5 +335,5 @@ database::
     ironic-inspector-dbsync revision -m "A short description"
 
 .. _Create a Migration Script: https://alembic.readthedocs.org/en/latest/tutorial.html#create-a-migration-script
-.. _ironic_inspector.db: https://github.com/openstack/ironic-inspector/blob/master/ironic_inspector/db.py
+.. _ironic_inspector.db: http://docs.openstack.org/developer/ironic-inspector/api/ironic_inspector.db.html
 .. _What does Autogenerate Detect (and what does it not detect?): http://alembic.readthedocs.org/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect
