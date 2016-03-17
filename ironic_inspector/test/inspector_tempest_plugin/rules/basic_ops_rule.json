@@ -1,0 +1,25 @@
+[
+    {
+        "description": "Successful Rule",
+        "conditions": [
+            {"op": "ge", "field": "memory_mb", "value": 256},
+            {"op": "ge", "field": "local_gb", "value": 1}
+        ],
+        "actions": [
+            {"action": "set-attribute", "path": "/extra/rule_success",
+             "value": "yes"}
+        ]
+    },
+    {
+        "description": "Failing Rule",
+        "conditions": [
+            {"op": "lt", "field": "memory_mb", "value": 42},
+            {"op": "eq", "field": "local_gb", "value": 0}
+        ],
+        "actions": [
+            {"action": "set-attribute", "path": "/extra/rule_success",
+             "value": "no"},
+            {"action": "fail", "message": "This rule should not have run"}
+        ]
+    }
+]

@@ -13,10 +13,10 @@
 
 import os
 
-from tempest import config  # noqa
+from tempest import config as tempest_config
 from tempest.test_discover import plugins
 
-from ironic_inspector.test.inspector_tempest_plugin import config  # noqa
+from ironic_inspector.test.inspector_tempest_plugin import config
 
 
 class InspectorTempestPlugin(plugins.TempestPlugin):
@@ -28,7 +28,10 @@ class InspectorTempestPlugin(plugins.TempestPlugin):
         return full_test_dir, base_path
 
     def register_opts(self, conf):
-        pass
+        tempest_config.register_opt_group(
+            conf, config.baremetal_introspection_group,
+            config.BaremetalIntrospectionGroup)
 
     def get_opt_lists(self):
-        pass
+        return [(config.baremetal_introspection_group.name,
+                 config.BaremetalIntrospectionGroup)]

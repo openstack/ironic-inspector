@@ -10,18 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest import test  # noqa
-
-from ironic_inspector.test.inspector_tempest_plugin.tests.scenario \
-    import manager
+from tempest import exceptions
 
 
-class InspectorBasicTest(manager.InspectorScenarioTest):
-    @test.idempotent_id('03bf7990-bee0-4dd7-bf74-b97ad7b52a4b')
-    @test.services('baremetal', 'compute', 'image',
-                   'network', 'object_storage')
-    def test_berametal_introspection_ops(self):
-        """This smoke test case follows this basic set of operations:
+class IntrospectionFailed(exceptions.TempestException):
+    message = "Introspection failed"
 
-        """
-        pass
+
+class IntrospectionTimeout(exceptions.TempestException):
+    message = "Introspection time out"
+
+
+class HypervisorUpdateTimeout(exceptions.TempestException):
+    message = "Hypervisor stats update time out"
