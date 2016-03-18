@@ -351,7 +351,6 @@ class Service(object):
 
         log.set_defaults(default_log_levels=[
             'sqlalchemy=WARNING',
-            'keystoneclient=INFO',
             'iso8601=WARNING',
             'requests=WARNING',
             'urllib3.connectionpool=WARNING',
