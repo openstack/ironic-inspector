@@ -102,7 +102,10 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
     def test__check_existing_nodes_existing_mac(self):
         self.ironic.port.list.return_value = [mock.MagicMock(
             address=self.macs[0], uuid='fake_port')]
-        introspection_data = {'macs': self.macs}
+        introspection_data = {
+            'all_interfaces': {'eth%d' % i: {'mac': m}
+                               for i, m in enumerate(self.macs)}
+        }
         node_driver_info = {}
 
         self.assertRaises(utils.Error,

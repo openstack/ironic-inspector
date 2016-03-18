@@ -198,3 +198,10 @@ def get_auth_strategy():
     if CONF.authenticate is not None:
         return 'keystone' if CONF.authenticate else 'noauth'
     return CONF.auth_strategy
+
+
+def get_valid_macs(data):
+    """Get a list of valid MAC's from the introspection data."""
+    return [m['mac']
+            for m in data.get('all_interfaces', {}).values()
+            if m.get('mac')]

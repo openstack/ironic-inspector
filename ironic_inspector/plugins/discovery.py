@@ -52,7 +52,7 @@ def _extract_node_driver_info(introspection_data):
 
 
 def _check_existing_nodes(introspection_data, node_driver_info, ironic):
-    macs = introspection_data.get('macs')
+    macs = utils.get_valid_macs(introspection_data)
     if macs:
         # verify existing ports
         for mac in macs:
