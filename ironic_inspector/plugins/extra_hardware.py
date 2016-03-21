@@ -96,7 +96,7 @@ class ExtraHardwareHook(base.ProcessingHook):
 
             try:
                 item[3] = int(item[3])
-            except ValueError:
+            except (ValueError, TypeError):
                 pass
 
             converted_1[item[2]] = item[3]
