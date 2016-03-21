@@ -84,3 +84,14 @@ class TestExtraHardware(test_base.NodeTest):
         self.hook.before_update(introspection_data, self.node_info)
         self.assertFalse(patch_mock.called)
         self.assertFalse(swift_conn.create_object.called)
+
+    def test__convert_edeploy_data(self, patch_mock, swift_mock):
+        introspection_data = [['Sheldon', 'J.', 'Plankton', '123'],
+                              ['Larry', 'the', 'Lobster', None],
+                              ['Eugene', 'H.', 'Krabs', 'The cashier']]
+
+        data = self.hook._convert_edeploy_data(introspection_data)
+        expected_data = {'Sheldon': {'J.': {'Plankton': 123}},
+                         'Larry': {'the': {'Lobster': None}},
+                         'Eugene': {'H.': {'Krabs': 'The cashier'}}}
+        self.assertEqual(expected_data, data)
