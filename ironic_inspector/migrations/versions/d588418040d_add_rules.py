@@ -62,9 +62,3 @@ def upgrade():
         mysql_ENGINE='InnoDB',
         mysql_DEFAULT_CHARSET='UTF8'
     )
-
-
-def downgrade():
-    op.drop_table('rules')
-    op.drop_table('rule_conditions')
-    op.drop_table('rule_actions')
