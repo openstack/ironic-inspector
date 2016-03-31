@@ -11,11 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
-import os
-import shutil
-import tempfile
-
 import mock
 from oslo_config import cfg
 from oslo_utils import units
@@ -404,77 +399,7 @@ class TestRamdiskError(test_base.BaseTest):
             'ipmi_address': self.bmc_address,
         }
 
-        self.tempdir = tempfile.mkdtemp()
-        self.addCleanup(lambda: shutil.rmtree(self.tempdir))
-        CONF.set_override('ramdisk_logs_dir', self.tempdir, 'processing')
-
     def test_no_logs(self):
         self.assertRaisesRegexp(utils.Error,
                                 self.msg,
                                 process.process, self.data)
-        self.assertEqual([], os.listdir(self.tempdir))
-
-    def test_logs_disabled(self):
-        self.data['logs'] = 'some log'
-        CONF.set_override('ramdisk_logs_dir', None, 'processing')
-
-        self.assertRaisesRegexp(utils.Error,
-                                self.msg,
-                                process.process, self.data)
-        self.assertEqual([], os.listdir(self.tempdir))
-
-    def test_logs(self):
-        log = b'log contents'
-        self.data['logs'] = base64.b64encode(log)
-
-        self.assertRaisesRegexp(utils.Error,
-                                self.msg,
-                                process.process, self.data)
-
-        files = os.listdir(self.tempdir)
-        self.assertEqual(1, len(files))
-        filename = files[0]
-        self.assertTrue(filename.startswith('bmc_%s_' % self.bmc_address),
-                        '%s does not start with bmc_%s'
-                        % (filename, self.bmc_address))
-        with open(os.path.join(self.tempdir, filename), 'rb') as fp:
-            self.assertEqual(log, fp.read())
-
-    def test_logs_create_dir(self):
-        shutil.rmtree(self.tempdir)
-        self.data['logs'] = base64.b64encode(b'log')
-
-        self.assertRaisesRegexp(utils.Error,
-                                self.msg,
-                                process.process, self.data)
-
-        files = os.listdir(self.tempdir)
-        self.assertEqual(1, len(files))
-
-    def test_logs_without_error(self):
-        log = b'log contents'
-        del self.data['error']
-        self.data['logs'] = base64.b64encode(log)
-
-        std_plugins.RamdiskErrorHook().before_processing(self.data)
-
-        files = os.listdir(self.tempdir)
-        self.assertFalse(files)
-
-    def test_always_store_logs(self):
-        CONF.set_override('always_store_ramdisk_logs', True, 'processing')
-
-        log = b'log contents'
-        del self.data['error']
-        self.data['logs'] = base64.b64encode(log)
-
-        std_plugins.RamdiskErrorHook().before_processing(self.data)
-
-        files = os.listdir(self.tempdir)
-        self.assertEqual(1, len(files))
-        filename = files[0]
-        self.assertTrue(filename.startswith('bmc_%s_' % self.bmc_address),
-                        '%s does not start with bmc_%s'
-                        % (filename, self.bmc_address))
-        with open(os.path.join(self.tempdir, filename), 'rb') as fp:
-            self.assertEqual(log, fp.read())

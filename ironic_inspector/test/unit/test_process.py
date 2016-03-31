@@ -11,9 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
 import copy
 import functools
 import json
+import os
+import shutil
+import tempfile
 import time
 
 import eventlet
@@ -255,6 +259,87 @@ class TestUnprocessedData(BaseProcessTest):
         # assert store failure doesn't break processing
         self.assertEqual(self.fake_result_json, res)
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
+
+
+@mock.patch.object(example_plugin.ExampleProcessingHook, 'before_processing',
+                   autospec=True)
+class TestStoreLogs(BaseProcessTest):
+    def setUp(self):
+        super(TestStoreLogs, self).setUp()
+        CONF.set_override('processing_hooks', 'ramdisk_error,example',
+                          'processing')
+
+        self.tempdir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(self.tempdir))
+        CONF.set_override('ramdisk_logs_dir', self.tempdir, 'processing')
+
+        self.logs = b'test logs'
+        self.data['logs'] = base64.b64encode(self.logs)
+
+    def _check_contents(self):
+        files = os.listdir(self.tempdir)
+        self.assertEqual(1, len(files))
+        filename = files[0]
+        self.assertTrue(filename.startswith('bmc_%s_' % self.bmc_address),
+                        '%s does not start with bmc_%s'
+                        % (filename, self.bmc_address))
+        with open(os.path.join(self.tempdir, filename), 'rb') as fp:
+            self.assertEqual(self.logs, fp.read())
+
+    def test_store_on_preprocess_failure(self, hook_mock):
+        hook_mock.side_effect = Exception('Hook Error')
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents()
+
+    def test_store_on_process_failure(self, hook_mock):
+        self.process_mock.side_effect = utils.Error('boom')
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents()
+
+    def test_store_on_unexpected_process_failure(self, hook_mock):
+        self.process_mock.side_effect = RuntimeError('boom')
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents()
+
+    def test_store_on_ramdisk_error(self, hook_mock):
+        self.data['error'] = 'boom'
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents()
+
+    def test_store_find_node_error(self, hook_mock):
+        self.cli.node.get.side_effect = exceptions.NotFound('boom')
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents()
+
+    def test_no_error_no_logs(self, hook_mock):
+        process.process(self.data)
+        self.assertEqual([], os.listdir(self.tempdir))
+
+    def test_logs_disabled(self, hook_mock):
+        CONF.set_override('ramdisk_logs_dir', None, 'processing')
+        hook_mock.side_effect = Exception('Hook Error')
+        self.assertRaises(utils.Error, process.process, self.data)
+        self.assertEqual([], os.listdir(self.tempdir))
+
+    def test_always_store_logs(self, hook_mock):
+        CONF.set_override('always_store_ramdisk_logs', True, 'processing')
+        process.process(self.data)
+        self._check_contents()
+
+    @mock.patch.object(process.LOG, 'exception', autospec=True)
+    def test_failure_to_write(self, log_mock, hook_mock):
+        CONF.set_override('always_store_ramdisk_logs', True, 'processing')
+        CONF.set_override('ramdisk_logs_dir', '/I/cannot/write/here',
+                          'processing')
+        process.process(self.data)
+        self.assertEqual([], os.listdir(self.tempdir))
+        self.assertTrue(log_mock.called)
+
+    def test_directory_is_created(self, hook_mock):
+        shutil.rmtree(self.tempdir)
+        self.data['error'] = 'boom'
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents()
 
 
 class TestProcessNode(BaseTest):

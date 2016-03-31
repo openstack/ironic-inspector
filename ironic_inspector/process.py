@@ -13,14 +13,19 @@
 
 """Handling introspection data from the ramdisk."""
 
+import base64
 import copy
+import datetime
+import os
+
 import eventlet
 import json
 
 from ironicclient import exceptions
 from oslo_config import cfg
+from oslo_utils import excutils
 
-from ironic_inspector.common.i18n import _, _LE, _LI
+from ironic_inspector.common.i18n import _, _LE, _LI, _LW
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import firewall
@@ -37,6 +42,40 @@ _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
 _STORAGE_EXCLUDED_KEYS = {'logs'}
 _UNPROCESSED_DATA_STORE_SUFFIX = 'UNPROCESSED'
+_DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
+
+
+def _store_logs(introspection_data, node_info):
+    logs = introspection_data.get('logs')
+    if not logs:
+        LOG.warning(_LW('No logs were passed by the ramdisk'),
+                    data=introspection_data, node_info=node_info)
+        return
+
+    if not CONF.processing.ramdisk_logs_dir:
+        LOG.warning(_LW('Failed to store logs received from the ramdisk '
+                        'because ramdisk_logs_dir configuration option '
+                        'is not set'),
+                    data=introspection_data, node_info=node_info)
+        return
+
+    time_fmt = datetime.datetime.utcnow().strftime(_DATETIME_FORMAT)
+    bmc_address = (utils.get_ipmi_address_from_data(introspection_data)
+                   or 'unknown')
+    file_name = 'bmc_%s_%s' % (bmc_address, time_fmt)
+
+    try:
+        if not os.path.exists(CONF.processing.ramdisk_logs_dir):
+            os.makedirs(CONF.processing.ramdisk_logs_dir)
+        with open(os.path.join(CONF.processing.ramdisk_logs_dir, file_name),
+                  'wb') as fp:
+            fp.write(base64.b64decode(logs))
+    except EnvironmentError:
+        LOG.exception(_LE('Could not store the ramdisk logs'),
+                      data=introspection_data, node_info=node_info)
+    else:
+        LOG.info(_LI('Ramdisk logs were stored in file %s'), file_name,
+                 data=introspection_data, node_info=node_info)
 
 
 def _find_node_info(introspection_data, failures):
@@ -158,6 +197,7 @@ def process(introspection_data):
                 'pre-processing hooks:\n%s') % '\n'.join(failures)
         if node_info is not None:
             node_info.finished(error='\n'.join(failures))
+        _store_logs(introspection_data, node_info)
         raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
     LOG.info(_LI('Matching node is %s'), node_info.uuid,
@@ -180,21 +220,28 @@ def process(introspection_data):
     except exceptions.NotFound:
         msg = _('Node was found in cache, but is not found in Ironic')
         node_info.finished(error=msg)
+        _store_logs(introspection_data, node_info)
         raise utils.Error(msg, code=404, node_info=node_info,
                           data=introspection_data)
 
     try:
-        return _process_node(node, introspection_data, node_info)
+        result = _process_node(node, introspection_data, node_info)
     except utils.Error as exc:
         node_info.finished(error=str(exc))
-        raise
+        with excutils.save_and_reraise_exception():
+            _store_logs(introspection_data, node_info)
     except Exception as exc:
         LOG.exception(_LE('Unexpected exception during processing'))
         msg = _('Unexpected exception %(exc_class)s during processing: '
                 '%(error)s') % {'exc_class': exc.__class__.__name__,
                                 'error': exc}
         node_info.finished(error=msg)
+        _store_logs(introspection_data, node_info)
         raise utils.Error(msg, node_info=node_info, data=introspection_data)
+
+    if CONF.processing.always_store_ramdisk_logs:
+        _store_logs(introspection_data, node_info)
+    return result
 
 
 def _run_post_hooks(node_info, introspection_data):
