@@ -17,10 +17,12 @@ import json
 
 from oslo_config import cfg
 from oslo_log import log
+import six
 from swiftclient import client as swift_client
 from swiftclient import exceptions as swift_exceptions
 
 from ironic_inspector.common.i18n import _
+from ironic_inspector.common import keystone
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -28,7 +30,7 @@ CONF = cfg.CONF
 
 LOG = log.getLogger('ironic_inspector.common.swift')
 
-
+SWIFT_GROUP = 'swift'
 SWIFT_OPTS = [
     cfg.IntOpt('max_retries',
                default=2,
@@ -41,6 +43,32 @@ SWIFT_OPTS = [
     cfg.StrOpt('container',
                default='ironic-inspector',
                help='Default Swift container to use when creating objects.'),
+    cfg.StrOpt('os_auth_version',
+               default='2',
+               help='Keystone authentication API version',
+               deprecated_for_removal=True,
+               deprecated_reason='Use options presented by configured '
+                                 'keystone auth plugin.'),
+    cfg.StrOpt('os_auth_url',
+               default='',
+               help='Keystone authentication URL',
+               deprecated_for_removal=True,
+               deprecated_reason='Use options presented by configured '
+                                 'keystone auth plugin.'),
+    cfg.StrOpt('os_service_type',
+               default='object-store',
+               help='Swift service type.'),
+    cfg.StrOpt('os_endpoint_type',
+               default='internalURL',
+               help='Swift endpoint type.'),
+    cfg.StrOpt('os_region',
+               help='Keystone region to get endpoint for.'),
+]
+
+# NOTE(pas-ha) these old options conflict with options exported by
+# most used keystone auth plugins. Need to register them manually
+# for the backward-compat case.
+LEGACY_OPTS = [
     cfg.StrOpt('username',
                default='',
                help='User name for accessing Swift API.'),
@@ -51,59 +79,67 @@ SWIFT_OPTS = [
     cfg.StrOpt('tenant_name',
                default='',
                help='Tenant name for accessing Swift API.'),
-    cfg.StrOpt('os_auth_version',
-               default='2',
-               help='Keystone authentication API version'),
-    cfg.StrOpt('os_auth_url',
-               default='',
-               help='Keystone authentication URL'),
-    cfg.StrOpt('os_service_type',
-               default='object-store',
-               help='Swift service type.'),
-    cfg.StrOpt('os_endpoint_type',
-               default='internalURL',
-               help='Swift endpoint type.'),
 ]
 
-
-def list_opts():
-    return [
-        ('swift', SWIFT_OPTS)
-    ]
-
-CONF.register_opts(SWIFT_OPTS, group='swift')
+CONF.register_opts(SWIFT_OPTS, group=SWIFT_GROUP)
+keystone.register_auth_opts(SWIFT_GROUP)
 
 OBJECT_NAME_PREFIX = 'inspector_data'
+SWIFT_SESSION = None
+LEGACY_MAP = {
+    'auth_url': 'os_auth_url',
+    'username': 'username',
+    'password': 'password',
+    'tenant_name': 'tenant_name',
+}
+
+
+def reset_swift_session():
+    """Reset the global session variable.
+
+    Mostly useful for unit tests.
+    """
+    global SWIFT_SESSION
+    SWIFT_SESSION = None
 
 
 class SwiftAPI(object):
     """API for communicating with Swift."""
 
-    def __init__(self, user=None, tenant_name=None, key=None,
-                 auth_url=None, auth_version=None,
-                 service_type=None, endpoint_type=None):
+    def __init__(self):
         """Constructor for creating a SwiftAPI object.
 
-        :param user: the name of the user for Swift account
-        :param tenant_name: the name of the tenant for Swift account
-        :param key: the 'password' or key to authenticate with
-        :param auth_url: the url for authentication
-        :param auth_version: the version of api to use for authentication
-        :param service_type: service type in the service catalog
-        :param endpoint_type: service endpoint type
+        Authentification is loaded from config file.
         """
-        self.connection = swift_client.Connection(
-            retries=CONF.swift.max_retries,
-            user=user or CONF.swift.username,
-            tenant_name=tenant_name or CONF.swift.tenant_name,
-            key=key or CONF.swift.password,
-            authurl=auth_url or CONF.swift.os_auth_url,
-            auth_version=auth_version or CONF.swift.os_auth_version,
-            os_options={
-                'service_type': service_type or CONF.swift.os_service_type,
-                'endpoint_type': endpoint_type or CONF.swift.os_endpoint_type
-            }
+        global SWIFT_SESSION
+        if not SWIFT_SESSION:
+            SWIFT_SESSION = keystone.get_session(
+                SWIFT_GROUP, legacy_mapping=LEGACY_MAP,
+                legacy_auth_opts=LEGACY_OPTS)
+        # TODO(pas-ha): swiftclient does not support keystone sessions ATM.
+        # Must be reworked when LP bug #1518938 is fixed.
+        swift_url = SWIFT_SESSION.get_endpoint(
+            service_type=CONF.swift.os_service_type,
+            endpoint_type=CONF.swift.os_endpoint_type,
+            region_name=CONF.swift.os_region
         )
+        token = SWIFT_SESSION.get_token()
+        params = dict(retries=CONF.swift.max_retries,
+                      preauthurl=swift_url,
+                      preauthtoken=token)
+        # NOTE(pas-ha):session.verify is for HTTPS urls and can be
+        # - False (do not verify)
+        # - True (verify but try to locate system CA certificates)
+        # - Path (verify using specific CA certificate)
+        # This is normally handled inside the Session instance,
+        # but swiftclient still does not support sessions,
+        # so we need to reconstruct these options from Session here.
+        verify = SWIFT_SESSION.verify
+        params['insecure'] = not verify
+        if verify and isinstance(verify, six.string_types):
+            params['cacert'] = verify
+
+        self.connection = swift_client.Connection(**params)
 
     def create_object(self, object, data, container=CONF.swift.container,
                       headers=None):
@@ -182,3 +218,7 @@ def get_introspection_data(uuid):
     swift_api = SwiftAPI()
     swift_object_name = '%s-%s' % (OBJECT_NAME_PREFIX, uuid)
     return swift_api.get_object(swift_object_name)
+
+
+def list_opts():
+    return keystone.add_auth_options(SWIFT_OPTS, SWIFT_GROUP)

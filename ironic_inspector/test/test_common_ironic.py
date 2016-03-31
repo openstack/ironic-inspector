@@ -16,10 +16,10 @@ import socket
 import unittest
 
 from ironicclient import client
-from keystoneclient import client as keystone_client
 from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import keystone
 from ironic_inspector.test import base
 from ironic_inspector import utils
 
@@ -27,37 +27,44 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
+@mock.patch.object(keystone, 'register_auth_opts')
+@mock.patch.object(keystone, 'get_session')
+@mock.patch.object(client, 'Client')
 class TestGetClient(base.BaseTest):
     def setUp(self):
         super(TestGetClient, self).setUp()
-        CONF.set_override('auth_strategy', 'keystone')
+        ir_utils.reset_ironic_session()
+        self.cfg.config(auth_strategy='keystone')
+        self.cfg.config(os_region='somewhere', group='ironic')
+        self.addCleanup(ir_utils.reset_ironic_session)
 
-    @mock.patch.object(client, 'get_client')
-    @mock.patch.object(keystone_client, 'Client')
-    def test_get_client_with_auth_token(self, mock_keystone_client,
-                                        mock_client):
+    def test_get_client_with_auth_token(self, mock_client, mock_load,
+                                        mock_opts):
         fake_token = 'token'
         fake_ironic_url = 'http://127.0.0.1:6385'
-        mock_keystone_client().service_catalog.url_for.return_value = (
-            fake_ironic_url)
+        mock_sess = mock.Mock()
+        mock_sess.get_endpoint.return_value = fake_ironic_url
+        mock_load.return_value = mock_sess
         ir_utils.get_client(fake_token)
-        args = {'os_auth_token': fake_token,
-                'ironic_url': fake_ironic_url,
-                'os_ironic_api_version': '1.11',
+        mock_sess.get_endpoint.assert_called_once_with(
+            endpoint_type=CONF.ironic.os_endpoint_type,
+            service_type=CONF.ironic.os_service_type,
+            region_name=CONF.ironic.os_region)
+        args = {'token': fake_token,
+                'endpoint': fake_ironic_url,
+                'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, **args)
 
-    @mock.patch.object(client, 'get_client')
-    def test_get_client_without_auth_token(self, mock_client):
+    def test_get_client_without_auth_token(self, mock_client, mock_load,
+                                           mock_opts):
+        mock_sess = mock.Mock()
+        mock_load.return_value = mock_sess
         ir_utils.get_client(None)
-        args = {'os_password': CONF.ironic.os_password,
-                'os_username': CONF.ironic.os_username,
-                'os_auth_url': CONF.ironic.os_auth_url,
-                'os_tenant_name': CONF.ironic.os_tenant_name,
-                'os_endpoint_type': CONF.ironic.os_endpoint_type,
-                'os_service_type': CONF.ironic.os_service_type,
-                'os_ironic_api_version': '1.11',
+        args = {'session': mock_sess,
+                'region_name': 'somewhere',
+                'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, **args)
@@ -92,7 +99,7 @@ class TestGetIpmiAddress(base.BaseTest):
                          driver_info={'foo': '192.168.1.1'})
         self.assertIsNone(ir_utils.get_ipmi_address(node))
 
-        CONF.set_override('ipmi_address_fields', ['foo', 'bar', 'baz'])
+        self.cfg.config(ipmi_address_fields=['foo', 'bar', 'baz'])
         ip = ir_utils.get_ipmi_address(node)
         self.assertEqual(ip, '192.168.1.1')
 
