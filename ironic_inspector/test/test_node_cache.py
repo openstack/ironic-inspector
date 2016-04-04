@@ -344,16 +344,6 @@ class TestNodeInfoFinished(test_base.NodeTest):
         self.assertEqual([], db.model_query(db.Option).all())
 
 
-class TestInit(unittest.TestCase):
-    def setUp(self):
-        super(TestInit, self).setUp()
-
-    def test_ok(self):
-        db.init()
-        session = db.get_session()
-        db.model_query(db.Node, session=session)
-
-
 class TestNodeInfoOptions(test_base.NodeTest):
     def setUp(self):
         super(TestNodeInfoOptions, self).setUp()
