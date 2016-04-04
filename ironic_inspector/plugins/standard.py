@@ -191,6 +191,20 @@ class ValidateInterfacesHook(base.ProcessingHook):
                               iface, data=data)
                     continue
 
+                if not mac:
+                    LOG.debug('Skipping interface %s without link information',
+                              name, data=data)
+                    continue
+
+                if not utils.is_valid_mac(mac):
+                    LOG.warning(_LW('MAC %(mac)s for interface %(name)s is '
+                                    'not valid, skipping'),
+                                {'mac': mac, 'name': name},
+                                data=data)
+                    continue
+
+                mac = mac.lower()
+
                 LOG.debug('Found interface %(name)s with MAC "%(mac)s" and '
                           'IP address "%(ip)s"',
                           {'name': name, 'mac': mac, 'ip': ip}, data=data)
@@ -222,20 +236,6 @@ class ValidateInterfacesHook(base.ProcessingHook):
         for name, iface in interfaces.items():
             mac = iface.get('mac')
             ip = iface.get('ip')
-
-            if not mac:
-                LOG.debug('Skipping interface %s without link information',
-                          name, data=data)
-                continue
-
-            if not utils.is_valid_mac(mac):
-                LOG.warning(_LW('MAC %(mac)s for interface %(name)s is not '
-                                'valid, skipping'),
-                            {'mac': mac, 'name': name},
-                            data=data)
-                continue
-
-            mac = mac.lower()
 
             if name == 'lo' or (ip and netaddr.IPAddress(ip).is_loopback()):
                 LOG.debug('Skipping local interface %s', name, data=data)

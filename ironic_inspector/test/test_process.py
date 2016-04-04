@@ -54,6 +54,7 @@ class BaseTest(test_base.NodeTest):
         self.all_ports = [mock.Mock(uuid=uuidutils.generate_uuid(),
                                     address=mac) for mac in self.macs]
         self.ports = [self.all_ports[1]]
+        self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
 
 
 @mock.patch.object(process, '_process_node', autospec=True)
@@ -90,7 +91,9 @@ class TestProcess(BaseTest):
         self.assertEqual([self.pxe_mac], self.data['macs'])
 
         pop_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                         mac=self.data['macs'])
+                                         mac=mock.ANY)
+        actual_macs = pop_mock.call_args[1]['mac']
+        self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         cli.node.get.assert_called_once_with(self.uuid)
         process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)
@@ -100,8 +103,9 @@ class TestProcess(BaseTest):
         del self.data['ipmi_address']
         process.process(self.data)
 
-        pop_mock.assert_called_once_with(bmc_address=None,
-                                         mac=self.data['macs'])
+        pop_mock.assert_called_once_with(bmc_address=None, mac=mock.ANY)
+        actual_macs = pop_mock.call_args[1]['mac']
+        self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         cli.node.get.assert_called_once_with(self.uuid)
         process_mock.assert_called_once_with(cli.node.get.return_value,
                                              self.data, pop_mock.return_value)

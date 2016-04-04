@@ -39,7 +39,7 @@ def _find_node_info(introspection_data, failures):
     try:
         return node_cache.find_node(
             bmc_address=introspection_data.get('ipmi_address'),
-            mac=introspection_data.get('macs'))
+            mac=utils.get_valid_macs(introspection_data))
     except utils.NotFoundInCacheError as exc:
         not_found_hook = plugins_base.node_not_found_hook_manager()
         if not_found_hook is None:
