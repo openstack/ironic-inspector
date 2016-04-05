@@ -58,6 +58,10 @@ interpreter of one of supported versions (currently 2.7 and 3.4), use
     a db named 'openstack_citest' with user 'openstack_citest' and password
     'openstack_citest' on localhost.
 
+.. note::
+    Users of Fedora <= 23 will need to run "sudo dnf --releasever=24 update
+    python-virtualenv" to run unit tests
+
 To run the functional tests, use::
 
     tox -e func
