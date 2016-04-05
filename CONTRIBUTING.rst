@@ -52,6 +52,10 @@ interpreter of one of supported versions (currently 2.7 and 3.4), use
     Support for Python 3 is highly experimental, stay with Python 2 for the
     production environment for now.
 
+.. note::
+    Users of Fedora <= 23 will need to run "sudo dnf --releasever=24 update
+    python-virtualenv" to run unit tests
+
 There is a simple functional test that involves fetching the ramdisk from
 Github::
 
