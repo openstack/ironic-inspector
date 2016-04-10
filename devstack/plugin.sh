@@ -166,6 +166,18 @@ EOF
     fi
 }
 
+function inspector_configure_auth_for {
+    inspector_iniset $1 auth_type password
+    inspector_iniset $1 auth_url "$KEYSTONE_SERVICE_URI"
+    inspector_iniset $1 username $IRONIC_INSPECTOR_ADMIN_USER
+    inspector_iniset $1 password $SERVICE_PASSWORD
+    inspector_iniset $1 project_name $SERVICE_PROJECT_NAME
+    inspector_iniset $1 user_domain_id default
+    inspector_iniset $1 project_domain_id default
+    inspector_iniset $1 cafile $SSL_BUNDLE_FILE
+    inspector_iniset $1 os_region $REGION_NAME
+}
+
 function configure_inspector {
     mkdir_chown_stack "$IRONIC_INSPECTOR_CONF_DIR"
     mkdir_chown_stack "$IRONIC_INSPECTOR_DATA_DIR"
@@ -174,11 +186,7 @@ function configure_inspector {
 
     cp "$IRONIC_INSPECTOR_DIR/example.conf" "$IRONIC_INSPECTOR_CONF_FILE"
     inspector_iniset DEFAULT debug $IRONIC_INSPECTOR_DEBUG
-    inspector_iniset ironic os_auth_url "$KEYSTONE_SERVICE_URI"
-    inspector_iniset ironic os_username $IRONIC_INSPECTOR_ADMIN_USER
-    inspector_iniset ironic os_password $SERVICE_PASSWORD
-    inspector_iniset ironic os_tenant_name $SERVICE_PROJECT_NAME
-
+    inspector_configure_auth_for ironic
     configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
 
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT
@@ -227,11 +235,7 @@ function configure_inspector {
 }
 
 function configure_inspector_swift {
-    inspector_iniset swift os_auth_url "$KEYSTONE_SERVICE_URI/v2.0"
-    inspector_iniset swift username $IRONIC_INSPECTOR_ADMIN_USER
-    inspector_iniset swift password $SERVICE_PASSWORD
-    inspector_iniset swift tenant_name $SERVICE_PROJECT_NAME
-
+    inspector_configure_auth_for swift
     inspector_iniset processing store_data swift
 }
 
