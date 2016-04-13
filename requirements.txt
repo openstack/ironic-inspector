@@ -2,7 +2,7 @@
 # of appearance. Changing the order has an impact on the overall integration
 # process, which may cause wedges in the gate later.
 alembic>=0.8.4 # MIT
-Babel>=1.3 # BSD
+Babel!=2.3.0,!=2.3.1,!=2.3.2,!=2.3.3,>=1.3 # BSD
 eventlet!=0.18.3,>=0.18.2 # MIT
 Flask<1.0,>=0.10 # BSD
 futurist>=0.11.0 # Apache-2.0
