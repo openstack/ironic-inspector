@@ -288,6 +288,9 @@ class TestFirewall(test_base.NodeTest):
                                                   mock_get_client,
                                                   mock_iptables):
         firewall.init()
+        firewall.BLACKLIST_CACHE = ['foo']
+        mock_get_client.return_value.port.list.return_value = [
+            mock.Mock(address='foobar')]
 
         update_filters_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
@@ -317,6 +320,8 @@ class TestFirewall(test_base.NodeTest):
                                 call_args_list):
             self.assertEqual(args, call[0])
 
+        self.assertIsNone(firewall.BLACKLIST_CACHE)
+
         # Check caching enabled flag
 
         mock_iptables.reset_mock()
@@ -330,3 +335,4 @@ class TestFirewall(test_base.NodeTest):
         firewall.update_filters()
 
         mock_iptables.assert_any_call('-A', firewall.NEW_CHAIN, '-j', 'ACCEPT')
+        self.assertEqual({'foobar'}, firewall.BLACKLIST_CACHE)
