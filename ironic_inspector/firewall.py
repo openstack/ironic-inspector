@@ -135,7 +135,7 @@ def _temporary_chain(chain, main_chain):
 
 def _disable_dhcp():
     """Disable DHCP completely."""
-    global ENABLED
+    global ENABLED, BLACKLIST_CACHE
 
     if not ENABLED:
         LOG.debug('DHCP is already disabled, not updating')
@@ -143,6 +143,7 @@ def _disable_dhcp():
 
     LOG.debug('No nodes on introspection and node_not_found_hook is '
               'not set - disabling DHCP')
+    BLACKLIST_CACHE = None
     with _temporary_chain(NEW_CHAIN, CHAIN):
         # Blacklist everything
         _iptables('-A', NEW_CHAIN, '-j', 'REJECT')
