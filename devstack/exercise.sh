@@ -44,9 +44,7 @@ disk_size=$(openstack flavor show baremetal -f value -c disk)
 ephemeral_size=$(openstack flavor show baremetal -f value -c "OS-FLV-EXT-DATA:ephemeral")
 expected_local_gb=$(($disk_size + $ephemeral_size))
 
-# FIXME(dtantsur): switch to OSC as soon as `openstack endpoint list` actually
-# works on devstack
-ironic_url=$(keystone endpoint-get --service baremetal | tail -n +4 | head -n -1 | tr '|' ' ' | awk '{ print $2; }')
+ironic_url=$(openstack endpoint show baremetal -f value -c publicurl)
 if [ -z "$ironic_url" ]; then
     echo "Cannot find Ironic URL"
     exit 1
