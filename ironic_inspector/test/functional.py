@@ -320,6 +320,7 @@ class Test(Base):
                     {'field': 'inventory.interfaces[*].ipv4_address',
                      'op': 'contains', 'value': r'127\.0\.0\.1',
                      'invert': True, 'multiple': 'all'},
+                    {'field': 'i.do.not.exist', 'op': 'is-empty'},
                 ],
                 'actions': [
                     {'action': 'set-attribute', 'path': '/extra/foo',
