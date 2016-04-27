@@ -444,7 +444,7 @@ class TestAbort(BaseTest):
     def test_node_not_found(self, client_mock, get_mock, filters_mock):
         cli = self._prepare(client_mock)
         exc = utils.Error('Not found.', code=404)
-        get_mock.side_effect = iter([exc])
+        get_mock.side_effect = exc
 
         self.assertRaisesRegexp(utils.Error, str(exc),
                                 introspect.abort, self.uuid)
@@ -487,7 +487,7 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.return_value = True
         self.node_info.started_at = time.time()
         self.node_info.finished_at = None
-        filters_mock.side_effect = iter([Exception('Boom')])
+        filters_mock.side_effect = Exception('Boom')
 
         introspect.abort(self.uuid)
 
@@ -506,7 +506,7 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.return_value = True
         self.node_info.started_at = time.time()
         self.node_info.finished_at = None
-        cli.node.set_power_state.side_effect = iter([Exception('BadaBoom')])
+        cli.node.set_power_state.side_effect = Exception('BadaBoom')
 
         introspect.abort(self.uuid)
 

@@ -82,7 +82,7 @@ class TestApiIntrospect(BaseAPITest):
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_intospect_failed(self, introspect_mock):
-        introspect_mock.side_effect = iter([utils.Error("boom")])
+        introspect_mock.side_effect = utils.Error("boom")
         res = self.app.post('/v1/introspection/%s' % self.uuid)
         self.assertEqual(400, res.status_code)
         self.assertEqual(
@@ -98,7 +98,7 @@ class TestApiIntrospect(BaseAPITest):
     def test_introspect_failed_authentication(self, introspect_mock,
                                               auth_mock):
         CONF.set_override('auth_strategy', 'keystone')
-        auth_mock.side_effect = iter([utils.Error('Boom', code=403)])
+        auth_mock.side_effect = utils.Error('Boom', code=403)
         res = self.app.post('/v1/introspection/%s' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
@@ -117,7 +117,7 @@ class TestApiContinue(BaseAPITest):
         self.assertEqual({"result": 42}, json.loads(res.data.decode()))
 
     def test_continue_failed(self, process_mock):
-        process_mock.side_effect = iter([utils.Error("boom")])
+        process_mock.side_effect = utils.Error("boom")
         res = self.app.post('/v1/continue', data='{"foo": "bar"}')
         self.assertEqual(400, res.status_code)
         process_mock.assert_called_once_with({"foo": "bar"})
@@ -154,7 +154,7 @@ class TestApiAbort(BaseAPITest):
 
     def test_node_not_found(self, abort_mock):
         exc = utils.Error("Not Found.", code=404)
-        abort_mock.side_effect = iter([exc])
+        abort_mock.side_effect = exc
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
 
@@ -165,7 +165,7 @@ class TestApiAbort(BaseAPITest):
 
     def test_abort_failed(self, abort_mock):
         exc = utils.Error("Locked.", code=409)
-        abort_mock.side_effect = iter([exc])
+        abort_mock.side_effect = exc
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
 
@@ -411,7 +411,7 @@ class TestApiRules(BaseAPITest):
 class TestApiMisc(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_404_expected(self, get_mock):
-        get_mock.side_effect = iter([utils.Error('boom', code=404)])
+        get_mock.side_effect = utils.Error('boom', code=404)
         res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(404, res.status_code)
         self.assertEqual('boom', _get_error(res))
@@ -424,7 +424,7 @@ class TestApiMisc(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_500_with_debug(self, get_mock):
         CONF.set_override('debug', True)
-        get_mock.side_effect = iter([RuntimeError('boom')])
+        get_mock.side_effect = RuntimeError('boom')
         res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(500, res.status_code)
         self.assertEqual('Internal server error (RuntimeError): boom',
@@ -433,7 +433,7 @@ class TestApiMisc(BaseAPITest):
     @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_500_without_debug(self, get_mock):
         CONF.set_override('debug', False)
-        get_mock.side_effect = iter([RuntimeError('boom')])
+        get_mock.side_effect = RuntimeError('boom')
         res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(500, res.status_code)
         self.assertEqual('Internal server error',

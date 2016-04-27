@@ -119,7 +119,6 @@ class TestProcess(BaseProcessTest):
 
     def test_not_found_in_cache(self):
         self.find_mock.side_effect = utils.Error('not found')
-
         self.assertRaisesRegexp(utils.Error,
                                 'not found',
                                 process.process, self.data)
