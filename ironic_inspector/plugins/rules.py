@@ -69,6 +69,7 @@ class NeCondition(SimpleCondition):
 
 class EmptyCondition(base.RuleConditionPlugin):
     REQUIRED_PARAMS = set()
+    ALLOW_NONE = True
 
     def check(self, node_info, field, params, **kwargs):
         return field in ('', None, [], {})
