@@ -13,9 +13,6 @@
 
 """Standard set of plugins."""
 
-import base64
-import datetime
-import os
 import sys
 
 import netaddr
@@ -311,40 +308,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
 class RamdiskErrorHook(base.ProcessingHook):
     """Hook to process error send from the ramdisk."""
 
-    DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
-
     def before_processing(self, introspection_data, **kwargs):
         error = introspection_data.get('error')
-        logs = introspection_data.get('logs')
-
-        if error or CONF.processing.always_store_ramdisk_logs:
-            if logs:
-                self._store_logs(logs, introspection_data)
-            else:
-                LOG.debug('No logs received from the ramdisk',
-                          data=introspection_data)
-
         if error:
             raise utils.Error(_('Ramdisk reported error: %s') % error,
                               data=introspection_data)
-
-    def _store_logs(self, logs, introspection_data):
-        if not CONF.processing.ramdisk_logs_dir:
-            LOG.warning(
-                _LW('Failed to store logs received from the ramdisk '
-                    'because ramdisk_logs_dir configuration option '
-                    'is not set'),
-                data=introspection_data)
-            return
-
-        if not os.path.exists(CONF.processing.ramdisk_logs_dir):
-            os.makedirs(CONF.processing.ramdisk_logs_dir)
-
-        time_fmt = datetime.datetime.utcnow().strftime(self.DATETIME_FORMAT)
-        bmc_address = introspection_data.get('ipmi_address', 'unknown')
-        file_name = 'bmc_%s_%s' % (bmc_address, time_fmt)
-        with open(os.path.join(CONF.processing.ramdisk_logs_dir, file_name),
-                  'wb') as fp:
-            fp.write(base64.b64decode(logs))
-        LOG.info(_LI('Ramdisk logs stored in file %s'), file_name,
-                 data=introspection_data)
