@@ -53,6 +53,15 @@ class RootDiskSelectionHook(base.ProcessingHook):
                   'as an inspection ramdisk'),
                 node_info=node_info, data=introspection_data)
 
+        if 'size' in hints:
+            # Special case to match IPA behaviour
+            try:
+                hints['size'] = int(hints['size'])
+            except (TypeError, ValueError):
+                raise utils.Error(_('Invalid root device size hint, expected '
+                                    'an integer, got %s') % hints['size'],
+                                  node_info=node_info, data=introspection_data)
+
         disks = inventory.get('disks', [])
         if not disks:
             raise utils.Error(_('No disks found'),

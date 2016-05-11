@@ -388,6 +388,19 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
 
+    def test_size_string(self):
+        self.node.properties['root_device'] = {'size': '10'}
+        self.hook.before_update(self.data, self.node_info)
+        self.assertEqual(self.matched, self.data['root_disk'])
+
+    def test_size_invalid(self):
+        for bad_size in ('foo', None, {}):
+            self.node.properties['root_device'] = {'size': bad_size}
+            self.assertRaisesRegexp(utils.Error,
+                                    'Invalid root device size hint',
+                                    self.hook.before_update,
+                                    self.data, self.node_info)
+
 
 class TestRamdiskError(test_base.BaseTest):
     def setUp(self):
