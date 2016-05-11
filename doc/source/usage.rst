@@ -79,8 +79,8 @@ Starting with the Mitaka release, you can also apply conditions to ironic node
 field. Prefix field with schema (``data://`` or ``node://``) to distinguish
 between values from introspection data and node. Both schemes use JSON path::
 
-    {'field': 'node://property.path', 'op': 'eq', 'value': 'val'}
-    {'field': 'data://introspection.path', 'op': 'eq', 'value': 'val'}
+    {"field": "node://property.path", "op": "eq", "value": "val"}
+    {"field": "data://introspection.path", "op": "eq", "value": "val"}
 
 if scheme (node or data) is missing, condition compares data with
 introspection data.
@@ -127,8 +127,8 @@ Starting from Mitaka release, ``value`` field in actions supports fetching data
 from introspection, it's using `python string formatting notation
 <https://docs.python.org/2/library/string.html#formatspec>`_ ::
 
-        {'action': 'set-attribute', 'path': '/driver_info/ipmi_address',
-                   'value': '{data[inventory][bmc_address]}'}
+    {"action": "set-attribute", "path": "/driver_info/ipmi_address",
+     "value": "{data[inventory][bmc_address]}"}
 
 .. _setting-ipmi-creds:
 
@@ -241,43 +241,47 @@ see :ref:`rules`.
 A rule to set a node's Ironic driver to the ``agent_ipmitool`` driver and
 populate the required driver_info for that driver would look like::
 
-    "description": "Set IPMI driver_info if no credentials",
-    "actions": [
-        {'action': 'set-attribute', 'path': 'driver', 'value': 'agent_ipmitool'},
-        {'action': 'set-attribute', 'path': 'driver_info/ipmi_username',
-         'value': 'username'},
-        {'action': 'set-attribute', 'path': 'driver_info/ipmi_password',
-         'value': 'password'}
-    ]
-    "conditions": [
-        {'op': 'is-empty', 'field': 'node://driver_info.ipmi_password'},
-        {'op': 'is-empty', 'field': 'node://driver_info.ipmi_username'}
-    ]
-
-    "description": "Set deploy info if not already set on node",
-    "actions": [
-        {'action': 'set-attribute', 'path': 'driver_info/deploy_kernel',
-         'value': '<glance uuid>'},
-        {'action': 'set-attribute', 'path': 'driver_info/deploy_ramdisk',
-         'value': '<glance uuid>'},
-    ]
-    "conditions": [
-        {'op': 'is-empty', 'field': 'node://driver_info.deploy_ramdisk'},
-        {'op': 'is-empty', 'field': 'node://driver_info.deploy_kernel'}
-    ]
+    [{
+        "description": "Set IPMI driver_info if no credentials",
+        "actions": [
+            {"action": "set-attribute", "path": "driver", "value": "agent_ipmitool"},
+            {"action": "set-attribute", "path": "driver_info/ipmi_username",
+             "value": "username"},
+            {"action": "set-attribute", "path": "driver_info/ipmi_password",
+             "value": "password"}
+        ],
+        "conditions": [
+            {"op": "is-empty", "field": "node://driver_info.ipmi_password"},
+            {"op": "is-empty", "field": "node://driver_info.ipmi_username"}
+        ]
+    },{
+        "description": "Set deploy info if not already set on node",
+        "actions": [
+            {"action": "set-attribute", "path": "driver_info/deploy_kernel",
+             "value": "<glance uuid>"},
+            {"action": "set-attribute", "path": "driver_info/deploy_ramdisk",
+             "value": "<glance uuid>"}
+        ],
+        "conditions": [
+            {"op": "is-empty", "field": "node://driver_info.deploy_ramdisk"},
+            {"op": "is-empty", "field": "node://driver_info.deploy_kernel"}
+        ]
+    }]
 
 All nodes discovered and enrolled via the ``enroll`` hook, will contain an
 ``auto_discovered`` flag in the introspection data, this flag makes it
 possible to distinguish between manually enrolled nodes and auto-discovered
 nodes in the introspection rules using the rule condition ``eq``::
 
-    "description": "Enroll auto-discovered nodes with fake driver",
-    "actions": [
-        {'action': 'set-attribute', 'path': 'driver', 'value': 'fake'}
-    ]
-    "conditions": [
-        {'op': 'eq', 'field': 'data://auto_discovered', 'value': True}
-    ]
+    {
+        "description": "Enroll auto-discovered nodes with fake driver",
+        "actions": [
+            {"action": "set-attribute", "path": "driver", "value": "fake"}
+        ],
+        "conditions": [
+            {"op": "eq", "field": "data://auto_discovered", "value": true}
+        ]
+    }
 
 Reapplying introspection on stored data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
