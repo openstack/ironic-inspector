@@ -130,7 +130,7 @@ class TestProcess(BaseProcessTest):
         self.cli.node.get.side_effect = exceptions.NotFound()
 
         self.assertRaisesRegexp(utils.Error,
-                                'not found',
+                                'Node %s was not found' % self.uuid,
                                 process.process, self.data)
         self.cli.node.get.assert_called_once_with(self.uuid)
         self.assertFalse(self.process_mock.called)

@@ -47,7 +47,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 4)
+CURRENT_API_VERSION = (1, 5)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -178,13 +178,10 @@ def api_continue():
 
 
 # TODO(sambetts) Add API discovery for this endpoint
-@app.route('/v1/introspection/<uuid>', methods=['GET', 'POST'])
+@app.route('/v1/introspection/<node_id>', methods=['GET', 'POST'])
 @convert_exceptions
-def api_introspection(uuid):
+def api_introspection(node_id):
     utils.check_auth(flask.request)
-
-    if not uuidutils.is_uuid_like(uuid):
-        raise utils.Error(_('Invalid UUID value'), code=400)
 
     if flask.request.method == 'POST':
         new_ipmi_password = flask.request.args.get('new_ipmi_password',
@@ -198,34 +195,34 @@ def api_introspection(uuid):
         else:
             new_ipmi_credentials = None
 
-        introspect.introspect(uuid,
+        introspect.introspect(node_id,
                               new_ipmi_credentials=new_ipmi_credentials,
                               token=flask.request.headers.get('X-Auth-Token'))
         return '', 202
     else:
-        node_info = node_cache.get_node(uuid)
+        node_info = node_cache.get_node(node_id)
         return flask.json.jsonify(finished=bool(node_info.finished_at),
                                   error=node_info.error or None)
 
 
-@app.route('/v1/introspection/<uuid>/abort', methods=['POST'])
+@app.route('/v1/introspection/<node_id>/abort', methods=['POST'])
 @convert_exceptions
-def api_introspection_abort(uuid):
+def api_introspection_abort(node_id):
     utils.check_auth(flask.request)
-
-    if not uuidutils.is_uuid_like(uuid):
-        raise utils.Error(_('Invalid UUID value'), code=400)
-
-    introspect.abort(uuid, token=flask.request.headers.get('X-Auth-Token'))
+    introspect.abort(node_id, token=flask.request.headers.get('X-Auth-Token'))
     return '', 202
 
 
-@app.route('/v1/introspection/<uuid>/data', methods=['GET'])
+@app.route('/v1/introspection/<node_id>/data', methods=['GET'])
 @convert_exceptions
-def api_introspection_data(uuid):
+def api_introspection_data(node_id):
     utils.check_auth(flask.request)
+
     if CONF.processing.store_data == 'swift':
-        res = swift.get_introspection_data(uuid)
+        if not uuidutils.is_uuid_like(node_id):
+            node = ir_utils.get_node(node_id, fields=['uuid'])
+            node_id = node.uuid
+        res = swift.get_introspection_data(node_id)
         return res, 200, {'Content-Type': 'application/json'}
     else:
         return error_response(_('Inspector is not configured to store data. '
@@ -234,9 +231,9 @@ def api_introspection_data(uuid):
                               code=404)
 
 
-@app.route('/v1/introspection/<uuid>/data/unprocessed', methods=['POST'])
+@app.route('/v1/introspection/<node_id>/data/unprocessed', methods=['POST'])
 @convert_exceptions
-def api_introspection_reapply(uuid):
+def api_introspection_reapply(node_id):
     utils.check_auth(flask.request)
 
     if flask.request.content_length:
@@ -244,7 +241,7 @@ def api_introspection_reapply(uuid):
                                 'supported yet'), code=400)
 
     if CONF.processing.store_data == 'swift':
-        process.reapply(uuid)
+        process.reapply(node_id)
         return '', 202
     else:
         return error_response(_('Inspector is not configured to store'

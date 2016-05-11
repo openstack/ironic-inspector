@@ -14,6 +14,7 @@
 import socket
 
 from ironicclient import client
+from ironicclient import exceptions as ironic_exc
 from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _
@@ -116,6 +117,14 @@ LEGACY_MAP = {
 }
 
 
+class NotFound(utils.Error):
+    """Node not found in Ironic."""
+
+    def __init__(self, node_ident, code=404, *args, **kwargs):
+        msg = _('Node %s was not found in Ironic') % node_ident
+        super(NotFound, self).__init__(msg, code, *args, **kwargs)
+
+
 def reset_ironic_session():
     """Reset the global session variable.
 
@@ -198,6 +207,25 @@ def dict_to_capabilities(caps_dict):
     return ','.join(["%s:%s" % (key, value)
                      for key, value in caps_dict.items()
                      if value is not None])
+
+
+def get_node(node_id, ironic=None, **kwargs):
+    """Get a node from Ironic.
+
+    :param node_id: node UUID or name.
+    :param ironic: ironic client instance.
+    :param kwargs: arguments to pass to Ironic client.
+    :raises: Error on failure
+    """
+    ironic = ironic if ironic is not None else get_client()
+
+    try:
+        return ironic.node.get(node_id, **kwargs)
+    except ironic_exc.NotFound:
+        raise NotFound(node_id)
+    except ironic_exc.HttpError as exc:
+        raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
+                          {'node': node_id, 'exc': exc})
 
 
 def list_opts():

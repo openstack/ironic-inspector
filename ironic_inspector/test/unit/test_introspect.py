@@ -189,12 +189,12 @@ class TestIntrospect(BaseTest):
         cli = client_mock.return_value
         cli.node.get.side_effect = exceptions.NotFound()
         self.assertRaisesRegexp(utils.Error,
-                                'Cannot find node',
+                                'Node %s was not found' % self.uuid,
                                 introspect.introspect, self.uuid)
 
         cli.node.get.side_effect = exceptions.BadRequest()
         self.assertRaisesRegexp(utils.Error,
-                                'Cannot get node',
+                                '%s: Bad Request' % self.uuid,
                                 introspect.introspect, self.uuid)
 
         self.assertEqual(0, self.node_info.ports.call_count)

@@ -22,6 +22,7 @@ from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_utils import excutils
+from oslo_utils import uuidutils
 from sqlalchemy import text
 
 from ironic_inspector import db
@@ -201,11 +202,11 @@ class NodeInfo(object):
             self._attributes = None
 
     @classmethod
-    def from_row(cls, row, ironic=None, lock=None):
+    def from_row(cls, row, ironic=None, lock=None, node=None):
         """Construct NodeInfo from a database row."""
         fields = {key: row[key]
                   for key in ('uuid', 'started_at', 'finished_at', 'error')}
-        return cls(ironic=ironic, lock=lock, **fields)
+        return cls(ironic=ironic, lock=lock, node=node, **fields)
 
     def invalidate_cache(self):
         """Clear all cached info, so that it's reloaded next time."""
@@ -218,7 +219,7 @@ class NodeInfo(object):
     def node(self):
         """Get Ironic node object associated with the cached node record."""
         if self._node is None:
-            self._node = self.ironic.node.get(self.uuid)
+            self._node = ir_utils.get_node(self.uuid, ironic=self.ironic)
         return self._node
 
     def create_ports(self, macs):
@@ -438,14 +439,21 @@ def _list_node_uuids():
     return {x.uuid for x in db.model_query(db.Node.uuid)}
 
 
-def get_node(uuid, ironic=None, locked=False):
-    """Get node from cache by it's UUID.
+def get_node(node_id, ironic=None, locked=False):
+    """Get node from cache.
 
-    :param uuid: node UUID.
+    :param node_id: node UUID or name.
     :param ironic: optional ironic client instance
     :param locked: if True, get a lock on node before fetching its data
     :returns: structure NodeInfo.
     """
+    if uuidutils.is_uuid_like(node_id):
+        node = None
+        uuid = node_id
+    else:
+        node = ir_utils.get_node(node_id, ironic=ironic)
+        uuid = node.uuid
+
     if locked:
         lock = _get_lock(uuid)
         lock.acquire()
@@ -457,7 +465,7 @@ def get_node(uuid, ironic=None, locked=False):
         if row is None:
             raise utils.Error(_('Could not find node %s in cache') % uuid,
                               code=404)
-        return NodeInfo.from_row(row, ironic=ironic, lock=lock)
+        return NodeInfo.from_row(row, ironic=ironic, lock=lock, node=node)
     except Exception:
         with excutils.save_and_reraise_exception():
             if lock is not None:

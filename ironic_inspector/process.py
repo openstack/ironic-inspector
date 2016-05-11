@@ -21,7 +21,6 @@ import os
 import eventlet
 import json
 
-from ironicclient import exceptions
 from oslo_config import cfg
 from oslo_utils import excutils
 
@@ -217,12 +216,10 @@ def process(introspection_data):
 
     try:
         node = node_info.node()
-    except exceptions.NotFound:
-        msg = _('Node was found in cache, but is not found in Ironic')
-        node_info.finished(error=msg)
-        _store_logs(introspection_data, node_info)
-        raise utils.Error(msg, code=404, node_info=node_info,
-                          data=introspection_data)
+    except ir_utils.NotFound as exc:
+        with excutils.save_and_reraise_exception():
+            node_info.finished(error=str(exc))
+            _store_logs(introspection_data, node_info)
 
     try:
         result = _process_node(node, introspection_data, node_info)
@@ -343,20 +340,20 @@ def _finish(ironic, node_info, introspection_data, power_off=True):
              node_info=node_info, data=introspection_data)
 
 
-def reapply(uuid):
+def reapply(node_ident):
     """Re-apply introspection steps.
 
     Re-apply preprocessing, postprocessing and introspection rules on
     stored data.
 
-    :param uuid: node uuid to use
+    :param node_ident: node UUID or name
     :raises: utils.Error
 
     """
 
     LOG.debug('Processing re-apply introspection request for node '
-              'UUID: %s', uuid)
-    node_info = node_cache.get_node(uuid, locked=False)
+              'UUID: %s', node_ident)
+    node_info = node_cache.get_node(node_ident, locked=False)
     if not node_info.acquire_lock(blocking=False):
         # Note (mkovacik): it should be sufficient to check data
         # presence & locking. If either introspection didn't start
