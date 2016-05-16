@@ -66,11 +66,11 @@ class TestApiIntrospect(BaseAPITest):
         self.assertEqual(202, res.status_code)
         self.client_mock.call.assert_called_once_with({}, 'do_introspection',
                                                       node_id=self.uuid,
+                                                      manage_boot=True,
                                                       token=None)
 
     def test_intospect_failed(self):
         self.client_mock.call.side_effect = utils.Error("boom")
-
         res = self.app.post('/v1/introspection/%s' % self.uuid)
 
         self.assertEqual(400, res.status_code)
@@ -79,7 +79,39 @@ class TestApiIntrospect(BaseAPITest):
             json.loads(res.data.decode('utf-8'))['error']['message'])
         self.client_mock.call.assert_called_once_with({}, 'do_introspection',
                                                       node_id=self.uuid,
+                                                      manage_boot=True,
                                                       token=None)
+
+    def test_introspect_no_manage_boot(self):
+        res = self.app.post('/v1/introspection/%s?manage_boot=0' % self.uuid)
+        self.assertEqual(202, res.status_code)
+        self.client_mock.call.assert_called_once_with({}, 'do_introspection',
+                                                      node_id=self.uuid,
+                                                      manage_boot=False,
+                                                      token=None)
+
+    def test_introspect_can_manage_boot_false(self):
+        CONF.set_override('can_manage_boot', False)
+        res = self.app.post('/v1/introspection/%s?manage_boot=0' % self.uuid)
+        self.assertEqual(202, res.status_code)
+        self.client_mock.call.assert_called_once_with({}, 'do_introspection',
+                                                      node_id=self.uuid,
+                                                      manage_boot=False,
+                                                      token=None)
+
+    def test_introspect_can_manage_boot_false_failed(self):
+        CONF.set_override('can_manage_boot', False)
+        res = self.app.post('/v1/introspection/%s' % self.uuid)
+        self.assertEqual(400, res.status_code)
+        self.assertFalse(self.client_mock.call.called)
+
+    def test_introspect_wrong_manage_boot(self):
+        res = self.app.post('/v1/introspection/%s?manage_boot=foo' % self.uuid)
+        self.assertEqual(400, res.status_code)
+        self.assertFalse(self.client_mock.call.called)
+        self.assertEqual(
+            'Invalid boolean value for manage_boot: foo',
+            json.loads(res.data.decode('utf-8'))['error']['message'])
 
     @mock.patch.object(utils, 'check_auth', autospec=True)
     def test_introspect_failed_authentication(self, auth_mock):

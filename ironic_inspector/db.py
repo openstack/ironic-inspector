@@ -57,6 +57,7 @@ class Node(Base):
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
     error = Column(Text, nullable=True)
+    manage_boot = Column(Boolean, nullable=True, default=True)
 
     # version_id is being tracked in the NodeInfo object
     # for the sake of consistency. See also SQLAlchemy docs:

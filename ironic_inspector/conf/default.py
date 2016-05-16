@@ -69,7 +69,13 @@ _OPTS = [
                help=_('Path to the rootwrap configuration file to use for '
                       'running commands as root')),
     cfg.IntOpt('api_max_limit', default=1000, min=1,
-               help=_('Limit the number of elements an API list-call returns'))
+               help=_('Limit the number of elements an API list-call '
+                      'returns')),
+    cfg.BoolOpt('can_manage_boot', default=True,
+                help=_('Whether the current installation of ironic-inspector '
+                       'can manage PXE booting of nodes. If set to False, '
+                       'the API will reject introspection requests with '
+                       'manage_boot missing or set to True.'))
 ]
 
 

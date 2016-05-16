@@ -20,13 +20,14 @@ from ironic_inspector import utils
 
 class ConductorManager(object):
     """ironic inspector conductor manager"""
-    RPC_API_VERSION = '1.0'
+    RPC_API_VERSION = '1.1'
 
     target = messaging.Target(version=RPC_API_VERSION)
 
     @messaging.expected_exceptions(utils.Error)
-    def do_introspection(self, context, node_id, token=None):
-        introspect.introspect(node_id, token=token)
+    def do_introspection(self, context, node_id, token=None,
+                         manage_boot=True):
+        introspect.introspect(node_id, token=token, manage_boot=manage_boot)
 
     @messaging.expected_exceptions(utils.Error)
     def do_abort(self, context, node_id, token=None):

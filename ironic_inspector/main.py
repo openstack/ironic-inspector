@@ -15,6 +15,7 @@ import os
 import re
 
 import flask
+from oslo_utils import strutils
 from oslo_utils import uuidutils
 import six
 import werkzeug
@@ -39,7 +40,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 12)
+CURRENT_API_VERSION = (1, 13)
 DEFAULT_API_VERSION = CURRENT_API_VERSION
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
@@ -239,8 +240,23 @@ def api_continue():
      methods=['GET', 'POST'])
 def api_introspection(node_id):
     if flask.request.method == 'POST':
+        args = flask.request.args
+
+        manage_boot = args.get('manage_boot', 'True')
+        try:
+            manage_boot = strutils.bool_from_string(manage_boot, strict=True)
+        except ValueError:
+            raise utils.Error(_('Invalid boolean value for manage_boot: %s') %
+                              manage_boot, code=400)
+
+        if manage_boot and not CONF.can_manage_boot:
+            raise utils.Error(_('Managed boot is requested, but this '
+                                'installation cannot manage boot ('
+                                '(can_manage_boot set to False)'),
+                              code=400)
         client = rpc.get_client()
         client.call({}, 'do_introspection', node_id=node_id,
+                    manage_boot=manage_boot,
                     token=flask.request.headers.get('X-Auth-Token'))
         return '', 202
     else:

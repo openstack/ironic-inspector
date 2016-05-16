@@ -167,9 +167,11 @@ class Base(base.NodeTest):
                 raise AssertionError(msg)
         return res
 
-    def call_introspect(self, uuid, **kwargs):
+    def call_introspect(self, uuid, manage_boot=True, **kwargs):
         endpoint = '/v1/introspection/%s' % uuid
-        return self.call('post', endpoint, **kwargs)
+        if manage_boot is not None:
+            endpoint = '%s?manage_boot=%s' % (endpoint, manage_boot)
+        return self.call('post', endpoint)
 
     def call_get_status(self, uuid, **kwargs):
         return self.call('get', '/v1/introspection/%s' % uuid, **kwargs).json()
@@ -257,6 +259,7 @@ class Test(Base):
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
             pxe_enabled=True)
+        self.assertTrue(self.cli.node.set_boot_device.called)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
@@ -357,6 +360,24 @@ class Test(Base):
                          [self.call('GET', urllib.parse.urlparse(
                              status_.get('links')[0].get('href')).path).json()
                           for status_ in statuses])
+
+    def test_manage_boot(self):
+        self.call_introspect(self.uuid, manage_boot=False)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.assertFalse(self.cli.node.set_power_state.called)
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False, state=istate.States.waiting)
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
+        self.assertFalse(self.cli.node.set_boot_device.called)
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
     def test_rules_api(self):
         res = self.call_list_rules()

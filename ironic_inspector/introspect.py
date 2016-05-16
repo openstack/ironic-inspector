@@ -34,10 +34,11 @@ _LAST_INTROSPECTION_TIME = 0
 _LAST_INTROSPECTION_LOCK = semaphore.BoundedSemaphore()
 
 
-def introspect(node_id, token=None):
+def introspect(node_id, manage_boot=True, token=None):
     """Initiate hardware properties introspection for a given node.
 
     :param node_id: node UUID or name
+    :param manage_boot: whether to manage boot for this node
     :param token: authentication token
     :raises: Error
     """
@@ -45,15 +46,17 @@ def introspect(node_id, token=None):
     node = ir_utils.get_node(node_id, ironic=ironic)
 
     ir_utils.check_provision_state(node)
-    validation = ironic.node.validate(node.uuid)
-    if not validation.power['result']:
-        msg = _('Failed validation of power interface, reason: %s')
-        raise utils.Error(msg % validation.power['reason'],
-                          node_info=node)
+    if manage_boot:
+        validation = ironic.node.validate(node.uuid)
+        if not validation.power['result']:
+            msg = _('Failed validation of power interface, reason: %s')
+            raise utils.Error(msg % validation.power['reason'],
+                              node_info=node)
 
     bmc_address = ir_utils.get_ipmi_address(node)
     node_info = node_cache.start_introspection(node.uuid,
                                                bmc_address=bmc_address,
+                                               manage_boot=manage_boot,
                                                ironic=ironic)
 
     utils.executor().submit(_background_introspect, node_info, ironic)
@@ -98,21 +101,26 @@ def _background_introspect_locked(node_info, ironic):
     LOG.info('The following attributes will be used for look up: %s',
              attrs, node_info=node_info)
 
-    try:
-        ironic.node.set_boot_device(node_info.uuid, 'pxe',
-                                    persistent=False)
-    except Exception as exc:
-        LOG.warning('Failed to set boot device to PXE: %s',
-                    exc, node_info=node_info)
+    if node_info.manage_boot:
+        try:
+            ironic.node.set_boot_device(node_info.uuid, 'pxe',
+                                        persistent=False)
+        except Exception as exc:
+            LOG.warning('Failed to set boot device to PXE: %s',
+                        exc, node_info=node_info)
 
-    try:
-        ironic.node.set_power_state(node_info.uuid, 'reboot')
-    except Exception as exc:
-        raise utils.Error(_('Failed to power on the node, check it\'s '
-                            'power management configuration: %s'),
-                          exc, node_info=node_info)
-    LOG.info('Introspection started successfully',
-             node_info=node_info)
+        try:
+            ironic.node.set_power_state(node_info.uuid, 'reboot')
+        except Exception as exc:
+            raise utils.Error(_('Failed to power on the node, check it\'s '
+                                'power management configuration: %s'),
+                              exc, node_info=node_info)
+        LOG.info('Introspection started successfully',
+                 node_info=node_info)
+    else:
+        LOG.info('Introspection environment is ready, external power on '
+                 'is required within %d seconds', CONF.timeout,
+                 node_info=node_info)
 
 
 def abort(node_id, token=None):
@@ -142,11 +150,12 @@ def _abort(node_info, ironic):
     # runs in background
 
     LOG.debug('Forcing power-off', node_info=node_info)
-    try:
-        ironic.node.set_power_state(node_info.uuid, 'off')
-    except Exception as exc:
-        LOG.warning('Failed to power off node: %s', exc,
-                    node_info=node_info)
+    if node_info.manage_boot:
+        try:
+            ironic.node.set_power_state(node_info.uuid, 'off')
+        except Exception as exc:
+            LOG.warning('Failed to power off node: %s', exc,
+                        node_info=node_info)
 
     node_info.finished(istate.Events.abort_end,
                        error=_('Canceled by operator'))

@@ -433,6 +433,14 @@ class MigrationCheckersMixin(object):
         self.assertEqual('foo', row.name)
         self.assertEqual('bar', row.value)
 
+    def _check_2970d2d44edc(self, engine, data):
+        nodes = db_utils.get_table(engine, 'nodes')
+        data = {'uuid': 'abcd'}
+        nodes.insert().execute(data)
+
+        n = nodes.select(nodes.c.uuid == 'abcd').execute().first()
+        self.assertIsNone(n['manage_boot'])
+
     def test_upgrade_and_version(self):
         with patch_with_engine(self.engine):
             self.migration_ext.upgrade('head')

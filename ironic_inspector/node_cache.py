@@ -71,7 +71,7 @@ class NodeInfo(object):
 
     def __init__(self, uuid, version_id=None, state=None, started_at=None,
                  finished_at=None, error=None, node=None, ports=None,
-                 ironic=None, lock=None):
+                 ironic=None, lock=None, manage_boot=True):
         self.uuid = uuid
         self.started_at = started_at
         self.finished_at = finished_at
@@ -85,6 +85,9 @@ class NodeInfo(object):
         self._ports = ports
         self._attributes = None
         self._ironic = ironic
+        # On upgrade existing records will have manage_boot=NULL, which is
+        # equivalent to True actually.
+        self._manage_boot = manage_boot if manage_boot is not None else True
         # This is a lock on a node UUID, not on a NodeInfo object
         self._lock = lock if lock is not None else _get_lock(uuid)
         # Whether lock was acquired using this NodeInfo object
@@ -262,6 +265,11 @@ class NodeInfo(object):
             self._ironic = ir_utils.get_client()
         return self._ironic
 
+    @property
+    def manage_boot(self):
+        """Whether to manage boot for this node."""
+        return self._manage_boot
+
     def set_option(self, name, value):
         """Set an option for a node."""
         encoded = json.dumps(value)
@@ -315,7 +323,7 @@ class NodeInfo(object):
         """Construct NodeInfo from a database row."""
         fields = {key: row[key]
                   for key in ('uuid', 'version_id', 'state', 'started_at',
-                              'finished_at', 'error')}
+                              'finished_at', 'error', 'manage_boot')}
         return cls(ironic=ironic, lock=lock, node=node, **fields)
 
     def invalidate_cache(self):
@@ -672,7 +680,7 @@ def start_introspection(uuid, **kwargs):
         return add_node(uuid, state, **kwargs)
 
 
-def add_node(uuid, state, **attributes):
+def add_node(uuid, state, manage_boot=True, **attributes):
     """Store information about a node under introspection.
 
     All existing information about this node is dropped.
@@ -680,6 +688,7 @@ def add_node(uuid, state, **attributes):
 
     :param uuid: Ironic node UUID
     :param state: The initial state of the node
+    :param manage_boot: whether to manage boot for this node
     :param attributes: attributes known about this node (like macs, BMC etc);
                        also ironic client instance may be passed under 'ironic'
     :returns: NodeInfo
@@ -689,10 +698,10 @@ def add_node(uuid, state, **attributes):
         _delete_node(uuid)
         version_id = uuidutils.generate_uuid()
         db.Node(uuid=uuid, state=state, version_id=version_id,
-                started_at=started_at).save(session)
+                started_at=started_at, manage_boot=manage_boot).save(session)
 
         node_info = NodeInfo(uuid=uuid, state=state, started_at=started_at,
-                             version_id=version_id,
+                             version_id=version_id, manage_boot=manage_boot,
                              ironic=attributes.pop('ironic', None))
         for (name, value) in attributes.items():
             if not value:
@@ -738,8 +747,9 @@ def introspection_active():
 
 def active_macs():
     """List all MAC's that are on introspection right now."""
-    return ({x.value for x in db.model_query(db.Attribute.value).
-            filter_by(name=MACS_ATTRIBUTE)})
+    query = (db.model_query(db.Attribute.value).join(db.Node)
+             .filter(db.Attribute.name == MACS_ATTRIBUTE))
+    return {x.value for x in query}
 
 
 def _list_node_uuids():

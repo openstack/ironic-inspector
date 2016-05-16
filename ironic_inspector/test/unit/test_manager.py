@@ -37,7 +37,16 @@ class TestManagerIntrospect(BaseManagerTest):
     def test_do_introspect(self, introspect_mock):
         self.manager.do_introspection(self.context, self.uuid, self.token)
 
-        introspect_mock.assert_called_once_with(self.uuid, self.token)
+        introspect_mock.assert_called_once_with(self.uuid, token=self.token,
+                                                manage_boot=True)
+
+    @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_do_introspect_with_manage_boot(self, introspect_mock):
+        self.manager.do_introspection(self.context, self.uuid, self.token,
+                                      False)
+
+        introspect_mock.assert_called_once_with(self.uuid, token=self.token,
+                                                manage_boot=False)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_failed(self, introspect_mock):
@@ -48,7 +57,8 @@ class TestManagerIntrospect(BaseManagerTest):
                                 self.context, self.uuid, self.token)
 
         self.assertEqual(utils.Error, exc.exc_info[0])
-        introspect_mock.assert_called_once_with(self.uuid, token=None)
+        introspect_mock.assert_called_once_with(self.uuid, token=None,
+                                                manage_boot=True)
 
 
 class TestManagerAbort(BaseManagerTest):

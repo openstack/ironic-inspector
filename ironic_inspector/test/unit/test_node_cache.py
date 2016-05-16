@@ -120,15 +120,22 @@ class TestNodeCache(test_base.NodeTest):
 
     def test_active_macs(self):
         session = db.get_writer_session()
+        uuid2 = uuidutils.generate_uuid()
         with session.begin():
             db.Node(uuid=self.node.uuid,
                     state=istate.States.starting).save(session)
+            db.Node(uuid=uuid2,
+                    state=istate.States.starting,
+                    manage_boot=False).save(session)
             values = [('mac', '11:22:11:22:11:22', self.uuid),
-                      ('mac', '22:11:22:11:22:11', self.uuid)]
+                      ('mac', '22:11:22:11:22:11', self.uuid),
+                      ('mac', 'aa:bb:cc:dd:ee:ff', uuid2)]
             for value in values:
                 db.Attribute(uuid=uuidutils.generate_uuid(), name=value[0],
                              value=value[1], node_uuid=value[2]).save(session)
-        self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
+        self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11',
+                          # We still need to serve DHCP to unmanaged nodes
+                          'aa:bb:cc:dd:ee:ff'},
                          node_cache.active_macs())
 
     def test__list_node_uuids(self):

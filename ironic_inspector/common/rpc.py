@@ -36,7 +36,7 @@ def get_transport():
 
 def get_client():
     target = messaging.Target(topic=TOPIC, server=SERVER_NAME,
-                              version='1.0')
+                              version='1.1')
     transport = get_transport()
     return messaging.RPCClient(transport, target)
 
@@ -48,7 +48,7 @@ def get_server():
     if _SERVER is None:
         transport = get_transport()
         target = messaging.Target(topic=TOPIC, server=SERVER_NAME,
-                                  version='1.0')
+                                  version='1.1')
         mgr = manager.ConductorManager()
         _SERVER = messaging.get_rpc_server(
             transport, target, [mgr], executor='eventlet',

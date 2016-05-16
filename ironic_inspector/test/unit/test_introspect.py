@@ -67,6 +67,7 @@ class TestIntrospect(BaseTest):
 
         start_mock.assert_called_once_with(self.uuid,
                                            bmc_address=self.bmc_address,
+                                           manage_boot=True,
                                            ironic=cli)
         self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
@@ -92,6 +93,7 @@ class TestIntrospect(BaseTest):
 
         start_mock.assert_called_once_with(self.uuid,
                                            bmc_address=None,
+                                           manage_boot=True,
                                            ironic=cli)
         self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
@@ -115,6 +117,7 @@ class TestIntrospect(BaseTest):
 
         start_mock.assert_called_with(self.uuid,
                                       bmc_address=self.bmc_address,
+                                      manage_boot=True,
                                       ironic=cli)
 
     def test_power_failure(self, client_mock, start_mock):
@@ -129,6 +132,7 @@ class TestIntrospect(BaseTest):
 
         start_mock.assert_called_once_with(self.uuid,
                                            bmc_address=self.bmc_address,
+                                           manage_boot=True,
                                            ironic=cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
@@ -151,6 +155,7 @@ class TestIntrospect(BaseTest):
 
         start_mock.assert_called_once_with(self.uuid,
                                            bmc_address=self.bmc_address,
+                                           manage_boot=True,
                                            ironic=cli)
         self.assertFalse(cli.node.set_boot_device.called)
         start_mock.return_value.finished.assert_called_once_with(
@@ -169,6 +174,7 @@ class TestIntrospect(BaseTest):
 
         start_mock.assert_called_once_with(self.uuid,
                                            bmc_address=self.bmc_address,
+                                           manage_boot=True,
                                            ironic=cli)
         self.assertFalse(self.node_info.add_attribute.called)
         self.assertFalse(self.sync_filter_mock.called)
@@ -315,6 +321,27 @@ class TestIntrospect(BaseTest):
         # updated to the current time.time()
         self.assertEqual(100, introspect._LAST_INTROSPECTION_TIME)
 
+    def test_no_manage_boot(self, client_mock, add_mock):
+        cli = self._prepare(client_mock)
+        self.node_info.manage_boot = False
+        add_mock.return_value = self.node_info
+
+        introspect.introspect(self.node.uuid, manage_boot=False)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+
+        add_mock.assert_called_once_with(self.uuid,
+                                         bmc_address=self.bmc_address,
+                                         manage_boot=False,
+                                         ironic=cli)
+        self.node_info.ports.assert_called_once_with()
+        self.node_info.add_attribute.assert_called_once_with('mac',
+                                                             self.macs)
+        self.sync_filter_mock.assert_called_with(cli)
+        self.assertFalse(cli.node.validate.called)
+        self.assertFalse(cli.node.set_boot_device.called)
+        self.assertFalse(cli.node.set_power_state.called)
+
 
 @mock.patch.object(node_cache, 'get_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
@@ -342,6 +369,25 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
+        self.node_info.finished.assert_called_once_with(
+            introspect.istate.Events.abort_end, error='Canceled by operator')
+        self.node_info.fsm_event.assert_has_calls(self.fsm_calls)
+
+    def test_no_manage_boot(self, client_mock, get_mock):
+        cli = self._prepare(client_mock)
+        get_mock.return_value = self.node_info
+        self.node_info.acquire_lock.return_value = True
+        self.node_info.started_at = time.time()
+        self.node_info.finished_at = None
+        self.node_info.manage_boot = False
+
+        introspect.abort(self.node.uuid)
+
+        get_mock.assert_called_once_with(self.uuid, ironic=cli,
+                                         locked=False)
+        self.node_info.acquire_lock.assert_called_once_with(blocking=False)
+        self.sync_filter_mock.assert_called_once_with(cli)
+        self.assertFalse(cli.node.set_power_state.called)
         self.node_info.finished.assert_called_once_with(
             introspect.istate.Events.abort_end, error='Canceled by operator')
         self.node_info.fsm_event.assert_has_calls(self.fsm_calls)

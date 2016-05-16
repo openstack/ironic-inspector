@@ -15,6 +15,11 @@ done prior to calling the endpoint.
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
+Optional parameter:
+
+* ``manage_boot`` boolean value, whether to manage boot (boot device, power
+  and firewall) for a node. Defaults to true.
+
 Response:
 
 * 202 - accepted introspection request
@@ -390,3 +395,4 @@ Version History
 * **1.11** adds invert&multiple fields into rules response data
 * **1.12** this version indicates that support for setting IPMI credentials
   was completely removed from API (all versions).
+* **1.13** adds ``manage_boot`` parameter for the introspection API.
