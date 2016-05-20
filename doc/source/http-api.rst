@@ -217,22 +217,6 @@ Optionally the following keys might be provided:
 
 * ``logs`` base64-encoded logs from the ramdisk.
 
-The following keys are supported for backward compatibility with the old
-bash-based ramdisk, when ``inventory`` is not provided:
-
-* ``cpus`` number of CPU
-
-* ``cpu_arch`` architecture of the CPU
-
-* ``memory_mb`` RAM in MiB
-
-* ``local_gb`` hard drive size in GiB
-
-* ``ipmi_address`` IP address of BMC, may be missing on VM
-
-* ``block_devices`` block devices information for the ``raid_device`` plugin,
-  dictionary with one key: ``serials`` list of serial numbers of block devices.
-
 .. note::
     This list highly depends on enabled plugins, provided above are
     expected keys for the default set of plugins. See :ref:`plugins`

@@ -132,9 +132,8 @@ As for PXE boot environment, you'll need:
     simultaneously cause conflicts - the same IP address is suggested to
     several nodes.
 
-* You have to install and configure one of 2 available ramdisks: simple
-  bash-based (see `Using simple ramdisk`_) or more complex based on
-  ironic-python-agent_ (See `Using IPA`_).
+* You have to install and configure the ramdisk to be run on target machines -
+  see `Configuring IPA`_.
 
 Here is *inspector.conf* you may end up with::
 
@@ -152,8 +151,8 @@ Here is *inspector.conf* you may end up with::
 .. note::
     Set ``debug = true`` if you want to see complete logs.
 
-Using IPA
-^^^^^^^^^
+Configuring IPA
+^^^^^^^^^^^^^^^
 
 ironic-python-agent_ is a ramdisk developed for Ironic. During the Liberty
 cycle support for **ironic-inspector** was added. This is the default ramdisk
@@ -214,34 +213,6 @@ This ramdisk is pluggable: you can insert introspection plugins called
 
 .. _diskimage-builder: https://github.com/openstack/diskimage-builder
 .. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
-
-Using simple ramdisk
-^^^^^^^^^^^^^^^^^^^^
-
-This ramdisk is deprecated, its use is not recommended.
-
-* Build and put into your TFTP the kernel and ramdisk created using the
-  diskimage-builder_ `ironic-discoverd-ramdisk element`_::
-
-    ramdisk-image-create -o discovery fedora ironic-discoverd-ramdisk
-
-  You need diskimage-builder_ 0.1.38 or newer to do it (using the latest one
-  is always advised).
-
-* Configure your ``$TFTPROOT/pxelinux.cfg/default`` with something like::
-
-    default introspect
-
-    label introspect
-    kernel discovery.kernel
-    append initrd=discovery.initramfs discoverd_callback_url=http://{IP}:5050/v1/continue
-
-    ipappend 3
-
-  Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
-  will be accessed by ramdisk on a booting machine).
-
-.. _ironic-discoverd-ramdisk element: https://github.com/openstack/diskimage-builder/tree/master/elements/ironic-discoverd-ramdisk
 
 Managing the **ironic-inspector** database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

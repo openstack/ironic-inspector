@@ -286,10 +286,10 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
               'value': new_username},
              {'op': 'add', 'path': '/driver_info/ipmi_password',
               'value': new_password}]
-    if (not ir_utils.get_ipmi_address(node) and
-            introspection_data.get('ipmi_address')):
+    new_ipmi_address = utils.get_ipmi_address_from_data(introspection_data)
+    if not ir_utils.get_ipmi_address(node) and new_ipmi_address:
         patch.append({'op': 'add', 'path': '/driver_info/ipmi_address',
-                      'value': introspection_data['ipmi_address']})
+                      'value': new_ipmi_address})
     node_info.patch(patch)
 
     for attempt in range(_CREDENTIALS_WAIT_RETRIES):

@@ -29,22 +29,6 @@ class TestSchedulerHook(test_base.NodeTest):
     def setUp(self):
         super(TestSchedulerHook, self).setUp()
         self.hook = std_plugins.SchedulerHook()
-        self.data = {
-            'inventory': {
-                'cpu': {'count': 2, 'architecture': 'x86_64'},
-                'memory': {'physical_mb': 1024},
-            },
-            'root_disk': {
-                'name': '/dev/sda',
-                'size': 21 * units.Gi
-            }
-        }
-        self.old_data = {
-            'local_gb': 20,
-            'memory_mb': 1024,
-            'cpus': 2,
-            'cpu_arch': 'x86_64'
-        }
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node)
 
@@ -53,41 +37,22 @@ class TestSchedulerHook(test_base.NodeTest):
         ext = base.processing_hooks_manager()['scheduler']
         self.assertIsInstance(ext.obj, std_plugins.SchedulerHook)
 
-    def test_compat_missing(self):
-        for key in self.old_data:
-            new_data = self.old_data.copy()
-            del new_data[key]
-            self.assertRaisesRegexp(utils.Error, key,
-                                    self.hook.before_update, new_data,
-                                    self.node_info)
-
     def test_no_root_disk(self):
-        self.assertRaisesRegexp(utils.Error, 'root disk is not supplied',
-                                self.hook.before_update,
-                                {'inventory': {'disks': []}}, self.node_info)
+        del self.inventory['disks']
+        self.assertRaisesRegexp(utils.Error, 'disks key is missing or empty',
+                                self.hook.before_update, self.data,
+                                self.node_info)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_ok(self, mock_patch):
         patch = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
+            {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '999', 'op': 'add'}
         ]
 
         self.hook.before_update(self.data, self.node_info)
-        self.assertCalledWithPatch(patch, mock_patch)
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_compat_ok(self, mock_patch):
-        patch = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
-            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
-        ]
-
-        self.hook.before_update(self.old_data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
@@ -98,36 +63,21 @@ class TestSchedulerHook(test_base.NodeTest):
             'cpu_arch': 'i686'
         }
         patch = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
+            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '999', 'op': 'add'}
         ]
 
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_compat_root_disk(self, mock_patch):
-        self.old_data['root_disk'] = {'name': '/dev/sda',
-                                      'size': 42 * units.Gi}
-        patch = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
-            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '41', 'op': 'add'}
-        ]
-
-        self.hook.before_update(self.old_data, self.node_info)
-        self.assertCalledWithPatch(patch, mock_patch)
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_root_disk_no_spacing(self, mock_patch):
         CONF.set_override('disk_partitioning_spacing', False, 'processing')
-        self.data['root_disk'] = {'name': '/dev/sda', 'size': 42 * units.Gi}
         patch = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
+            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '42', 'op': 'add'}
+            {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '1000', 'op': 'add'}
         ]
 
         self.hook.before_update(self.data, self.node_info)
@@ -138,38 +88,9 @@ class TestValidateInterfacesHook(test_base.NodeTest):
     def setUp(self):
         super(TestValidateInterfacesHook, self).setUp()
         self.hook = std_plugins.ValidateInterfacesHook()
-        self.data = {
-            'inventory': {
-                'interfaces': [
-                    {'name': 'em1', 'mac_address': '11:11:11:11:11:11',
-                     'ipv4_address': '1.1.1.1'},
-                    {'name': 'em2', 'mac_address': '22:22:22:22:22:22',
-                     'ipv4_address': '2.2.2.2'},
-                    {'name': 'em3', 'mac_address': '33:33:33:33:33:33',
-                     'ipv4_address': None},
-                ],
-            },
-            'boot_interface': '01-22-22-22-22-22-22'
-        }
-        self.old_data = {
-            'interfaces': {
-                'em1': {'mac': '11:11:11:11:11:11', 'ip': '1.1.1.1'},
-                'em2': {'mac': '22:22:22:22:22:22', 'ip': '2.2.2.2'},
-                'em3': {'mac': '33:33:33:33:33:33'}
-            },
-            'boot_interface': '01-22-22-22-22-22-22',
-        }
-        self.orig_interfaces = self.old_data['interfaces'].copy()
-        self.orig_interfaces['em3']['ip'] = None
-        self.pxe_interface = self.old_data['interfaces']['em2']
-        self.active_interfaces = {
-            'em1': {'mac': '11:11:11:11:11:11', 'ip': '1.1.1.1'},
-            'em2': {'mac': '22:22:22:22:22:22', 'ip': '2.2.2.2'},
-        }
-
         self.existing_ports = [mock.Mock(spec=['address', 'uuid'],
                                          address=a)
-                               for a in ('11:11:11:11:11:11',
+                               for a in (self.macs[1],
                                          '44:44:44:44:44:44')]
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node,
@@ -190,29 +111,31 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
 
     def test_no_interfaces(self):
-        self.assertRaisesRegexp(utils.Error, 'No interfaces',
+        self.assertRaisesRegexp(utils.Error,
+                                'Hardware inventory is empty or missing',
                                 self.hook.before_processing, {})
-        self.assertRaisesRegexp(utils.Error, 'No interfaces',
+        self.assertRaisesRegexp(utils.Error,
+                                'Hardware inventory is empty or missing',
                                 self.hook.before_processing, {'inventory': {}})
-        self.assertRaisesRegexp(utils.Error, 'No interfaces',
-                                self.hook.before_processing, {'inventory': {
-                                    'interfaces': []
-                                }})
+        del self.inventory['interfaces']
+        self.assertRaisesRegexp(utils.Error,
+                                'interfaces key is missing or empty',
+                                self.hook.before_processing, self.data)
 
     def test_only_pxe(self):
         self.hook.before_processing(self.data)
 
-        self.assertEqual({'em2': self.pxe_interface}, self.data['interfaces'])
-        self.assertEqual([self.pxe_interface['mac']], self.data['macs'])
-        self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
+        self.assertEqual(self.pxe_interfaces, self.data['interfaces'])
+        self.assertEqual([self.pxe_mac], self.data['macs'])
+        self.assertEqual(self.all_interfaces, self.data['all_interfaces'])
 
     def test_only_pxe_mac_format(self):
-        self.data['boot_interface'] = '22:22:22:22:22:22'
+        self.data['boot_interface'] = self.pxe_mac
         self.hook.before_processing(self.data)
 
-        self.assertEqual({'em2': self.pxe_interface}, self.data['interfaces'])
-        self.assertEqual([self.pxe_interface['mac']], self.data['macs'])
-        self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
+        self.assertEqual(self.pxe_interfaces, self.data['interfaces'])
+        self.assertEqual([self.pxe_mac], self.data['macs'])
+        self.assertEqual(self.all_interfaces, self.data['all_interfaces'])
 
     def test_only_pxe_not_found(self):
         self.data['boot_interface'] = 'aa:bb:cc:dd:ee:ff'
@@ -227,7 +150,7 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.assertEqual(sorted(i['mac'] for i in
                                 self.active_interfaces.values()),
                          sorted(self.data['macs']))
-        self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
+        self.assertEqual(self.all_interfaces, self.data['all_interfaces'])
 
     def test_only_active(self):
         CONF.set_override('add_ports', 'active', 'processing')
@@ -237,52 +160,43 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.assertEqual(sorted(i['mac'] for i in
                                 self.active_interfaces.values()),
                          sorted(self.data['macs']))
-        self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
+        self.assertEqual(self.all_interfaces, self.data['all_interfaces'])
 
     def test_all(self):
         CONF.set_override('add_ports', 'all', 'processing')
         self.hook.before_processing(self.data)
 
-        self.assertEqual(self.orig_interfaces, self.data['interfaces'])
+        self.assertEqual(self.all_interfaces, self.data['interfaces'])
         self.assertEqual(sorted(i['mac'] for i in
-                                self.orig_interfaces.values()),
+                                self.all_interfaces.values()),
                          sorted(self.data['macs']))
-        self.assertEqual(self.orig_interfaces, self.data['all_interfaces'])
+        self.assertEqual(self.all_interfaces, self.data['all_interfaces'])
 
     def test_malformed_interfaces(self):
-        self.data = {
-            'inventory': {
-                'interfaces': [
-                    # no name
-                    {'mac_address': '11:11:11:11:11:11',
-                     'ipv4_address': '1.1.1.1'},
-                    # empty
-                    {},
-                ],
-            },
-        }
+        self.inventory['interfaces'] = [
+            # no name
+            {'mac_address': '11:11:11:11:11:11', 'ipv4_address': '1.1.1.1'},
+            # empty
+            {},
+        ]
         self.assertRaisesRegexp(utils.Error, 'No interfaces supplied',
                                 self.hook.before_processing, self.data)
 
     def test_skipped_interfaces(self):
         CONF.set_override('add_ports', 'all', 'processing')
-        self.data = {
-            'inventory': {
-                'interfaces': [
-                    # local interface (by name)
-                    {'name': 'lo', 'mac_address': '11:11:11:11:11:11',
-                     'ipv4_address': '1.1.1.1'},
-                    # local interface (by IP address)
-                    {'name': 'em1', 'mac_address': '22:22:22:22:22:22',
-                     'ipv4_address': '127.0.0.1'},
-                    # no MAC provided
-                    {'name': 'em3', 'ipv4_address': '2.2.2.2'},
-                    # malformed MAC provided
-                    {'name': 'em4', 'mac_address': 'foobar',
-                     'ipv4_address': '2.2.2.2'},
-                ],
-            },
-        }
+        self.inventory['interfaces'] = [
+            # local interface (by name)
+            {'name': 'lo', 'mac_address': '11:11:11:11:11:11',
+             'ipv4_address': '1.1.1.1'},
+            # local interface (by IP address)
+            {'name': 'em1', 'mac_address': '22:22:22:22:22:22',
+             'ipv4_address': '127.0.0.1'},
+            # no MAC provided
+            {'name': 'em3', 'ipv4_address': '2.2.2.2'},
+            # malformed MAC provided
+            {'name': 'em4', 'mac_address': 'foobar',
+             'ipv4_address': '2.2.2.2'},
+        ]
         self.assertRaisesRegexp(utils.Error, 'No suitable interfaces found',
                                 self.hook.before_processing, self.data)
 
@@ -294,7 +208,7 @@ class TestValidateInterfacesHook(test_base.NodeTest):
     @mock.patch.object(node_cache.NodeInfo, 'delete_port')
     def test_keep_present(self, mock_delete_port):
         CONF.set_override('keep_ports', 'present', 'processing')
-        self.data['all_interfaces'] = self.orig_interfaces
+        self.data['all_interfaces'] = self.all_interfaces
         self.hook.before_update(self.data, self.node_info)
 
         mock_delete_port.assert_called_once_with(self.existing_ports[1])
@@ -302,7 +216,7 @@ class TestValidateInterfacesHook(test_base.NodeTest):
     @mock.patch.object(node_cache.NodeInfo, 'delete_port')
     def test_keep_added(self, mock_delete_port):
         CONF.set_override('keep_ports', 'added', 'processing')
-        self.data['macs'] = [self.pxe_interface['mac']]
+        self.data['macs'] = [self.pxe_mac]
         self.hook.before_update(self.data, self.node_info)
 
         mock_delete_port.assert_any_call(self.existing_ports[0])
@@ -313,28 +227,21 @@ class TestRootDiskSelection(test_base.NodeTest):
     def setUp(self):
         super(TestRootDiskSelection, self).setUp()
         self.hook = std_plugins.RootDiskSelectionHook()
-        self.data = {
-            'inventory': {
-                'disks': [
-                    {'model': 'Model 1', 'size': 20 * units.Gi,
-                     'name': '/dev/sdb'},
-                    {'model': 'Model 2', 'size': 5 * units.Gi,
-                     'name': '/dev/sda'},
-                    {'model': 'Model 3', 'size': 10 * units.Gi,
-                     'name': '/dev/sdc'},
-                    {'model': 'Model 4', 'size': 4 * units.Gi,
-                     'name': '/dev/sdd'},
-                    {'model': 'Too Small', 'size': 1 * units.Gi,
-                     'name': '/dev/sde'},
-                ]
-            }
-        }
-        self.matched = self.data['inventory']['disks'][2].copy()
+        self.inventory['disks'] = [
+            {'model': 'Model 1', 'size': 20 * units.Gi, 'name': '/dev/sdb'},
+            {'model': 'Model 2', 'size': 5 * units.Gi, 'name': '/dev/sda'},
+            {'model': 'Model 3', 'size': 10 * units.Gi, 'name': '/dev/sdc'},
+            {'model': 'Model 4', 'size': 4 * units.Gi, 'name': '/dev/sdd'},
+            {'model': 'Too Small', 'size': 1 * units.Gi, 'name': '/dev/sde'},
+        ]
+        self.matched = self.inventory['disks'][2].copy()
         self.node_info = mock.Mock(spec=node_cache.NodeInfo,
                                    uuid=self.uuid,
                                    **{'node.return_value': self.node})
 
     def test_no_hints(self):
+        del self.data['root_disk']
+
         self.hook.before_update(self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
@@ -343,9 +250,10 @@ class TestRootDiskSelection(test_base.NodeTest):
     def test_no_inventory(self):
         self.node.properties['root_device'] = {'model': 'foo'}
         del self.data['inventory']
+        del self.data['root_disk']
 
         self.assertRaisesRegexp(utils.Error,
-                                'requires ironic-python-agent',
+                                'Hardware inventory is empty or missing',
                                 self.hook.before_update,
                                 self.data, self.node_info)
 
@@ -354,10 +262,10 @@ class TestRootDiskSelection(test_base.NodeTest):
 
     def test_no_disks(self):
         self.node.properties['root_device'] = {'size': 10}
-        self.data['inventory']['disks'] = []
+        self.inventory['disks'] = []
 
         self.assertRaisesRegexp(utils.Error,
-                                'No disks found',
+                                'disks key is missing or empty',
                                 self.hook.before_update,
                                 self.data, self.node_info)
 
@@ -379,6 +287,7 @@ class TestRootDiskSelection(test_base.NodeTest):
     def test_one_fails(self):
         self.node.properties['root_device'] = {'size': 10,
                                                'model': 'Model 42'}
+        del self.data['root_disk']
 
         self.assertRaisesRegexp(utils.Error,
                                 'No disks satisfied root device hints',
@@ -402,15 +311,12 @@ class TestRootDiskSelection(test_base.NodeTest):
                                     self.data, self.node_info)
 
 
-class TestRamdiskError(test_base.BaseTest):
+class TestRamdiskError(test_base.InventoryTest):
     def setUp(self):
         super(TestRamdiskError, self).setUp()
         self.msg = 'BOOM'
         self.bmc_address = '1.2.3.4'
-        self.data = {
-            'error': self.msg,
-            'ipmi_address': self.bmc_address,
-        }
+        self.data['error'] = self.msg
 
     def test_no_logs(self):
         self.assertRaisesRegexp(utils.Error,
