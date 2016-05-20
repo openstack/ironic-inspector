@@ -9,9 +9,9 @@ can be changed in configuration. Protocol is JSON over HTTP.
 Start Introspection
 ~~~~~~~~~~~~~~~~~~~
 
-``POST /v1/introspection/<UUID>`` initiate hardware introspection for node
-``<UUID>``. All power management configuration for this node needs to be done
-prior to calling the endpoint (except when :ref:`setting-ipmi-creds`).
+``POST /v1/introspection/<Node ID>`` initiate hardware introspection for node
+``<Node ID>``. All power management configuration for this node needs to be
+done prior to calling the endpoint (except when :ref:`setting-ipmi-creds`).
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
@@ -36,7 +36,7 @@ Response:
 Get Introspection Status
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-``GET /v1/introspection/<UUID>`` get hardware introspection status.
+``GET /v1/introspection/<Node ID>`` get hardware introspection status.
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
@@ -58,7 +58,7 @@ Response body: JSON dictionary with keys:
 Abort Running Introspection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``POST /v1/introspection/<UUID>/abort`` abort running introspection.
+``POST /v1/introspection/<Node ID>/abort`` abort running introspection.
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
@@ -74,7 +74,7 @@ Response:
 Get Introspection Data
 ~~~~~~~~~~~~~~~~~~~~~~
 
-``GET /v1/introspection/<UUID>/data`` get stored data from successful
+``GET /v1/introspection/<Node ID>/data`` get stored data from successful
 introspection.
 
 Requires X-Auth-Token header with Keystone token for authentication.
@@ -96,7 +96,7 @@ Response body: JSON dictionary with introspection data
 Reapply introspection on stored data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``POST /v1/introspection/<UUID>/data/unprocessed`` to trigger
+``POST /v1/introspection/<Node ID>/data/unprocessed`` to trigger
 introspection on stored unprocessed data.  No data is allowed to be
 sent along with the request.
 
@@ -109,7 +109,7 @@ Response:
 * 202 - accepted
 * 400 - bad request or store not configured
 * 401, 403 - missing or invalid authentication
-* 404 - node not found for UUID
+* 404 - node not found for Node ID
 * 409 - inspector locked node for processing
 
 Introspection Rules
