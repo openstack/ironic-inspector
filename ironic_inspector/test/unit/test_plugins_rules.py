@@ -179,7 +179,7 @@ class TestSetCapabilityAction(test_base.NodeTest):
         self.act.apply(self.node_info, self.params)
         mock_patch.assert_called_once_with(
             [{'op': 'add', 'path': '/properties/capabilities',
-              'value': 'cap1:val'}])
+              'value': 'cap1:val'}], mock.ANY)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_apply_with_existing(self, mock_patch):
@@ -203,7 +203,7 @@ class TestExtendAttributeAction(test_base.NodeTest):
     def test_apply(self, mock_patch):
         self.act.apply(self.node_info, self.params)
         mock_patch.assert_called_once_with(
-            [{'op': 'add', 'path': '/extra/value', 'value': [42]}])
+            [{'op': 'add', 'path': '/extra/value', 'value': [42]}], mock.ANY)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_apply_non_empty(self, mock_patch):
@@ -211,7 +211,8 @@ class TestExtendAttributeAction(test_base.NodeTest):
         self.act.apply(self.node_info, self.params)
 
         mock_patch.assert_called_once_with(
-            [{'op': 'replace', 'path': '/extra/value', 'value': [0, 42]}])
+            [{'op': 'replace', 'path': '/extra/value', 'value': [0, 42]}],
+            mock.ANY)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_apply_unique_with_existing(self, mock_patch):

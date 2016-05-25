@@ -214,6 +214,12 @@ Here are some plugins that can be additionally enabled:
     then the new format will be stored in the 'extra' key. The 'data' key is
     then deleted from the introspection data, as unless converted it's assumed
     unusable by introspection rules.
+``local_link_connection``
+    Processes LLDP data returned from inspection specifically looking for the
+    port ID and chassis ID, if found it configures the local link connection
+    information on the nodes Ironic ports with that data. To enable LLDP in the
+    inventory from IPA ``ipa-collect-lldp=1`` should be passed as a kernel
+    parameter to the IPA ramdisk.
 
 Refer to :ref:`contributing_link` for information on how to write your
 own plugin.

@@ -71,9 +71,11 @@ class BaseTest(fixtures.TestWithFixtures):
     def assertCalledWithPatch(self, expected, mock_call):
         def _get_patch_param(call):
             try:
-                return call[0][1]
+                if isinstance(call[0][1], list):
+                    return call[0][1]
             except IndexError:
-                return call[0][0]
+                pass
+            return call[0][0]
 
         actual = sum(map(_get_patch_param, mock_call.call_args_list), [])
         self.assertPatchEqual(actual, expected)
