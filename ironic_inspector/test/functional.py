@@ -463,7 +463,7 @@ class Test(Base):
 
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
-        self.assertEqual(b'', res.text)
+        self.assertEqual('', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         # reapply request data
@@ -491,7 +491,7 @@ class Test(Base):
         get_mock.return_value = ramdisk_data
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
-        self.assertEqual(b'', res.text)
+        self.assertEqual('', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         # reapply saves the result
