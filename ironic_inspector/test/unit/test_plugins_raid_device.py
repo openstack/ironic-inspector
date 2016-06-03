@@ -23,12 +23,9 @@ class TestRaidDeviceDetection(test_base.NodeTest):
     hook = raid_device.RaidDeviceDetection()
 
     def test_loadable_by_name(self):
-        names = ('raid_device', 'root_device_hint')
-        base.CONF.set_override('processing_hooks', ','.join(names),
-                               'processing')
-        for name in names:
-            ext = base.processing_hooks_manager()[name]
-            self.assertIsInstance(ext.obj, raid_device.RaidDeviceDetection)
+        base.CONF.set_override('processing_hooks', 'raid_device', 'processing')
+        ext = base.processing_hooks_manager()['raid_device']
+        self.assertIsInstance(ext.obj, raid_device.RaidDeviceDetection)
 
     def test_missing_local_gb(self):
         introspection_data = {}

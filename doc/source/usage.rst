@@ -204,7 +204,7 @@ Here are some plugins that can be additionally enabled:
 
 ``example``
     example plugin logging it's input and output.
-``raid_device`` (deprecated name ``root_device_hint``)
+``raid_device``
     gathers block devices from ramdisk and exposes root device in multiple
     runs.
 ``extra_hardware``
