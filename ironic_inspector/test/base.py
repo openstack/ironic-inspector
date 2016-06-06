@@ -19,6 +19,7 @@ from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_config import fixture as config_fixture
 from oslo_log import log
+from oslo_utils import units
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import i18n
@@ -78,12 +79,66 @@ class BaseTest(fixtures.TestWithFixtures):
         self.assertPatchEqual(actual, expected)
 
 
-class NodeTest(BaseTest):
+class InventoryTest(BaseTest):
+    def setUp(self):
+        super(InventoryTest, self).setUp()
+        # Prepare some realistic inventory
+        # https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst  # noqa
+        self.bmc_address = '1.2.3.4'
+        self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
+        self.ips = ['1.2.1.2', '1.2.1.1']
+        self.inactive_mac = '12:12:21:12:21:12'
+        self.pxe_mac = self.macs[0]
+        self.all_macs = self.macs + [self.inactive_mac]
+        self.pxe_iface_name = 'eth1'
+        self.data = {
+            'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
+            'inventory': {
+                'interfaces': [
+                    {'name': 'eth1', 'mac_address': self.macs[0],
+                     'ipv4_address': self.ips[0]},
+                    {'name': 'eth2', 'mac_address': self.inactive_mac},
+                    {'name': 'eth3', 'mac_address': self.macs[1],
+                     'ipv4_address': self.ips[1]},
+                ],
+                'disks': [
+                    {'name': '/dev/sda', 'model': 'Big Data Disk',
+                     'size': 1000 * units.Gi},
+                    {'name': '/dev/sdb', 'model': 'Small OS Disk',
+                     'size': 20 * units.Gi},
+                ],
+                'cpu': {
+                    'count': 4,
+                    'architecture': 'x86_64'
+                },
+                'memory': {
+                    'physical_mb': 12288
+                },
+                'bmc_address': self.bmc_address
+            },
+            'root_disk': {'name': '/dev/sda', 'model': 'Big Data Disk',
+                          'size': 1000 * units.Gi,
+                          'wwn': None},
+        }
+        self.inventory = self.data['inventory']
+        self.all_interfaces = {
+            'eth1': {'mac': self.macs[0], 'ip': self.ips[0]},
+            'eth2': {'mac': self.inactive_mac, 'ip': None},
+            'eth3': {'mac': self.macs[1], 'ip': self.ips[1]}
+        }
+        self.active_interfaces = {
+            'eth1': {'mac': self.macs[0], 'ip': self.ips[0]},
+            'eth3': {'mac': self.macs[1], 'ip': self.ips[1]}
+        }
+        self.pxe_interfaces = {
+            self.pxe_iface_name: self.all_interfaces[self.pxe_iface_name]
+        }
+
+
+class NodeTest(InventoryTest):
     def setUp(self):
         super(NodeTest, self).setUp()
         self.uuid = uuidutils.generate_uuid()
-        self.bmc_address = '1.2.3.4'
-        self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
         fake_node = {
             'driver': 'pxe_ipmitool',
             'driver_info': {'ipmi_address': self.bmc_address},

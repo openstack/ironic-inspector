@@ -43,24 +43,9 @@ class BaseTest(test_base.NodeTest):
     def setUp(self):
         super(BaseTest, self).setUp()
         self.started_at = time.time()
-        self.pxe_mac = self.macs[1]
-        self.data = {
-            'ipmi_address': self.bmc_address,
-            'cpus': 2,
-            'cpu_arch': 'x86_64',
-            'memory_mb': 1024,
-            'local_gb': 20,
-            'interfaces': {
-                'em1': {'mac': self.macs[0], 'ip': '1.2.0.1'},
-                'em2': {'mac': self.macs[1], 'ip': '1.2.0.2'},
-                'em3': {'mac': 'DE:AD:BE:EF:DE:AD'},
-            },
-            'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
-        }
         self.all_ports = [mock.Mock(uuid=uuidutils.generate_uuid(),
                                     address=mac) for mac in self.macs]
         self.ports = [self.all_ports[1]]
-        self.all_macs = self.macs + ['DE:AD:BE:EF:DE:AD']
         self.fake_result_json = 'node json'
 
         self.cli_fixture = self.useFixture(
@@ -94,10 +79,6 @@ class TestProcess(BaseProcessTest):
 
         self.assertEqual(self.fake_result_json, res)
 
-        # Only boot interface is added by default
-        self.assertEqual(['em2'], sorted(self.data['interfaces']))
-        self.assertEqual([self.pxe_mac], self.data['macs'])
-
         self.find_mock.assert_called_once_with(bmc_address=self.bmc_address,
                                                mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
@@ -107,7 +88,7 @@ class TestProcess(BaseProcessTest):
             self.node, self.data, self.node_info)
 
     def test_no_ipmi(self):
-        del self.data['ipmi_address']
+        del self.inventory['bmc_address']
         process.process(self.data)
 
         self.find_mock.assert_called_once_with(bmc_address=None, mac=mock.ANY)
@@ -349,15 +330,8 @@ class TestProcessNode(BaseTest):
                           'processing')
         self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
-        self.data['all_interfaces'] = self.data['interfaces']
         self.ports = self.all_ports
 
-        self.patch_props = [
-            {'path': '/properties/cpus', 'value': '2', 'op': 'add'},
-            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '1024', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '20', 'op': 'add'}
-        ]  # scheduler hook
         self.new_creds = ('user', 'password')
         self.patch_credentials = [
             {'op': 'add', 'path': '/driver_info/ipmi_username',
@@ -405,23 +379,11 @@ class TestProcessNode(BaseTest):
                                              address=self.macs[0])
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1])
-        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
 
         post_hook_mock.assert_called_once_with(self.data, self.node_info)
         finished_mock.assert_called_once_with(mock.ANY)
-
-    def test_overwrite_disabled(self):
-        CONF.set_override('overwrite_existing', False, 'processing')
-        patch = [
-            {'op': 'add', 'path': '/properties/cpus', 'value': '2'},
-            {'op': 'add', 'path': '/properties/memory_mb', 'value': '1024'},
-        ]
-
-        process._process_node(self.node, self.data, self.node_info)
-
-        self.assertCalledWithPatch(patch, self.cli.node.update)
 
     def test_port_failed(self):
         self.cli.port.create.side_effect = (
@@ -433,7 +395,6 @@ class TestProcessNode(BaseTest):
                                              address=self.macs[0])
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1])
-        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
 
     def test_set_ipmi_credentials(self):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
@@ -485,7 +446,6 @@ class TestProcessNode(BaseTest):
         process._process_node(self.node, self.data, self.node_info)
 
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
         finished_mock.assert_called_once_with(
             mock.ANY,
             error='Failed to power off node %s, check its power '
@@ -516,22 +476,19 @@ class TestProcessNode(BaseTest):
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
         self.assertEqual(expected,
                          json.loads(swift_conn.create_object.call_args[0][1]))
-        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
 
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data_no_logs(self, swift_mock):
         CONF.set_override('store_data', 'swift', 'processing')
         swift_conn = swift_mock.return_value
         name = 'inspector_data-%s' % self.uuid
-        expected = self.data.copy()
         self.data['logs'] = 'something'
 
         process._process_node(self.node, self.data, self.node_info)
 
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
-        self.assertEqual(expected,
+        self.assertNotIn('logs',
                          json.loads(swift_conn.create_object.call_args[0][1]))
-        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
 
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data_location(self, swift_mock):
@@ -540,11 +497,8 @@ class TestProcessNode(BaseTest):
                           'processing')
         swift_conn = swift_mock.return_value
         name = 'inspector_data-%s' % self.uuid
-        self.patch_props.append(
-            {'path': '/extra/inspector_data_object',
-             'value': name,
-             'op': 'add'}
-        )
+        patch = [{'path': '/extra/inspector_data_object',
+                  'value': name, 'op': 'add'}]
         expected = self.data
 
         process._process_node(self.node, self.data, self.node_info)
@@ -552,7 +506,7 @@ class TestProcessNode(BaseTest):
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
         self.assertEqual(expected,
                          json.loads(swift_conn.create_object.call_args[0][1]))
-        self.assertCalledWithPatch(self.patch_props, self.cli.node.update)
+        self.cli.node.update.assert_any_call(self.uuid, patch)
 
 
 @mock.patch.object(process, '_reapply', autospec=True)
@@ -613,7 +567,6 @@ class TestReapplyNode(BaseTest):
                           'processing')
         CONF.set_override('store_data', 'swift', 'processing')
         self.data['macs'] = self.macs
-        self.data['all_interfaces'] = self.data['interfaces']
         self.ports = self.all_ports
         self.node_info = node_cache.NodeInfo(uuid=self.uuid,
                                              started_at=self.started_at,
@@ -666,8 +619,7 @@ class TestReapplyNode(BaseTest):
         finished_mock.assert_called_once_with(self.node_info)
 
         # asserting validate_interfaces was called
-        self.assertEqual({'em2': self.data['interfaces']['em2']},
-                         swifted_data['interfaces'])
+        self.assertEqual(self.pxe_interfaces, swifted_data['interfaces'])
         self.assertEqual([self.pxe_mac], swifted_data['macs'])
 
         # assert ports were created with whatever there was left

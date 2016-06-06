@@ -46,13 +46,6 @@ class RootDiskSelectionHook(base.ProcessingHook):
                       node_info=node_info, data=introspection_data)
             return
 
-        inventory = introspection_data.get('inventory')
-        if not inventory:
-            raise utils.Error(
-                _('Root device selection requires ironic-python-agent '
-                  'as an inspection ramdisk'),
-                node_info=node_info, data=introspection_data)
-
         if 'size' in hints:
             # Special case to match IPA behaviour
             try:
@@ -62,12 +55,9 @@ class RootDiskSelectionHook(base.ProcessingHook):
                                     'an integer, got %s') % hints['size'],
                                   node_info=node_info, data=introspection_data)
 
-        disks = inventory.get('disks', [])
-        if not disks:
-            raise utils.Error(_('No disks found'),
-                              node_info=node_info, data=introspection_data)
-
-        for disk in disks:
+        inventory = utils.get_inventory(introspection_data,
+                                        node_info=node_info)
+        for disk in inventory['disks']:
             properties = disk.copy()
             # Root device hints are in GiB, data from IPA is in bytes
             properties['size'] //= units.Gi
@@ -100,7 +90,8 @@ class SchedulerHook(base.ProcessingHook):
 
     def before_update(self, introspection_data, node_info, **kwargs):
         """Update node with scheduler properties."""
-        inventory = introspection_data.get('inventory')
+        inventory = utils.get_inventory(introspection_data,
+                                        node_info=node_info)
         errors = []
 
         root_disk = introspection_data.get('root_disk')
@@ -108,40 +99,25 @@ class SchedulerHook(base.ProcessingHook):
             introspection_data['local_gb'] = root_disk['size'] // units.Gi
             if CONF.processing.disk_partitioning_spacing:
                 introspection_data['local_gb'] -= 1
-        elif inventory:
+        else:
             errors.append(_('root disk is not supplied by the ramdisk and '
                             'root_disk_selection hook is not enabled'))
 
-        if inventory:
-            try:
-                introspection_data['cpus'] = int(inventory['cpu']['count'])
-                introspection_data['cpu_arch'] = six.text_type(
-                    inventory['cpu']['architecture'])
-            except (KeyError, ValueError, TypeError):
-                errors.append(_('malformed or missing CPU information: %s') %
-                              inventory.get('cpu'))
+        try:
+            introspection_data['cpus'] = int(inventory['cpu']['count'])
+            introspection_data['cpu_arch'] = six.text_type(
+                inventory['cpu']['architecture'])
+        except (KeyError, ValueError, TypeError):
+            errors.append(_('malformed or missing CPU information: %s') %
+                          inventory.get('cpu'))
 
-            try:
-                introspection_data['memory_mb'] = int(
-                    inventory['memory']['physical_mb'])
-            except (KeyError, ValueError, TypeError):
-                errors.append(_('malformed or missing memory information: %s; '
-                                'introspection requires physical memory size '
-                                'from dmidecode') %
-                              inventory.get('memory'))
-        else:
-            LOG.warning(_LW('No inventory provided: using old bash ramdisk '
-                            'is deprecated, please switch to '
-                            'ironic-python-agent'),
-                        node_info=node_info, data=introspection_data)
-
-            missing = [key for key in self.KEYS
-                       if not introspection_data.get(key)]
-            if missing:
-                raise utils.Error(
-                    _('The following required parameters are missing: %s') %
-                    missing,
-                    node_info=node_info, data=introspection_data)
+        try:
+            introspection_data['memory_mb'] = int(
+                inventory['memory']['physical_mb'])
+        except (KeyError, ValueError, TypeError):
+            errors.append(_('malformed or missing memory information: %s; '
+                            'introspection requires physical memory size '
+                            'from dmidecode') % inventory.get('memory'))
 
         if errors:
             raise utils.Error(_('The following problems encountered: %s') %
@@ -184,42 +160,36 @@ class ValidateInterfacesHook(base.ProcessingHook):
         :return: dict interface name -> dict with keys 'mac' and 'ip'
         """
         result = {}
-        inventory = data.get('inventory', {})
+        inventory = utils.get_inventory(data)
 
-        if inventory:
-            for iface in inventory.get('interfaces', ()):
-                name = iface.get('name')
-                mac = iface.get('mac_address')
-                ip = iface.get('ipv4_address')
+        for iface in inventory['interfaces']:
+            name = iface.get('name')
+            mac = iface.get('mac_address')
+            ip = iface.get('ipv4_address')
 
-                if not name:
-                    LOG.error(_LE('Malformed interface record: %s'),
-                              iface, data=data)
-                    continue
+            if not name:
+                LOG.error(_LE('Malformed interface record: %s'),
+                          iface, data=data)
+                continue
 
-                if not mac:
-                    LOG.debug('Skipping interface %s without link information',
-                              name, data=data)
-                    continue
+            if not mac:
+                LOG.debug('Skipping interface %s without link information',
+                          name, data=data)
+                continue
 
-                if not utils.is_valid_mac(mac):
-                    LOG.warning(_LW('MAC %(mac)s for interface %(name)s is '
-                                    'not valid, skipping'),
-                                {'mac': mac, 'name': name},
-                                data=data)
-                    continue
+            if not utils.is_valid_mac(mac):
+                LOG.warning(_LW('MAC %(mac)s for interface %(name)s is '
+                                'not valid, skipping'),
+                            {'mac': mac, 'name': name},
+                            data=data)
+                continue
 
-                mac = mac.lower()
+            mac = mac.lower()
 
-                LOG.debug('Found interface %(name)s with MAC "%(mac)s" and '
-                          'IP address "%(ip)s"',
-                          {'name': name, 'mac': mac, 'ip': ip}, data=data)
-                result[name] = {'ip': ip, 'mac': mac}
-        else:
-            LOG.warning(_LW('No inventory provided: using old bash ramdisk '
-                            'is deprecated, please switch to '
-                            'ironic-python-agent'), data=data)
-            result = data.get('interfaces')
+            LOG.debug('Found interface %(name)s with MAC "%(mac)s" and '
+                      'IP address "%(ip)s"',
+                      {'name': name, 'mac': mac, 'ip': ip}, data=data)
+            result[name] = {'ip': ip, 'mac': mac}
 
         return result
 
