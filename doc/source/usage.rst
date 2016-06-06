@@ -184,14 +184,21 @@ introspection data. Note that order does matter in this option.
 These are plugins that are enabled by default and should not be disabled,
 unless you understand what you're doing:
 
-``ramdisk_error``
-    reports error, if ``error`` field is set by the ramdisk, also optionally
-    stores logs from ``logs`` field, see :ref:`api` for details.
 ``scheduler``
     validates and updates basic hardware scheduling properties: CPU number and
     architecture, memory and disk size.
 ``validate_interfaces``
     validates network interfaces information.
+
+The following plugins are enabled by default, but can be disabled if not
+needed:
+
+``ramdisk_error``
+    reports error, if ``error`` field is set by the ramdisk, also optionally
+    stores logs from ``logs`` field, see :ref:`api` for details.
+``capabilities``
+    detect node capabilities: CPU, boot mode, etc. See `Capabilities
+    Detection`_ for more details.
 
 Here are some plugins that can be additionally enabled:
 
@@ -330,3 +337,42 @@ Limitations:
 * the unprocessed data is never cleaned from the store
 * check for stored data presence is performed in background;
   missing data situation still results in a ``202`` response
+
+Capabilities Detection
+~~~~~~~~~~~~~~~~~~~~~~
+
+Starting with the Newton release, **Ironic Inspector** can optionally discover
+several node capabilities. A recent (Newton or newer) IPA image is required
+for it to work.
+
+Boot mode
+^^^^^^^^^
+
+The current boot mode (BIOS or UEFI) can be detected and recorded as
+``boot_mode`` capability in Ironic. It will make some drivers to change their
+behaviour to account for this capability. Set the ``[capabilities]boot_mode``
+configuration option to ``True`` to enable.
+
+CPU capabilities
+^^^^^^^^^^^^^^^^
+
+Several CPU flags are detected by default and recorded as following
+capabilities:
+
+* ``cpu_aes`` AES instructions.
+
+* ``cpu_vt`` virtualization support.
+
+* ``cpu_txt`` TXT support.
+
+* ``cpu_hugepages`` huge pages (2 MiB) support.
+
+* ``cpu_hugepages_1g`` huge pages (1 GiB) support.
+
+It is possible to define your own rules for detecting CPU capabilities.
+Set the ``[capabilities]cpu_flags`` configuration option to a mapping between
+a CPU flag and a capability, for example::
+
+    cpu_flags = aes:cpu_aes,svm:cpu_vt,vmx:cpu_vt
+
+See the default value of this option for a more detail example.

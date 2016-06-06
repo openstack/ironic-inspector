@@ -79,7 +79,7 @@ PROCESSING_OPTS = [
                 deprecated_group='discoverd'),
     cfg.StrOpt('default_processing_hooks',
                default='ramdisk_error,root_disk_selection,scheduler,'
-                       'validate_interfaces',
+                       'validate_interfaces,capabilities',
                help='Comma-separated list of default hooks for processing '
                     'pipeline. Hook \'scheduler\' updates the node with the '
                     'minimum properties required by the Nova scheduler. '
