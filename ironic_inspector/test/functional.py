@@ -24,6 +24,7 @@ import unittest
 
 import mock
 from oslo_config import cfg
+from oslo_config import fixture as config_fixture
 import requests
 
 from ironic_inspector.common import ironic as ir_utils
@@ -53,6 +54,19 @@ connection = sqlite:///%(db_file)s
 
 
 DEFAULT_SLEEP = 2
+TEST_CONF_FILE = None
+
+
+def get_test_conf_file():
+    global TEST_CONF_FILE
+    if not TEST_CONF_FILE:
+        d = tempfile.mkdtemp()
+        TEST_CONF_FILE = os.path.join(d, 'test.conf')
+        db_file = os.path.join(d, 'test.db')
+        with open(TEST_CONF_FILE, 'wb') as fp:
+            content = CONF % {'db_file': db_file}
+            fp.write(content.encode('utf-8'))
+    return TEST_CONF_FILE
 
 
 class Base(base.NodeTest):
@@ -83,6 +97,10 @@ class Base(base.NodeTest):
         ]
 
         self.node.power_state = 'power off'
+
+        self.cfg = self.useFixture(config_fixture.Config())
+        conf_file = get_test_conf_file()
+        self.cfg.set_config_files([conf_file])
 
     def call(self, method, endpoint, data=None, expect_error=None,
              api_version=None):
@@ -432,12 +450,7 @@ class Test(Base):
 def mocked_server():
     d = tempfile.mkdtemp()
     try:
-        conf_file = os.path.join(d, 'test.conf')
-        db_file = os.path.join(d, 'test.db')
-        with open(conf_file, 'wb') as fp:
-            content = CONF % {'db_file': db_file}
-            fp.write(content.encode('utf-8'))
-
+        conf_file = get_test_conf_file()
         with mock.patch.object(ir_utils, 'get_client'):
             dbsync.main(args=['--config-file', conf_file, 'upgrade'])
 
