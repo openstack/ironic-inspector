@@ -134,9 +134,11 @@ class TestProcess(BaseProcessTest):
     def test_unexpected_exception(self):
         self.process_mock.side_effect = RuntimeError('boom')
 
-        self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
-                                process.process, self.data)
+        with self.assertRaisesRegexp(utils.Error,
+                                     'Unexpected exception') as ctx:
+            process.process(self.data)
 
+        self.assertEqual(500, ctx.exception.http_code)
         self.node_info.finished.assert_called_once_with(
             error='Unexpected exception RuntimeError during processing: boom')
 

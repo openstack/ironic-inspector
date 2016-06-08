@@ -234,7 +234,8 @@ def process(introspection_data):
                                 'error': exc}
         node_info.finished(error=msg)
         _store_logs(introspection_data, node_info)
-        raise utils.Error(msg, node_info=node_info, data=introspection_data)
+        raise utils.Error(msg, node_info=node_info, data=introspection_data,
+                          code=500)
 
     if CONF.processing.always_store_ramdisk_logs:
         _store_logs(introspection_data, node_info)
