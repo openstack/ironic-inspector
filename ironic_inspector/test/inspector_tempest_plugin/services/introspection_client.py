@@ -12,10 +12,10 @@
 
 import json
 
+from ironic_tempest_plugin.services.baremetal import base
 from tempest import clients
 from tempest.common import credentials_factory as common_creds
 from tempest import config
-from tempest.services.baremetal import base
 
 
 CONF = config.CONF
