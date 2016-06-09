@@ -47,15 +47,26 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 5)
+CURRENT_API_VERSION = (1, 6)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
+
+
+def _get_version():
+    ver = flask.request.headers.get(conf.VERSION_HEADER,
+                                    _DEFAULT_API_VERSION)
+    try:
+        requested = tuple(int(x) for x in ver.split('.'))
+    except (ValueError, TypeError):
+        return error_response(_('Malformed API version: expected string '
+                                'in form of X.Y'), code=400)
+    return requested
 
 
 def _format_version(ver):
     return '%d.%d' % ver
 
 
-_DEFAULT_API_VERSION = _format_version(MINIMUM_API_VERSION)
+_DEFAULT_API_VERSION = _format_version(CURRENT_API_VERSION)
 
 
 def error_response(exc, code=500):
@@ -86,13 +97,7 @@ def convert_exceptions(func):
 
 @app.before_request
 def check_api_version():
-    requested = flask.request.headers.get(conf.VERSION_HEADER,
-                                          _DEFAULT_API_VERSION)
-    try:
-        requested = tuple(int(x) for x in requested.split('.'))
-    except (ValueError, TypeError):
-        return error_response(_('Malformed API version: expected string '
-                                'in form of X.Y'), code=400)
+    requested = _get_version()
 
     if requested < MINIMUM_API_VERSION or requested > CURRENT_API_VERSION:
         return error_response(_('Unsupported API version %(requested)s, '
@@ -279,7 +284,10 @@ def api_rules():
                             actions_json=body.get('actions', []),
                             uuid=body.get('uuid'),
                             description=body.get('description'))
-        return flask.jsonify(rule_repr(rule, short=False))
+
+        response_code = (200 if _get_version() < (1, 6) else 201)
+        return flask.make_response(
+            flask.jsonify(rule_repr(rule, short=False)), response_code)
 
 
 @app.route('/v1/rules/<uuid>', methods=['GET', 'DELETE'])

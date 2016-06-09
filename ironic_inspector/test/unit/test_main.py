@@ -369,6 +369,28 @@ class TestApiRules(BaseAPITest):
                                              **{'as_dict.return_value': exp})
 
         res = self.app.post('/v1/rules', data=json.dumps(data))
+        self.assertEqual(201, res.status_code)
+        create_mock.assert_called_once_with(conditions_json='cond',
+                                            actions_json='act',
+                                            uuid=self.uuid,
+                                            description=None)
+        self.assertEqual(exp, json.loads(res.data.decode('utf-8')))
+
+    @mock.patch.object(rules, 'create', autospec=True)
+    def test_create_api_less_1_6(self, create_mock):
+        data = {'uuid': self.uuid,
+                'conditions': 'cond',
+                'actions': 'act'}
+        exp = data.copy()
+        exp['description'] = None
+        create_mock.return_value = mock.Mock(spec=rules.IntrospectionRule,
+                                             **{'as_dict.return_value': exp})
+
+        headers = {conf.VERSION_HEADER:
+                   main._format_version((1, 5))}
+
+        res = self.app.post('/v1/rules', data=json.dumps(data),
+                            headers=headers)
         self.assertEqual(200, res.status_code)
         create_mock.assert_called_once_with(conditions_json='cond',
                                             actions_json='act',
