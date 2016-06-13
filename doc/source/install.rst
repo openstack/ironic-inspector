@@ -15,6 +15,13 @@ status.
 Finally, some distributions (e.g. Fedora) provide **ironic-inspector**
 packaged, some of them - under its old name *ironic-discoverd*.
 
+There are several projects you can use to set up **ironic-inspector** in
+production. `puppet-ironic
+<http://git.openstack.org/cgit/openstack/puppet-ironic/>`_ provides Puppet
+manifests, while `bifrost <http://docs.openstack.org/developer/bifrost/>`_
+provides an Ansible-based standalone installer. Refer to Configuration_
+if you plan on installing **ironic-inspector** manually.
+
 .. _PyPI: https://pypi.python.org/pypi/ironic-inspector
 
 Note for Ubuntu users
@@ -40,6 +47,7 @@ Ironic Version Standalone Inspection Interface
 Juno           1.0        N/A
 Kilo           1.0 - 2.2  1.0 - 1.1
 Liberty        1.1 - 2.X  2.0 - 2.X
+Mitaka+        2.0 - 2.X  2.0 - 2.X
 ============== ========== ====================
 
 .. note::
@@ -53,11 +61,10 @@ Copy ``example.conf`` to some permanent place
 (e.g. ``/etc/ironic-inspector/inspector.conf``).
 Fill in at least these configuration values:
 
-* ``os_username``, ``os_password``, ``os_tenant_name`` - Keystone credentials
-  to use when accessing other services and check client authentication tokens;
+* The ``keystone_authtoken`` section - credentials to use when checking user
+  authentication.
 
-* ``os_auth_url``, ``identity_uri`` - Keystone endpoints for validating
-  authentication tokens and checking user roles;
+* The ``ironic`` section - credentials to use when accessing the Ironic API.
 
 * ``connection`` in the ``database`` section - SQLAlchemy connection string
   for the database;
@@ -74,6 +81,49 @@ for the other possible configuration options.
 .. note::
     Configuration file contains a password and thus should be owned by ``root``
     and should have access rights like ``0600``.
+
+Here is an example *inspector.conf* (adapted from a gate run)::
+
+    [DEFAULT]
+    debug = false
+    rootwrap_config = /etc/ironic-inspector/rootwrap.conf
+
+    [database]
+    connection = mysql+pymysql://root:<PASSWORD>@127.0.0.1/ironic_inspector?charset=utf8
+
+    [firewall]
+    dnsmasq_interface = br-ctlplane
+
+    [ironic]
+    os_region = RegionOne
+    project_name = service
+    password = <PASSWORD>
+    username = ironic-inspector
+    auth_url = http://127.0.0.1/identity
+    auth_type = password
+
+    [keystone_authtoken]
+    auth_uri = http://127.0.0.1/identity
+    project_name = service
+    password = <PASSWORD>
+    username = ironic-inspector
+    auth_url = http://127.0.0.1/identity_v2_admin
+    auth_type = password
+
+    [processing]
+    ramdisk_logs_dir = /var/log/ironic-inspector/ramdisk
+    store_data = swift
+
+    [swift]
+    os_region = RegionOne
+    project_name = service
+    password = <PASSWORD>
+    username = ironic-inspector
+    auth_url = http://127.0.0.1/identity
+    auth_type = password
+
+.. note::
+    Set ``debug = true`` if you want to see complete logs.
 
 **ironic-inspector** requires root rights for managing iptables. It gets them
 by running ``ironic-inspector-rootwrap`` utility with ``sudo``.
@@ -103,6 +153,41 @@ configuration directory (e.g. ``/etc/ironic-inspector/``) and create file
 Replace ``stack`` with whatever user you'll be using to run
 **ironic-inspector**.
 
+Configuring IPA
+^^^^^^^^^^^^^^^
+
+ironic-python-agent_ is a ramdisk developed for Ironic. During the Liberty
+cycle support for **ironic-inspector** was added. This is the default ramdisk
+starting with the Mitaka release.
+
+.. note::
+    You need at least 1.5 GiB of RAM on the machines to use IPA built with
+    diskimage-builder_ and at least 384 MiB to use the *TinyIPA*.
+
+To build an ironic-python-agent ramdisk, do the following:
+
+* Get the new enough version of diskimage-builder_::
+
+    sudo pip install -U "diskimage-builder>=1.1.2"
+
+* Build the ramdisk::
+
+    disk-image-create ironic-agent fedora -o ironic-agent
+
+  .. note::
+    Replace "fedora" with your distribution of choice.
+
+* Use the resulting files ``ironic-agent.kernel`` and
+  ``ironic-agent.initramfs`` in the following instructions to set PXE or iPXE.
+
+Alternatively, you can download a `prebuilt TinyIPA image
+<http://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_ or use
+the `other builders
+<http://docs.openstack.org/developer/ironic-python-agent/#image-builders>`_.
+
+.. _diskimage-builder: https://github.com/openstack/diskimage-builder
+.. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
+
 Configuring PXE
 ^^^^^^^^^^^^^^^
 
@@ -111,10 +196,41 @@ As for PXE boot environment, you'll need:
 * TFTP server running and accessible (see below for using *dnsmasq*).
   Ensure ``pxelinux.0`` is present in the TFTP root.
 
+  Copy ``ironic-agent.kernel`` and ``ironic-agent.initramfs`` to the TFTP
+  root as well.
+
+* Next, set up ``$TFTPROOT/pxelinux.cfg/default`` as follows::
+
+    default introspect
+
+    label introspect
+    kernel ironic-agent.kernel
+    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
+
+    ipappend 3
+
+  Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
+  will be accessed by ramdisk on a booting machine).
+
+  .. note::
+     While ``systemd.journald.forward_to_console=yes`` is not actually
+     required, it will substantially simplify debugging if something
+     goes wrong.
+
+  IPA is pluggable: you can insert introspection plugins called
+  *collectors* into it. For example, to enable a very handy ``logs`` collector
+  (sending ramdisk logs to **ironic-inspector**), modify the ``append`` line in
+  ``$TFTPROOT/pxelinux.cfg/default``::
+
+    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default,logs systemd.journald.forward_to_console=yes
+
+  .. note::
+     You probably want to always keep the ``default`` collector, as it provides
+     the basic information required for introspection.
 
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   **ironic-inspector**. Don't do any firewall configuration:
-  **ironic-inspector** will handle it for you. In **ironic-inspector**
+  **ironic-inspector** will handle it for you. In the **ironic-inspector**
   configuration file set ``dnsmasq_interface`` to the interface your
   PXE boot server listens on. Here is an example *dnsmasq.conf*::
 
@@ -132,87 +248,65 @@ As for PXE boot environment, you'll need:
     simultaneously cause conflicts - the same IP address is suggested to
     several nodes.
 
-* You have to install and configure the ramdisk to be run on target machines -
-  see `Configuring IPA`_.
+Configuring iPXE
+^^^^^^^^^^^^^^^^
 
-Here is *inspector.conf* you may end up with::
+iPXE allows better scaling as it primarily uses the HTTP protocol instead of
+slow and unreliable TFTP. You still need a TFTP server as a fall back for
+nodes not supporting iPXE. To use iPXE you'll need:
 
-    [DEFAULT]
-    debug = false
-    [ironic]
-    identity_uri = http://127.0.0.1:35357
-    os_auth_url = http://127.0.0.1:5000/v2.0
-    os_username = admin
-    os_password = password
-    os_tenant_name = admin
-    [firewall]
-    dnsmasq_interface = br-ctlplane
+* TFTP server running and accessible (see above for using *dnsmasq*).
+  Ensure ``undionly.kpxe`` is present in the TFTP root. If any of your nodes
+  boot with UEFI, you'll also need ``ipxe.efi`` there.
 
-.. note::
-    Set ``debug = true`` if you want to see complete logs.
+* You also need an HTTP server capable of serving static files.
+  Copy ``ironic-agent.kernel`` and ``ironic-agent.initramfs`` there.
 
-Configuring IPA
-^^^^^^^^^^^^^^^
+* Create a file called ``inspector.ipxe`` in the HTTP root (you can name and
+  place it differently, just don't forget to adjust the *dnsmasq.conf* example
+  below)::
 
-ironic-python-agent_ is a ramdisk developed for Ironic. During the Liberty
-cycle support for **ironic-inspector** was added. This is the default ramdisk
-starting with the Mitaka release.
+    #!ipxe
 
-.. note::
-    You need at least 1.5 GiB of RAM on the machines to use this ramdisk,
-    2 GiB is recommended.
+    :retry_dhcp
+    dhcp || goto retry_dhcp
 
-To build an ironic-python-agent ramdisk, do the following:
-
-* Get the new enough version of diskimage-builder_::
-
-    sudo pip install -U "diskimage-builder>=1.1.2"
-
-* Build the ramdisk::
-
-    disk-image-create ironic-agent fedora -o ironic-agent
+    :retry_boot
+    imgfree
+    kernel --timeout 30000 http://{IP}:8088/ironic-agent.kernel ipa-inspection-callback-url=http://{IP}>:5050/v1/continue systemd.journald.forward_to_console=yes BOOTIF=${mac} initrd=agent.ramdisk || goto retry_boot
+    initrd --timeout 30000 http://{IP}:8088/ironic-agent.ramdisk || goto retry_boot
+    boot
 
   .. note::
-    Replace "fedora" with your distribution of choice.
+     Older versions of the iPXE ROM tend to misbehave on unreliable network
+     connection, thus we use the timeout option with retries.
 
-* Copy resulting files ``ironic-agent.vmlinuz`` and ``ironic-agent.initramfs``
-  to the TFTP root directory.
+  Just like with PXE you can customize the list of collectors by appending
+  the ``ipa-inspector-collectors`` kernel option, for example::
 
-Alternatively, you can download a `prebuilt IPA image
-<http://tarballs.openstack.org/ironic-python-agent/coreos/files/>`_ or use
-the `CoreOS-based IPA builder
-<http://docs.openstack.org/developer/ironic-python-agent/#coreos>`_.
+    ipa-inspection-collectors=default,logs,extra_hardware
 
-Next, set up ``$TFTPROOT/pxelinux.cfg/default`` as follows::
+* Just as with PXE you'll need a PXE boot server. The configuration, however,
+  will be different. Here is an example *dnsmasq.conf*::
 
-    default introspect
+    port=0
+    interface={INTERFACE}
+    bind-interfaces
+    dhcp-range={DHCP IP RANGE, e.g. 192.168.0.50,192.168.0.150}
+    enable-tftp
+    tftp-root={TFTP ROOT, e.g. /tftpboot}
+    dhcp-sequential-ip
+    dhcp-match=ipxe,175
+    dhcp-match=set:efi,option:client-arch,7
+    dhcp-boot=tag:ipxe,http://{IP}:8088/inspector.ipxe
+    dhcp-boot=tag:efi,ipxe.efi
+    dhcp-boot=undionly.kpxe,localhost.localdomain,{IP}
 
-    label introspect
-    kernel ironic-agent.vmlinuz
-    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
-
-    ipappend 3
-
-Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
-will be accessed by ramdisk on a booting machine).
-
-.. note::
-    While ``systemd.journald.forward_to_console=yes`` is not actually
-    required, it will substantially simplify debugging if something goes wrong.
-
-This ramdisk is pluggable: you can insert introspection plugins called
-*collectors* into it. For example, to enable a very handy ``logs`` collector
-(sending ramdisk logs to **ironic-inspector**), modify the ``append`` line in
-``$TFTPROOT/pxelinux.cfg/default``::
-
-    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default,logs systemd.journald.forward_to_console=yes
-
-.. note::
-    You probably want to always keep ``default`` collector, as it provides the
-    basic information required for introspection.
-
-.. _diskimage-builder: https://github.com/openstack/diskimage-builder
-.. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
+  First, we configure the same common parameters as with PXE. Then we define
+  ``ipxe`` and ``efi`` tags. Nodes already supporting iPXE are ordered to
+  download and execute ``inspector.ipxe``. Nodes without iPXE booted with UEFI
+  will get ``ipxe.efi`` firmware to execute, while the remaining will get
+  ``undionly.kpxe``.
 
 Managing the **ironic-inspector** database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
