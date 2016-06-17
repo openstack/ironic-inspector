@@ -131,7 +131,8 @@ authentication.
 
   Response
 
-  * 200 - OK
+  * 200 - OK for API version < 1.6
+  * 201 - OK for API version 1.6 and higher
   * 400 - bad request
 
   Response body: JSON dictionary with introspection rule representation (the
@@ -282,6 +283,10 @@ major version and is always ``1`` for now, ``Y`` is a minor version.
   ``X-OpenStack-Ironic-Inspector-API-Maximum-Version`` headers with minimum
   and maximum API versions supported by the server.
 
+  .. note::
+     Maximum is server API version used by default.
+
+
 API Discovery
 ~~~~~~~~~~~~~
 
@@ -328,3 +333,4 @@ Version History
 * **1.3** endpoint for canceling running introspection
 * **1.4** endpoint for reapplying the introspection over stored data.
 * **1.5** support for Ironic node names.
+* **1.6** endpoint for rules creating returns 201 instead of 200 on success.
