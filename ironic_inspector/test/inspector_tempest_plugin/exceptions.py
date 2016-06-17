@@ -10,7 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest import exceptions
+from tempest.lib import exceptions
 
 
 class IntrospectionFailed(exceptions.TempestException):
