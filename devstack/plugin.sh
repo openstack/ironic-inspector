@@ -84,11 +84,11 @@ function start_inspector_dhcp {
 }
 
 function stop_inspector {
-    screen -S $SCREEN_NAME -p ironic-inspector -X kill
+    screen_stop ironic-inspector
 }
 
 function stop_inspector_dhcp {
-    screen -S $SCREEN_NAME -p ironic-inspector-dhcp -X kill
+    screen_stop ironic-inspector-dhcp
 }
 
 function inspector_uses_ipa {
