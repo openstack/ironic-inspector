@@ -188,14 +188,14 @@ class TestIntrospect(BaseTest):
     def test_failed_to_get_node(self, client_mock, add_mock, filters_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = exceptions.NotFound()
-        self.assertRaisesRegexp(utils.Error,
-                                'Node %s was not found' % self.uuid,
-                                introspect.introspect, self.uuid)
+        self.assertRaisesRegex(utils.Error,
+                               'Node %s was not found' % self.uuid,
+                               introspect.introspect, self.uuid)
 
         cli.node.get.side_effect = exceptions.BadRequest()
-        self.assertRaisesRegexp(utils.Error,
-                                '%s: Bad Request' % self.uuid,
-                                introspect.introspect, self.uuid)
+        self.assertRaisesRegex(utils.Error,
+                               '%s: Bad Request' % self.uuid,
+                               introspect.introspect, self.uuid)
 
         self.assertEqual(0, self.node_info.ports.call_count)
         self.assertEqual(0, filters_mock.call_count)
@@ -210,7 +210,7 @@ class TestIntrospect(BaseTest):
         cli.node.validate.return_value = mock.Mock(power={'result': False,
                                                           'reason': 'oops'})
 
-        self.assertRaisesRegexp(
+        self.assertRaisesRegex(
             utils.Error,
             'Failed validation of power interface',
             introspect.introspect, self.uuid)
@@ -227,7 +227,7 @@ class TestIntrospect(BaseTest):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node
 
-        self.assertRaisesRegexp(
+        self.assertRaisesRegex(
             utils.Error, 'Invalid provision state for introspection: "active"',
             introspect.introspect, self.uuid)
 
@@ -365,9 +365,9 @@ class TestSetIpmiCredentials(BaseTest):
                           'processing')
         self._prepare(client_mock)
 
-        self.assertRaisesRegexp(utils.Error, 'disabled',
-                                introspect.introspect, self.uuid,
-                                new_ipmi_credentials=self.new_creds)
+        self.assertRaisesRegex(utils.Error, 'disabled',
+                               introspect.introspect, self.uuid,
+                               new_ipmi_credentials=self.new_creds)
 
     def test_no_username(self, client_mock, add_mock, filters_mock):
         self._prepare(client_mock)
@@ -446,8 +446,8 @@ class TestAbort(BaseTest):
         exc = utils.Error('Not found.', code=404)
         get_mock.side_effect = exc
 
-        self.assertRaisesRegexp(utils.Error, str(exc),
-                                introspect.abort, self.uuid)
+        self.assertRaisesRegex(utils.Error, str(exc),
+                               introspect.abort, self.uuid)
 
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
@@ -459,8 +459,8 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.return_value = False
         self.node_info.started_at = time.time()
 
-        self.assertRaisesRegexp(utils.Error, 'Node is locked, please, '
-                                'retry later', introspect.abort, self.uuid)
+        self.assertRaisesRegex(utils.Error, 'Node is locked, please, '
+                               'retry later', introspect.abort, self.uuid)
 
         self.assertEqual(0, filters_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)

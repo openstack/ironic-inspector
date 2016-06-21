@@ -144,8 +144,8 @@ class TestFailAction(test_base.BaseTest):
         self.assertRaises(ValueError, self.act.validate, {})
 
     def test_apply(self):
-        self.assertRaisesRegexp(utils.Error, 'boom',
-                                self.act.apply, None, {'message': 'boom'})
+        self.assertRaisesRegex(utils.Error, 'boom',
+                               self.act.apply, None, {'message': 'boom'})
 
 
 class TestSetAttributeAction(test_base.NodeTest):

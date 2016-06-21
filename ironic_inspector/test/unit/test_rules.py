@@ -55,9 +55,9 @@ class TestCreateRule(BaseTest):
 
     def test_duplicate_uuid(self):
         rules.create([], self.actions_json, uuid=self.uuid)
-        self.assertRaisesRegexp(utils.Error, 'already exists',
-                                rules.create, [], self.actions_json,
-                                uuid=self.uuid)
+        self.assertRaisesRegex(utils.Error, 'already exists',
+                               rules.create, [], self.actions_json,
+                               uuid=self.uuid)
 
     def test_with_conditions(self):
         rule = rules.create(self.conditions_json, self.actions_json)
@@ -72,62 +72,62 @@ class TestCreateRule(BaseTest):
     def test_invalid_condition(self):
         del self.conditions_json[0]['op']
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Validation failed for conditions',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Validation failed for conditions',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
         self.conditions_json[0]['op'] = 'foobar'
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Validation failed for conditions',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Validation failed for conditions',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
     def test_invalid_condition_field(self):
         self.conditions_json[0]['field'] = '!*!'
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Unable to parse field JSON path',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Unable to parse field JSON path',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
     def test_invalid_condition_parameters(self):
         self.conditions_json[0]['foo'] = 'bar'
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Invalid parameters for operator',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Invalid parameters for operator',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
     def test_no_actions(self):
-        self.assertRaisesRegexp(utils.Error,
-                                'Validation failed for actions',
-                                rules.create,
-                                self.conditions_json, [])
+        self.assertRaisesRegex(utils.Error,
+                               'Validation failed for actions',
+                               rules.create,
+                               self.conditions_json, [])
 
     def test_invalid_action(self):
         del self.actions_json[0]['action']
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Validation failed for actions',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Validation failed for actions',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
         self.actions_json[0]['action'] = 'foobar'
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Validation failed for actions',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Validation failed for actions',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
     def test_invalid_action_parameters(self):
         self.actions_json[0]['foo'] = 'bar'
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Invalid parameters for action',
-                                rules.create,
-                                self.conditions_json, self.actions_json)
+        self.assertRaisesRegex(utils.Error,
+                               'Invalid parameters for action',
+                               rules.create,
+                               self.conditions_json, self.actions_json)
 
 
 class TestGetRule(BaseTest):

@@ -100,42 +100,42 @@ class TestProcess(BaseProcessTest):
 
     def test_not_found_in_cache(self):
         self.find_mock.side_effect = utils.Error('not found')
-        self.assertRaisesRegexp(utils.Error,
-                                'not found',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               'not found',
+                               process.process, self.data)
         self.assertFalse(self.cli.node.get.called)
         self.assertFalse(self.process_mock.called)
 
     def test_not_found_in_ironic(self):
         self.cli.node.get.side_effect = exceptions.NotFound()
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Node %s was not found' % self.uuid,
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               'Node %s was not found' % self.uuid,
+                               process.process, self.data)
         self.cli.node.get.assert_called_once_with(self.uuid)
         self.assertFalse(self.process_mock.called)
         self.node_info.finished.assert_called_once_with(error=mock.ANY)
 
     def test_already_finished(self):
         self.node_info.finished_at = time.time()
-        self.assertRaisesRegexp(utils.Error, 'already finished',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error, 'already finished',
+                               process.process, self.data)
         self.assertFalse(self.process_mock.called)
         self.assertFalse(self.find_mock.return_value.finished.called)
 
     def test_expected_exception(self):
         self.process_mock.side_effect = utils.Error('boom')
 
-        self.assertRaisesRegexp(utils.Error, 'boom',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error, 'boom',
+                               process.process, self.data)
 
         self.node_info.finished.assert_called_once_with(error='boom')
 
     def test_unexpected_exception(self):
         self.process_mock.side_effect = RuntimeError('boom')
 
-        with self.assertRaisesRegexp(utils.Error,
-                                     'Unexpected exception') as ctx:
+        with self.assertRaisesRegex(utils.Error,
+                                    'Unexpected exception') as ctx:
             process.process(self.data)
 
         self.assertEqual(500, ctx.exception.http_code)
@@ -149,8 +149,8 @@ class TestProcess(BaseProcessTest):
             patcher.start()
             self.addCleanup(lambda p=patcher: p.stop())
 
-        self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error, 'Unexpected exception',
+                               process.process, self.data)
 
         self.node_info.finished.assert_called_once_with(
             error=mock.ANY)
@@ -167,17 +167,17 @@ class TestProcess(BaseProcessTest):
             patcher.start()
             self.addCleanup(lambda p=patcher: p.stop())
 
-        self.assertRaisesRegexp(utils.Error, 'Unexpected exception',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error, 'Unexpected exception',
+                               process.process, self.data)
 
         self.assertFalse(self.node_info.finished.called)
 
     def test_error_if_node_not_found_hook(self):
         plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
-        self.assertRaisesRegexp(utils.Error,
-                                'Look up error: BOOM',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               'Look up error: BOOM',
+                               process.process, self.data)
 
 
 @mock.patch.object(example_plugin, 'example_not_found_hook',
@@ -199,9 +199,9 @@ class TestNodeNotFoundHook(BaseProcessTest):
         plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
         hook_mock.return_value = None
-        self.assertRaisesRegexp(utils.Error,
-                                'Node not found hook returned nothing',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               'Node not found hook returned nothing',
+                               process.process, self.data)
         hook_mock.assert_called_once_with(self.data)
 
     def test_node_not_found_hook_exception(self, hook_mock):
@@ -209,9 +209,9 @@ class TestNodeNotFoundHook(BaseProcessTest):
         plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
         hook_mock.side_effect = Exception('Hook Error')
-        self.assertRaisesRegexp(utils.Error,
-                                'Node not found hook failed: Hook Error',
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               'Node not found hook failed: Hook Error',
+                               process.process, self.data)
         hook_mock.assert_called_once_with(self.data)
 
 

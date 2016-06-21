@@ -33,12 +33,12 @@ class TestWithValidation(test_base.BaseTest):
 
     def test_required_missing(self):
         err_re = 'missing required parameter\(s\): x'
-        self.assertRaisesRegexp(ValueError, err_re, self.test.validate, {})
-        self.assertRaisesRegexp(ValueError, err_re, self.test.validate,
-                                {'x': None})
-        self.assertRaisesRegexp(ValueError, err_re, self.test.validate,
-                                {'y': 1, 'z': 2})
+        self.assertRaisesRegex(ValueError, err_re, self.test.validate, {})
+        self.assertRaisesRegex(ValueError, err_re, self.test.validate,
+                               {'x': None})
+        self.assertRaisesRegex(ValueError, err_re, self.test.validate,
+                               {'y': 1, 'z': 2})
 
     def test_unexpected(self):
-        self.assertRaisesRegexp(ValueError, 'unexpected parameter\(s\): foo',
-                                self.test.validate, {'foo': 'bar', 'x': 42})
+        self.assertRaisesRegex(ValueError, 'unexpected parameter\(s\): foo',
+                               self.test.validate, {'foo': 'bar', 'x': 42})

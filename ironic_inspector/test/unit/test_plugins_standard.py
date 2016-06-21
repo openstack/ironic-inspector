@@ -39,9 +39,9 @@ class TestSchedulerHook(test_base.NodeTest):
 
     def test_no_root_disk(self):
         del self.inventory['disks']
-        self.assertRaisesRegexp(utils.Error, 'disks key is missing or empty',
-                                self.hook.before_update, self.data,
-                                self.node_info)
+        self.assertRaisesRegex(utils.Error, 'disks key is missing or empty',
+                               self.hook.before_update, self.data,
+                               self.node_info)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_ok(self, mock_patch):
@@ -111,16 +111,16 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
 
     def test_no_interfaces(self):
-        self.assertRaisesRegexp(utils.Error,
-                                'Hardware inventory is empty or missing',
-                                self.hook.before_processing, {})
-        self.assertRaisesRegexp(utils.Error,
-                                'Hardware inventory is empty or missing',
-                                self.hook.before_processing, {'inventory': {}})
+        self.assertRaisesRegex(utils.Error,
+                               'Hardware inventory is empty or missing',
+                               self.hook.before_processing, {})
+        self.assertRaisesRegex(utils.Error,
+                               'Hardware inventory is empty or missing',
+                               self.hook.before_processing, {'inventory': {}})
         del self.inventory['interfaces']
-        self.assertRaisesRegexp(utils.Error,
-                                'interfaces key is missing or empty',
-                                self.hook.before_processing, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               'interfaces key is missing or empty',
+                               self.hook.before_processing, self.data)
 
     def test_only_pxe(self):
         self.hook.before_processing(self.data)
@@ -139,8 +139,8 @@ class TestValidateInterfacesHook(test_base.NodeTest):
 
     def test_only_pxe_not_found(self):
         self.data['boot_interface'] = 'aa:bb:cc:dd:ee:ff'
-        self.assertRaisesRegexp(utils.Error, 'No suitable interfaces',
-                                self.hook.before_processing, self.data)
+        self.assertRaisesRegex(utils.Error, 'No suitable interfaces',
+                               self.hook.before_processing, self.data)
 
     def test_only_pxe_no_boot_interface(self):
         del self.data['boot_interface']
@@ -179,8 +179,8 @@ class TestValidateInterfacesHook(test_base.NodeTest):
             # empty
             {},
         ]
-        self.assertRaisesRegexp(utils.Error, 'No interfaces supplied',
-                                self.hook.before_processing, self.data)
+        self.assertRaisesRegex(utils.Error, 'No interfaces supplied',
+                               self.hook.before_processing, self.data)
 
     def test_skipped_interfaces(self):
         CONF.set_override('add_ports', 'all', 'processing')
@@ -197,8 +197,8 @@ class TestValidateInterfacesHook(test_base.NodeTest):
             {'name': 'em4', 'mac_address': 'foobar',
              'ipv4_address': '2.2.2.2'},
         ]
-        self.assertRaisesRegexp(utils.Error, 'No suitable interfaces found',
-                                self.hook.before_processing, self.data)
+        self.assertRaisesRegex(utils.Error, 'No suitable interfaces found',
+                               self.hook.before_processing, self.data)
 
     @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
     def test_keep_all(self, mock_delete_port):
@@ -252,10 +252,10 @@ class TestRootDiskSelection(test_base.NodeTest):
         del self.data['inventory']
         del self.data['root_disk']
 
-        self.assertRaisesRegexp(utils.Error,
-                                'Hardware inventory is empty or missing',
-                                self.hook.before_update,
-                                self.data, self.node_info)
+        self.assertRaisesRegex(utils.Error,
+                               'Hardware inventory is empty or missing',
+                               self.hook.before_update,
+                               self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
@@ -264,10 +264,10 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.node.properties['root_device'] = {'size': 10}
         self.inventory['disks'] = []
 
-        self.assertRaisesRegexp(utils.Error,
-                                'disks key is missing or empty',
-                                self.hook.before_update,
-                                self.data, self.node_info)
+        self.assertRaisesRegex(utils.Error,
+                               'disks key is missing or empty',
+                               self.hook.before_update,
+                               self.data, self.node_info)
 
     def test_one_matches(self):
         self.node.properties['root_device'] = {'size': 10}
@@ -289,10 +289,10 @@ class TestRootDiskSelection(test_base.NodeTest):
                                                'model': 'Model 42'}
         del self.data['root_disk']
 
-        self.assertRaisesRegexp(utils.Error,
-                                'No disks satisfied root device hints',
-                                self.hook.before_update,
-                                self.data, self.node_info)
+        self.assertRaisesRegex(utils.Error,
+                               'No disks satisfied root device hints',
+                               self.hook.before_update,
+                               self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
@@ -305,10 +305,10 @@ class TestRootDiskSelection(test_base.NodeTest):
     def test_size_invalid(self):
         for bad_size in ('foo', None, {}):
             self.node.properties['root_device'] = {'size': bad_size}
-            self.assertRaisesRegexp(utils.Error,
-                                    'Invalid root device size hint',
-                                    self.hook.before_update,
-                                    self.data, self.node_info)
+            self.assertRaisesRegex(utils.Error,
+                                   'Invalid root device size hint',
+                                   self.hook.before_update,
+                                   self.data, self.node_info)
 
 
 class TestRamdiskError(test_base.InventoryTest):
@@ -319,6 +319,6 @@ class TestRamdiskError(test_base.InventoryTest):
         self.data['error'] = self.msg
 
     def test_no_logs(self):
-        self.assertRaisesRegexp(utils.Error,
-                                self.msg,
-                                process.process, self.data)
+        self.assertRaisesRegex(utils.Error,
+                               self.msg,
+                               process.process, self.data)
