@@ -74,21 +74,20 @@ function install_inspector_client {
 }
 
 function start_inspector {
-    screen_it ironic-inspector \
-        "cd $IRONIC_INSPECTOR_DIR && $IRONIC_INSPECTOR_CMD"
+    run_process ironic-inspector "$IRONIC_INSPECTOR_CMD"
 }
 
 function start_inspector_dhcp {
-    screen_it ironic-inspector-dhcp \
+    run_process ironic-inspector-dhcp \
         "sudo dnsmasq --conf-file=$IRONIC_INSPECTOR_DHCP_CONF_FILE"
 }
 
 function stop_inspector {
-    screen_stop ironic-inspector
+    stop_process ironic-inspector
 }
 
 function stop_inspector_dhcp {
-    screen_stop ironic-inspector-dhcp
+    stop_process ironic-inspector-dhcp
 }
 
 function inspector_uses_ipa {
