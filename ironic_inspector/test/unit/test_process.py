@@ -258,13 +258,15 @@ class TestStoreLogs(BaseProcessTest):
         self.logs = b'test logs'
         self.data['logs'] = base64.b64encode(self.logs)
 
-    def _check_contents(self):
+    def _check_contents(self, name=None):
         files = os.listdir(self.tempdir)
         self.assertEqual(1, len(files))
         filename = files[0]
-        self.assertTrue(filename.startswith('bmc_%s_' % self.bmc_address),
-                        '%s does not start with bmc_%s'
-                        % (filename, self.bmc_address))
+        if name is None:
+            self.assertTrue(filename.startswith(self.uuid),
+                            '%s does not start with uuid' % filename)
+        else:
+            self.assertEqual(name, filename)
         with open(os.path.join(self.tempdir, filename), 'rb') as fp:
             self.assertEqual(self.logs, fp.read())
 
@@ -322,6 +324,16 @@ class TestStoreLogs(BaseProcessTest):
         self.data['error'] = 'boom'
         self.assertRaises(utils.Error, process.process, self.data)
         self._check_contents()
+
+    def test_store_custom_name(self, hook_mock):
+        CONF.set_override('ramdisk_logs_filename_format',
+                          '{uuid}-{bmc}-{mac}',
+                          'processing')
+        self.process_mock.side_effect = utils.Error('boom')
+        self.assertRaises(utils.Error, process.process, self.data)
+        self._check_contents(name='%s-%s-%s' % (self.uuid,
+                                                self.bmc_address,
+                                                self.pxe_mac.replace(':', '')))
 
 
 class TestProcessNode(BaseTest):

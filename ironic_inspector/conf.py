@@ -129,6 +129,14 @@ PROCESSING_OPTS = [
                 default=True,
                 help='Whether to log node BMC address with every message '
                      'during processing.'),
+    cfg.StrOpt('ramdisk_logs_filename_format',
+               default='{uuid}_{dt:%Y%m%d-%H%M%S.%f}.tar.gz',
+               help='File name template for storing ramdisk logs. The '
+                    'following replacements can be used: '
+                    '{uuid} - node UUID or "unknown", '
+                    '{bmc} - node BMC address or "unknown", '
+                    '{dt} - current UTC date and time, '
+                    '{mac} - PXE booting MAC or "unknown".'),
 ]
 
 
