@@ -14,11 +14,17 @@
 import os
 import time
 
+import tempest
 from tempest import config
+from tempest.lib.common.api_version_utils import LATEST_MICROVERSION
 
 from ironic_inspector.test.inspector_tempest_plugin import exceptions
 from ironic_inspector.test.inspector_tempest_plugin.services import \
     introspection_client
+from ironic_tempest_plugin.tests.api.admin.api_microversion_fixture import \
+    APIMicroversionFixture as IronicMicroversionFixture
+from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
+    BaremetalProvisionStates
 from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
     BaremetalScenarioTest
 
@@ -29,7 +35,11 @@ CONF = config.CONF
 class InspectorScenarioTest(BaremetalScenarioTest):
     """Provide harness to do Inspector scenario tests."""
 
+    wait_provisioning_state_interval = 15
+
     credentials = ['primary', 'admin']
+
+    ironic_api_version = LATEST_MICROVERSION
 
     @classmethod
     def setup_clients(cls):
@@ -39,7 +49,15 @@ class InspectorScenarioTest(BaremetalScenarioTest):
 
     def setUp(self):
         super(InspectorScenarioTest, self).setUp()
+        # we rely on the 'available' provision_state; using latest
+        # microversion
+        self.useFixture(IronicMicroversionFixture(self.ironic_api_version))
         self.flavor = self.baremetal_flavor()
+        self.node_ids = {node['uuid'] for node in
+                         self.node_filter(filter=lambda node:
+                                          node['provision_state'] ==
+                                          BaremetalProvisionStates.AVAILABLE)}
+        self.rule_purge()
 
     def item_filter(self, list_method, show_method,
                     filter=lambda item: True, items=None):
@@ -144,3 +162,31 @@ class InspectorScenarioTest(BaremetalScenarioTest):
                     {'stats': stats,
                      'timeout': timeout})
                 raise exceptions.HypervisorUpdateTimeout(message)
+
+    def node_cleanup(self, node_id):
+        if (self.node_show(node_id)['provision_state'] ==
+           BaremetalProvisionStates.AVAILABLE):
+            return
+        try:
+            self.baremetal_client.set_node_provision_state(node_id, 'provide')
+        except tempest.lib.exceptions.RestClientException:
+            # maybe node already cleaning or available
+            pass
+
+        self.wait_provisioning_state(
+            node_id, [BaremetalProvisionStates.AVAILABLE,
+                      BaremetalProvisionStates.NOSTATE],
+            timeout=CONF.baremetal.unprovision_timeout,
+            interval=self.wait_provisioning_state_interval)
+
+    def introspect_node(self, node_id):
+        # in case there are properties remove those
+        patch = {('properties/%s' % key): None for key in
+                 self.node_show(node_id)['properties']}
+        # reset any previous rule result
+        patch['extra/rule_success'] = None
+        self.node_update(node_id, patch)
+
+        self.baremetal_client.set_node_provision_state(node_id, 'manage')
+        self.baremetal_client.set_node_provision_state(node_id, 'inspect')
+        self.addCleanup(self.node_cleanup, node_id)

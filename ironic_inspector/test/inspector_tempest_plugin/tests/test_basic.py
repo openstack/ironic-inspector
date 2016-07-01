@@ -10,63 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import tempest
-
 from tempest.config import CONF
 from tempest import test  # noqa
 
 from ironic_inspector.test.inspector_tempest_plugin.tests import manager
-from ironic_tempest_plugin.tests.api.admin.api_microversion_fixture import \
-    APIMicroversionFixture as IronicMicroversionFixture
 from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
     BaremetalProvisionStates
-from tempest.lib.common.api_version_utils import LATEST_MICROVERSION
 
 
 class InspectorBasicTest(manager.InspectorScenarioTest):
-    wait_provisioning_state_interval = 15
-
-    def node_cleanup(self, node_id):
-        if (self.node_show(node_id)['provision_state'] ==
-           BaremetalProvisionStates.AVAILABLE):
-            return
-        try:
-            self.baremetal_client.set_node_provision_state(node_id, 'provide')
-        except tempest.lib.exceptions.RestClientException:
-            # maybe node already cleaning or available
-            pass
-
-        self.wait_provisioning_state(
-            node_id, [BaremetalProvisionStates.AVAILABLE,
-                      BaremetalProvisionStates.NOSTATE],
-            timeout=CONF.baremetal.unprovision_timeout,
-            interval=self.wait_provisioning_state_interval)
-
-    def introspect_node(self, node_id):
-        # in case there are properties remove those
-        patch = {('properties/%s' % key): None for key in
-                 self.node_show(node_id)['properties']}
-        # reset any previous rule result
-        patch['extra/rule_success'] = None
-        self.node_update(node_id, patch)
-
-        self.baremetal_client.set_node_provision_state(node_id, 'manage')
-        self.baremetal_client.set_node_provision_state(node_id, 'inspect')
-        self.addCleanup(self.node_cleanup, node_id)
-
-    def setUp(self):
-        super(InspectorBasicTest, self).setUp()
-        # we rely on the 'available' provision_state; using latest
-        # microversion
-        self.useFixture(IronicMicroversionFixture(LATEST_MICROVERSION))
-        # avoid testing nodes that aren't available
-        self.node_ids = {node['uuid'] for node in
-                         self.node_filter(filter=lambda node:
-                                          node['provision_state'] ==
-                                          BaremetalProvisionStates.AVAILABLE)}
-        if not self.node_ids:
-            self.skipTest('no available nodes detected')
-        self.rule_purge()
 
     def verify_node_introspection_data(self, node):
         self.assertEqual('yes', node['extra']['rule_success'])
@@ -98,7 +50,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
     @test.services('baremetal', 'compute', 'image',
                    'network', 'object_storage')
     def test_baremetal_introspection(self):
-        """This smoke test case follows this basic set of operations:
+        """This smoke test case follows this set of operations:
 
             * Fetches expected properties from baremetal flavor
             * Removes all properties from nodes
@@ -147,3 +99,34 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
         self.add_keypair()
         ins, _node = self.boot_instance()
         self.terminate_instance(ins)
+
+
+class InspectorSmokeTest(manager.InspectorScenarioTest):
+
+    @test.idempotent_id('a702d1f1-88e4-42ce-88ef-cba2d9e3312e')
+    @test.attr(type='smoke')
+    @test.services('baremetal', 'compute', 'image',
+                   'network', 'object_storage')
+    def test_baremetal_introspection(self):
+        """This smoke test case follows this very basic set of operations:
+
+            * Fetches expected properties from baremetal flavor
+            * Removes all properties from one node
+            * Sets the node to manageable state
+            * Inspects the node
+            * Sets the node to available state
+
+        """
+        # NOTE(dtantsur): we can't silently skip this test because it runs in
+        # grenade with several other tests, and we won't have any indication
+        # that it was not run.
+        assert self.node_ids, "No available nodes"
+        node_id = next(iter(self.node_ids))
+        self.introspect_node(node_id)
+
+        # settle down introspection
+        self.wait_for_introspection_finished([node_id])
+        self.wait_provisioning_state(
+            node_id, 'manageable',
+            timeout=CONF.baremetal_introspection.ironic_sync_timeout,
+            interval=self.wait_provisioning_state_interval)
