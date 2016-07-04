@@ -41,7 +41,6 @@ _CREDENTIALS_WAIT_RETRIES = 10
 _CREDENTIALS_WAIT_PERIOD = 3
 _STORAGE_EXCLUDED_KEYS = {'logs'}
 _UNPROCESSED_DATA_STORE_SUFFIX = 'UNPROCESSED'
-_DATETIME_FORMAT = '%Y.%m.%d_%H.%M.%S_%f'
 
 
 def _store_logs(introspection_data, node_info):
@@ -58,10 +57,16 @@ def _store_logs(introspection_data, node_info):
                     data=introspection_data, node_info=node_info)
         return
 
-    time_fmt = datetime.datetime.utcnow().strftime(_DATETIME_FORMAT)
-    bmc_address = (utils.get_ipmi_address_from_data(introspection_data)
-                   or 'unknown')
-    file_name = 'bmc_%s_%s' % (bmc_address, time_fmt)
+    fmt_args = {
+        'uuid': node_info.uuid if node_info is not None else 'unknown',
+        'mac': (utils.get_pxe_mac(introspection_data) or
+                'unknown').replace(':', ''),
+        'dt': datetime.datetime.utcnow(),
+        'bmc': (utils.get_ipmi_address_from_data(introspection_data) or
+                'unknown')
+    }
+
+    file_name = CONF.processing.ramdisk_logs_filename_format.format(**fmt_args)
 
     try:
         if not os.path.exists(CONF.processing.ramdisk_logs_dir):
