@@ -102,7 +102,7 @@ function prepare_tftp {
     IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-debug=1"
     if [[ "$IRONIC_INSPECTOR_BUILD_RAMDISK" == "True" ]]; then
         if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
-            build_ipa_coreos_ramdisk "$IRONIC_INSPECTOR_KERNEL_PATH" "$IRONIC_INSPECTOR_INITRAMFS_PATH"
+            build_ipa_ramdisk "$IRONIC_INSPECTOR_KERNEL_PATH" "$IRONIC_INSPECTOR_INITRAMFS_PATH"
         fi
     else
         # download the agent image tarball
