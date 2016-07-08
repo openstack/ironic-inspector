@@ -411,8 +411,9 @@ class Service(object):
             hooks = [ext.name for ext in
                      plugins_base.processing_hooks_manager()]
         except KeyError as exc:
-            # stevedore raises KeyError on missing hook
-            LOG.critical(_LC('Hook %s failed to load or was not found'),
+            # callback function raises MissingHookError derived from KeyError
+            # on missing hook
+            LOG.critical(_LC('Hook(s) %s failed to load or was not found'),
                          str(exc))
             sys.exit(1)
 
