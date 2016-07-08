@@ -1,6 +1,15 @@
 #!/bin/bash
 
-set -eux
+set -ex
+
+# NOTE(vsaienko) this script is launched with sudo.
+# Only exported variables are passed here.
+# Source to make sure all vars are available.
+STACK_ROOT="$(dirname "$0")/../../"
+source "$STACK_ROOT/devstack/stackrc"
+source "$STACK_ROOT/ironic/devstack/lib/ironic"
+
+set -u
 
 INTROSPECTION_SLEEP=${INTROSPECTION_SLEEP:-30}
 export IRONIC_API_VERSION=${IRONIC_API_VERSION:-latest}
