@@ -16,7 +16,6 @@
 import json
 
 from oslo_config import cfg
-from oslo_log import log
 import six
 from swiftclient import client as swift_client
 from swiftclient import exceptions as swift_exceptions
@@ -27,8 +26,6 @@ from ironic_inspector import utils
 
 CONF = cfg.CONF
 
-
-LOG = log.getLogger('ironic_inspector.common.swift')
 
 SWIFT_GROUP = 'swift'
 SWIFT_OPTS = [
