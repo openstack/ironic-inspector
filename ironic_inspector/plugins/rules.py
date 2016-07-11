@@ -23,9 +23,6 @@ from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
 
-LOG = utils.getProcessingLogger(__name__)
-
-
 def coerce(value, expected):
     if isinstance(expected, float):
         return float(value)
