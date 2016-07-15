@@ -66,8 +66,7 @@ function install_inspector_client {
         git_clone_by_name python-ironic-inspector-client
         setup_dev_lib python-ironic-inspector-client
     else
-        # TODO(dtantsur): switch to pip_install_gr
-        pip_install python-ironic-inspector-client
+        pip_install_gr python-ironic-inspector-client
     fi
 }
 
