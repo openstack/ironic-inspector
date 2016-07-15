@@ -274,10 +274,11 @@ function create_ironic_inspector_cache_dir {
 }
 
 function cleanup_inspector {
-    rm -f $IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default
-    rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
     if [[ "$IRONIC_IPXE_ENABLED" == "True" ]] ; then
         rm -f $IRONIC_HTTP_DIR/ironic-inspector.*
+    else
+        rm -f $IRONIC_TFTPBOOT_DIR/pxelinux.cfg/default
+        rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
     fi
     sudo rm -f /etc/sudoers.d/ironic-inspector-rootwrap
     sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
