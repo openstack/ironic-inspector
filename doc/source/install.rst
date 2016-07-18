@@ -215,7 +215,8 @@ As for PXE boot environment, you'll need:
   .. note::
      While ``systemd.journald.forward_to_console=yes`` is not actually
      required, it will substantially simplify debugging if something
-     goes wrong.
+     goes wrong. You can also enable IPA debug logging by appending
+     ``ipa-debug=1``.
 
   IPA is pluggable: you can insert introspection plugins called
   *collectors* into it. For example, to enable a very handy ``logs`` collector
