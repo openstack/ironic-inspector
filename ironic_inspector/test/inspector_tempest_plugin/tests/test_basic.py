@@ -145,5 +145,5 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
 
         self.wait_for_nova_aware_of_bvms()
         self.add_keypair()
-        self.boot_instance()
-        self.terminate_instance()
+        ins, _node = self.boot_instance()
+        self.terminate_instance(ins)

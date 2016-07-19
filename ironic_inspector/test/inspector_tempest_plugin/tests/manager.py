@@ -94,6 +94,12 @@ class InspectorScenarioTest(BaremetalScenarioTest):
         return os.path.join(base_path, "inspector_tempest_plugin",
                             "rules", rule_file)
 
+    def boot_instance(self):
+        return super(InspectorScenarioTest, self).boot_instance()
+
+    def terminate_instance(self, instance):
+        return super(InspectorScenarioTest, self).terminate_instance(instance)
+
     # TODO(aarefiev): switch to call_until_true
     def wait_for_introspection_finished(self, node_ids):
         """Waits for introspection of baremetal nodes to finish.
