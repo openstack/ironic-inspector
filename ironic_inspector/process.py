@@ -281,7 +281,8 @@ def _process_node(node, introspection_data, node_info):
         resp['ipmi_username'] = new_username
         resp['ipmi_password'] = new_password
     else:
-        utils.executor().submit(_finish, ironic, node_info, introspection_data)
+        utils.executor().submit(_finish, ironic, node_info, introspection_data,
+                                power_off=CONF.processing.power_off)
 
     return resp
 
