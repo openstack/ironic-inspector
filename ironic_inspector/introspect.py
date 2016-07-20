@@ -201,15 +201,6 @@ def _abort(node_info, ironic):
         node_info.release_lock()
         return
 
-    # block this node from PXE Booting the introspection image
-    try:
-        firewall.update_filters(ironic)
-    except Exception as exc:
-        # Note(mkovacik): this will be retried in firewall update
-        # periodic task; we continue aborting
-        LOG.warning(_LW('Failed to update firewall filters: %s'), exc,
-                    node_info=node_info)
-
     # finish the introspection
     LOG.debug('Forcing power-off', node_info=node_info)
     try:
@@ -219,4 +210,13 @@ def _abort(node_info, ironic):
                     node_info=node_info)
 
     node_info.finished(error=_('Canceled by operator'))
+
+    # block this node from PXE Booting the introspection image
+    try:
+        firewall.update_filters(ironic)
+    except Exception as exc:
+        # Note(mkovacik): this will be retried in firewall update
+        # periodic task; we continue aborting
+        LOG.warning(_LW('Failed to update firewall filters: %s'), exc,
+                    node_info=node_info)
     LOG.info(_LI('Introspection aborted'), node_info=node_info)
