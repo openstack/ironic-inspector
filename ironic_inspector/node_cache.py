@@ -586,7 +586,7 @@ def clean_up():
     return uuids
 
 
-def create_node(driver,  ironic=None, **attributes):
+def create_node(driver, ironic=None, **attributes):
     """Create ironic node and cache it.
 
     * Create new node in ironic.
