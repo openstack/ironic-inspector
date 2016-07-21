@@ -137,6 +137,9 @@ PROCESSING_OPTS = [
                     '{bmc} - node BMC address or "unknown", '
                     '{dt} - current UTC date and time, '
                     '{mac} - PXE booting MAC or "unknown".'),
+    cfg.BoolOpt('power_off',
+                default=True,
+                help='Whether to power off a node after introspection.'),
 ]
 
 

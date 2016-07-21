@@ -478,6 +478,14 @@ class TestProcessNode(BaseTest):
         self.assertTrue(self.cli.node.set_power_state.called)
         finished_mock.assert_called_once_with(self.node_info)
 
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_no_power_off(self, finished_mock):
+        CONF.set_override('power_off', False, 'processing')
+        process._process_node(self.node, self.data, self.node_info)
+
+        self.assertFalse(self.cli.node.set_power_state.called)
+        finished_mock.assert_called_once_with(self.node_info)
+
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data(self, swift_mock):
         CONF.set_override('store_data', 'swift', 'processing')
