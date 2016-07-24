@@ -341,17 +341,31 @@ class NodeInfo(object):
             self._node = ir_utils.get_node(self.uuid, ironic=ironic)
         return self._node
 
-    def create_ports(self, macs, ironic=None):
+    def create_ports(self, ports, ironic=None):
         """Create one or several ports for this node.
 
+        :param ports: List of ports with all their attributes
+                      e.g  [{'mac': xx, 'ip': xx, 'client_id': None},
+                            {'mac': xx, 'ip': None, 'client_id': None}]
+                      It also support the old style of list of macs.
         A warning is issued if port already exists on a node.
+        :param ironic: Ironic client to use instead of self.ironic
         """
         existing_macs = []
-        for mac in macs:
+        for port in ports:
+            mac = port
+            extra = {}
+            if isinstance(port, dict):
+                mac = port['mac']
+                client_id = port.get('client_id')
+                if client_id:
+                    extra = {'client-id': client_id}
+
             if mac not in self.ports():
-                self._create_port(mac, ironic)
+                self._create_port(mac, ironic=ironic, extra=extra)
             else:
                 existing_macs.append(mac)
+
         if existing_macs:
             LOG.warning(_LW('Did not create ports %s as they already exist'),
                         existing_macs, node_info=self)
@@ -369,10 +383,11 @@ class NodeInfo(object):
                            ironic.node.list_ports(self.uuid, limit=0)}
         return self._ports
 
-    def _create_port(self, mac, ironic=None):
+    def _create_port(self, mac, ironic=None, extra=None):
         ironic = ironic or self.ironic
         try:
-            port = ironic.port.create(node_uuid=self.uuid, address=mac)
+            port = ironic.port.create(
+                node_uuid=self.uuid, address=mac, extra=extra)
         except exceptions.Conflict:
             LOG.warning(_LW('Port %s already exists, skipping'),
                         mac, node_info=self)

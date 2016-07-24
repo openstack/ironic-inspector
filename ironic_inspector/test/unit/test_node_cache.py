@@ -70,7 +70,8 @@ class TestNodeCache(test_base.NodeTest):
                order_by(db.Attribute.name, db.Attribute.value).all())
         self.assertEqual([('bmc_address', '1.2.3.4', self.uuid),
                           ('mac', self.macs[0], self.uuid),
-                          ('mac', self.macs[1], self.uuid)],
+                          ('mac', self.macs[1], self.uuid),
+                          ('mac', self.macs[2], self.uuid)],
                          [(row.name, row.value, row.uuid) for row in res])
 
     def test__delete_node(self):

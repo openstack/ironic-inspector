@@ -249,7 +249,35 @@ class Test(Base):
         self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66')
+            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={})
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True)
+
+    def test_bmc_with_client_id(self):
+        self.pxe_mac = self.macs[2]
+        self.data['boot_interface'] = ('20-' + self.pxe_mac.replace(':', '-'))
+        self.pxe_iface_name = 'ib0'
+        self.pxe_interfaces = {
+            self.pxe_iface_name: self.all_interfaces[self.pxe_iface_name]
+        }
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False)
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.node.update)
+        self.cli.port.create.assert_called_once_with(
+            node_uuid=self.uuid, address=self.macs[2],
+            extra={'client-id': self.client_id})
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
@@ -279,7 +307,7 @@ class Test(Base):
         self.assertCalledWithPatch(self.patch + patch_credentials,
                                    self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66')
+            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={})
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
@@ -482,7 +510,7 @@ class Test(Base):
 
         self.assertCalledWithPatch(self.patch_root_hints, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66')
+            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={})
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
@@ -708,7 +736,7 @@ class Test(Base):
         self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66')
+            node_uuid=self.uuid, extra={}, address='11:22:33:44:55:66')
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)

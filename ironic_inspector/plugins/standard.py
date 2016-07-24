@@ -153,6 +153,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
             name = iface.get('name')
             mac = iface.get('mac_address')
             ip = iface.get('ipv4_address')
+            client_id = iface.get('client_id')
 
             if not name:
                 LOG.error(_LE('Malformed interface record: %s'),
@@ -173,10 +174,11 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
             mac = mac.lower()
 
-            LOG.debug('Found interface %(name)s with MAC "%(mac)s" and '
-                      'IP address "%(ip)s"',
-                      {'name': name, 'mac': mac, 'ip': ip}, data=data)
-            result[name] = {'ip': ip, 'mac': mac}
+            LOG.debug('Found interface %(name)s with MAC "%(mac)s", '
+                      'IP address "%(ip)s" and client_id "%(client_id)s"',
+                      {'name': name, 'mac': mac, 'ip': ip,
+                       'client_id': client_id}, data=data)
+            result[name] = {'ip': ip, 'mac': mac, 'client_id': client_id}
 
         return result
 
@@ -199,6 +201,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
         for name, iface in interfaces.items():
             mac = iface.get('mac')
             ip = iface.get('ip')
+            client_id = iface.get('client_id')
 
             if name == 'lo' or (ip and netaddr.IPAddress(ip).is_loopback()):
                 LOG.debug('Skipping local interface %s', name, data=data)
@@ -215,7 +218,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           name, data=data)
                 continue
 
-            result[name] = {'ip': ip, 'mac': mac.lower()}
+            result[name] = {'ip': ip, 'mac': mac.lower(),
+                            'client_id': client_id}
 
         if not result:
             raise utils.Error(_('No suitable interfaces found in %s') %

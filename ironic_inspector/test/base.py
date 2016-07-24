@@ -89,12 +89,21 @@ class InventoryTest(BaseTest):
         # Prepare some realistic inventory
         # https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst  # noqa
         self.bmc_address = '1.2.3.4'
-        self.macs = ['11:22:33:44:55:66', '66:55:44:33:22:11']
-        self.ips = ['1.2.1.2', '1.2.1.1']
+        self.macs = (
+            ['11:22:33:44:55:66', '66:55:44:33:22:11', '7c:fe:90:29:26:52'])
+        self.ips = ['1.2.1.2', '1.2.1.1', '1.2.1.3']
         self.inactive_mac = '12:12:21:12:21:12'
         self.pxe_mac = self.macs[0]
         self.all_macs = self.macs + [self.inactive_mac]
         self.pxe_iface_name = 'eth1'
+        self.client_id = (
+            'ff:00:00:00:00:00:02:00:00:02:c9:00:7c:fe:90:03:00:29:26:52')
+        self.valid_interfaces = {
+            self.pxe_iface_name: {'ip': self.ips[0], 'mac': self.macs[0],
+                                  'client_id': None},
+            'ib0': {'ip': self.ips[2], 'mac': self.macs[2],
+                    'client_id': self.client_id}
+        }
         self.data = {
             'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
             'inventory': {
@@ -104,6 +113,9 @@ class InventoryTest(BaseTest):
                     {'name': 'eth2', 'mac_address': self.inactive_mac},
                     {'name': 'eth3', 'mac_address': self.macs[1],
                      'ipv4_address': self.ips[1]},
+                    {'name': 'ib0', 'mac_address': self.macs[2],
+                     'ipv4_address': self.ips[2],
+                     'client_id': self.client_id}
                 ],
                 'disks': [
                     {'name': '/dev/sda', 'model': 'Big Data Disk',
@@ -123,16 +135,25 @@ class InventoryTest(BaseTest):
             'root_disk': {'name': '/dev/sda', 'model': 'Big Data Disk',
                           'size': 1000 * units.Gi,
                           'wwn': None},
+            'interfaces': self.valid_interfaces,
         }
         self.inventory = self.data['inventory']
         self.all_interfaces = {
-            'eth1': {'mac': self.macs[0], 'ip': self.ips[0]},
-            'eth2': {'mac': self.inactive_mac, 'ip': None},
-            'eth3': {'mac': self.macs[1], 'ip': self.ips[1]}
+            'eth1': {'mac': self.macs[0], 'ip': self.ips[0],
+                     'client_id': None},
+            'eth2': {'mac': self.inactive_mac, 'ip': None, 'client_id': None},
+            'eth3': {'mac': self.macs[1], 'ip': self.ips[1],
+                     'client_id': None},
+            'ib0': {'mac': self.macs[2], 'ip': self.ips[2],
+                    'client_id': self.client_id}
         }
         self.active_interfaces = {
-            'eth1': {'mac': self.macs[0], 'ip': self.ips[0]},
-            'eth3': {'mac': self.macs[1], 'ip': self.ips[1]}
+            'eth1': {'mac': self.macs[0], 'ip': self.ips[0],
+                     'client_id': None},
+            'eth3': {'mac': self.macs[1], 'ip': self.ips[1],
+                     'client_id': None},
+            'ib0': {'mac': self.macs[2], 'ip': self.ips[2],
+                    'client_id': self.client_id}
         }
         self.pxe_interfaces = {
             self.pxe_iface_name: self.all_interfaces[self.pxe_iface_name]

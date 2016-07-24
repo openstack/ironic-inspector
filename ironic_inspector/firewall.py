@@ -13,6 +13,7 @@
 
 import contextlib
 import os
+import re
 import subprocess
 
 from eventlet import semaphore
@@ -33,6 +34,7 @@ LOCK = semaphore.BoundedSemaphore()
 BASE_COMMAND = None
 BLACKLIST_CACHE = None
 ENABLED = True
+EMAC_REGEX = 'EMAC=([0-9a-f]{2}(:[0-9a-f]{2}){5}) IMAC=.*'
 
 
 def _iptables(*args, **kwargs):
@@ -177,15 +179,19 @@ def update_filters(ironic=None):
 
     assert INTERFACE is not None
     ironic = ir_utils.get_client() if ironic is None else ironic
-
     with LOCK:
         if not _should_enable_dhcp():
             _disable_dhcp()
             return
 
-        macs_active = set(p.address for p in ironic.port.list(limit=0))
+        ports_active = ironic.port.list(limit=0, fields=['address', 'extra'])
+        macs_active = set(p.address for p in ports_active)
         to_blacklist = macs_active - node_cache.active_macs()
-        if BLACKLIST_CACHE is not None and to_blacklist == BLACKLIST_CACHE:
+        ib_mac_mapping = (
+            _ib_mac_to_rmac_mapping(to_blacklist, ports_active))
+
+        if (BLACKLIST_CACHE is not None and
+                to_blacklist == BLACKLIST_CACHE and not ib_mac_mapping):
             LOG.debug('Not updating iptables - no changes in MAC list %s',
                       to_blacklist)
             return
@@ -197,6 +203,7 @@ def update_filters(ironic=None):
         with _temporary_chain(NEW_CHAIN, CHAIN):
             # - Blacklist active macs, so that nova can boot them
             for mac in to_blacklist:
+                mac = ib_mac_mapping.get(mac) or mac
                 _iptables('-A', NEW_CHAIN, '-m', 'mac',
                           '--mac-source', mac, '-j', 'DROP')
             # - Whitelist everything else
@@ -205,3 +212,48 @@ def update_filters(ironic=None):
         # Cache result of successful iptables update
         ENABLED = True
         BLACKLIST_CACHE = to_blacklist
+
+
+def _ib_mac_to_rmac_mapping(blacklist_macs, ports_active):
+    """Mapping between host InfiniBand MAC to EthernetOverInfiniBand MAC
+
+    On InfiniBand deployment we need to map between the baremetal host
+    InfiniBand MAC to the EoIB MAC. The EoIB MAC addresses are learned
+    automatically by the EoIB interfaces and those MACs are recorded
+    to the /sys/class/net/<ethoib_interface>/eth/neighs file.
+    The InfiniBand GUID is taken from the ironic port client-id extra
+    attribute. The InfiniBand GUID is the last 8 bytes of the client-id.
+    The file format allows to map the GUID to EoIB MAC. The firewall
+    rules based on those MACs get applied to the dnsmasq_interface by the
+    update_filters function.
+
+    :param blacklist_macs: List of InfiniBand baremetal hosts macs to
+                           blacklist.
+    :param ports_active: list of active ironic ports
+    :return baremetal InfiniBand to remote mac on ironic node mapping
+    """
+    ethoib_interfaces = CONF.firewall.ethoib_interfaces
+    ib_mac_to_remote_mac = {}
+    for interface in ethoib_interfaces:
+        neighs_file = (
+            os.path.join('/sys/class/net', interface, 'eth/neighs'))
+        try:
+            with open(neighs_file, 'r') as fd:
+                data = fd.read()
+        except IOError:
+            LOG.error(
+                _LE('Interface %s is not Ethernet Over InfiniBand; '
+                    'Skipping ...'), interface)
+            continue
+        for port in ports_active:
+            if port.address in blacklist_macs:
+                client_id = port.extra.get('client-id')
+                if client_id:
+                    # Note(moshele): The last 8 bytes in the client-id is
+                    # the baremetal node InfiniBand GUID
+                    guid = client_id[-23:]
+                    p = re.compile(EMAC_REGEX + guid)
+                    match = p.search(data)
+                    if match:
+                        ib_mac_to_remote_mac[port.address] = match.group(1)
+    return ib_mac_to_remote_mac
