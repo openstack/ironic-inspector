@@ -19,6 +19,7 @@ import jsonschema
 from oslo_db import exception as db_exc
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
+import six
 from sqlalchemy import orm
 
 from ironic_inspector.common.i18n import _, _LE, _LI
@@ -202,7 +203,7 @@ class IntrospectionRule(object):
             ext = ext_mgr[act.action].obj
             for formatted_param in ext.FORMATTED_PARAMS:
                 value = act.params.get(formatted_param)
-                if not value:
+                if not value or not isinstance(value, six.string_types):
                     continue
 
                 # NOTE(aarefiev): verify provided value with introspection
