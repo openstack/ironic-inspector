@@ -69,6 +69,10 @@ def get_test_conf_file():
     return TEST_CONF_FILE
 
 
+def get_error(response):
+    return response.json()['error']['message']
+
+
 class Base(base.NodeTest):
     ROOT_URL = 'http://127.0.0.1:5050'
     IS_FUNCTIONAL = True
@@ -115,7 +119,11 @@ class Base(base.NodeTest):
         if expect_error:
             self.assertEqual(expect_error, res.status_code)
         else:
-            res.raise_for_status()
+            if res.status_code >= 400:
+                msg = ('%(meth)s %(url)s failed with code %(code)s: %(msg)s' %
+                       {'meth': method.upper(), 'url': endpoint,
+                        'code': res.status_code, 'msg': get_error(res)})
+                raise AssertionError(msg)
         return res
 
     def call_introspect(self, uuid, new_ipmi_username=None,
