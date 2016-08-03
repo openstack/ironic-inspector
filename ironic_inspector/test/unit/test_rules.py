@@ -419,6 +419,20 @@ class TestApplyActions(BaseTest):
         self.assertRaises(utils.Error, self.rule.apply_actions,
                           self.node_info, data=self.data)
 
+    def test_apply_data_non_format_value(self, mock_ext_mgr):
+        self.rule = rules.create(actions_json=[
+            {'action': 'set-attribute',
+             'path': '/driver_info/ipmi_address',
+             'value': 1}],
+            conditions_json=self.conditions_json
+        )
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+
+        self.rule.apply_actions(self.node_info, data=self.data)
+
+        self.assertEqual(1, self.act_mock.apply.call_count)
+        self.assertFalse(self.act_mock.rollback.called)
+
     def test_rollback(self, mock_ext_mgr):
         mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
 
