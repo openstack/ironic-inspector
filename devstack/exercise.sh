@@ -73,7 +73,7 @@ function curl_ins {
     curl -f -H "X-Auth-Token: $token" -X $1 $args "http://127.0.0.1:5050/$2"
 }
 
-nodes=$(ironic node-list | tail -n +4 | head -n -1 | tr '|' ' ' | awk '{ print $1; }')
+nodes=$(openstack baremetal node list -f value -c UUID)
 if [ -z "$nodes" ]; then
     echo "No nodes found in Ironic"
     exit 1
@@ -81,10 +81,10 @@ fi
 
 for uuid in $nodes; do
     for p in cpus cpu_arch memory_mb local_gb; do
-        ironic node-update $uuid remove properties/$p > /dev/null || true
+        openstack baremetal node unset --property $p $uuid > /dev/null || true
     done
-    if ! ironic node-show $uuid | grep provision_state | grep -iq manageable; then
-        ironic node-set-provision-state $uuid manage
+    if [[ "$(openstack baremetal node show $uuid -f value -c provision_state)" != "manageable" ]]; then
+        openstack baremetal node manage $uuid
     fi
 done
 
@@ -92,7 +92,7 @@ openstack baremetal introspection rule purge
 openstack baremetal introspection rule import "$rules_file"
 
 for uuid in $nodes; do
-    ironic node-set-provision-state $uuid inspect
+    openstack baremetal node inspect $uuid
 done
 
 current_nodes=$nodes
@@ -139,12 +139,12 @@ function wait_for_provision_state {
     local max_attempts=${3:-6}
 
     for attempt in $(seq 1 $max_attempts); do
-        local current=$(ironic node-show $uuid |  grep ' provision_state ' | awk '{ print $4; }')
+        local current=$(openstack baremetal node show $uuid -f value -c provision_state)
 
         if [ "$current" != "$expected" ]; then
             if [ "$attempt" -eq "$max_attempts" ]; then
                 echo "Expected provision_state $expected, got $current:"
-                ironic node-show $uuid
+                openstack baremetal node show $uuid
                 exit 1
             fi
         else
@@ -186,7 +186,7 @@ for uuid in $nodes; do
     openstack service list | grep swift && test_swift
 
     wait_for_provision_state $uuid manageable
-    ironic node-set-provision-state $uuid provide
+    openstack baremetal node provide $uuid
 done
 
 # Cleaning kicks in here, we have to wait until it finishes (~ 2 minutes)
@@ -197,11 +197,11 @@ done
 echo "Wait until nova becomes aware of bare metal instances"
 
 for attempt in {1..24}; do
-    if [ $(nova hypervisor-stats | grep ' vcpus ' | head -n1 | awk '{ print $4; }') -ge $expected_cpus ]; then
+    if [ $(openstack hypervisor stats show -f value -c vcpus) -ge $expected_cpus ]; then
         break
     elif [ "$attempt" -eq 24 ]; then
         echo "Timeout while waiting for nova hypervisor-stats, current:"
-        nova hypervisor-stats
+        openstack hypervisor stats show
         exit 1
     fi
     sleep 5
@@ -210,7 +210,8 @@ done
 echo "Try nova boot for one instance"
 
 image=$(openstack image list --property disk_format=ami -f value -c ID | head -n1)
-net_id=$(neutron net-list | egrep "$PRIVATE_NETWORK_NAME"'[^-]' | awk '{ print $2 }')
+net_id=$(openstack network show "$PRIVATE_NETWORK_NAME" -f value -c id)
+# TODO(vsaienko) replace by openstack create with --wait flag
 uuid=$(nova boot --flavor baremetal --nic net-id=$net_id --image $image testing | grep " id " | awk '{ print $4 }')
 
 for attempt in {1..30}; do
@@ -218,8 +219,8 @@ for attempt in {1..30}; do
     if [ "$status" = "ERROR" ]; then
         echo "Instance failed to boot"
         # Some debug output
-        nova show $uuid
-        nova hypervisor-stats
+        openstack server show $uuid
+        openstack hypervisor stats show
         exit 1
     elif [ "$status" != "ACTIVE" ]; then
         if [ "$attempt" -eq 30 ]; then
@@ -232,6 +233,6 @@ for attempt in {1..30}; do
     sleep 30
 done
 
-nova delete $uuid
+openstack server delete $uuid
 
 echo "Validation passed"
