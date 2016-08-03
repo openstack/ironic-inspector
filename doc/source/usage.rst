@@ -199,6 +199,12 @@ needed:
 ``capabilities``
     detect node capabilities: CPU, boot mode, etc. See `Capabilities
     Detection`_ for more details.
+``pci_devices``
+    gathers the list of all PCI devices returned by the ramdisk and compares to
+    those defined in ``alias`` field(s) from ``pci_devices`` section of
+    configuration file. The recognized PCI devices and their count are then
+    stored in node properties. This information can be later used in nova
+    flavors for node scheduling.
 
 Here are some plugins that can be additionally enabled:
 
