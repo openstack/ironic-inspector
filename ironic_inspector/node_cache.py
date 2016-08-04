@@ -227,12 +227,15 @@ class NodeInfo(object):
 
         A warning is issued if port already exists on a node.
         """
+        existing_macs = []
         for mac in macs:
             if mac not in self.ports():
                 self._create_port(mac)
             else:
-                LOG.warning(_LW('Port %s already exists, skipping'),
-                            mac, node_info=self)
+                existing_macs.append(mac)
+        if existing_macs:
+            LOG.warning(_LW('Did not create ports %s as they already exist'),
+                        existing_macs, node_info=self)
 
     def ports(self):
         """Get Ironic port objects associated with the cached node record.
