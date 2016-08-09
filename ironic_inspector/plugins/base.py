@@ -149,6 +149,12 @@ _CONDITIONS_MGR = None
 _ACTIONS_MGR = None
 
 
+def missing_entrypoints_callback(names):
+    """Raise MissingHookError with comma-separated list of missing hooks"""
+    missing_names = ', '.join(names)
+    raise MissingHookError(missing_names)
+
+
 def processing_hooks_manager(*args):
     """Create a Stevedore extension manager for processing hooks.
 
@@ -164,6 +170,7 @@ def processing_hooks_manager(*args):
             names=names,
             invoke_on_load=True,
             invoke_args=args,
+            on_missing_entrypoints_callback=missing_entrypoints_callback,
             name_order=True)
     return _HOOKS_MGR
 
@@ -204,3 +211,7 @@ def rule_actions_manager():
                                 'actions is deprecated (action "%s")'),
                             act.name)
     return _ACTIONS_MGR
+
+
+class MissingHookError(KeyError):
+    """Exception when hook is not found when processing it."""
