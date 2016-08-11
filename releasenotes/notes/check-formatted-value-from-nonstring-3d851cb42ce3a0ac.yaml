@@ -1,5 +1,5 @@
 ---
 fixes:
-   This fixes setting non string 'value' field for rule's
-   actions. As non string value is obviously not a formatted
-   value, this adds a check to avoid AttributeError exception.
+  - Fix setting non string 'value' field for rule's actions. As
+    non string value is obviously not a formatted value, add the
+    check to avoid AttributeError exception.
