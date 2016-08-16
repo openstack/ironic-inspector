@@ -45,8 +45,11 @@ BaremetalIntrospectionGroup = [
                default=300,
                help="Time out for wait until nova becomes aware of "
                     "bare metal instances"),
+    # NOTE(aarefiev): status_check_period default is 60s, but checking
+    # node state takes some time(API call), so races appear here,
+    # 80s would be enough to make one more check.
     cfg.IntOpt('ironic_sync_timeout',
-               default=60,
+               default=80,
                help="Time it might take for Ironic--Inspector "
                     "sync to happen"),
 ]
