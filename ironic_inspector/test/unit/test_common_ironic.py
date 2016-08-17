@@ -75,7 +75,7 @@ class TestGetIpmiAddress(base.BaseTest):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': '192.168.1.1'})
         ip = ir_utils.get_ipmi_address(node)
-        self.assertEqual(ip, '192.168.1.1')
+        self.assertEqual('192.168.1.1', ip)
 
     @mock.patch('socket.gethostbyname')
     def test_good_hostname_resolves(self, mock_socket):
@@ -84,7 +84,7 @@ class TestGetIpmiAddress(base.BaseTest):
         mock_socket.return_value = '192.168.1.1'
         ip = ir_utils.get_ipmi_address(node)
         mock_socket.assert_called_once_with('www.example.com')
-        self.assertEqual(ip, '192.168.1.1')
+        self.assertEqual('192.168.1.1', ip)
 
     @mock.patch('socket.gethostbyname')
     def test_bad_hostname_errors(self, mock_socket):
@@ -101,7 +101,7 @@ class TestGetIpmiAddress(base.BaseTest):
 
         self.cfg.config(ipmi_address_fields=['foo', 'bar', 'baz'])
         ip = ir_utils.get_ipmi_address(node)
-        self.assertEqual(ip, '192.168.1.1')
+        self.assertEqual('192.168.1.1', ip)
 
     def test_ipmi_bridging_enabled(self):
         node = mock.Mock(spec=['driver_info', 'uuid'],

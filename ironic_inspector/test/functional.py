@@ -380,7 +380,7 @@ class Test(Base):
         res = self.call_abort_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.assertEqual(res.status_code, 202)
+        self.assertEqual(202, res.status_code)
         status = self.call_get_status(self.uuid)
         self.assertTrue(status['finished'])
         self.assertEqual('Canceled by operator', status['error'])
