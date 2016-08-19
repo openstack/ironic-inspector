@@ -489,4 +489,4 @@ def mocked_server():
 
 if __name__ == '__main__':
     with mocked_server():
-        unittest.main()
+        unittest.main(verbosity=2)
