@@ -21,6 +21,7 @@ from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 import pytz
 
+from ironicclient.v1 import node
 from ironic_inspector.common.i18n import _, _LE
 from ironic_inspector import conf  # noqa
 
@@ -49,7 +50,7 @@ def processing_logger_prefix(data=None, node_info=None):
     """Calculate prefix for logging.
 
     Tries to use:
-    * node UUID,
+    * node UUID, node._state
     * node PXE MAC,
     * node BMC address
 
@@ -62,7 +63,10 @@ def processing_logger_prefix(data=None, node_info=None):
     data = data or {}
 
     if node_info is not None:
-        parts.append(str(node_info.uuid))
+        if isinstance(node_info, node.Node):
+            parts.append(str(node_info.uuid))
+        else:
+            parts.append(str(node_info))
 
     pxe_mac = get_pxe_mac(data)
     if pxe_mac:
@@ -113,9 +117,22 @@ class Error(Exception):
 class NotFoundInCacheError(Error):
     """Exception when node was not found in cache during processing."""
 
-    def __init__(self, msg, code=404):
+    def __init__(self, msg, code=404, **kwargs):
         super(NotFoundInCacheError, self).__init__(msg, code,
-                                                   log_level='info')
+                                                   log_level='info', **kwargs)
+
+
+class NodeStateRaceCondition(Error):
+    """State mismatch between the DB and a node_info."""
+    def __init__(self, *args, **kwargs):
+        message = _('Node state mismatch detected between the DB and the '
+                    'cached node_info object')
+        kwargs.setdefault('code', 500)
+        super(NodeStateRaceCondition, self).__init__(message, *args, **kwargs)
+
+
+class NodeStateInvalidEvent(Error):
+    """Invalid event attempted."""
 
 
 def executor():

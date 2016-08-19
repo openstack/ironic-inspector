@@ -20,6 +20,7 @@ from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.test import base as test_base
 
@@ -95,7 +96,8 @@ class TestFirewall(test_base.NodeTest):
     def test_update_filters_args(self, mock_call, mock_get_client,
                                  mock_iptables):
         # Pretend that we have nodes on introspection
-        node_cache.add_node(self.node.uuid, bmc_address='1.2.3.4')
+        node_cache.add_node(self.node.uuid, state=istate.States.waiting,
+                            bmc_address='1.2.3.4')
 
         firewall.init()
 
@@ -162,6 +164,7 @@ class TestFirewall(test_base.NodeTest):
         self.ports = [mock.Mock(address=m) for m in self.macs]
         mock_get_client.port.list.return_value = self.ports
         node_cache.add_node(self.node.uuid, mac=active_macs,
+                            state=istate.States.finished,
                             bmc_address='1.2.3.4', foo=None)
         firewall.init()
 
@@ -211,6 +214,7 @@ class TestFirewall(test_base.NodeTest):
         self.ports = [mock.Mock(address=m) for m in self.macs]
         mock_get_client.port.list.return_value = self.ports
         node_cache.add_node(self.node.uuid, mac=active_macs,
+                            state=istate.States.finished,
                             bmc_address='1.2.3.4', foo=None)
         firewall.init()
 
@@ -330,7 +334,8 @@ class TestFirewall(test_base.NodeTest):
 
         # Adding a node changes it back
 
-        node_cache.add_node(self.node.uuid, bmc_address='1.2.3.4')
+        node_cache.add_node(self.node.uuid, state=istate.States.starting,
+                            bmc_address='1.2.3.4')
         mock_iptables.reset_mock()
         firewall.update_filters()
 

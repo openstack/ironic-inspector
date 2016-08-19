@@ -34,11 +34,13 @@ from oslo_db.sqlalchemy import test_base
 from oslo_db.sqlalchemy import test_migrations
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_log import log as logging
+from oslo_utils import uuidutils
 import sqlalchemy
 
 from ironic_inspector.common.i18n import _LE
 from ironic_inspector import db
 from ironic_inspector import dbsync
+from ironic_inspector import introspection_state as istate
 from ironic_inspector.test import base
 
 CONF = cfg.CONF
@@ -313,6 +315,54 @@ class MigrationCheckersMixin(object):
         conds = rule_conditions.select(
             rule_conditions.c.id == 2).execute().first()
         self.assertTrue(conds['invert'])
+
+    def _pre_upgrade_d2e48801c8ef(self, engine):
+        ok_node_id = uuidutils.generate_uuid()
+        err_node_id = uuidutils.generate_uuid()
+        data = [
+            {
+                'uuid': ok_node_id,
+                'error': None,
+                'finished_at': 0.0,
+                'started_at': 0.0
+            },
+            {
+                'uuid': err_node_id,
+                'error': 'Oops!',
+                'finished_at': 0.0,
+                'started_at': 0.0
+            }
+        ]
+        nodes = db_utils.get_table(engine, 'nodes')
+        for node in data:
+            nodes.insert().execute(node)
+        return {'err_node_id': err_node_id, 'ok_node_id': ok_node_id}
+
+    def _check_d2e48801c8ef(self, engine, data):
+        nodes = db_utils.get_table(engine, 'nodes')
+        col_names = [column.name for column in nodes.c]
+        self.assertIn('uuid', col_names)
+        self.assertIsInstance(nodes.c.uuid.type, sqlalchemy.types.String)
+        self.assertIn('version_id', col_names)
+        self.assertIsInstance(nodes.c.version_id.type, sqlalchemy.types.String)
+        self.assertIn('state', col_names)
+        self.assertIsInstance(nodes.c.state.type, sqlalchemy.types.String)
+        self.assertIn('started_at', col_names)
+        self.assertIsInstance(nodes.c.started_at.type, sqlalchemy.types.Float)
+        self.assertIn('finished_at', col_names)
+        self.assertIsInstance(nodes.c.started_at.type, sqlalchemy.types.Float)
+        self.assertIn('error', col_names)
+        self.assertIsInstance(nodes.c.error.type, sqlalchemy.types.Text)
+
+        ok_node_id = data['ok_node_id']
+        err_node_id = data['err_node_id']
+        # assert the ok node is in the (default) finished state
+        ok_node = nodes.select(nodes.c.uuid == ok_node_id).execute().first()
+        self.assertEqual(istate.States.finished, ok_node['state'])
+        # assert err node state is error after the migration
+        # even though the default state is finished
+        err_node = nodes.select(nodes.c.uuid == err_node_id).execute().first()
+        self.assertEqual(istate.States.error, err_node['state'])
 
     def test_upgrade_and_version(self):
         with patch_with_engine(self.engine):

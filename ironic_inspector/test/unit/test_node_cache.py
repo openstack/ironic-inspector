@@ -13,15 +13,19 @@
 
 import copy
 import json
+import six
 import time
 import unittest
 
+import automaton
 import mock
 from oslo_config import cfg
+import oslo_db
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
@@ -35,14 +39,18 @@ class TestNodeCache(test_base.NodeTest):
         uuid2 = uuidutils.generate_uuid()
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.node.uuid).save(session)
-            db.Node(uuid=uuid2).save(session)
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.starting).save(session)
+            db.Node(uuid=uuid2,
+                    state=istate.States.starting).save(session)
             db.Attribute(name='mac',
                          value='11:22:11:22:11:22',
                          uuid=self.uuid).save(session)
 
-        node = node_cache.add_node(self.node.uuid, mac=self.macs,
-                                   bmc_address='1.2.3.4', foo=None)
+        node = node_cache.add_node(self.node.uuid,
+                                   istate.States.starting,
+                                   mac=self.macs, bmc_address='1.2.3.4',
+                                   foo=None)
         self.assertEqual(self.uuid, node.uuid)
         self.assertTrue(time.time() - 60 < node.started_at < time.time() + 60)
         self.assertFalse(node._locked)
@@ -64,7 +72,8 @@ class TestNodeCache(test_base.NodeTest):
     def test__delete_node(self):
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.finished).save(session)
             db.Attribute(name='mac', value='11:22:11:22:11:22',
                          uuid=self.uuid).save(session)
             data = {'s': 'value', 'b': True, 'i': 42}
@@ -104,17 +113,21 @@ class TestNodeCache(test_base.NodeTest):
         session = db.get_session()
         uuid = uuidutils.generate_uuid()
         with session.begin():
-            db.Node(uuid=uuid).save(session)
+            db.Node(uuid=uuid,
+                    state=istate.States.starting).save(session)
             db.Attribute(name='mac', value='11:22:11:22:11:22',
                          uuid=uuid).save(session)
         self.assertRaises(utils.Error,
                           node_cache.add_node,
-                          self.node.uuid, mac=['11:22:11:22:11:22'])
+                          self.node.uuid,
+                          istate.States.starting,
+                          mac=['11:22:11:22:11:22'])
 
     def test_active_macs(self):
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.starting).save(session)
             values = [('mac', '11:22:11:22:11:22', self.uuid),
                       ('mac', '22:11:22:11:22:11', self.uuid)]
             for value in values:
@@ -127,8 +140,10 @@ class TestNodeCache(test_base.NodeTest):
         session = db.get_session()
         uuid2 = uuidutils.generate_uuid()
         with session.begin():
-            db.Node(uuid=self.node.uuid).save(session)
-            db.Node(uuid=uuid2).save(session)
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.starting).save(session)
+            db.Node(uuid=uuid2,
+                    state=istate.States.starting).save(session)
 
         node_uuid_list = node_cache._list_node_uuids()
         self.assertEqual({self.uuid, uuid2}, node_uuid_list)
@@ -136,7 +151,8 @@ class TestNodeCache(test_base.NodeTest):
     def test_add_attribute(self):
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.node.uuid).save(session)
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.starting).save(session)
         node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
         node_info.add_attribute('key', 'value')
         res = db.model_query(db.Attribute.name,
@@ -153,6 +169,7 @@ class TestNodeCache(test_base.NodeTest):
 
     def test_attributes(self):
         node_info = node_cache.add_node(self.uuid,
+                                        istate.States.starting,
                                         bmc_address='1.2.3.4',
                                         mac=self.macs)
         self.assertEqual({'bmc_address': ['1.2.3.4'],
@@ -177,6 +194,7 @@ class TestNodeCacheFind(test_base.NodeTest):
         super(TestNodeCacheFind, self).setUp()
         self.macs2 = ['00:00:00:00:00:00']
         node_cache.add_node(self.uuid,
+                            istate.States.starting,
                             bmc_address='1.2.3.4',
                             mac=self.macs)
 
@@ -202,7 +220,9 @@ class TestNodeCacheFind(test_base.NodeTest):
                                '66:66:44:33:22:11'])
 
     def test_macs_multiple_found(self):
-        node_cache.add_node('uuid2', mac=self.macs2)
+        node_cache.add_node('uuid2',
+                            istate.States.starting,
+                            mac=self.macs2)
         self.assertRaises(utils.Error, node_cache.find_node,
                           mac=[self.macs[0], self.macs2[0]])
 
@@ -236,7 +256,9 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.started_at = 100.0
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.uuid, started_at=self.started_at).save(
+            db.Node(uuid=self.uuid,
+                    state=istate.States.waiting,
+                    started_at=self.started_at).save(
                 session)
             for v in self.macs:
                 db.Attribute(name='mac', value=v, uuid=self.uuid).save(
@@ -279,17 +301,22 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         time_mock.return_value = self.started_at
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.uuid + '1', started_at=self.started_at,
+            db.Node(uuid=self.uuid + '1',
+                    state=istate.States.waiting,
+                    started_at=self.started_at,
                     finished_at=self.started_at + 60).save(session)
         CONF.set_override('timeout', 99)
         time_mock.return_value = (self.started_at + 100)
 
         self.assertEqual([self.uuid], node_cache.clean_up())
 
-        res = [(row.finished_at, row.error) for row in
+        res = [(row.state, row.finished_at, row.error) for row in
                db.model_query(db.Node).all()]
-        self.assertEqual([(self.started_at + 100, 'Introspection timeout'),
-                          (self.started_at + 60, None)],
+        self.assertEqual([(istate.States.error,
+                           self.started_at + 100,
+                           'Introspection timeout'),
+                          (istate.States.waiting,
+                           self.started_at + 60, None)],
                          res)
         self.assertEqual([], db.model_query(db.Attribute).all())
         self.assertEqual([], db.model_query(db.Option).all())
@@ -313,7 +340,9 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         started_at = time.time() - 42
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.uuid, started_at=started_at).save(session)
+            db.Node(uuid=self.uuid,
+                    state=istate.States.starting,
+                    started_at=started_at).save(session)
         info = node_cache.get_node(self.uuid)
 
         self.assertEqual(self.uuid, info.uuid)
@@ -326,7 +355,9 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         started_at = time.time() - 42
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.uuid, started_at=started_at).save(session)
+            db.Node(uuid=self.uuid,
+                    state=istate.States.starting,
+                    started_at=started_at).save(session)
         info = node_cache.get_node(self.uuid, locked=True)
 
         self.assertEqual(self.uuid, info.uuid)
@@ -343,7 +374,9 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         started_at = time.time() - 42
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.uuid, started_at=started_at).save(session)
+            db.Node(uuid=self.uuid,
+                    state=istate.States.starting,
+                    started_at=started_at).save(session)
         ironic = mock.Mock()
         ironic.node.get.return_value = self.node
 
@@ -362,6 +395,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
     def setUp(self):
         super(TestNodeInfoFinished, self).setUp()
         node_cache.add_node(self.uuid,
+                            istate.States.processing,
                             bmc_address='1.2.3.4',
                             mac=self.macs)
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
@@ -403,6 +437,7 @@ class TestNodeInfoOptions(test_base.NodeTest):
     def setUp(self):
         super(TestNodeInfoOptions, self).setUp()
         node_cache.add_node(self.uuid,
+                            istate.States.starting,
                             bmc_address='1.2.3.4',
                             mac=self.macs)
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
@@ -700,8 +735,10 @@ class TestNodeCreate(test_base.NodeTest):
         node_cache.create_node('fake')
 
         self.mock_client.node.create.assert_called_once_with(driver='fake')
-        mock_add_node.assert_called_once_with(self.node.uuid,
-                                              ironic=self.mock_client)
+        mock_add_node.assert_called_once_with(
+            self.node.uuid,
+            istate.States.enrolling,
+            ironic=self.mock_client)
 
     def test_create_with_args(self, mock_get_client, mock_add_node):
         mock_get_client.return_value = self.mock_client
@@ -712,8 +749,10 @@ class TestNodeCreate(test_base.NodeTest):
         self.assertFalse(mock_get_client.called)
         self.mock_client.node.create.assert_called_once_with(
             driver='agent_ipmitool')
-        mock_add_node.assert_called_once_with(self.node.uuid,
-                                              ironic=self.mock_client)
+        mock_add_node.assert_called_once_with(
+            self.node.uuid,
+            istate.States.enrolling,
+            ironic=self.mock_client)
 
     def test_create_client_error(self, mock_get_client, mock_add_node):
         mock_get_client.return_value = self.mock_client
@@ -758,3 +797,311 @@ class TestNodeCacheListNode(test_base.NodeTest):
     def test_list_node_wrong_marker(self):
         self.assertRaises(utils.Error, node_cache.get_node_list,
                           marker='foo-bar')
+
+
+class TestNodeInfoVersionId(test_base.NodeStateTest):
+    def test_get(self):
+        self.node_info._version_id = None
+        self.assertEqual(self.db_node.version_id, self.node_info.version_id)
+
+    def test_get_missing_uuid(self):
+        self.node_info.uuid = 'foo'
+        self.node_info._version_id = None
+
+        def func():
+            return self.node_info.version_id
+
+        six.assertRaisesRegex(self, utils.NotFoundInCacheError, '.*', func)
+
+    def test_set(self):
+        with db.ensure_transaction() as session:
+            self.node_info._set_version_id(uuidutils.generate_uuid(),
+                                           session)
+        row = db.model_query(db.Node).get(self.node_info.uuid)
+        self.assertEqual(self.node_info.version_id, row.version_id)
+
+    def test_set_race(self):
+        with db.ensure_transaction() as session:
+            row = db.model_query(db.Node, session=session).get(
+                self.node_info.uuid)
+            row.update({'version_id': uuidutils.generate_uuid()})
+            row.save(session)
+
+        six.assertRaisesRegex(self, utils.NodeStateRaceCondition,
+                              'Node state mismatch', self.node_info._set_state,
+                              istate.States.finished)
+
+
+class TestNodeInfoState(test_base.NodeStateTest):
+    def test_get(self):
+        self.node_info._state = None
+        self.assertEqual(self.db_node.state, self.node_info.state)
+
+    def test_set(self):
+        self.node_info._set_state(istate.States.finished)
+        row = db.model_query(db.Node).get(self.node_info.uuid)
+        self.assertEqual(self.node_info.state, row.state)
+
+    def test_set_invalid_state(self):
+        six.assertRaisesRegex(self, oslo_db.exception.DBError,
+                              'CHECK constraint failed',
+                              self.node_info._set_state, 'foo')
+
+    def test_commit(self):
+        current_time = time.time()
+        self.node_info.started_at = self.node_info.finished_at = current_time
+        self.node_info.error = "Boo!"
+        self.node_info.commit()
+
+        row = db.model_query(db.Node).get(self.node_info.uuid)
+        self.assertEqual(self.node_info.started_at, row.started_at)
+        self.assertEqual(self.node_info.finished_at, row.finished_at)
+        self.assertEqual(self.node_info.error, row.error)
+
+
+class TestNodeInfoStateFsm(test_base.NodeStateTest):
+    def test__get_fsm(self):
+        self.node_info._fsm = None
+        fsm = self.node_info._get_fsm()
+        self.assertEqual(self.node_info.state, fsm.current_state)
+
+    def test__get_fsm_invalid_state(self):
+        self.node_info._fsm = None
+        self.node_info._state = 'foo'
+        six.assertRaisesRegex(self, automaton.exceptions.NotFound,
+                              '.*undefined state.*',
+                              self.node_info._get_fsm)
+
+    def test__fsm_ctx_set_state(self):
+        with self.node_info._fsm_ctx() as fsm:
+            fsm.process_event(istate.Events.wait)
+            self.assertEqual(self.node_info.state, istate.States.starting)
+        self.assertEqual(self.node_info.state, istate.States.waiting)
+
+    def test__fsm_ctx_set_same_state(self):
+        version_id = self.node_info.version_id
+        with self.node_info._fsm_ctx() as fsm:
+            fsm.initialize(self.node_info.state)
+        self.assertEqual(version_id, self.node_info.version_id)
+
+    def test__fsm_ctx_illegal_event(self):
+        with self.node_info._fsm_ctx() as fsm:
+            six.assertRaisesRegex(self, automaton.exceptions.NotFound,
+                                  'no defined transition', fsm.process_event,
+                                  istate.Events.finish)
+        self.assertEqual(self.node_info.state, istate.States.starting)
+
+    def test__fsm_ctx_generic_exception(self):
+        class CustomException(Exception):
+            pass
+
+        def func(fsm):
+            fsm.process_event(istate.Events.wait)
+            raise CustomException('Oops')
+
+        with self.node_info._fsm_ctx() as fsm:
+            self.assertRaises(CustomException, func, fsm)
+        self.assertEqual(self.node_info.state, istate.States.waiting)
+
+    def test_fsm_event(self):
+        self.node_info.fsm_event(istate.Events.wait)
+        self.assertEqual(self.node_info.state, istate.States.waiting)
+
+    def test_fsm_illegal_event(self):
+        six.assertRaisesRegex(self, utils.NodeStateInvalidEvent,
+                              'no defined transition',
+                              self.node_info.fsm_event, istate.Events.finish)
+        self.assertEqual(self.node_info.state, istate.States.starting)
+
+    def test_fsm_illegal_strict_event(self):
+        six.assertRaisesRegex(self, utils.NodeStateInvalidEvent,
+                              'no defined transition',
+                              self.node_info.fsm_event,
+                              istate.Events.finish, strict=True)
+        self.assertIn('no defined transition', self.node_info.error)
+        self.assertEqual(self.node_info.state, istate.States.error)
+
+
+class TestFsmEvent(test_base.NodeStateTest):
+    def test_event_before(self):
+        @node_cache.fsm_event_before(istate.Events.wait)
+        def function(node_info):
+            self.assertEqual(node_info.state, istate.States.waiting)
+            node_info.fsm_event(istate.Events.process)
+
+        function(self.node_info)
+        self.assertEqual(self.node_info.state, istate.States.processing)
+
+    def test_event_after(self):
+        @node_cache.fsm_event_after(istate.Events.process)
+        def function(node_info):
+            node_info.fsm_event(istate.Events.wait)
+            self.assertEqual(node_info.state, istate.States.waiting)
+
+        function(self.node_info)
+        self.assertEqual(self.node_info.state, istate.States.processing)
+
+    @mock.patch.object(node_cache, 'LOG', autospec=True)
+    def test_triggers_fsm_error_transition_no_errors(self, log_mock):
+        class CustomException(Exception):
+            pass
+
+        @node_cache.triggers_fsm_error_transition(no_errors=(CustomException,))
+        def function(node_info):
+            self.assertEqual(node_info.state, istate.States.starting)
+            raise CustomException('Oops')
+
+        function(self.node_info)
+        log_msg = ('Not processing error event for the exception: '
+                   '%(exc)s raised by %(func)s')
+        log_mock.debug.assert_called_with(log_msg, mock.ANY,
+                                          node_info=mock.ANY)
+        self.assertEqual(self.node_info.state, istate.States.starting)
+
+    def test_triggers_fsm_error_transition_no_errors_empty(self):
+        class CustomException(Exception):
+            pass
+
+        @node_cache.triggers_fsm_error_transition(no_errors=())
+        def function(node_info):
+            self.assertEqual(node_info.state, istate.States.starting)
+            raise CustomException('Oops!')
+
+        # assert an error event was performed
+        self.assertRaises(CustomException, function, self.node_info)
+        self.assertEqual(self.node_info.state, istate.States.error)
+
+    def test_triggers_fsm_error_transition_no_errors_with_error(self):
+        class CustomException(Exception):
+            pass
+
+        @node_cache.triggers_fsm_error_transition(errors=(CustomException,))
+        def function(node_info):
+            self.assertEqual(node_info.state, istate.States.starting)
+            raise CustomException('Oops')
+
+        # assert a generic error triggers an error event
+        self.assertRaises(CustomException, function, self.node_info)
+        self.assertEqual(self.node_info.state, istate.States.error)
+
+    def test_triggers_fsm_error_transition_erros_masked(self):
+        class CustomException(Exception):
+            pass
+
+        @node_cache.triggers_fsm_error_transition(errors=())
+        def function(node_info):
+            self.assertEqual(node_info.state, istate.States.starting)
+            raise CustomException('Oops')
+
+        # assert no error event was triggered
+        self.assertRaises(CustomException, function, self.node_info)
+        self.assertEqual(self.node_info.state, istate.States.starting)
+
+    def test_unlock(self):
+        @node_cache.release_lock
+        def func(node_info):
+            self.assertTrue(node_info._locked)
+
+        self.node_info.acquire_lock(blocking=True)
+        with mock.patch.object(self.node_info, 'release_lock',
+                               autospec=True) as release_lock_mock:
+            func(self.node_info)
+        release_lock_mock.assert_called_once_with()
+
+    def test_unlock_unlocked(self):
+        @node_cache.release_lock
+        def func(node_info):
+            self.assertFalse(node_info._locked)
+
+        self.node_info.release_lock()
+        with mock.patch.object(self.node_info, 'release_lock',
+                               autospec=True) as release_lock_mock:
+            func(self.node_info)
+        self.assertEqual(0, release_lock_mock.call_count)
+
+    @mock.patch.object(node_cache, 'triggers_fsm_error_transition',
+                       autospec=True)
+    @mock.patch.object(node_cache, 'fsm_event_after', autospec=True)
+    def test_fsm_transition(self, fsm_event_after_mock, trigger_mock):
+        @node_cache.fsm_transition(istate.Events.finish)
+        def func():
+            pass
+        fsm_event_after_mock.assert_called_once_with(istate.Events.finish)
+        trigger_mock.assert_called_once_with()
+
+    @mock.patch.object(node_cache, 'triggers_fsm_error_transition',
+                       autospec=True)
+    @mock.patch.object(node_cache, 'fsm_event_before', autospec=True)
+    def test_nonreentrant_fsm_transition(self, fsm_event_before_mock,
+                                         trigger_mock):
+        @node_cache.fsm_transition(istate.Events.abort, reentrant=False)
+        def func():
+            pass
+        fsm_event_before_mock.assert_called_once_with(istate.Events.abort,
+                                                      strict=True)
+        trigger_mock.assert_called_once_with()
+
+
+@mock.patch.object(node_cache, 'add_node', autospec=True)
+@mock.patch.object(node_cache, 'NodeInfo', autospec=True)
+class TestStartIntrospection(test_base.NodeTest):
+    def prepare_mocks(fn):
+        @six.wraps(fn)
+        def inner(self, NodeMock, *args):
+            method_mock = mock.Mock()
+            NodeMock.return_value = self.node_info
+            self.node_info.fsm_event = method_mock
+            fn(self, method_mock, *args)
+            method_mock.assert_called_once_with(istate.Events.start)
+        return inner
+
+    @prepare_mocks
+    def test_node_in_db_ok_state(self, fsm_event_mock, add_node_mock):
+        def side_effect(*args):
+            self.node_info._state = 'foo'
+
+        fsm_event_mock.side_effect = side_effect
+        node_cache.start_introspection(self.node.uuid)
+        add_node_mock.assert_called_once_with(self.node_info.uuid, 'foo')
+
+    @prepare_mocks
+    def test_node_in_db_invalid_state(self, fsm_event_mock, add_node_mock):
+        fsm_event_mock.side_effect = utils.NodeStateInvalidEvent('Oops!')
+        six.assertRaisesRegex(self, utils.NodeStateInvalidEvent, 'Oops!',
+                              node_cache.start_introspection,
+                              self.node_info.uuid)
+        self.assertFalse(add_node_mock.called)
+
+    @prepare_mocks
+    def test_node_in_db_race_condition(self, fsm_event_mock, add_node_mock):
+        fsm_event_mock.side_effect = utils.NodeStateRaceCondition()
+        six.assertRaisesRegex(self, utils.NodeStateRaceCondition, '.*',
+                              node_cache.start_introspection,
+                              self.node_info.uuid)
+        self.assertFalse(add_node_mock.called)
+
+    @prepare_mocks
+    def test_error_fsm_event(self, fsm_event_mock, add_node_mock):
+        fsm_event_mock.side_effect = utils.Error('Oops!')
+        six.assertRaisesRegex(self, utils.Error, 'Oops!',
+                              node_cache.start_introspection,
+                              self.node_info.uuid)
+        self.assertFalse(add_node_mock.called)
+
+    @prepare_mocks
+    def test_node_not_in_db(self, fsm_event_mock, add_node_mock):
+        fsm_event_mock.side_effect = utils.NotFoundInCacheError('Oops!')
+        node_cache.start_introspection(self.node_info.uuid)
+        add_node_mock.assert_called_once_with(self.node_info.uuid,
+                                              istate.States.starting)
+
+    @prepare_mocks
+    def test_custom_exc_fsm_event(self, fsm_event_mock, add_node_mock):
+        class CustomError(Exception):
+            pass
+
+        fsm_event_mock.side_effect = CustomError('Oops!')
+        six.assertRaisesRegex(self, CustomError, 'Oops!',
+                              node_cache.start_introspection,
+                              self.node_info.uuid)
+        self.assertFalse(add_node_mock.called)
