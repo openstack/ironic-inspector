@@ -127,41 +127,41 @@ class Base(base.NodeTest):
         return res
 
     def call_introspect(self, uuid, new_ipmi_username=None,
-                        new_ipmi_password=None):
+                        new_ipmi_password=None, **kwargs):
         endpoint = '/v1/introspection/%s' % uuid
         if new_ipmi_password:
             endpoint += '?new_ipmi_password=%s' % new_ipmi_password
             if new_ipmi_username:
                 endpoint += '&new_ipmi_username=%s' % new_ipmi_username
-        return self.call('post', endpoint)
+        return self.call('post', endpoint, **kwargs)
 
-    def call_get_status(self, uuid):
-        return self.call('get', '/v1/introspection/%s' % uuid).json()
+    def call_get_status(self, uuid, **kwargs):
+        return self.call('get', '/v1/introspection/%s' % uuid, **kwargs).json()
 
-    def call_abort_introspect(self, uuid):
-        return self.call('post', '/v1/introspection/%s/abort' % uuid)
+    def call_abort_introspect(self, uuid, **kwargs):
+        return self.call('post', '/v1/introspection/%s/abort' % uuid, **kwargs)
 
-    def call_reapply(self, uuid):
+    def call_reapply(self, uuid, **kwargs):
         return self.call('post', '/v1/introspection/%s/data/unprocessed' %
-                         uuid)
+                         uuid, **kwargs)
 
-    def call_continue(self, data):
-        return self.call('post', '/v1/continue', data=data).json()
+    def call_continue(self, data, **kwargs):
+        return self.call('post', '/v1/continue', data=data, **kwargs).json()
 
-    def call_add_rule(self, data):
-        return self.call('post', '/v1/rules', data=data).json()
+    def call_add_rule(self, data, **kwargs):
+        return self.call('post', '/v1/rules', data=data, **kwargs).json()
 
-    def call_list_rules(self):
-        return self.call('get', '/v1/rules').json()['rules']
+    def call_list_rules(self, **kwargs):
+        return self.call('get', '/v1/rules', **kwargs).json()['rules']
 
-    def call_delete_rules(self):
-        self.call('delete', '/v1/rules')
+    def call_delete_rules(self, **kwargs):
+        self.call('delete', '/v1/rules', **kwargs)
 
-    def call_delete_rule(self, uuid):
-        self.call('delete', '/v1/rules/' + uuid)
+    def call_delete_rule(self, uuid, **kwargs):
+        self.call('delete', '/v1/rules/' + uuid, **kwargs)
 
-    def call_get_rule(self, uuid):
-        return self.call('get', '/v1/rules/' + uuid).json()
+    def call_get_rule(self, uuid, **kwargs):
+        return self.call('get', '/v1/rules/' + uuid, **kwargs).json()
 
 
 class Test(Base):
