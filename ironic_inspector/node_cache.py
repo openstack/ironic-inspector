@@ -514,7 +514,7 @@ def find_node(**attributes):
                   % (name, value))
         value_list = []
         for v in value:
-            value_list.append('name="%s" AND value="%s"' % (name, v))
+            value_list.append("name='%s' AND value='%s'" % (name, v))
         stmt = ('select distinct uuid from attributes where ' +
                 ' OR '.join(value_list))
         rows = (db.model_query(db.Attribute.uuid).from_statement(
