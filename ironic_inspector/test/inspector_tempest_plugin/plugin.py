@@ -29,9 +29,15 @@ class InspectorTempestPlugin(plugins.TempestPlugin):
 
     def register_opts(self, conf):
         tempest_config.register_opt_group(
+            conf, config.service_available_group,
+            config.ServiceAvailableGroup)
+        tempest_config.register_opt_group(
             conf, config.baremetal_introspection_group,
             config.BaremetalIntrospectionGroup)
 
     def get_opt_lists(self):
-        return [(config.baremetal_introspection_group.name,
-                 config.BaremetalIntrospectionGroup)]
+        return [
+            (config.baremetal_introspection_group.name,
+             config.BaremetalIntrospectionGroup),
+            ('service_available', config.ServiceAvailableGroup)
+        ]
