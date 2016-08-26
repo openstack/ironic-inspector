@@ -147,8 +147,11 @@ def get_ipmi_address(node):
                 ip = socket.gethostbyname(value)
                 return ip
             except socket.gaierror:
-                msg = ('Failed to resolve the hostname (%s) for node %s')
-                raise utils.Error(msg % (value, node.uuid), node_info=node)
+                msg = _('Failed to resolve the hostname (%(value)s)'
+                        ' for node %(uuid)s')
+                raise utils.Error(msg % {'value': value,
+                                         'uuid': node.uuid},
+                                  node_info=node)
 
 
 def get_client(token=None,

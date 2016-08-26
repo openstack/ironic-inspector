@@ -46,7 +46,8 @@ def _iptables(*args, **kwargs):
     except subprocess.CalledProcessError as exc:
         output = exc.output.replace('\n', '. ')
         if ignore:
-            LOG.debug('Ignoring failed iptables %s: %s', args, output)
+            LOG.debug('Ignoring failed iptables %(args)s: %(output)s',
+                      {'args': args, 'output': output})
         else:
             LOG.error(_LE('iptables %(iptables)s failed: %(exc)s') %
                       {'iptables': args, 'exc': output})
