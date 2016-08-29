@@ -287,7 +287,7 @@ function get_ini {
     local option=${3:?option not specified}
 
     cat <<_GET_INI | python -
-import ConfigParser
+from six.moves import configparser as ConfigParser
 cp = ConfigParser.ConfigParser()
 cp.read("$file")
 assert "$section" in cp.sections(), '$section not in $file'
