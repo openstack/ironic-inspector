@@ -75,7 +75,7 @@ class TestExtraHardware(test_base.NodeTest):
             [{'op': 'add', 'path': '/extra/hardware_swift_object',
               'value': name}])
 
-        self.assertFalse('data' in introspection_data)
+        self.assertNotIn('data', introspection_data)
 
     def test_no_data_recieved(self, patch_mock, swift_mock):
         introspection_data = {'cats': 'meow'}
