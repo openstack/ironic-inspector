@@ -265,10 +265,9 @@ class MigrationCheckersMixin(object):
         self.assertIsInstance(rules.c.description.type, sqlalchemy.types.Text)
         self.assertIn('disabled', col_names)
         # in some backends bool type is integer
-        self.assertTrue(isinstance(rules.c.disabled.type,
-                                   sqlalchemy.types.Boolean) or
-                        isinstance(rules.c.disabled.type,
-                                   sqlalchemy.types.Integer))
+        self.assertIsInstance(rules.c.disabled.type,
+                              (sqlalchemy.types.Boolean,
+                               sqlalchemy.types.Integer))
 
         conditions = db_utils.get_table(engine, 'rule_conditions')
         col_names = [column.name for column in conditions.c]
