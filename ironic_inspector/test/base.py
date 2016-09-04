@@ -12,7 +12,6 @@
 # limitations under the License.
 
 
-import fixtures
 import futurist
 import mock
 from oslo_concurrency import lockutils
@@ -21,6 +20,7 @@ from oslo_config import fixture as config_fixture
 from oslo_log import log
 from oslo_utils import units
 from oslo_utils import uuidutils
+from oslotest import base as test_base
 
 from ironic_inspector.common import i18n
 # Import configuration options
@@ -33,7 +33,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-class BaseTest(fixtures.TestWithFixtures):
+class BaseTest(test_base.BaseTestCase):
 
     IS_FUNCTIONAL = False
 

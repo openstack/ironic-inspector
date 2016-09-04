@@ -584,6 +584,7 @@ class TestInit(test_base.BaseTest):
     @mock.patch.object(firewall, 'clean_up', lambda: None)
     def tearDown(self):
         self.service.shutdown()
+        super(TestInit, self).tearDown()
 
     def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
                 mock_firewall):

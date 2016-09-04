@@ -563,12 +563,9 @@ class TestReapply(BaseTest):
     @prepare_mocks
     def test_locking_failed(self, pop_mock, reapply_mock):
         pop_mock.return_value.acquire_lock.return_value = False
-        exc = utils.Error('Node locked, please, try again later')
-
-        with self.assertRaises(type(exc)) as cm:
-            process.reapply(self.uuid)
-
-        self.assertEqual(str(exc), str(cm.exception))
+        self.assertRaisesRegex(utils.Error,
+                               'Node locked, please, try again later',
+                               process.reapply, self.uuid)
 
         pop_mock.assert_called_once_with(self.uuid, locked=False)
         pop_mock.return_value.acquire_lock.assert_called_once_with(
