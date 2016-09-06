@@ -20,14 +20,10 @@ is stored in the 'inspector' container.
 
 import json
 
-from oslo_config import cfg
-
 from ironic_inspector.common.i18n import _LW
 from ironic_inspector.common import swift
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
-
-CONF = cfg.CONF
 
 LOG = utils.getProcessingLogger(__name__)
 EDEPLOY_ITEM_SIZE = 4
