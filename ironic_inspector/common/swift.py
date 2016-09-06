@@ -31,35 +31,37 @@ SWIFT_GROUP = 'swift'
 SWIFT_OPTS = [
     cfg.IntOpt('max_retries',
                default=2,
-               help='Maximum number of times to retry a Swift request, '
-                    'before failing.'),
+               help=_('Maximum number of times to retry a Swift request, '
+                      'before failing.')),
     cfg.IntOpt('delete_after',
                default=0,
-               help='Number of seconds that the Swift object will last before '
-                    'being deleted. (set to 0 to never delete the object).'),
+               help=_('Number of seconds that the Swift object will last '
+                      'before being deleted. (set to 0 to never delete the '
+                      'object).')),
     cfg.StrOpt('container',
                default='ironic-inspector',
-               help='Default Swift container to use when creating objects.'),
+               help=_('Default Swift container to use when creating '
+                      'objects.')),
     cfg.StrOpt('os_auth_version',
                default='2',
-               help='Keystone authentication API version',
+               help=_('Keystone authentication API version'),
                deprecated_for_removal=True,
                deprecated_reason='Use options presented by configured '
                                  'keystone auth plugin.'),
     cfg.StrOpt('os_auth_url',
                default='',
-               help='Keystone authentication URL',
+               help=_('Keystone authentication URL'),
                deprecated_for_removal=True,
                deprecated_reason='Use options presented by configured '
                                  'keystone auth plugin.'),
     cfg.StrOpt('os_service_type',
                default='object-store',
-               help='Swift service type.'),
+               help=_('Swift service type.')),
     cfg.StrOpt('os_endpoint_type',
                default='internalURL',
-               help='Swift endpoint type.'),
+               help=_('Swift endpoint type.')),
     cfg.StrOpt('os_region',
-               help='Keystone region to get endpoint for.'),
+               help=_('Keystone region to get endpoint for.')),
 ]
 
 # NOTE(pas-ha) these old options conflict with options exported by
@@ -68,14 +70,14 @@ SWIFT_OPTS = [
 LEGACY_OPTS = [
     cfg.StrOpt('username',
                default='',
-               help='User name for accessing Swift API.'),
+               help=_('User name for accessing Swift API.')),
     cfg.StrOpt('password',
                default='',
-               help='Password for accessing Swift API.',
+               help=_('Password for accessing Swift API.'),
                secret=True),
     cfg.StrOpt('tenant_name',
                default='',
-               help='Tenant name for accessing Swift API.'),
+               help=_('Tenant name for accessing Swift API.')),
 ]
 
 CONF.register_opts(SWIFT_OPTS, group=SWIFT_GROUP)

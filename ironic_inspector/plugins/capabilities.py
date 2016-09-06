@@ -15,7 +15,7 @@
 
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _LI, _LW
+from ironic_inspector.common.i18n import _, _LI, _LW
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -32,11 +32,11 @@ DEFAULT_CPU_FLAGS_MAPPING = {
 CAPABILITIES_OPTS = [
     cfg.BoolOpt('boot_mode',
                 default=False,
-                help='Whether to store the boot mode (BIOS or UEFI).'),
+                help=_('Whether to store the boot mode (BIOS or UEFI).')),
     cfg.DictOpt('cpu_flags',
                 default=DEFAULT_CPU_FLAGS_MAPPING,
-                help='Mapping between a CPU flag and a capability to set '
-                'if this flag is present.'),
+                help=_('Mapping between a CPU flag and a capability to set '
+                       'if this flag is present.')),
 ]
 
 
