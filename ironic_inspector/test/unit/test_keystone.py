@@ -21,7 +21,6 @@ from ironic_inspector.common import keystone
 from ironic_inspector.test import base
 
 
-CONF = cfg.CONF
 TESTGROUP = 'keystone_test'
 
 
