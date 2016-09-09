@@ -105,8 +105,7 @@ class InspectorSmokeTest(manager.InspectorScenarioTest):
 
     @test.idempotent_id('a702d1f1-88e4-42ce-88ef-cba2d9e3312e')
     @test.attr(type='smoke')
-    @test.services('baremetal', 'compute', 'image',
-                   'network', 'object_storage')
+    @test.services('baremetal', 'object_storage')
     def test_baremetal_introspection(self):
         """This smoke test case follows this very basic set of operations:
 
