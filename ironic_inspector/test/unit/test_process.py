@@ -653,6 +653,8 @@ class TestReapplyNode(BaseTest):
                                           swift_mock, apply_mock,
                                           post_hook_mock, ):
         exc = Exception('Oops')
+        expected_error = ('Unexpected exception Exception while fetching '
+                          'unprocessed introspection data from Swift: Oops')
         swift_mock.get_object.side_effect = exc
         with mock.patch.object(process.LOG, 'exception',
                                autospec=True) as log_mock:
@@ -666,7 +668,8 @@ class TestReapplyNode(BaseTest):
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
         self.assertFalse(post_hook_mock.called)
-        self.assertFalse(finished_mock.called)
+        finished_mock.assert_called_once_with(self.node_info,
+                                              expected_error)
 
     @prepare_mocks
     def test_prehook_failure(self, finished_mock, swift_mock,

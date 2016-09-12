@@ -376,11 +376,14 @@ def _reapply(node_info):
     # runs in background
     try:
         introspection_data = _get_unprocessed_data(node_info.uuid)
-    except Exception:
+    except Exception as exc:
         LOG.exception(_LE('Encountered exception while fetching '
                           'stored introspection data'),
                       node_info=node_info)
-        node_info.release_lock()
+        msg = (_('Unexpected exception %(exc_class)s while fetching '
+                 'unprocessed introspection data from Swift: %(error)s') %
+               {'exc_class': exc.__class__.__name__, 'error': exc})
+        node_info.finished(error=msg)
         return
 
     failures = []
