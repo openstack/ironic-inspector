@@ -42,8 +42,8 @@ IRONIC_OPTS = [
                       'token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True,
-               deprecated_reason='Use options presented by configured '
-                                 'keystone auth plugin.'),
+               deprecated_reason=_('Use options presented by configured '
+                                   'keystone auth plugin.')),
     cfg.StrOpt('os_username',
                default='',
                help=_('User name for accessing Ironic API. '
@@ -51,8 +51,8 @@ IRONIC_OPTS = [
                       'token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True,
-               deprecated_reason='Use options presented by configured '
-                                 'keystone auth plugin.'),
+               deprecated_reason=_('Use options presented by configured '
+                                   'keystone auth plugin.')),
     cfg.StrOpt('os_password',
                default='',
                help=_('Password for accessing Ironic API. '
@@ -61,8 +61,8 @@ IRONIC_OPTS = [
                secret=True,
                deprecated_group='discoverd',
                deprecated_for_removal=True,
-               deprecated_reason='Use options presented by configured '
-                                 'keystone auth plugin.'),
+               deprecated_reason=_('Use options presented by configured '
+                                   'keystone auth plugin.')),
     cfg.StrOpt('os_tenant_name',
                default='',
                help=_('Tenant name for accessing Ironic API. '
@@ -70,8 +70,8 @@ IRONIC_OPTS = [
                       'token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True,
-               deprecated_reason='Use options presented by configured '
-                                 'keystone auth plugin.'),
+               deprecated_reason=_('Use options presented by configured '
+                                   'keystone auth plugin.')),
     cfg.StrOpt('identity_uri',
                default='',
                help=_('Keystone admin endpoint. '
