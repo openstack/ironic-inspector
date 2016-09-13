@@ -46,14 +46,14 @@ SWIFT_OPTS = [
                default='2',
                help=_('Keystone authentication API version'),
                deprecated_for_removal=True,
-               deprecated_reason='Use options presented by configured '
-                                 'keystone auth plugin.'),
+               deprecated_reason=_('Use options presented by configured '
+                                   'keystone auth plugin.')),
     cfg.StrOpt('os_auth_url',
                default='',
                help=_('Keystone authentication URL'),
                deprecated_for_removal=True,
-               deprecated_reason='Use options presented by configured '
-                                 'keystone auth plugin.'),
+               deprecated_reason=_('Use options presented by configured '
+                                   'keystone auth plugin.')),
     cfg.StrOpt('os_service_type',
                default='object-store',
                help=_('Swift service type.')),
