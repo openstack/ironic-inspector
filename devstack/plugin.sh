@@ -327,6 +327,13 @@ elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
         start_inspector_dhcp
     fi
     start_inspector
+elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
+    if is_service_enabled tempest; then
+        echo_summary "Configuring Tempest for Ironic Inspector"
+        if [ -n "$IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK" ]; then
+            iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_feature True
+        fi
+    fi
 fi
 
 if [[ "$1" == "unstack" ]]; then
