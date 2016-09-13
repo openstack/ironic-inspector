@@ -24,8 +24,8 @@ from ironic_inspector import utils
 DISCOVERY_OPTS = [
     cfg.StrOpt('enroll_node_driver',
                default='fake',
-               help='The name of the Ironic driver used by the enroll '
-                    'hook when creating a new node in Ironic.'),
+               help=_('The name of the Ironic driver used by the enroll '
+                      'hook when creating a new node in Ironic.')),
 ]
 
 

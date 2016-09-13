@@ -18,17 +18,17 @@ import json
 
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _LI, _LW, _LE
+from ironic_inspector.common.i18n import _, _LI, _LW, _LE
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
 PCI_DEVICES_OPTS = [
     cfg.MultiStrOpt('alias',
                     default=[],
-                    help='An alias for PCI device identified by \'vendor_id\' '
-                         'and \'product_id\' fields. Format: '
-                         '{"vendor_id": "1234", "product_id": "5678", "name": '
-                         '"pci_dev1"}'),
+                    help=_('An alias for PCI device identified by '
+                           '\'vendor_id\' and \'product_id\' fields. Format: '
+                           '{"vendor_id": "1234", "product_id": "5678", '
+                           '"name": "pci_dev1"}')),
 ]
 
 

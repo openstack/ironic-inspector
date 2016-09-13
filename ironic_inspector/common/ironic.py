@@ -34,30 +34,30 @@ IRONIC_GROUP = 'ironic'
 
 IRONIC_OPTS = [
     cfg.StrOpt('os_region',
-               help='Keystone region used to get Ironic endpoints.'),
+               help=_('Keystone region used to get Ironic endpoints.')),
     cfg.StrOpt('os_auth_url',
                default='',
-               help='Keystone authentication endpoint for accessing Ironic '
-                    'API. Use [keystone_authtoken] section for keystone '
-                    'token validation.',
+               help=_('Keystone authentication endpoint for accessing Ironic '
+                      'API. Use [keystone_authtoken] section for keystone '
+                      'token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True,
                deprecated_reason='Use options presented by configured '
                                  'keystone auth plugin.'),
     cfg.StrOpt('os_username',
                default='',
-               help='User name for accessing Ironic API. '
-                    'Use [keystone_authtoken] section for keystone '
-                    'token validation.',
+               help=_('User name for accessing Ironic API. '
+                      'Use [keystone_authtoken] section for keystone '
+                      'token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True,
                deprecated_reason='Use options presented by configured '
                                  'keystone auth plugin.'),
     cfg.StrOpt('os_password',
                default='',
-               help='Password for accessing Ironic API. '
-                    'Use [keystone_authtoken] section for keystone '
-                    'token validation.',
+               help=_('Password for accessing Ironic API. '
+                      'Use [keystone_authtoken] section for keystone '
+                      'token validation.'),
                secret=True,
                deprecated_group='discoverd',
                deprecated_for_removal=True,
@@ -65,43 +65,44 @@ IRONIC_OPTS = [
                                  'keystone auth plugin.'),
     cfg.StrOpt('os_tenant_name',
                default='',
-               help='Tenant name for accessing Ironic API. '
-                    'Use [keystone_authtoken] section for keystone '
-                    'token validation.',
+               help=_('Tenant name for accessing Ironic API. '
+                      'Use [keystone_authtoken] section for keystone '
+                      'token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True,
                deprecated_reason='Use options presented by configured '
                                  'keystone auth plugin.'),
     cfg.StrOpt('identity_uri',
                default='',
-               help='Keystone admin endpoint. '
-                    'DEPRECATED: Use [keystone_authtoken] section for '
-                    'keystone token validation.',
+               help=_('Keystone admin endpoint. '
+                      'DEPRECATED: Use [keystone_authtoken] section for '
+                      'keystone token validation.'),
                deprecated_group='discoverd',
                deprecated_for_removal=True),
     cfg.StrOpt('auth_strategy',
                default='keystone',
                choices=('keystone', 'noauth'),
-               help='Method to use for authentication: noauth or keystone.'),
+               help=_('Method to use for authentication: noauth or '
+                      'keystone.')),
     cfg.StrOpt('ironic_url',
                default='http://localhost:6385/',
-               help='Ironic API URL, used to set Ironic API URL when '
-                    'auth_strategy option is noauth to work with standalone '
-                    'Ironic without keystone.'),
+               help=_('Ironic API URL, used to set Ironic API URL when '
+                      'auth_strategy option is noauth to work with standalone '
+                      'Ironic without keystone.')),
     cfg.StrOpt('os_service_type',
                default='baremetal',
-               help='Ironic service type.'),
+               help=_('Ironic service type.')),
     cfg.StrOpt('os_endpoint_type',
                default='internalURL',
-               help='Ironic endpoint type.'),
+               help=_('Ironic endpoint type.')),
     cfg.IntOpt('retry_interval',
                default=2,
-               help='Interval between retries in case of conflict error '
-               '(HTTP 409).'),
+               help=_('Interval between retries in case of conflict error '
+                      '(HTTP 409).')),
     cfg.IntOpt('max_retries',
                default=30,
-               help='Maximum number of retries in case of conflict error '
-               '(HTTP 409).'),
+               help=_('Maximum number of retries in case of conflict error '
+                      '(HTTP 409).')),
 ]
 
 
