@@ -61,4 +61,13 @@ BaremetalIntrospectionGroup = [
                default=80,
                help="Time it might take for Ironic--Inspector "
                     "sync to happen"),
+    cfg.IntOpt('discovery_timeout',
+               default=300,
+               help="Time to wait until new node would enrolled in "
+                    "ironic"),
+    cfg.BoolOpt('auto_discovery_feature',
+                default=False,
+                help="Is the auto-discovery feature enabled. Enroll hook "
+                     "should be specified in node_not_found_hook - processing "
+                     "section of inspector.conf"),
 ]

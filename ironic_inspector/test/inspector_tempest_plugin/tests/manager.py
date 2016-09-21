@@ -10,13 +10,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-
+import json
 import os
+import six
 import time
 
 import tempest
 from tempest import config
 from tempest.lib.common.api_version_utils import LATEST_MICROVERSION
+from tempest.lib import exceptions as lib_exc
+from tempest import test
 
 from ironic_inspector.test.inspector_tempest_plugin import exceptions
 from ironic_inspector.test.inspector_tempest_plugin.services import \
@@ -69,15 +72,27 @@ class InspectorScenarioTest(BaremetalScenarioTest):
     def node_list(self):
         return self.baremetal_client.list_nodes()[1]['nodes']
 
+    def node_port_list(self, node_uuid):
+        return self.baremetal_client.list_node_ports(node_uuid)[1]['ports']
+
     def node_update(self, uuid, patch):
         return self.baremetal_client.update_node(uuid, **patch)
 
     def node_show(self, uuid):
         return self.baremetal_client.show_node(uuid)[1]
 
+    def node_delete(self, uuid):
+        return self.baremetal_client.delete_node(uuid)
+
     def node_filter(self, filter=lambda node: True, nodes=None):
         return self.item_filter(self.node_list, self.node_show,
                                 filter=filter, items=nodes)
+
+    def node_set_power_state(self, uuid, state):
+        self.baremetal_client.set_node_power_state(uuid, state)
+
+    def node_set_provision_state(self, uuid, state):
+        self.baremetal_client.set_node_provision_state(self, uuid, state)
 
     def hypervisor_stats(self):
         return (self.admin_manager.hypervisor_client.
@@ -90,13 +105,21 @@ class InspectorScenarioTest(BaremetalScenarioTest):
         self.introspection_client.purge_rules()
 
     def rule_import(self, rule_path):
-        self.introspection_client.import_rule(rule_path)
+        with open(rule_path, 'r') as fp:
+            rules = json.load(fp)
+        self.introspection_client.create_rules(rules)
+
+    def rule_import_from_dict(self, rules):
+        self.introspection_client.create_rules(rules)
 
     def introspection_status(self, uuid):
         return self.introspection_client.get_status(uuid)[1]
 
     def introspection_data(self, uuid):
         return self.introspection_client.get_data(uuid)[1]
+
+    def introspection_start(self, uuid):
+        return self.introspection_client.start_introspection(uuid)
 
     def baremetal_flavor(self):
         flavor_id = CONF.compute.flavor_ref
@@ -118,11 +141,31 @@ class InspectorScenarioTest(BaremetalScenarioTest):
     def terminate_instance(self, instance):
         return super(InspectorScenarioTest, self).terminate_instance(instance)
 
+    def wait_for_node(self, node_name):
+        def check_node():
+            try:
+                self.node_show(node_name)
+            except lib_exc.NotFound:
+                return False
+            return True
+
+        if not test.call_until_true(
+                check_node,
+                duration=CONF.baremetal_introspection.discovery_timeout,
+                sleep_for=20):
+            msg = ("Timed out waiting for node %s " % node_name)
+            raise lib_exc.TimeoutException(msg)
+
+        inspected_node = self.node_show(self.node_info['name'])
+        self.wait_for_introspection_finished(inspected_node['uuid'])
+
     # TODO(aarefiev): switch to call_until_true
     def wait_for_introspection_finished(self, node_ids):
         """Waits for introspection of baremetal nodes to finish.
 
         """
+        if isinstance(node_ids, six.text_type):
+            node_ids = [node_ids]
         start = int(time.time())
         not_introspected = {node_id for node_id in node_ids}
 

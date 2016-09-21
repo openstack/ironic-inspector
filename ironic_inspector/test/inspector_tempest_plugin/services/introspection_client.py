@@ -10,8 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
-
 from ironic_tempest_plugin.services.baremetal import base
 from tempest import clients
 from tempest.common import credentials_factory as common_creds
@@ -47,13 +45,10 @@ class BaremetalIntrospectionClient(base.BaremetalClient):
         return self._delete_request('rules', uuid=None)
 
     @base.handle_errors
-    def import_rule(self, rule_path):
-        """Import introspection rules from a json file."""
-        with open(rule_path, 'r') as fp:
-            rules = json.load(fp)
-            if not isinstance(rules, list):
-                rules = [rules]
-
+    def create_rules(self, rules):
+        """Create introspection rules."""
+        if not isinstance(rules, list):
+            rules = [rules]
         for rule in rules:
             self._create_request('rules', rule)
 
@@ -68,3 +63,13 @@ class BaremetalIntrospectionClient(base.BaremetalClient):
         return self._show_request('introspection', uuid=uuid,
                                   uri='/%s/introspection/%s/data' %
                                       (self.uri_prefix, uuid))
+
+    @base.handle_errors
+    def start_introspection(self, uuid):
+        """Start introspection for a node."""
+        resp, _body = self.post(url=('/%s/introspection/%s' %
+                                     (self.uri_prefix, uuid)),
+                                body=None)
+        self.expected_success(202, resp.status)
+
+        return resp
