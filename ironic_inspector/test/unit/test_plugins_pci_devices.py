@@ -30,7 +30,7 @@ class TestPciDevicesHook(test_base.NodeTest):
         valid_pci_entry = {("foo1", "bar1"): "baz1", ("foo2", "bar2"): "baz2"}
         base.CONF.set_override('alias', pci_alias, 'pci_devices')
         parsed_pci_entry = pci_devices._parse_pci_alias_entry()
-        self.assertDictEqual(valid_pci_entry, parsed_pci_entry)
+        self.assertEqual(valid_pci_entry, parsed_pci_entry)
 
     def test_parse_pci_alias_entry_no_entries(self):
         pci_alias = []
@@ -45,7 +45,7 @@ class TestPciDevicesHook(test_base.NodeTest):
         base.CONF.set_override('alias', pci_alias, 'pci_devices')
         valid_pci_alias = {("foo1", "bar1"): "baz1"}
         parsed_pci_alias = pci_devices._parse_pci_alias_entry()
-        self.assertDictEqual(valid_pci_alias, parsed_pci_alias)
+        self.assertEqual(valid_pci_alias, parsed_pci_alias)
         mock_oslo_log.error.assert_called_once()
 
     @mock.patch('ironic_inspector.plugins.pci_devices.LOG')
@@ -55,7 +55,7 @@ class TestPciDevicesHook(test_base.NodeTest):
         base.CONF.set_override('alias', pci_alias, 'pci_devices')
         valid_pci_alias = {("foo1", "bar1"): "baz1"}
         parsed_pci_alias = pci_devices._parse_pci_alias_entry()
-        self.assertDictEqual(valid_pci_alias, parsed_pci_alias)
+        self.assertEqual(valid_pci_alias, parsed_pci_alias)
         mock_oslo_log.error.assert_called_once()
 
     @mock.patch.object(hook, 'aliases', {("1234", "5678"): "pci_dev1",
