@@ -510,7 +510,7 @@ class TestApiVersions(BaseAPITest):
                     u'href': u'http://localhost/v1/endpoint3'}]
             },
         ]}
-        self.assertDictEqual(expected, json_data)
+        self.assertEqual(expected, json_data)
 
     def test_version_endpoint_invalid(self):
         endpoint = "/v-1"
