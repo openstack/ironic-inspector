@@ -108,7 +108,6 @@ PROCESSING_OPTS = [
                        '"ramdisk_logs_dir" option being set).'),
                 deprecated_group='discoverd'),
     cfg.StrOpt('node_not_found_hook',
-               default=None,
                help=_('The name of the hook to run when inspector receives '
                       'inspection information from a node it isn\'t already '
                       'aware of. This hook is ignored by default.')),
@@ -118,7 +117,6 @@ PROCESSING_OPTS = [
                help=_('Method for storing introspection data. If set to \'none'
                       '\', introspection data will not be stored.')),
     cfg.StrOpt('store_data_location',
-               default=None,
                help=_('Name of the key to store the location of stored data '
                       'in the extra column of the Ironic database.')),
     cfg.BoolOpt('disk_partitioning_spacing',
@@ -170,7 +168,6 @@ SERVICE_OPTS = [
                       'API. Either "noauth" or "keystone" are currently valid '
                       'options. "noauth" will disable all authentication.')),
     cfg.BoolOpt('authenticate',
-                default=None,
                 help=_('DEPRECATED: use auth_strategy.'),
                 deprecated_group='discoverd',
                 deprecated_for_removal=True),
