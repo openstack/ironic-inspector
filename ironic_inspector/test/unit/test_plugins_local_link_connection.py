@@ -62,7 +62,7 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
             {'path': '/local_link_connection/port_id',
              'value': 'Ethernet1/18', 'op': 'add'},
             {'path': '/local_link_connection/switch_id',
-             'value': '88-5A-92-EC-54-59', 'op': 'add'},
+             'value': '88:5a:92:ec:54:59', 'op': 'add'},
         ]
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
@@ -90,7 +90,7 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
             2, '0645746865726e6574312f3138')
         patches = [
             {'path': '/local_link_connection/switch_id',
-             'value': '88-5A-92-EC-54-59', 'op': 'add'}
+             'value': '88:5a:92:ec:54:59', 'op': 'add'}
         ]
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
@@ -101,9 +101,9 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
             2, '03885a92ec5458')
         patches = [
             {'path': '/local_link_connection/port_id',
-             'value': '88-5A-92-EC-54-58', 'op': 'add'},
+             'value': '88:5a:92:ec:54:58', 'op': 'add'},
             {'path': '/local_link_connection/switch_id',
-             'value': '88-5A-92-EC-54-59', 'op': 'add'}
+             'value': '88:5a:92:ec:54:59', 'op': 'add'}
         ]
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
@@ -132,7 +132,7 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
         cfg.CONF.set_override('overwrite_existing', False, group='processing')
         patches = [
             {'path': '/local_link_connection/switch_id',
-             'value': '88-5A-92-EC-54-59', 'op': 'add'}
+             'value': '88:5a:92:ec:54:59', 'op': 'add'}
         ]
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
