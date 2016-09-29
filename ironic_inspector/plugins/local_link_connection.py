@@ -97,7 +97,12 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                 continue
 
             mac_address = iface['mac_address']
-            port = ironic_ports[mac_address]
+            port = ironic_ports.get(mac_address)
+            if not port:
+                LOG.debug("Skipping LLC processing for interface %s, matching "
+                          "port not found in Ironic.", mac_address,
+                          node_info=node_info, data=introspection_data)
+                continue
 
             lldp_data = iface.get('lldp')
             if lldp_data is None:
