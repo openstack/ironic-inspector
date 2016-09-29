@@ -122,6 +122,13 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
 
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    def test_interface_not_in_ironic(self, mock_patch):
+        self.node_info._ports = {}
+        patches = []
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patches, mock_patch)
+
     def test_no_inventory(self):
         del self.data['inventory']
         self.assertRaises(utils.Error, self.hook.before_update,
