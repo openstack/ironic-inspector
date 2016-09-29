@@ -68,13 +68,15 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                 value = data[1:].decode()
             if data[0] == PORT_ID_SUBTYPE_MAC:
                 value = str(netaddr.EUI(
-                    binascii.hexlify(data[1:]).decode()))
+                    binascii.hexlify(data[1:]).decode(),
+                    dialect=netaddr.mac_unix_expanded))
         elif tlv_type == LLDP_TLV_TYPE_CHASSIS_ID:
             # Check to ensure the chassis id is the allowed type
             if data[0] == CHASSIS_ID_SUBTYPE_MAC:
                 item = "switch_id"
                 value = str(netaddr.EUI(
-                    binascii.hexlify(data[1:]).decode()))
+                    binascii.hexlify(data[1:]).decode(),
+                    dialect=netaddr.mac_unix_expanded))
 
         if item and value:
             if (not CONF.processing.overwrite_existing and
@@ -93,11 +95,15 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
         for iface in inventory['interfaces']:
             if iface['name'] not in introspection_data['all_interfaces']:
                 continue
-            port = ironic_ports[iface['mac_address']]
+
+            mac_address = iface['mac_address']
+            port = ironic_ports[mac_address]
 
             lldp_data = iface.get('lldp')
             if lldp_data is None:
-                LOG.warning(_LW("No LLDP Data found for interface %s"), iface)
+                LOG.warning(_LW("No LLDP Data found for interface %s"),
+                            mac_address, node_info=node_info,
+                            data=introspection_data)
                 continue
 
             patches = []
@@ -111,11 +117,12 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                 # transaction, so create a new ironic client and explicitly
                 # pass it into the function.
                 cli = ironic.get_client(api_version=REQUIRED_IRONIC_VERSION)
-                node_info.patch_port(iface['mac_address'], patches, ironic=cli)
+                node_info.patch_port(port, patches, ironic=cli)
             except client_exc.NotAcceptable:
                 LOG.error(_LE("Unable to set Ironic port local link "
                               "connection information because Ironic does not "
-                              "support the required version"))
+                              "support the required version"),
+                          node_info=node_info, data=introspection_data)
                 # NOTE(sambetts) May as well break out out of the loop here
                 # because Ironic version is not going to change for the other
                 # interfaces.
