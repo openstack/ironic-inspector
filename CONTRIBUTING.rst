@@ -105,14 +105,6 @@ Notes
 * This configuration disables Heat and Cinder, adjust it if you need these
   services.
 
-Test
-----
-
-There is a test script included::
-
-    source devstack/openrc admin admin
-    /opt/stack/ironic-inspector/devstack/exercise.sh
-
 Usage
 -----
 
