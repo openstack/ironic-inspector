@@ -12,17 +12,10 @@
 
 from oslo_config import cfg
 
-from tempest import config  # noqa
-
-service_available_group = cfg.OptGroup(name="service_available",
-                                       title="Available OpenStack Services")
-
-ServiceAvailableGroup = [
-    cfg.BoolOpt("ironic-inspector",
-                default=True,
-                help="Whether or not ironic-inspector is expected to be"
-                " available"),
-]
+service_option = cfg.BoolOpt("ironic-inspector",
+                             default=True,
+                             help="Whether or not ironic-inspector is expected"
+                                  " to be available")
 
 baremetal_introspection_group = cfg.OptGroup(
     name="baremetal_introspection",
