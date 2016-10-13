@@ -205,7 +205,7 @@ def rule_actions_manager():
             'ironic_inspector.rules.actions',
             invoke_on_load=True)
         for act in _ACTIONS_MGR:
-            # a trick to detect if function was overriden
+            # a trick to detect if function was overridden
             if "rollback" in act.obj.__class__.__dict__:
                 LOG.warning(_LW('Defining "rollback" for introspection rules '
                                 'actions is deprecated (action "%s")'),
