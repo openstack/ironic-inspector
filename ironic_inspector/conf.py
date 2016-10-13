@@ -86,7 +86,7 @@ PROCESSING_OPTS = [
                       'pipeline. Hook \'scheduler\' updates the node with the '
                       'minimum properties required by the Nova scheduler. '
                       'Hook \'validate_interfaces\' ensures that valid NIC '
-                      'data was provided by the ramdisk.'
+                      'data was provided by the ramdisk. '
                       'Do not exclude these two unless you really know what '
                       'you\'re doing.')),
     cfg.StrOpt('processing_hooks',
