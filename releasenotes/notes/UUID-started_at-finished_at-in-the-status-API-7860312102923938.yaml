@@ -1,0 +1,10 @@
+---
+features:
+  - |
+   enhance the introspection status returned from
+   ``GET@/v1/introspection/<Node Id>`` to contain the ``uuid``, ``started_at``
+   and ``finished_at`` fields
+
+upgrade:
+  - |
+   new dependencies: pytz

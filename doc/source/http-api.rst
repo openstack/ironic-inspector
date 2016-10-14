@@ -53,6 +53,9 @@ Response body: JSON dictionary with keys:
   (``true`` on introspection completion or if it ends because of an error)
 * ``error`` error string or ``null``; ``Canceled by operator`` in
   case introspection was aborted
+* ``uuid`` node UUID
+* ``started_at`` a UTC ISO8601 timestamp
+* ``finished_at`` a UTC ISO8601 timestamp or ``null``
 
 
 Abort Running Introspection
@@ -334,3 +337,4 @@ Version History
 * **1.4** endpoint for reapplying the introspection over stored data.
 * **1.5** support for Ironic node names.
 * **1.6** endpoint for rules creating returns 201 instead of 200 on success.
+* **1.7** UUID, started_at, finished_at in the introspection status API.
