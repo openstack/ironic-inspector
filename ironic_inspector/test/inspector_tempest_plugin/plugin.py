@@ -35,9 +35,10 @@ class InspectorTempestPlugin(plugins.TempestPlugin):
         tempest_config.register_opt_group(
             conf, config.baremetal_introspection_group,
             config.BaremetalIntrospectionGroup)
-        # FIXME(dtantsur): pretend like Neutron does not exist due to random
-        # failures, see https://bugs.launchpad.net/bugs/1621791.
-        cfg.CONF.set_override('neutron', False, 'service_available')
+        if os.path.exists('/tmp/ironic-inspector-grenade'):
+            # FIXME(dtantsur): pretend like Neutron does not exist due to
+            # random failures, see https://bugs.launchpad.net/bugs/1621791.
+            cfg.CONF.set_override('neutron', False, 'service_available')
 
     def get_opt_lists(self):
         return [
