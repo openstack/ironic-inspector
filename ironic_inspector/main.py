@@ -47,7 +47,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 6)
+CURRENT_API_VERSION = (1, 7)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -133,6 +133,23 @@ def generate_resource_data(resources):
     return data
 
 
+def generate_introspection_status(node):
+    """Return a dict representing current node status.
+
+    :param node: a NodeInfo instance
+    :return: dictionary
+    """
+    status = {}
+    status['uuid'] = node.uuid
+    status['finished'] = bool(node.finished_at)
+    status['started_at'] = utils.iso_timestamp(node.started_at)
+    status['finished_at'] = utils.iso_timestamp(node.finished_at)
+    status['error'] = node.error
+    status['links'] = create_link_object(
+        ["v%s/introspection/%s" % (CURRENT_API_VERSION[0], node.uuid)])
+    return status
+
+
 @app.route('/', methods=['GET'])
 @convert_exceptions
 def api_root():
@@ -206,8 +223,7 @@ def api_introspection(node_id):
         return '', 202
     else:
         node_info = node_cache.get_node(node_id)
-        return flask.json.jsonify(finished=bool(node_info.finished_at),
-                                  error=node_info.error or None)
+        return flask.json.jsonify(generate_introspection_status(node_info))
 
 
 @app.route('/v1/introspection/<node_id>/abort', methods=['POST'])

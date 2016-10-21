@@ -170,3 +170,12 @@ class TestProcessingLogger(base.BaseTest):
         logger = utils.getProcessingLogger(__name__)
         msg, _kwargs = logger.process('foo', {})
         self.assertEqual('foo', msg)
+
+
+class TestIsoTimestamp(base.BaseTest):
+    def test_ok(self):
+        iso_date = '1970-01-01T00:00:00+00:00'
+        self.assertEqual(iso_date, utils.iso_timestamp(0.0))
+
+    def test_none(self):
+        self.assertIsNone(utils.iso_timestamp(None))

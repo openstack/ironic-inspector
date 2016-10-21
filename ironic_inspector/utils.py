@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import logging as pylog
 import re
 
@@ -19,6 +20,7 @@ from keystonemiddleware import auth_token
 from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
+import pytz
 import six
 
 from ironic_inspector.common.i18n import _, _LE
@@ -224,3 +226,16 @@ def get_inventory(data, node_info=None):
                           'or empty') % key, data=data, node_info=node_info)
 
     return inventory
+
+
+def iso_timestamp(timestamp=None, tz=pytz.timezone('utc')):
+    """Return an ISO8601-formatted timestamp (tz: UTC) or None.
+
+    :param timestamp: such as time.time() or None
+    :param tz: timezone
+    :returns: an ISO8601-formatted timestamp, or None
+    """
+    if timestamp is None:
+        return None
+    date = datetime.datetime.fromtimestamp(timestamp, tz=tz)
+    return date.isoformat()

@@ -175,25 +175,60 @@ class TestApiAbort(BaseAPITest):
         self.assertEqual(str(exc), data['error']['message'])
 
 
-class TestApiGetStatus(BaseAPITest):
-    @mock.patch.object(node_cache, 'get_node', autospec=True)
+class GetStatusAPIBaseTest(BaseAPITest):
+    def setUp(self):
+        super(GetStatusAPIBaseTest, self).setUp()
+        self.uuid2 = uuidutils.generate_uuid()
+        self.finished_node = node_cache.NodeInfo(uuid=self.uuid,
+                                                 started_at=42.0,
+                                                 finished_at=100.1,
+                                                 error='boom')
+        self.finished_node.links = [
+            {u'href': u'http://localhost/v1/introspection/%s' %
+             self.finished_node.uuid,
+             u'rel': u'self'},
+        ]
+        self.finished_node.status = {
+            'finished': True,
+            'started_at': utils.iso_timestamp(self.finished_node.started_at),
+            'finished_at': utils.iso_timestamp(self.finished_node.finished_at),
+            'error': self.finished_node.error,
+            'uuid': self.finished_node.uuid,
+            'links': self.finished_node.links
+        }
+
+        self.unfinished_node = node_cache.NodeInfo(uuid=self.uuid2,
+                                                   started_at=42.0)
+        self.unfinished_node.links = [
+            {u'href': u'http://localhost/v1/introspection/%s' %
+             self.unfinished_node.uuid,
+             u'rel': u'self'}
+        ]
+        self.unfinished_node.status = {
+            'finished': False,
+            'started_at': utils.iso_timestamp(self.unfinished_node.started_at),
+            'finished_at': utils.iso_timestamp(
+                self.unfinished_node.finished_at),
+            'error': None,
+            'uuid': self.unfinished_node.uuid,
+            'links': self.unfinished_node.links
+        }
+
+
+@mock.patch.object(node_cache, 'get_node', autospec=True)
+class TestApiGetStatus(GetStatusAPIBaseTest):
     def test_get_introspection_in_progress(self, get_mock):
-        get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
-                                                    started_at=42.0)
+        get_mock.return_value = self.unfinished_node
         res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(200, res.status_code)
-        self.assertEqual({'finished': False, 'error': None},
+        self.assertEqual(self.unfinished_node.status,
                          json.loads(res.data.decode('utf-8')))
 
-    @mock.patch.object(node_cache, 'get_node', autospec=True)
     def test_get_introspection_finished(self, get_mock):
-        get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
-                                                    started_at=42.0,
-                                                    finished_at=100.1,
-                                                    error='boom')
+        get_mock.return_value = self.finished_node
         res = self.app.get('/v1/introspection/%s' % self.uuid)
         self.assertEqual(200, res.status_code)
-        self.assertEqual({'finished': True, 'error': 'boom'},
+        self.assertEqual(self.finished_node.status,
                          json.loads(res.data.decode('utf-8')))
 
 
