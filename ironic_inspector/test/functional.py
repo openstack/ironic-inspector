@@ -168,21 +168,20 @@ class Base(base.NodeTest):
     def call_get_rule(self, uuid, **kwargs):
         return self.call('get', '/v1/rules/' + uuid, **kwargs).json()
 
-
-class Test(Base):
-    def mock_status(self, finished=mock.ANY, error=mock.ANY,
-                    started_at=mock.ANY, finished_at=mock.ANY, links=mock.ANY):
+    def _fake_status(self, finished=mock.ANY, error=mock.ANY,
+                     started_at=mock.ANY, finished_at=mock.ANY,
+                     links=mock.ANY):
         return {'uuid': self.uuid, 'finished': finished, 'error': error,
                 'finished_at': finished_at, 'started_at': started_at,
                 'links': [{u'href': u'%s/v1/introspection/%s' % (self.ROOT_URL,
                                                                  self.uuid),
                            u'rel': u'self'}]}
 
-    def assertStatus(self, status, finished, error=None):
+    def check_status(self, status, finished, error=None):
         self.assertEqual(
-            self.mock_status(finished=finished,
-                             finished_at=finished and mock.ANY or None,
-                             error=error),
+            self._fake_status(finished=finished,
+                              finished_at=finished and mock.ANY or None,
+                              error=error),
             status
         )
         curr_time = datetime.datetime.fromtimestamp(
@@ -196,6 +195,8 @@ class Test(Base):
         else:
             self.assertIsNone(status['finished_at'])
 
+
+class Test(Base):
     def test_bmc(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
@@ -203,7 +204,7 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=False)
+        self.check_status(status, finished=False)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -215,7 +216,7 @@ class Test(Base):
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=True)
+        self.check_status(status, finished=True)
 
     def test_setup_ipmi(self):
         patch_credentials = [
@@ -231,7 +232,7 @@ class Test(Base):
         self.assertFalse(self.cli.node.set_power_state.called)
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=False)
+        self.check_status(status, finished=False)
 
         res = self.call_continue(self.data)
         self.assertEqual('admin', res['ipmi_username'])
@@ -245,7 +246,7 @@ class Test(Base):
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=True)
+        self.check_status(status, finished=True)
 
     def test_rules_api(self):
         res = self.call_list_rules()
@@ -387,7 +388,7 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=False)
+        self.check_status(status, finished=False)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -398,7 +399,7 @@ class Test(Base):
             node_uuid=self.uuid, address='11:22:33:44:55:66')
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=True)
+        self.check_status(status, finished=True)
 
     def test_abort_introspection(self):
         self.call_introspect(self.uuid)
@@ -406,7 +407,7 @@ class Test(Base):
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                               'reboot')
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=False)
+        self.check_status(status, finished=False)
 
         res = self.call_abort_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
@@ -444,7 +445,7 @@ class Test(Base):
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         status = self.call_get_status(self.uuid)
-        self.assertStatus(status, finished=True)
+        self.check_status(status, finished=True)
 
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
