@@ -725,3 +725,36 @@ class TestNodeCreate(test_base.NodeTest):
         mock_get_client.assert_called_once_with()
         self.mock_client.node.create.assert_called_once_with(driver='fake')
         self.assertFalse(mock_add_node.called)
+
+
+class TestNodeCacheListNode(test_base.NodeTest):
+    def setUp(self):
+        super(TestNodeCacheListNode, self).setUp()
+        self.uuid2 = uuidutils.generate_uuid()
+        session = db.get_session()
+        with session.begin():
+            db.Node(uuid=self.uuid, started_at=42.42).save(session)
+            db.Node(uuid=self.uuid2, started_at=42.24,
+                    finished_at=100.0).save(session)
+
+    # mind please node(self.uuid).started_at > node(self.uuid2).started_at
+    # and the result ordering is strict in node_cache.get_node_list newer first
+
+    def test_list_node(self):
+        nodes = node_cache.get_node_list()
+
+        self.assertEqual([self.uuid, self.uuid2],
+                         [node.uuid for node in nodes])
+
+    def test_list_node_limit(self):
+        nodes = node_cache.get_node_list(limit=1)
+        self.assertEqual([self.uuid], [node.uuid for node in nodes])
+
+    def test_list_node_marker(self):
+        # get nodes started_at after node(self.uuid)
+        nodes = node_cache.get_node_list(marker=self.uuid)
+        self.assertEqual([self.uuid2], [node.uuid for node in nodes])
+
+    def test_list_node_wrong_marker(self):
+        self.assertRaises(utils.Error, node_cache.get_node_list,
+                          marker='foo-bar')

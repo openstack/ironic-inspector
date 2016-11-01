@@ -232,6 +232,33 @@ class TestApiGetStatus(GetStatusAPIBaseTest):
                          json.loads(res.data.decode('utf-8')))
 
 
+@mock.patch.object(node_cache, 'get_node_list', autospec=True)
+class TestApiListStatus(GetStatusAPIBaseTest):
+
+    def test_list_introspection(self, list_mock):
+        list_mock.return_value = [self.finished_node, self.unfinished_node]
+        res = self.app.get('/v1/introspection')
+        self.assertEqual(200, res.status_code)
+        statuses = json.loads(res.data.decode('utf-8')).get('introspection')
+
+        self.assertEqual([self.finished_node.status,
+                          self.unfinished_node.status], statuses)
+        list_mock.assert_called_once_with(marker=None,
+                                          limit=CONF.api_max_limit)
+
+    def test_list_introspection_limit(self, list_mock):
+        res = self.app.get('/v1/introspection?limit=1000')
+        self.assertEqual(200, res.status_code)
+        list_mock.assert_called_once_with(marker=None, limit=1000)
+
+    def test_list_introspection_makrer(self, list_mock):
+        res = self.app.get('/v1/introspection?marker=%s' %
+                           self.finished_node.uuid)
+        self.assertEqual(200, res.status_code)
+        list_mock.assert_called_once_with(marker=self.finished_node.uuid,
+                                          limit=CONF.api_max_limit)
+
+
 class TestApiGetData(BaseAPITest):
     @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
     def test_get_introspection_data(self, swift_mock):

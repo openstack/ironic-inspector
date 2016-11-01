@@ -23,6 +23,8 @@ import json
 import os
 import pytz
 import shutil
+import six
+from six.moves import urllib
 import tempfile
 import unittest
 
@@ -34,6 +36,7 @@ import requests
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
+from ironic_inspector import db
 from ironic_inspector import dbsync
 from ironic_inspector import main
 from ironic_inspector import rules
@@ -76,6 +79,24 @@ def get_test_conf_file():
 
 def get_error(response):
     return response.json()['error']['message']
+
+
+def _query_string(*field_names):
+    def outer(func):
+        @six.wraps(func)
+        def inner(*args, **kwargs):
+            queries = []
+            for field_name in field_names:
+                field = kwargs.pop(field_name, None)
+                if field is not None:
+                    queries.append('%s=%s' % (field_name, field))
+
+            query_string = '&'.join(queries)
+            if query_string:
+                query_string = '?' + query_string
+            return func(*args, query_string=query_string, **kwargs)
+        return inner
+    return outer
 
 
 class Base(base.NodeTest):
@@ -142,6 +163,11 @@ class Base(base.NodeTest):
 
     def call_get_status(self, uuid, **kwargs):
         return self.call('get', '/v1/introspection/%s' % uuid, **kwargs).json()
+
+    @_query_string('marker', 'limit')
+    def call_get_statuses(self, query_string='', **kwargs):
+        path = '/v1/introspection'
+        return self.call('get', path + query_string, **kwargs).json()
 
     def call_abort_introspect(self, uuid, **kwargs):
         return self.call('post', '/v1/introspection/%s/abort' % uuid, **kwargs)
@@ -247,6 +273,56 @@ class Test(Base):
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
+
+    def test_introspection_statuses(self):
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        # NOTE(zhenguo): only test finished=False here, as we don't know
+        # other nodes status in this thread.
+        statuses = self.call_get_statuses().get('introspection')
+        self.assertIn(self._fake_status(finished=False), statuses)
+
+        # check we've got 1 status with a limit of 1
+        statuses = self.call_get_statuses(limit=1).get('introspection')
+        self.assertEqual(1, len(statuses))
+
+        all_statuses = self.call_get_statuses().get('introspection')
+        marker_statuses = self.call_get_statuses(
+            marker=self.uuid, limit=1).get('introspection')
+        marker_index = all_statuses.index(self.call_get_status(self.uuid))
+        # marker is the last row on previous page
+        self.assertEqual(all_statuses[marker_index+1:marker_index+2],
+                         marker_statuses)
+
+        self.call_continue(self.data)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True)
+
+        # fetch all statuses and db nodes to assert pagination
+        statuses = self.call_get_statuses().get('introspection')
+        nodes = db.model_query(db.Node).order_by(
+            db.Node.started_at.desc()).all()
+
+        # assert ordering
+        self.assertEqual([node.uuid for node in nodes],
+                         [status_.get('uuid') for status_ in statuses])
+
+        # assert pagination
+        half = len(nodes) // 2
+        marker = nodes[half].uuid
+        statuses = self.call_get_statuses(marker=marker).get('introspection')
+        self.assertEqual([node.uuid for node in nodes[half + 1:]],
+                         [status_.get('uuid') for status_ in statuses])
+
+        # assert status links work
+        self.assertEqual([self.call_get_status(status_.get('uuid'))
+                          for status_ in statuses],
+                         [self.call('GET', urllib.parse.urlparse(
+                             status_.get('links')[0].get('href')).path).json()
+                          for status_ in statuses])
 
     def test_rules_api(self):
         res = self.call_list_rules()
