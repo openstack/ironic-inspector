@@ -22,6 +22,7 @@ IRONIC_INSPECTOR_COLLECTORS=${IRONIC_INSPECTOR_COLLECTORS:-default,logs,pci-devi
 IRONIC_INSPECTOR_RAMDISK_LOGDIR=${IRONIC_INSPECTOR_RAMDISK_LOGDIR:-$IRONIC_INSPECTOR_DATA_DIR/ramdisk-logs}
 IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS=${IRONIC_INSPECTOR_ALWAYS_STORE_RAMDISK_LOGS:-True}
 IRONIC_INSPECTOR_TIMEOUT=${IRONIC_INSPECTOR_TIMEOUT:-600}
+IRONIC_INSPECTOR_CLEAN_UP_PERIOD=${IRONIC_INSPECTOR_CLEAN_UP_PERIOD:-}
 # These should not overlap with other ranges/networks
 IRONIC_INSPECTOR_INTERNAL_IP=${IRONIC_INSPECTOR_INTERNAL_IP:-172.24.42.254}
 IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE=${IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE:-24}
@@ -207,7 +208,9 @@ function configure_inspector {
         inspector_iniset processing node_not_found_hook "$IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK"
     fi
     inspector_iniset DEFAULT timeout $IRONIC_INSPECTOR_TIMEOUT
-
+    if [ -n "$IRONIC_INSPECTOR_CLEAN_UP_PERIOD" ]; then
+        inspector_iniset DEFAULT clean_up_period "$IRONIC_INSPECTOR_CLEAN_UP_PERIOD"
+    fi
     get_or_create_service "ironic-inspector" "baremetal-introspection" "Ironic Inspector baremetal introspection service"
     get_or_create_endpoint "baremetal-introspection" "$REGION_NAME" \
         "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI"

@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    The configuration of the ``periodic_clean_up`` and ``periodic_update`` tasks
+    is now applied after the file ``inspector.conf`` is read

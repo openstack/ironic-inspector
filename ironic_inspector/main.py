@@ -324,8 +324,6 @@ def handle_404(error):
     return error_response(error, code=404)
 
 
-@periodics.periodic(spacing=CONF.firewall.firewall_update_period,
-                    enabled=CONF.firewall.manage_firewall)
 def periodic_update():  # pragma: no cover
     try:
         firewall.update_filters()
@@ -333,7 +331,6 @@ def periodic_update():  # pragma: no cover
         LOG.exception(_LE('Periodic update of firewall rules failed'))
 
 
-@periodics.periodic(spacing=CONF.clean_up_period)
 def periodic_clean_up():  # pragma: no cover
     try:
         if node_cache.clean_up():
@@ -438,9 +435,17 @@ class Service(object):
         if CONF.firewall.manage_firewall:
             firewall.init()
 
+        periodic_update_ = periodics.periodic(
+            spacing=CONF.firewall.firewall_update_period,
+            enabled=CONF.firewall.manage_firewall
+        )(periodic_update)
+        periodic_clean_up_ = periodics.periodic(
+            spacing=CONF.clean_up_period
+        )(periodic_clean_up)
+
         self._periodics_worker = periodics.PeriodicWorker(
-            callables=[(periodic_update, None, None),
-                       (periodic_clean_up, None, None)],
+            callables=[(periodic_update_, None, None),
+                       (periodic_clean_up_, None, None)],
             executor_factory=periodics.ExistingExecutor(utils.executor()))
         utils.executor().submit(self._periodics_worker.start)
 
