@@ -121,6 +121,9 @@ class InspectorScenarioTest(BaremetalScenarioTest):
     def introspection_start(self, uuid):
         return self.introspection_client.start_introspection(uuid)
 
+    def introspection_abort(self, uuid):
+        return self.introspection_client.abort_introspection(uuid)
+
     def baremetal_flavor(self):
         flavor_id = CONF.compute.flavor_ref
         flavor = self.flavors_client.show_flavor(flavor_id)['flavor']
