@@ -73,3 +73,13 @@ class BaremetalIntrospectionClient(base.BaremetalClient):
         self.expected_success(202, resp.status)
 
         return resp
+
+    @base.handle_errors
+    def abort_introspection(self, uuid):
+        """Abort introspection for a node."""
+        resp, _body = self.post(url=('/%s/introspection/%s/abort' %
+                                     (self.uri_prefix, uuid)),
+                                body=None)
+        self.expected_success(202, resp.status)
+
+        return resp
