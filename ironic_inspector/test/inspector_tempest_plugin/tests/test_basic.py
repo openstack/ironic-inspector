@@ -14,8 +14,7 @@ from tempest.config import CONF
 from tempest import test  # noqa
 
 from ironic_inspector.test.inspector_tempest_plugin.tests import manager
-from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
-    BaremetalProvisionStates
+from ironic_tempest_plugin.tests.scenario import baremetal_manager
 
 
 class InspectorBasicTest(manager.InspectorScenarioTest):
@@ -45,6 +44,17 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
                          int(node['properties']['local_gb']))
         self.assertEqual(expected_cpu_arch,
                          node['properties']['cpu_arch'])
+
+    def verify_introspection_aborted(self, uuid):
+        status = self.introspection_status(uuid)
+
+        self.assertEqual('Canceled by operator', status['error'])
+        self.assertTrue(status['finished'])
+
+        self.wait_provisioning_state(
+            uuid, 'inspect failed',
+            timeout=CONF.baremetal.active_timeout,
+            interval=self.wait_provisioning_state_interval)
 
     @test.idempotent_id('03bf7990-bee0-4dd7-bf74-b97ad7b52a4b')
     @test.services('baremetal', 'compute', 'image',
@@ -91,7 +101,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
 
         for node_id in self.node_ids:
             self.wait_provisioning_state(
-                node_id, BaremetalProvisionStates.AVAILABLE,
+                node_id, baremetal_manager.BaremetalProvisionStates.AVAILABLE,
                 timeout=CONF.baremetal.active_timeout,
                 interval=self.wait_provisioning_state_interval)
 
@@ -99,6 +109,41 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
         self.add_keypair()
         ins, _node = self.boot_instance()
         self.terminate_instance(ins)
+
+    @test.idempotent_id('70ca3070-184b-4b7d-8892-e977d2bc2870')
+    @test.services('baremetal')
+    def test_introspection_abort(self):
+        """This smoke test case follows this very basic set of operations:
+
+            * Start nodes introspection
+            * Wait until nodes power on
+            * Abort introspection
+            * Verifies nodes status and power state
+
+        """
+        # start nodes introspection
+        for node_id in self.node_ids:
+            self.introspect_node(node_id, remove_props=False)
+
+        # wait for nodes power on
+        for node_id in self.node_ids:
+            self.wait_power_state(
+                node_id,
+                baremetal_manager.BaremetalPowerStates.POWER_ON)
+
+        # abort introspection
+        for node_id in self.node_ids:
+            self.introspection_abort(node_id)
+
+        # wait for nodes power off
+        for node_id in self.node_ids:
+            self.wait_power_state(
+                node_id,
+                baremetal_manager.BaremetalPowerStates.POWER_OFF)
+
+        # verify nodes status and provision state
+        for node_id in self.node_ids:
+            self.verify_introspection_aborted(node_id)
 
 
 class InspectorSmokeTest(manager.InspectorScenarioTest):
