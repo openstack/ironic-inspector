@@ -49,7 +49,7 @@ def _iptables(*args, **kwargs):
             LOG.debug('Ignoring failed iptables %(args)s: %(output)s',
                       {'args': args, 'output': output})
         else:
-            LOG.error(_LE('iptables %(iptables)s failed: %(exc)s') %
+            LOG.error(_LE('iptables %(iptables)s failed: %(exc)s'),
                       {'iptables': args, 'exc': output})
             raise
 

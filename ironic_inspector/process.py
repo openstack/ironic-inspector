@@ -315,7 +315,7 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
             ironic.node.get_boot_device(node_info.uuid)
         except Exception as exc:
             LOG.info(_LI('Waiting for credentials update, attempt %(attempt)d '
-                         'current error is %(exc)s') %
+                         'current error is %(exc)s'),
                      {'attempt': attempt, 'exc': exc},
                      node_info=node_info, data=introspection_data)
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
@@ -338,7 +338,7 @@ def _finish(ironic, node_info, introspection_data, power_off=True):
             if node_info.node().provision_state == 'enroll':
                 LOG.info(_LI("Failed to power off the node in"
                              "'enroll' state, ignoring; error was "
-                             "%s") % exc, node_info=node_info,
+                             "%s"), exc, node_info=node_info,
                          data=introspection_data)
             else:
                 msg = (_('Failed to power off node %(node)s, check '
