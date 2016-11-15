@@ -22,7 +22,7 @@ from oslo_db import options as db_opts
 from oslo_db.sqlalchemy import models
 from oslo_db.sqlalchemy import session as db_session
 from oslo_db.sqlalchemy import types as db_types
-from sqlalchemy import (Boolean, Column, DateTime, Enum, Float, ForeignKey,
+from sqlalchemy import (Boolean, Column, DateTime, Enum, ForeignKey,
                         Integer, String, Text)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
@@ -56,8 +56,8 @@ class Node(Base):
     state = Column(Enum(*istate.States.all()), nullable=False,
                    default=istate.States.finished,
                    server_default=istate.States.finished)
-    started_at = Column(Float, nullable=True)
-    finished_at = Column(Float, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
     error = Column(Text, nullable=True)
 
     # version_id is being tracked in the NodeInfo object

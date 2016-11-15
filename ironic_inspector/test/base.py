@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 
 import futurist
 import mock
@@ -159,8 +160,10 @@ class NodeTest(InventoryTest):
         self.node.to_dict = mock_to_dict
 
         self.ports = []
-        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
-                                             node=self.node, ports=self.ports)
+        self.node_info = node_cache.NodeInfo(
+            uuid=self.uuid,
+            started_at=datetime.datetime(1, 1, 1),
+            node=self.node, ports=self.ports)
         self.node_info.node = mock.Mock(return_value=self.node)
 
 

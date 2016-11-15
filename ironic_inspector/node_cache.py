@@ -15,9 +15,9 @@
 
 import contextlib
 import copy
+import datetime
 import json
 import six
-import time
 
 from automaton import exceptions as automaton_errors
 from ironicclient import exceptions
@@ -26,6 +26,7 @@ from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
+from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from sqlalchemy.orm import exc as orm_errors
 from sqlalchemy import text
@@ -278,7 +279,7 @@ class NodeInfo(object):
         """
         self.release_lock()
 
-        self.finished_at = time.time()
+        self.finished_at = timeutils.utcnow()
         self.error = error
 
         with db.ensure_transaction() as session:
@@ -670,7 +671,7 @@ def add_node(uuid, state, **attributes):
                        also ironic client instance may be passed under 'ironic'
     :returns: NodeInfo
     """
-    started_at = time.time()
+    started_at = timeutils.utcnow()
     with db.ensure_transaction() as session:
         _delete_node(uuid)
         db.Node(uuid=uuid, state=state, started_at=started_at).save(session)
@@ -840,8 +841,8 @@ def clean_up():
 
     :return: list of timed out node UUID's
     """
-    status_keep_threshold = (time.time() -
-                             CONF.node_status_keep_time)
+    status_keep_threshold = (timeutils.utcnow() - datetime.timedelta(
+                             seconds=CONF.node_status_keep_time))
 
     with db.ensure_transaction() as session:
         db.model_query(db.Node, session=session).filter(
@@ -851,7 +852,7 @@ def clean_up():
         timeout = CONF.timeout
         if timeout <= 0:
             return []
-        threshold = time.time() - timeout
+        threshold = timeutils.utcnow() - datetime.timedelta(seconds=timeout)
         uuids = [row.uuid for row in
                  db.model_query(db.Node.uuid, session=session).filter(
                      db.Node.started_at < threshold,

@@ -17,7 +17,6 @@ import json
 import os
 import shutil
 import tempfile
-import time
 
 import eventlet
 import fixtures
@@ -25,6 +24,7 @@ from ironicclient import exceptions
 import mock
 from oslo_config import cfg
 from oslo_serialization import base64
+from oslo_utils import timeutils
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
@@ -44,7 +44,7 @@ CONF = cfg.CONF
 class BaseTest(test_base.NodeTest):
     def setUp(self):
         super(BaseTest, self).setUp()
-        self.started_at = time.time()
+        self.started_at = timeutils.utcnow()
         self.all_ports = [mock.Mock(uuid=uuidutils.generate_uuid(),
                                     address=mac) for mac in self.macs]
         self.ports = [self.all_ports[1]]
@@ -120,7 +120,7 @@ class TestProcess(BaseProcessTest):
         self.node_info.finished.assert_called_once_with(error=mock.ANY)
 
     def test_already_finished(self):
-        self.node_info.finished_at = time.time()
+        self.node_info.finished_at = timeutils.utcnow()
         self.assertRaisesRegex(utils.Error, 'already finished',
                                process.process, self.data)
         self.assertFalse(self.process_mock.called)

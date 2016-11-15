@@ -24,6 +24,8 @@ The test will then use that db and u/p combo to run the tests.
 
 
 import contextlib
+import datetime
+import time
 
 import alembic
 from alembic import script
@@ -363,6 +365,35 @@ class MigrationCheckersMixin(object):
         # even though the default state is finished
         err_node = nodes.select(nodes.c.uuid == err_node_id).execute().first()
         self.assertEqual(istate.States.error, err_node['state'])
+
+    def _pre_upgrade_d00d6e3f38c4(self, engine):
+        nodes = db_utils.get_table(engine, 'nodes')
+        for finished_at in (None, time.time()):
+            data = {'uuid': uuidutils.generate_uuid(),
+                    'started_at': time.time(),
+                    'finished_at': finished_at,
+                    'error': None}
+            nodes.insert().values(data).execute()
+        return data
+
+    def _check_d00d6e3f38c4(self, engine, data):
+        nodes = db_utils.get_table(engine, 'nodes')
+        col_names = [column.name for column in nodes.c]
+
+        self.assertIn('started_at', col_names)
+        self.assertIn('finished_at', col_names)
+        self.assertIsInstance(nodes.c.started_at.type,
+                              sqlalchemy.types.DateTime)
+        self.assertIsInstance(nodes.c.finished_at.type,
+                              sqlalchemy.types.DateTime)
+
+        node = nodes.select(nodes.c.uuid == data['uuid']).execute().first()
+        self.assertEqual(
+            datetime.datetime.utcfromtimestamp(data['started_at']),
+            node['started_at'])
+        self.assertEqual(
+            datetime.datetime.utcfromtimestamp(data['finished_at']),
+            node['finished_at'])
 
     def test_upgrade_and_version(self):
         with patch_with_engine(self.engine):

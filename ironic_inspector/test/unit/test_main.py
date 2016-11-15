@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import json
 import ssl
 import sys
@@ -179,10 +180,11 @@ class GetStatusAPIBaseTest(BaseAPITest):
     def setUp(self):
         super(GetStatusAPIBaseTest, self).setUp()
         self.uuid2 = uuidutils.generate_uuid()
-        self.finished_node = node_cache.NodeInfo(uuid=self.uuid,
-                                                 started_at=42.0,
-                                                 finished_at=100.1,
-                                                 error='boom')
+        self.finished_node = node_cache.NodeInfo(
+            uuid=self.uuid,
+            started_at=datetime.datetime(1, 1, 1),
+            finished_at=datetime.datetime(1, 1, 2),
+            error='boom')
         self.finished_node.links = [
             {u'href': u'http://localhost/v1/introspection/%s' %
              self.finished_node.uuid,
@@ -190,25 +192,27 @@ class GetStatusAPIBaseTest(BaseAPITest):
         ]
         self.finished_node.status = {
             'finished': True,
-            'started_at': utils.iso_timestamp(self.finished_node.started_at),
-            'finished_at': utils.iso_timestamp(self.finished_node.finished_at),
+            'started_at': self.finished_node.started_at.isoformat(),
+            'finished_at': self.finished_node.finished_at.isoformat(),
             'error': self.finished_node.error,
             'uuid': self.finished_node.uuid,
             'links': self.finished_node.links
         }
 
-        self.unfinished_node = node_cache.NodeInfo(uuid=self.uuid2,
-                                                   started_at=42.0)
+        self.unfinished_node = node_cache.NodeInfo(
+            uuid=self.uuid2,
+            started_at=datetime.datetime(1, 1, 1))
         self.unfinished_node.links = [
             {u'href': u'http://localhost/v1/introspection/%s' %
              self.unfinished_node.uuid,
              u'rel': u'self'}
         ]
+        finished_at = (self.unfinished_node.finished_at.isoformat()
+                       if self.unfinished_node.finished_at else None)
         self.unfinished_node.status = {
             'finished': False,
-            'started_at': utils.iso_timestamp(self.unfinished_node.started_at),
-            'finished_at': utils.iso_timestamp(
-                self.unfinished_node.finished_at),
+            'started_at': self.unfinished_node.started_at.isoformat(),
+            'finished_at': finished_at,
             'error': None,
             'uuid': self.unfinished_node.uuid,
             'links': self.unfinished_node.links

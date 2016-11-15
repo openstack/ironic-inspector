@@ -12,15 +12,16 @@
 # limitations under the License.
 
 import copy
+import datetime
 import json
 import six
-import time
 import unittest
 
 import automaton
 import mock
 from oslo_config import cfg
 import oslo_db
+from oslo_utils import timeutils
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
@@ -52,7 +53,10 @@ class TestNodeCache(test_base.NodeTest):
                                    mac=self.macs, bmc_address='1.2.3.4',
                                    foo=None)
         self.assertEqual(self.uuid, node.uuid)
-        self.assertTrue(time.time() - 60 < node.started_at < time.time() + 60)
+        self.assertTrue(
+            (datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+                < node.started_at <
+             datetime.datetime.utcnow() + datetime.timedelta(seconds=60)))
         self.assertFalse(node._locked)
 
         res = set(db.model_query(db.Node.uuid,
@@ -205,13 +209,19 @@ class TestNodeCacheFind(test_base.NodeTest):
     def test_bmc(self):
         res = node_cache.find_node(bmc_address='1.2.3.4')
         self.assertEqual(self.uuid, res.uuid)
-        self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
+        self.assertTrue(
+            datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            < res.started_at <
+            datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._locked)
 
     def test_macs(self):
         res = node_cache.find_node(mac=['11:22:33:33:33:33', self.macs[1]])
         self.assertEqual(self.uuid, res.uuid)
-        self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
+        self.assertTrue(
+            datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            < res.started_at <
+            datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._locked)
 
     def test_macs_not_found(self):
@@ -230,7 +240,10 @@ class TestNodeCacheFind(test_base.NodeTest):
         res = node_cache.find_node(bmc_address='1.2.3.4',
                                    mac=self.macs)
         self.assertEqual(self.uuid, res.uuid)
-        self.assertTrue(time.time() - 60 < res.started_at < time.time() + 1)
+        self.assertTrue(
+            datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            < res.started_at <
+            datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._locked)
 
     def test_inconsistency(self):
@@ -245,7 +258,7 @@ class TestNodeCacheFind(test_base.NodeTest):
         session = db.get_session()
         with session.begin():
             (db.model_query(db.Node).filter_by(uuid=self.uuid).
-                update({'finished_at': 42.0}))
+                update({'finished_at': datetime.datetime.utcnow()}))
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
@@ -253,7 +266,7 @@ class TestNodeCacheFind(test_base.NodeTest):
 class TestNodeCacheCleanUp(test_base.NodeTest):
     def setUp(self):
         super(TestNodeCacheCleanUp, self).setUp()
-        self.started_at = 100.0
+        self.started_at = datetime.datetime.utcnow()
         session = db.get_session()
         with session.begin():
             db.Node(uuid=self.uuid,
@@ -280,9 +293,9 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual(1, db.model_query(db.Option).count())
 
     @mock.patch.object(node_cache, '_get_lock', autospec=True)
-    @mock.patch.object(time, 'time')
+    @mock.patch.object(timeutils, 'utcnow')
     def test_ok(self, time_mock, get_lock_mock):
-        time_mock.return_value = 1000
+        time_mock.return_value = datetime.datetime.utcnow()
 
         self.assertFalse(node_cache.clean_up())
 
@@ -295,29 +308,31 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertFalse(get_lock_mock.called)
 
     @mock.patch.object(node_cache, '_get_lock', autospec=True)
-    @mock.patch.object(time, 'time')
+    @mock.patch.object(timeutils, 'utcnow')
     def test_timeout(self, time_mock, get_lock_mock):
         # Add a finished node to confirm we don't try to timeout it
         time_mock.return_value = self.started_at
         session = db.get_session()
+        finished_at = self.started_at + datetime.timedelta(seconds=60)
         with session.begin():
-            db.Node(uuid=self.uuid + '1',
+            db.Node(uuid=self.uuid + '1', started_at=self.started_at,
                     state=istate.States.waiting,
-                    started_at=self.started_at,
-                    finished_at=self.started_at + 60).save(session)
+                    finished_at=finished_at).save(session)
         CONF.set_override('timeout', 99)
-        time_mock.return_value = (self.started_at + 100)
+        time_mock.return_value = (self.started_at +
+                                  datetime.timedelta(seconds=100))
 
         self.assertEqual([self.uuid], node_cache.clean_up())
 
         res = [(row.state, row.finished_at, row.error) for row in
                db.model_query(db.Node).all()]
-        self.assertEqual([(istate.States.error,
-                           self.started_at + 100,
-                           'Introspection timeout'),
-                          (istate.States.waiting,
-                           self.started_at + 60, None)],
-                         res)
+        self.assertEqual(
+            [(istate.States.error,
+              self.started_at + datetime.timedelta(seconds=100),
+              'Introspection timeout'),
+             (istate.States.waiting,
+              self.started_at + datetime.timedelta(seconds=60), None)],
+            res)
         self.assertEqual([], db.model_query(db.Attribute).all())
         self.assertEqual([], db.model_query(db.Option).all())
         get_lock_mock.assert_called_once_with(self.uuid)
@@ -328,7 +343,8 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         session = db.get_session()
         with session.begin():
             db.model_query(db.Node).update(
-                {'finished_at': time.time() - 100})
+                {'finished_at': (datetime.datetime.utcnow() -
+                                 datetime.timedelta(seconds=100))})
 
         self.assertEqual([], node_cache.clean_up())
 
@@ -337,7 +353,8 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
 class TestNodeCacheGetNode(test_base.NodeTest):
     def test_ok(self):
-        started_at = time.time() - 42
+        started_at = (datetime.datetime.utcnow() -
+                      datetime.timedelta(seconds=42))
         session = db.get_session()
         with session.begin():
             db.Node(uuid=self.uuid,
@@ -352,7 +369,8 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         self.assertFalse(info._locked)
 
     def test_locked(self):
-        started_at = time.time() - 42
+        started_at = (datetime.datetime.utcnow() -
+                      datetime.timedelta(seconds=42))
         session = db.get_session()
         with session.begin():
             db.Node(uuid=self.uuid,
@@ -371,7 +389,8 @@ class TestNodeCacheGetNode(test_base.NodeTest):
                           uuidutils.generate_uuid())
 
     def test_with_name(self):
-        started_at = time.time() - 42
+        started_at = (datetime.datetime.utcnow() -
+                      datetime.timedelta(seconds=42))
         session = db.get_session()
         with session.begin():
             db.Node(uuid=self.uuid,
@@ -390,7 +409,7 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         ironic.node.get.assert_called_once_with('name')
 
 
-@mock.patch.object(time, 'time', lambda: 42.0)
+@mock.patch.object(timeutils, 'utcnow', lambda: datetime.datetime(1, 1, 1))
 class TestNodeInfoFinished(test_base.NodeTest):
     def setUp(self):
         super(TestNodeInfoFinished, self).setUp()
@@ -398,7 +417,8 @@ class TestNodeInfoFinished(test_base.NodeTest):
                             istate.States.processing,
                             bmc_address='1.2.3.4',
                             mac=self.macs)
-        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
+        self.node_info = node_cache.NodeInfo(
+            uuid=self.uuid, started_at=datetime.datetime(3, 1, 4))
         session = db.get_session()
         with session.begin():
             db.Option(uuid=self.uuid, name='foo', value='bar').save(
@@ -409,7 +429,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
 
         session = db.get_session()
         with session.begin():
-            self.assertEqual((42.0, None),
+            self.assertEqual((datetime.datetime(1, 1, 1), None),
                              tuple(db.model_query(
                                    db.Node.finished_at,
                                    db.Node.error).first()))
@@ -421,7 +441,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
     def test_error(self):
         self.node_info.finished(error='boom')
 
-        self.assertEqual((42.0, 'boom'),
+        self.assertEqual((datetime.datetime(1, 1, 1), 'boom'),
                          tuple(db.model_query(db.Node.finished_at,
                                db.Node.error).first()))
         self.assertEqual([], db.model_query(db.Attribute).all())
@@ -772,9 +792,10 @@ class TestNodeCacheListNode(test_base.NodeTest):
         self.uuid2 = uuidutils.generate_uuid()
         session = db.get_session()
         with session.begin():
-            db.Node(uuid=self.uuid, started_at=42.42).save(session)
-            db.Node(uuid=self.uuid2, started_at=42.24,
-                    finished_at=100.0).save(session)
+            db.Node(uuid=self.uuid,
+                    started_at=datetime.datetime(1, 1, 2)).save(session)
+            db.Node(uuid=self.uuid2, started_at=datetime.datetime(1, 1, 1),
+                    finished_at=datetime.datetime(1, 1, 3)).save(session)
 
     # mind please node(self.uuid).started_at > node(self.uuid2).started_at
     # and the result ordering is strict in node_cache.get_node_list newer first
@@ -848,7 +869,7 @@ class TestNodeInfoState(test_base.NodeStateTest):
                               self.node_info._set_state, 'foo')
 
     def test_commit(self):
-        current_time = time.time()
+        current_time = timeutils.utcnow()
         self.node_info.started_at = self.node_info.finished_at = current_time
         self.node_info.error = "Boo!"
         self.node_info.commit()

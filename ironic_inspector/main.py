@@ -140,11 +140,14 @@ def generate_introspection_status(node):
     :param node: a NodeInfo instance
     :return: dictionary
     """
+    started_at = node.started_at.isoformat()
+    finished_at = node.finished_at.isoformat() if node.finished_at else None
+
     status = {}
     status['uuid'] = node.uuid
     status['finished'] = bool(node.finished_at)
-    status['started_at'] = utils.iso_timestamp(node.started_at)
-    status['finished_at'] = utils.iso_timestamp(node.finished_at)
+    status['started_at'] = started_at
+    status['finished_at'] = finished_at
     status['error'] = node.error
     status['links'] = create_link_object(
         ["v%s/introspection/%s" % (CURRENT_API_VERSION[0], node.uuid)])
