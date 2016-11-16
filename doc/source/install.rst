@@ -131,6 +131,7 @@ To allow it, copy file ``rootwrap.conf`` and directory ``rootwrap.d`` to the
 configuration directory (e.g. ``/etc/ironic-inspector/``) and create file
 ``/etc/sudoers.d/ironic-inspector-rootwrap`` with the following content::
 
+   Defaults:stack !requiretty
    stack ALL=(root) NOPASSWD: /usr/bin/ironic-inspector-rootwrap /etc/ironic-inspector/rootwrap.conf *
 
 .. DANGER::
