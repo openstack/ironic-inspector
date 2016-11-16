@@ -115,7 +115,7 @@ class InspectorDiscoveryTest(manager.InspectorScenarioTest):
 
     @test.idempotent_id('dd3abe5e-0d23-488d-bb4e-344cdeff7dcb')
     @test.services('baremetal', 'compute')
-    def test_berametal_auto_discovery(self):
+    def test_bearmetal_auto_discovery(self):
         """This test case follows this set of operations:
 
            * Choose appropriate node, based on provision state;
@@ -145,3 +145,5 @@ class InspectorDiscoveryTest(manager.InspectorScenarioTest):
         self.verify_node_flavor(inspected_node)
         self.verify_node_introspection_data(inspected_node)
         self.verify_node_driver_info(self.node_info, inspected_node)
+        self.assertEqual(ProvisionStates.ENROLL,
+                         inspected_node['provision_state'])
