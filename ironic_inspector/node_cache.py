@@ -15,6 +15,7 @@
 
 import copy
 import json
+import six
 import time
 
 from ironicclient import exceptions
@@ -292,7 +293,7 @@ class NodeInfo(object):
         """
         ironic = ironic or self.ironic
         ports = self.ports()
-        if isinstance(port, str):
+        if isinstance(port, six.string_types):
             port = ports[port]
 
         LOG.debug('Updating port %(mac)s with patches %(patches)s',
@@ -333,7 +334,7 @@ class NodeInfo(object):
         """
         ironic = ironic or self.ironic
         ports = self.ports()
-        if isinstance(port, str):
+        if isinstance(port, six.string_types):
             port = ports[port]
 
         ironic.port.delete(port.uuid)
