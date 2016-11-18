@@ -511,7 +511,7 @@ def find_node(**attributes):
             value = [value]
 
         LOG.debug('Trying to use %s of value %s for node look up',
-                  (name, value))
+                  name, value)
         value_list = []
         for v in value:
             value_list.append("name='%s' AND value='%s'" % (name, v))
