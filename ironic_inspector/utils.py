@@ -13,7 +13,6 @@
 
 import datetime
 import logging as pylog
-import re
 
 import futurist
 from keystonemiddleware import auth_token
@@ -21,7 +20,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 import pytz
-import six
 
 from ironic_inspector.common.i18n import _, _LE
 from ironic_inspector import conf  # noqa
@@ -187,13 +185,6 @@ def check_auth(request):
     if 'admin' not in roles:
         LOG.error(_LE('Role "admin" not in user role list %s'), roles)
         raise Error(_('Access denied'), code=403)
-
-
-def is_valid_mac(address):
-    """Return whether given value is a valid MAC."""
-    m = "[0-9a-f]{2}(:[0-9a-f]{2}){5}$"
-    return (isinstance(address, six.string_types)
-            and re.match(m, address.lower()))
 
 
 def get_auth_strategy():

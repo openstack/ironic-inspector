@@ -17,6 +17,7 @@ import sys
 
 import netaddr
 from oslo_config import cfg
+from oslo_utils import netutils
 from oslo_utils import units
 import six
 
@@ -177,7 +178,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           name, data=data)
                 continue
 
-            if not utils.is_valid_mac(mac):
+            if not netutils.is_valid_mac(mac):
                 LOG.warning(_LW('MAC %(mac)s for interface %(name)s is '
                                 'not valid, skipping'),
                             {'mac': mac, 'name': name},
