@@ -215,6 +215,8 @@ SERVICE_OPTS = [
                default="/etc/ironic-inspector/rootwrap.conf",
                help=_('Path to the rootwrap configuration file to use for '
                       'running commands as root')),
+    cfg.IntOpt('api_max_limit', default=1000, min=1,
+               help=_('Limit the number of elements an API list-call returns'))
 ]
 
 

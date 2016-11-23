@@ -22,6 +22,7 @@ from ironicclient import exceptions
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_db import exception as db_exc
+from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
 from oslo_utils import uuidutils
 from sqlalchemy import text
@@ -625,3 +626,29 @@ def create_node(driver, ironic=None, **attributes):
     else:
         LOG.info(_LI('Node %s was created successfully'), node.uuid)
         return add_node(node.uuid, ironic=ironic)
+
+
+def get_node_list(ironic=None, marker=None, limit=None):
+    """Get node list from the cache.
+
+    The list of the nodes is ordered based on the (started_at, uuid)
+    attribute pair, newer items first.
+
+    :param ironic: optional ironic client instance
+    :param marker: pagination marker (an UUID or None)
+    :param limit: pagination limit; None for default CONF.api_max_limit
+    :returns: a list of NodeInfo instances.
+    """
+    if marker is not None:
+        # uuid marker -> row marker for pagination
+        marker = db.model_query(db.Node).get(marker)
+        if marker is None:
+            raise utils.Error(_('Node not found for marker: %s') % marker,
+                              code=404)
+
+    rows = db.model_query(db.Node)
+    # ordered based on (started_at, uuid); newer first
+    rows = db_utils.paginate_query(rows, db.Node, limit,
+                                   ('started_at', 'uuid'),
+                                   marker=marker, sort_dir='desc')
+    return [NodeInfo.from_row(row, ironic=ironic) for row in rows]

@@ -27,6 +27,7 @@ from oslo_log import log
 from oslo_utils import uuidutils
 import werkzeug
 
+from ironic_inspector import api_tools
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
 from ironic_inspector.common import ironic as ir_utils
@@ -47,7 +48,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 7)
+CURRENT_API_VERSION = (1, 8)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -224,6 +225,22 @@ def api_introspection(node_id):
     else:
         node_info = node_cache.get_node(node_id)
         return flask.json.jsonify(generate_introspection_status(node_info))
+
+
+@app.route('/v1/introspection', methods=['GET'])
+@convert_exceptions
+def api_introspection_statuses():
+    utils.check_auth(flask.request)
+
+    nodes = node_cache.get_node_list(
+        marker=api_tools.marker_field(),
+        limit=api_tools.limit_field(default=CONF.api_max_limit)
+    )
+    data = {
+        'introspection': [generate_introspection_status(node)
+                          for node in nodes]
+    }
+    return flask.json.jsonify(data)
 
 
 @app.route('/v1/introspection/<node_id>/abort', methods=['POST'])

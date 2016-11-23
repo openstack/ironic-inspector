@@ -56,6 +56,49 @@ Response body: JSON dictionary with keys:
 * ``uuid`` node UUID
 * ``started_at`` a UTC ISO8601 timestamp
 * ``finished_at`` a UTC ISO8601 timestamp or ``null``
+* ``links`` containing a self URL
+
+Get All Introspection Statuses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``GET /v1/introspection`` get all hardware introspection statuses.
+
+Requires X-Auth-Token header with Keystone token for authentication.
+
+Returned status list is sorted by the ``started_at, uuid`` attribute pair,
+newer items first, and is paginated with these query string fields:
+
+* ``marker`` the UUID of the last node returned previously
+* ``limit`` default, max: ``CONF.api_max_limit``
+
+Response:
+
+* 200 - OK
+* 400 - bad request
+* 401, 403 - missing or invalid authentication
+
+Response body: a JSON object containing a list of status objects::
+
+  {
+    'introspection': [
+      {
+        'finished': true,
+        'error': null,
+        ...
+      },
+      ...
+    ]
+  }
+
+Each status object contains these keys:
+
+* ``finished`` (boolean) whether introspection is finished
+  (``true`` on introspection completion or if it ends because of an error)
+* ``error`` error string or ``null``; ``Canceled by operator`` in
+  case introspection was aborted
+* ``uuid`` node UUID
+* ``started_at`` an UTC ISO8601 timestamp
+* ``finished_at`` an UTC ISO8601 timestamp or ``null``
 
 
 Abort Running Introspection
@@ -338,3 +381,4 @@ Version History
 * **1.5** support for Ironic node names.
 * **1.6** endpoint for rules creating returns 201 instead of 200 on success.
 * **1.7** UUID, started_at, finished_at in the introspection status API.
+* **1.8** support for listing all introspection statuses.
