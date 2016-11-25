@@ -109,7 +109,7 @@ if is_nova_migration ; then
     init_inspector
 fi
 
-sync_inspector_database
+$IRONIC_INSPECTOR_DBSYNC_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE upgrade
 
 # calls upgrade inspector for specific release
 upgrade_project ironic-inspector $RUN_DIR $BASE_DEVSTACK_BRANCH $TARGET_DEVSTACK_BRANCH
