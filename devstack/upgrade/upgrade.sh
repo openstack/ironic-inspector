@@ -61,8 +61,9 @@ set -o xtrace
 initialize_database_backends
 
 function is_nova_migration {
-    # Determine whether we're "upgrading" from another compute driver
-    _ironic_old_driver=$(source $BASE_DEVSTACK_DIR/functions; source $BASE_DEVSTACK_DIR/localrc; echo $VIRT_DRIVER)
+    # Deterine whether we're "upgrading" from another compute driver
+    # read localrc from the end, pick only first match
+    _ironic_old_driver=$( tac $BASE_DEVSTACK_DIR/localrc |grep -m 1 VIRT_DRIVER | awk -F '=' '{print $2}')
     [ "$_ironic_old_driver" != "ironic" ]
 }
 
