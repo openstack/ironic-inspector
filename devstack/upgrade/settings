@@ -12,7 +12,3 @@ devstack_localrc base enable_service ironic-inspector ironic-inspector-dhcp
 
 devstack_localrc target enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
 devstack_localrc target enable_service ironic-inspector ironic-inspector-dhcp
-
-# NOTE(dtantsur): enable possible work arounds for grenade specifically.
-# We can't use shell variables "thanks" to tempest using tox.
-touch /tmp/ironic-inspector-grenade
