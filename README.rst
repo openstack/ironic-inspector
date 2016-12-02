@@ -1,5 +1,12 @@
+===============================================
 Hardware introspection for OpenStack Bare Metal
 ===============================================
+
+Team and repository tags
+------------------------
+
+.. image:: http://governance.openstack.org/badges/ironic-inspector.svg
+    :target: http://governance.openstack.org/reference/tags/index.html
 
 This is an auxiliary service for discovering hardware properties for a
 node managed by `Ironic`_. Hardware introspection or hardware
