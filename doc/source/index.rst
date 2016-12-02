@@ -18,6 +18,7 @@ Admin Guide
   :maxdepth: 2
 
   Installation <install>
+  Upgrade <upgrade>
 
 Developer Guide
 ===============
