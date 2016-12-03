@@ -192,6 +192,10 @@ Here are some plugins that can be additionally enabled:
     information on the nodes Ironic ports with that data. To enable LLDP in the
     inventory from IPA ``ipa-collect-lldp=1`` should be passed as a kernel
     parameter to the IPA ramdisk.
+``lldp_basic``
+    Processes LLDP data returned from inspection and parses TLVs from the
+    Basic Management (802.1AB), 802.1Q, and 802.3 sets and stores the
+    processed data back to the Ironic inspector data in Swift.
 
 Refer to :ref:`contributing_link` for information on how to write your
 own plugin.

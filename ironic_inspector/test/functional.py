@@ -60,6 +60,8 @@ debug = True
 auth_strategy = noauth
 [database]
 connection = sqlite:///%(db_file)s
+[processing]
+processing_hooks=$default_processing_hooks,lldp_basic
 """
 
 
@@ -712,6 +714,41 @@ class Test(Base):
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
+
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_lldp_plugin(self, get_mock, store_mock):
+        cfg.CONF.set_override('store_data', 'swift', 'processing')
+
+        ramdisk_data = json.dumps(copy.deepcopy(self.data))
+        get_mock.return_value = ramdisk_data
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False)
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True)
+
+        # Verify that the lldp_processed data is written to swift
+        # as expected by the lldp plugin
+        updated_data = store_mock.call_args[0][0]
+        lldp_out = updated_data['all_interfaces']['eth1']
+
+        expected_chassis_id = "11:22:33:aa:bb:cc"
+        expected_port_id = "734"
+        self.assertEqual(expected_chassis_id,
+                         lldp_out['lldp_processed']['switch_chassis_id'])
+        self.assertEqual(expected_port_id,
+                         lldp_out['lldp_processed']['switch_port_id'])
 
 
 @contextlib.contextmanager

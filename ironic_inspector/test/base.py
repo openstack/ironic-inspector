@@ -100,7 +100,11 @@ class InventoryTest(BaseTest):
             'inventory': {
                 'interfaces': [
                     {'name': 'eth1', 'mac_address': self.macs[0],
-                     'ipv4_address': self.ips[0]},
+                     'ipv4_address': self.ips[0],
+                     'lldp': [
+                         [1, "04112233aabbcc"],
+                         [2, "07373334"],
+                         [3, "003c"]]},
                     {'name': 'eth2', 'mac_address': self.inactive_mac},
                     {'name': 'eth3', 'mac_address': self.macs[1],
                      'ipv4_address': self.ips[1]},
