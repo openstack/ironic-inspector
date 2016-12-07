@@ -30,8 +30,7 @@ class Manager(clients.Manager):
             self.auth_provider,
             CONF.baremetal_introspection.catalog_type,
             CONF.identity.region,
-            endpoint_type=CONF.baremetal_introspection.endpoint_type,
-            **self.default_params_with_timeout_values)
+            endpoint_type=CONF.baremetal_introspection.endpoint_type)
 
 
 class BaremetalIntrospectionClient(base.BaremetalClient):
