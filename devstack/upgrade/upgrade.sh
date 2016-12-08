@@ -60,30 +60,6 @@ set -o xtrace
 
 initialize_database_backends
 
-function is_nova_migration {
-    # Deterine whether we're "upgrading" from another compute driver
-    # read localrc from the end, pick only first match
-    _ironic_old_driver=$( tac $BASE_DEVSTACK_DIR/localrc |grep -m 1 VIRT_DRIVER | awk -F '=' '{print $2}')
-    [ "$_ironic_old_driver" != "ironic" ]
-}
-
-# Duplicate all required devstack setup that is needed before starting
-# Inspector during a sideways upgrade, where we are migrating from an
-# devstack environment without Inspector.
-function init_inspector {
-    # We need to source credentials here but doing so in the gate will unset
-    # HOST_IP.
-    local tmp_host_ip=$HOST_IP
-    source $TARGET_DEVSTACK_DIR/openrc admin admin
-    HOST_IP=$tmp_host_ip
-    IRONIC_BAREMETAL_BASIC_OPS="True"
-    $TARGET_DEVSTACK_DIR/tools/install_prereqs.sh
-    recreate_database ironic_inspector utf8
-    $INSPECTOR_PLUGIN stack install
-    $INSPECTOR_PLUGIN stack post-config
-    $INSPECTOR_PLUGIN stack extra
-}
-
 function wait_for_keystone {
     if ! wait_for_service $SERVICE_TIMEOUT ${KEYSTONE_AUTH_URI}/v$IDENTITY_API_VERSION/; then
         die $LINENO "keystone did not start"
@@ -99,15 +75,6 @@ stack_install_service ironic-inspector
 
 if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
     stack_install_service ironic-inspector-dhcp
-fi
-
-
-# FIXME(milan): using Ironic's detection; not sure whether it's needed
-# If we are sideways upgrading and migrating from a base deployed with
-# VIRT_DRIVER=fake, we need to run Inspector install, config and init
-# code from devstack.
-if is_nova_migration ; then
-    init_inspector
 fi
 
 $IRONIC_INSPECTOR_DBSYNC_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE upgrade
