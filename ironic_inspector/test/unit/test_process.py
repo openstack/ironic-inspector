@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 import copy
 import functools
 import json
@@ -25,6 +24,7 @@ import fixtures
 from ironicclient import exceptions
 import mock
 from oslo_config import cfg
+from oslo_serialization import base64
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
@@ -259,7 +259,7 @@ class TestStoreLogs(BaseProcessTest):
         CONF.set_override('ramdisk_logs_dir', self.tempdir, 'processing')
 
         self.logs = b'test logs'
-        self.data['logs'] = base64.b64encode(self.logs)
+        self.data['logs'] = base64.encode_as_bytes(self.logs)
 
     def _check_contents(self, name=None):
         files = os.listdir(self.tempdir)

@@ -13,7 +13,6 @@
 
 """Handling introspection data from the ramdisk."""
 
-import base64
 import copy
 import datetime
 import os
@@ -22,6 +21,7 @@ import eventlet
 import json
 
 from oslo_config import cfg
+from oslo_serialization import base64
 from oslo_utils import excutils
 
 from ironic_inspector.common.i18n import _, _LE, _LI, _LW
@@ -74,7 +74,7 @@ def _store_logs(introspection_data, node_info):
             os.makedirs(CONF.processing.ramdisk_logs_dir)
         with open(os.path.join(CONF.processing.ramdisk_logs_dir, file_name),
                   'wb') as fp:
-            fp.write(base64.b64decode(logs))
+            fp.write(base64.decode_as_bytes(logs))
     except EnvironmentError:
         LOG.exception(_LE('Could not store the ramdisk logs'),
                       data=introspection_data, node_info=node_info)
