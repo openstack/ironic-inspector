@@ -38,6 +38,7 @@ from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import db
 from ironic_inspector import dbsync
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
 from ironic_inspector import rules
 from ironic_inspector.test import base
@@ -220,6 +221,10 @@ class Base(base.NodeTest):
             self.assertLess(finished_at, curr_time)
         else:
             self.assertIsNone(status['finished_at'])
+
+    def db_row(self):
+        """return database row matching self.uuid."""
+        return db.model_query(db.Node).get(self.uuid)
 
 
 class Test(Base):
@@ -560,6 +565,122 @@ class Test(Base):
         self.assertEqual(4, len(store_mock.call_args_list))
         self.assertEqual(store_processing_call,
                          store_mock.call_args_list[-1])
+
+    # TODO(milan): remove the test case in favor of other tests once
+    # the introspection status endpoint exposes the state information
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_state_transitions(self, get_mock, store_mock):
+        """Assert state transitions work as expected."""
+        cfg.CONF.set_override('store_data', 'swift', 'processing')
+
+        # ramdisk data copy
+        # please mind the data is changed during processing
+        ramdisk_data = json.dumps(copy.deepcopy(self.data))
+        get_mock.return_value = ramdisk_data
+
+        self.call_introspect(self.uuid)
+        reboot_call = mock.call(self.uuid, 'reboot')
+        self.cli.node.set_power_state.assert_has_calls([reboot_call])
+
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        row = self.db_row()
+        self.assertEqual(istate.States.waiting, row.state)
+
+        self.call_continue(self.data)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        row = self.db_row()
+        self.assertEqual(istate.States.finished, row.state)
+        self.assertIsNone(row.error)
+        version_id = row.version_id
+
+        self.call_reapply(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        row = self.db_row()
+        self.assertEqual(istate.States.finished, row.state)
+        self.assertIsNone(row.error)
+        # the finished state was visited from the reapplying state
+        self.assertNotEqual(version_id, row.version_id)
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        row = self.db_row()
+        self.assertEqual(istate.States.waiting, row.state)
+        self.call_abort_introspect(self.uuid)
+        row = self.db_row()
+        self.assertEqual(istate.States.error, row.state)
+        self.assertEqual('Canceled by operator', row.error)
+
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_edge_state_transitions(self, get_mock, store_mock):
+        """Assert state transitions work as expected in edge conditions."""
+        cfg.CONF.set_override('store_data', 'swift', 'processing')
+
+        # ramdisk data copy
+        # please mind the data is changed during processing
+        ramdisk_data = json.dumps(copy.deepcopy(self.data))
+        get_mock.return_value = ramdisk_data
+
+        # multiple introspect calls
+        self.call_introspect(self.uuid)
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        # TODO(milan): switch to API once the introspection status
+        # endpoint exposes the state information
+        row = self.db_row()
+        self.assertEqual(istate.States.waiting, row.state)
+
+        # an error -start-> starting state transition is possible
+        self.call_abort_introspect(self.uuid)
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        row = self.db_row()
+        self.assertEqual(istate.States.waiting, row.state)
+
+        # double abort works
+        self.call_abort_introspect(self.uuid)
+        row = self.db_row()
+        version_id = row.version_id
+        error = row.error
+        self.assertEqual(istate.States.error, row.state)
+        self.call_abort_introspect(self.uuid)
+        row = self.db_row()
+        self.assertEqual(istate.States.error, row.state)
+        # assert the error didn't change
+        self.assertEqual(error, row.error)
+        self.assertEqual(version_id, row.version_id)
+
+        # preventing stale data race condition
+        # waiting -> processing is a strict state transition
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        row = self.db_row()
+        row.state = istate.States.processing
+        with db.ensure_transaction() as session:
+            row.save(session)
+        self.call_continue(self.data, expect_error=400)
+        row = self.db_row()
+        self.assertEqual(istate.States.error, row.state)
+        self.assertIn('no defined transition', row.error)
+
+        # multiple reapply calls
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.call_continue(self.data)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.call_reapply(self.uuid)
+        row = self.db_row()
+        version_id = row.version_id
+        self.assertEqual(istate.States.finished, row.state)
+        self.assertIsNone(row.error)
+        self.call_reapply(self.uuid)
+        # assert an finished -reapply-> reapplying -> finished state transition
+        row = self.db_row()
+        self.assertEqual(istate.States.finished, row.state)
+        self.assertIsNone(row.error)
+        self.assertNotEqual(version_id, row.version_id)
 
 
 @contextlib.contextmanager

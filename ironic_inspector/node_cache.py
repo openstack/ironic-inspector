@@ -13,11 +13,13 @@
 
 """Cache for nodes currently under introspection."""
 
+import contextlib
 import copy
 import json
 import six
 import time
 
+from automaton import exceptions as automaton_errors
 from ironicclient import exceptions
 from oslo_concurrency import lockutils
 from oslo_config import cfg
@@ -25,12 +27,15 @@ from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
 from oslo_utils import uuidutils
+from sqlalchemy.orm import exc as orm_errors
 from sqlalchemy import text
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LE, _LW, _LI
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import utils
+
 
 CONF = cfg.CONF
 
@@ -62,9 +67,12 @@ class NodeInfo(object):
     for every thread.
     """
 
-    def __init__(self, uuid, started_at=None, finished_at=None, error=None,
-                 node=None, ports=None, ironic=None, lock=None):
+    def __init__(self, uuid, version_id=None, state=None, started_at=None,
+                 finished_at=None, error=None, node=None, ports=None,
+                 ironic=None, lock=None):
         self.uuid = uuid
+        self._version_id = version_id
+        self._state = state
         self.started_at = started_at
         self.finished_at = finished_at
         self.error = error
@@ -79,12 +87,18 @@ class NodeInfo(object):
         self._lock = lock if lock is not None else _get_lock(uuid)
         # Whether lock was acquired using this NodeInfo object
         self._locked = lock is not None
+        self._fsm = None
 
     def __del__(self):
         if self._locked:
             LOG.warning(_LW('BUG: node lock was not released by the moment '
                             'node info object is deleted'))
             self._lock.release()
+
+    def __str__(self):
+        """Self represented as an UUID and a state."""
+        return _("%(uuid)s state %(state)s") % {'uuid': self.uuid,
+                                                'state': self._state}
 
     def acquire_lock(self, blocking=True):
         """Acquire a lock on the associated node.
@@ -117,6 +131,106 @@ class NodeInfo(object):
             LOG.debug('Successfully released lock', node_info=self)
             self._lock.release()
         self._locked = False
+
+    @property
+    def version_id(self):
+        """Get the version id"""
+        if self._version_id is None:
+            row = db.model_query(db.Node).get(self.uuid)
+            if row is None:
+                raise utils.NotFoundInCacheError(_('Node not found in the '
+                                                   'cache'), node_info=self)
+            self._version_id = row.version_id
+        return self._version_id
+
+    def _set_version_id(self, value, session):
+        row = self._row(session)
+        row.version_id = value
+        row.save(session)
+        self._version_id = value
+
+    def _row(self, session=None):
+        """Get a row from the database with self.uuid and self.version_id"""
+        try:
+            # race condition if version_id changed outside of this node_info
+            return db.model_query(db.Node, session=session).filter_by(
+                uuid=self.uuid, version_id=self.version_id).one()
+        except (orm_errors.NoResultFound, orm_errors.StaleDataError):
+            raise utils.NodeStateRaceCondition(node_info=self)
+
+    def _commit(self, **fields):
+        """Commit the fields into the DB."""
+        LOG.debug('Committing fields: %s', fields, node_info=self)
+        with db.ensure_transaction() as session:
+            self._set_version_id(uuidutils.generate_uuid(), session)
+            row = self._row(session)
+            row.update(fields)
+            row.save(session)
+
+    def commit(self):
+        """Commit current node status into the database."""
+        # state and version_id are updated separately
+        self._commit(started_at=self.started_at, finished_at=self.finished_at,
+                     error=self.error)
+
+    @property
+    def state(self):
+        """State of the node_info object."""
+        if self._state is None:
+            row = self._row()
+            self._state = row.state
+        return self._state
+
+    def _set_state(self, value):
+        self._commit(state=value)
+        self._state = value
+
+    def _get_fsm(self):
+        """Get an fsm instance initialized with self.state."""
+        if self._fsm is None:
+            self._fsm = istate.FSM.copy(shallow=True)
+        self._fsm.initialize(start_state=self.state)
+        return self._fsm
+
+    @contextlib.contextmanager
+    def _fsm_ctx(self):
+        fsm = self._get_fsm()
+        try:
+            yield fsm
+        finally:
+            if fsm.current_state != self.state:
+                LOG.info(_LI('Updating node state: %(current)s --> %(new)s'),
+                         {'current': self.state, 'new': fsm.current_state},
+                         node_info=self)
+                self._set_state(fsm.current_state)
+
+    def fsm_event(self, event, strict=False):
+        """Update node_info.state based on a fsm.process_event(event) call.
+
+        An AutomatonException triggers an error event.
+        If strict, node_info.finished(error=str(exc)) is called with the
+        AutomatonException instance and a EventError raised.
+
+        :param event: an event to process by the fsm
+        :strict: whether to fail the introspection upon an invalid event
+        :raises: NodeStateInvalidEvent
+        """
+        with self._fsm_ctx() as fsm:
+            LOG.debug('Executing fsm(%(state)s).process_event(%(event)s)',
+                      {'state': fsm.current_state, 'event': event},
+                      node_info=self)
+            try:
+                fsm.process_event(event)
+            except automaton_errors.NotFound as exc:
+                msg = _('Invalid event: %s') % exc
+                if strict:
+                    LOG.error(msg, node_info=self)
+                    # assuming an error event is always possible
+                    fsm.process_event(istate.Events.error)
+                    self.finished(error=str(exc))
+                else:
+                    LOG.warning(msg, node_info=self)
+                raise utils.NodeStateInvalidEvent(str(exc), node_info=self)
 
     @property
     def options(self):
@@ -169,9 +283,7 @@ class NodeInfo(object):
         self.error = error
 
         with db.ensure_transaction() as session:
-            db.model_query(db.Node, session=session).filter_by(
-                uuid=self.uuid).update(
-                {'finished_at': self.finished_at, 'error': error})
+            self._commit(finished_at=self.finished_at, error=self.error)
             db.model_query(db.Attribute, session=session).filter_by(
                 uuid=self.uuid).delete()
             db.model_query(db.Option, session=session).filter_by(
@@ -207,7 +319,8 @@ class NodeInfo(object):
     def from_row(cls, row, ironic=None, lock=None, node=None):
         """Construct NodeInfo from a database row."""
         fields = {key: row[key]
-                  for key in ('uuid', 'started_at', 'finished_at', 'error')}
+                  for key in ('uuid', 'version_id', 'state', 'started_at',
+                              'finished_at', 'error')}
         return cls(ironic=ironic, lock=lock, node=node, **fields)
 
     def invalidate_cache(self):
@@ -217,6 +330,9 @@ class NodeInfo(object):
         self._ports = None
         self._attributes = None
         self._ironic = None
+        self._fsm = None
+        self._state = None
+        self._version_id = None
 
     def node(self, ironic=None):
         """Get Ironic node object associated with the cached node record."""
@@ -385,13 +501,172 @@ class NodeInfo(object):
             self.patch([{'op': op, 'path': path, 'value': value}], ironic)
 
 
-def add_node(uuid, **attributes):
+def triggers_fsm_error_transition(errors=(Exception,),
+                                  no_errors=(utils.NodeStateInvalidEvent,
+                                             utils.NodeStateRaceCondition)):
+    """Trigger an fsm error transition upon certain errors.
+
+    It is assumed the first function arg of the decorated function is always a
+    NodeInfo instance.
+
+    :param errors: a tuple of exceptions upon which an error
+                   event is triggered. Re-raised.
+    :param no_errors: a tuple of exceptions that won't trigger the
+                      error event.
+    """
+    def outer(func):
+        @six.wraps(func)
+        def inner(node_info, *args, **kwargs):
+            ret = None
+            try:
+                ret = func(node_info, *args, **kwargs)
+            except no_errors as exc:
+                LOG.debug('Not processing error event for the '
+                          'exception: %(exc)s raised by %(func)s',
+                          {'exc': exc, 'func': func}, node_info=node_info)
+            except errors as exc:
+                with excutils.save_and_reraise_exception():
+                    LOG.error(_LE('Processing the error event because of an '
+                                  'exception %(exc_type)s: %(exc)s raised by '
+                                  '%(func)s'),
+                              {'exc_type': type(exc), 'exc': exc,
+                               'func': func},
+                              node_info=node_info)
+                    # an error event should be possible from all states
+                    node_info.fsm_event(istate.Events.error)
+            return ret
+        return inner
+    return outer
+
+
+def fsm_event_before(event, strict=False):
+    """Trigger an fsm event before the function execution.
+
+    It is assumed the first function arg of the decorated function is always a
+    NodeInfo instance.
+
+    :param event: the event to process before the function call
+    :param strict: make an invalid fsm event trigger an error event
+    """
+    def outer(func):
+        @six.wraps(func)
+        def inner(node_info, *args, **kwargs):
+            LOG.debug('Processing event %(event)s before calling '
+                      '%(func)s', {'event': event, 'func': func},
+                      node_info=node_info)
+            node_info.fsm_event(event, strict=strict)
+            LOG.debug('Calling: %(func)s(<node>, *%(args_)s, '
+                      '**%(kwargs_)s)', {'func': func, 'args_': args,
+                                         'kwargs_': kwargs},
+                      node_info=node_info)
+            return func(node_info, *args, **kwargs)
+        return inner
+    return outer
+
+
+def fsm_event_after(event, strict=False):
+    """Trigger an fsm event after the function execution.
+
+    It is assumed the first function arg of the decorated function is always a
+    NodeInfo instance.
+
+    :param event: the event to process after the function call
+    :param strict: make an invalid fsm event trigger an error event
+    """
+    def outer(func):
+        @six.wraps(func)
+        def inner(node_info, *args, **kwargs):
+            LOG.debug('Calling: %(func)s(<node>, *%(args_)s, '
+                      '**%(kwargs_)s)', {'func': func, 'args_': args,
+                                         'kwargs_': kwargs},
+                      node_info=node_info)
+            ret = func(node_info, *args, **kwargs)
+            LOG.debug('Processing event %(event)s after calling '
+                      '%(func)s', {'event': event, 'func': func},
+                      node_info=node_info)
+            node_info.fsm_event(event, strict=strict)
+            return ret
+        return inner
+    return outer
+
+
+def fsm_transition(event, reentrant=True, **exc_kwargs):
+    """Decorate a function to perform a (non-)reentrant transition.
+
+    If True, reentrant transition will be performed at the end of a function
+    call. If False, the transition will be performed before the function call.
+    The function is decorated with the triggers_fsm_error_transition decorator
+    as well.
+
+    :param event: the event to bind the transition to.
+    :param reentrant: whether the transition is reentrant.
+    :param exc_kwargs: passed on to the triggers_fsm_error_transition decorator
+    """
+    def outer(func):
+        inner = triggers_fsm_error_transition(**exc_kwargs)(func)
+        if not reentrant:
+            return fsm_event_before(event, strict=True)(inner)
+        return fsm_event_after(event)(inner)
+    return outer
+
+
+def release_lock(func):
+    """Decorate a node_info-function to release the node_info lock.
+
+    Assumes the first parameter of the function func is always a NodeInfo
+    instance.
+
+    """
+    @six.wraps(func)
+    def inner(node_info, *args, **kwargs):
+        try:
+            return func(node_info, *args, **kwargs)
+        finally:
+            # FIXME(milan) hacking the test cases to work
+            # with release_lock.assert_called_once...
+            if node_info._locked:
+                node_info.release_lock()
+    return inner
+
+
+def start_introspection(uuid, **kwargs):
+    """Start the introspection of a node.
+
+    If a node_info record exists in the DB, a start transition is used rather
+    than dropping the record in order to check for the start transition
+    validity in particular node state.
+
+    :param uuid: Ironic node UUID
+    :param kwargs: passed on to add_node()
+    :raises: NodeStateInvalidEvent in case the start transition is invalid in
+             the current node state
+    :raises: NodeStateRaceCondition if a mismatch was detected between the
+             node_info cache and the DB
+    :returns: NodeInfo
+    """
+    with db.ensure_transaction():
+        node_info = NodeInfo(uuid)
+        # check that the start transition is possible
+        try:
+            node_info.fsm_event(istate.Events.start)
+        except utils.NotFoundInCacheError:
+            # node not found while in the fsm_event handler
+            LOG.debug('Node missing in the cache; adding it now',
+                      node_info=node_info)
+            state = istate.States.starting
+        else:
+            state = node_info.state
+        return add_node(uuid, state, **kwargs)
+
+
+def add_node(uuid, state, **attributes):
     """Store information about a node under introspection.
 
     All existing information about this node is dropped.
     Empty values are skipped.
 
     :param uuid: Ironic node UUID
+    :param state: The initial state of the node
     :param attributes: attributes known about this node (like macs, BMC etc);
                        also ironic client instance may be passed under 'ironic'
     :returns: NodeInfo
@@ -399,9 +674,9 @@ def add_node(uuid, **attributes):
     started_at = time.time()
     with db.ensure_transaction() as session:
         _delete_node(uuid)
-        db.Node(uuid=uuid, started_at=started_at).save(session)
+        db.Node(uuid=uuid, state=state, started_at=started_at).save(session)
 
-        node_info = NodeInfo(uuid=uuid, started_at=started_at,
+        node_info = NodeInfo(uuid=uuid, state=state, started_at=started_at,
                              ironic=attributes.pop('ironic', None))
         for (name, value) in attributes.items():
             if not value:
@@ -591,10 +866,9 @@ def clean_up():
             try:
                 if node_info.finished_at or node_info.started_at > threshold:
                     continue
+                node_info.fsm_event(istate.Events.timeout)
+                node_info.finished(error='Introspection timeout')
 
-                db.model_query(db.Node, session=session).filter_by(
-                    uuid=u).update({'finished_at': time.time(),
-                                    'error': 'Introspection timeout'})
                 db.model_query(db.Attribute, session=session).filter_by(
                     uuid=u).delete()
                 db.model_query(db.Option, session=session).filter_by(
@@ -610,6 +884,7 @@ def create_node(driver, ironic=None, **attributes):
 
     * Create new node in ironic.
     * Cache it in inspector.
+    * Sets node_info state to enrolling.
 
     :param driver: driver for Ironic node.
     :param ironic: ronic client instance.
@@ -625,7 +900,7 @@ def create_node(driver, ironic=None, **attributes):
         LOG.error(_LE('Failed to create new node: %s'), e)
     else:
         LOG.info(_LI('Node %s was created successfully'), node.uuid)
-        return add_node(node.uuid, ironic=ironic)
+        return add_node(node.uuid, istate.States.enrolling, ironic=ironic)
 
 
 def get_node_list(ironic=None, marker=None, limit=None):

@@ -22,12 +22,13 @@ from oslo_db import options as db_opts
 from oslo_db.sqlalchemy import models
 from oslo_db.sqlalchemy import session as db_session
 from oslo_db.sqlalchemy import types as db_types
-from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
-                        String, Text)
+from sqlalchemy import (Boolean, Column, DateTime, Enum, Float, ForeignKey,
+                        Integer, String, Text)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
 
 from ironic_inspector import conf  # noqa
+from ironic_inspector import introspection_state as istate
 
 
 class ModelBase(models.ModelBase):
@@ -51,9 +52,21 @@ if CONF.discoverd.database:
 class Node(Base):
     __tablename__ = 'nodes'
     uuid = Column(String(36), primary_key=True)
+    version_id = Column(String(36), server_default='')
+    state = Column(Enum(*istate.States.all()), nullable=False,
+                   default=istate.States.finished,
+                   server_default=istate.States.finished)
     started_at = Column(Float, nullable=True)
     finished_at = Column(Float, nullable=True)
     error = Column(Text, nullable=True)
+
+    # version_id is being tracked in the NodeInfo object
+    # for the sake of consistency. See also SQLAlchemy docs:
+    # http://docs.sqlalchemy.org/en/latest/orm/versioning.html
+    __mapper_args__ = {
+        'version_id_col': version_id,
+        'version_id_generator': False,
+    }
 
 
 class Attribute(Base):

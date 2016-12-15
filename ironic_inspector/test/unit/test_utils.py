@@ -14,8 +14,10 @@
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 
+from ironic_inspector import node_cache
 from ironic_inspector.test import base
 from ironic_inspector import utils
+from ironicclient.v1 import node
 
 try:
     from unittest import mock
@@ -110,7 +112,7 @@ class TestProcessingLogger(base.BaseTest):
                          utils.processing_logger_prefix())
 
     def test_prefix_only_uuid(self):
-        node_info = mock.Mock(uuid='NNN')
+        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
         self.assertEqual('[node: NNN]',
                          utils.processing_logger_prefix(node_info=node_info))
 
@@ -125,7 +127,7 @@ class TestProcessingLogger(base.BaseTest):
                          utils.processing_logger_prefix(data=data))
 
     def test_prefix_everything(self):
-        node_info = mock.Mock(uuid='NNN')
+        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
         data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
                 'inventory': {'bmc_address': '1.2.3.4'}}
         self.assertEqual('[node: NNN MAC aa:bb:cc:dd:ee:ff BMC 1.2.3.4]',
@@ -133,13 +135,18 @@ class TestProcessingLogger(base.BaseTest):
                                                         data=data))
 
     def test_prefix_uuid_not_str(self):
-        node_info = mock.Mock(uuid=None)
+        node_info = node.Node(mock.Mock(), dict(uuid=None))
         self.assertEqual('[node: None]',
+                         utils.processing_logger_prefix(node_info=node_info))
+
+    def test_prefix_NodeInfo_instance(self):
+        node_info = node_cache.NodeInfo('NNN')
+        self.assertEqual('[node: NNN state None]',
                          utils.processing_logger_prefix(node_info=node_info))
 
     def test_adapter_no_bmc(self):
         CONF.set_override('log_bmc_address', False, 'processing')
-        node_info = mock.Mock(uuid='NNN')
+        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
         data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
                 'inventory': {'bmc_address': '1.2.3.4'}}
         logger = utils.getProcessingLogger(__name__)
@@ -150,7 +157,7 @@ class TestProcessingLogger(base.BaseTest):
             msg)
 
     def test_adapter_with_bmc(self):
-        node_info = mock.Mock(uuid='NNN')
+        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
         data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
                 'inventory': {'bmc_address': '1.2.3.4'}}
         logger = utils.getProcessingLogger(__name__)

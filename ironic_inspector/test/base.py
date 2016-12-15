@@ -26,6 +26,7 @@ from ironic_inspector.common import i18n
 # Import configuration options
 from ironic_inspector import conf  # noqa
 from ironic_inspector import db
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
@@ -161,3 +162,17 @@ class NodeTest(InventoryTest):
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node, ports=self.ports)
         self.node_info.node = mock.Mock(return_value=self.node)
+
+
+class NodeStateTest(NodeTest):
+    def setUp(self):
+        super(NodeStateTest, self).setUp()
+        self.node_info._version_id = uuidutils.generate_uuid()
+        self.node_info._state = istate.States.starting
+        self.db_node = db.Node(uuid=self.node_info.uuid,
+                               version_id=self.node_info._version_id,
+                               state=self.node_info._state,
+                               started_at=self.node_info.started_at,
+                               finished_at=self.node_info.finished_at,
+                               error=self.node_info.error)
+        self.db_node.save(self.session)

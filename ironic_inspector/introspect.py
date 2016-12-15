@@ -23,6 +23,7 @@ from oslo_config import cfg
 from ironic_inspector.common.i18n import _, _LI, _LW
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector import utils
 
@@ -87,9 +88,9 @@ def introspect(node_id, new_ipmi_credentials=None, token=None):
                               node_info=node)
 
     bmc_address = ir_utils.get_ipmi_address(node)
-    node_info = node_cache.add_node(node.uuid,
-                                    bmc_address=bmc_address,
-                                    ironic=ironic)
+    node_info = node_cache.start_introspection(node.uuid,
+                                               bmc_address=bmc_address,
+                                               ironic=ironic)
     node_info.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
     def _handle_exceptions(fut):
@@ -124,12 +125,13 @@ def _background_introspect(ironic, node_info):
 
     node_info.acquire_lock()
     try:
-        _background_introspect_locked(ironic, node_info)
+        _background_introspect_locked(node_info, ironic)
     finally:
         node_info.release_lock()
 
 
-def _background_introspect_locked(ironic, node_info):
+@node_cache.fsm_transition(istate.Events.wait)
+def _background_introspect_locked(node_info, ironic):
     # TODO(dtantsur): pagination
     macs = list(node_info.ports())
     if macs:
@@ -192,6 +194,8 @@ def abort(node_id, token=None):
     utils.executor().submit(_abort, node_info, ironic)
 
 
+@node_cache.release_lock
+@node_cache.fsm_transition(istate.Events.abort, reentrant=False)
 def _abort(node_info, ironic):
     # runs in background
     if node_info.finished_at is not None:

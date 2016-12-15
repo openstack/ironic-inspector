@@ -28,7 +28,9 @@ from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import db
 from ironic_inspector import firewall
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
@@ -65,6 +67,7 @@ class BaseProcessTest(BaseTest):
         self.find_mock = self.cache_fixture.mock
         self.node_info = node_cache.NodeInfo(
             uuid=self.node.uuid,
+            state=istate.States.waiting,
             started_at=self.started_at)
         self.node_info.finished = mock.Mock()
         self.find_mock.return_value = self.node_info
@@ -85,7 +88,7 @@ class TestProcess(BaseProcessTest):
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         self.cli.node.get.assert_called_once_with(self.uuid)
         self.process_mock.assert_called_once_with(
-            self.node, self.data, self.node_info)
+            self.node_info, self.node, self.data)
 
     def test_no_ipmi(self):
         del self.inventory['bmc_address']
@@ -95,8 +98,8 @@ class TestProcess(BaseProcessTest):
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         self.cli.node.get.assert_called_once_with(self.uuid)
-        self.process_mock.assert_called_once_with(self.node, self.data,
-                                                  self.node_info)
+        self.process_mock.assert_called_once_with(self.node_info, self.node,
+                                                  self.data)
 
     def test_not_found_in_cache(self):
         self.find_mock.side_effect = utils.Error('not found')
@@ -365,14 +368,19 @@ class TestProcessNode(BaseTest):
 
         self.useFixture(fixtures.MockPatchObject(
             eventlet.greenthread, 'sleep', autospec=True))
+        self.node_info._state = istate.States.waiting
+        db.Node(uuid=self.node_info.uuid, state=self.node_info._state,
+                started_at=self.node_info.started_at,
+                finished_at=self.node_info.finished_at,
+                error=self.node_info.error).save(self.session)
 
     def test_return_includes_uuid(self):
-        ret_val = process._process_node(self.node, self.data, self.node_info)
+        ret_val = process._process_node(self.node_info, self.node, self.data)
         self.assertEqual(self.uuid, ret_val.get('uuid'))
 
     def test_return_includes_uuid_with_ipmi_creds(self):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
-        ret_val = process._process_node(self.node, self.data, self.node_info)
+        ret_val = process._process_node(self.node_info, self.node, self.data)
         self.assertEqual(self.uuid, ret_val.get('uuid'))
         self.assertTrue(ret_val.get('ipmi_setup_credentials'))
 
@@ -381,13 +389,13 @@ class TestProcessNode(BaseTest):
         self.node.provision_state = 'active'
 
         self.assertRaises(utils.Error, process._process_node,
-                          self.node, self.data, self.node_info)
+                          self.node_info, self.node, self.data)
         self.assertFalse(post_hook_mock.called)
 
     @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_ok(self, finished_mock, post_hook_mock):
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0])
@@ -403,7 +411,7 @@ class TestProcessNode(BaseTest):
         self.cli.port.create.side_effect = (
             [exceptions.Conflict()] + self.ports[1:])
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0])
@@ -413,7 +421,7 @@ class TestProcessNode(BaseTest):
     def test_set_ipmi_credentials(self):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
@@ -428,7 +436,7 @@ class TestProcessNode(BaseTest):
                                        'path': '/driver_info/ipmi_address',
                                        'value': self.bmc_address})
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
@@ -441,7 +449,7 @@ class TestProcessNode(BaseTest):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
         self.cli.node.get_boot_device.side_effect = RuntimeError('boom')
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
         self.assertEqual(2, self.cli.node.update.call_count)
@@ -457,7 +465,7 @@ class TestProcessNode(BaseTest):
     def test_power_off_failed(self, finished_mock):
         self.cli.node.set_power_state.side_effect = RuntimeError('boom')
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         finished_mock.assert_called_once_with(
@@ -472,7 +480,7 @@ class TestProcessNode(BaseTest):
         self.node.provision_state = 'enroll'
         self.node_info.node = mock.Mock(return_value=self.node)
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.assertTrue(post_hook_mock.called)
         self.assertTrue(self.cli.node.set_power_state.called)
@@ -481,7 +489,7 @@ class TestProcessNode(BaseTest):
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_no_power_off(self, finished_mock):
         CONF.set_override('power_off', False, 'processing')
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         self.assertFalse(self.cli.node.set_power_state.called)
         finished_mock.assert_called_once_with(self.node_info)
@@ -493,7 +501,7 @@ class TestProcessNode(BaseTest):
         name = 'inspector_data-%s' % self.uuid
         expected = self.data
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
         self.assertEqual(expected,
@@ -506,7 +514,7 @@ class TestProcessNode(BaseTest):
         name = 'inspector_data-%s' % self.uuid
         self.data['logs'] = 'something'
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
         self.assertNotIn('logs',
@@ -523,7 +531,7 @@ class TestProcessNode(BaseTest):
                   'value': name, 'op': 'add'}]
         expected = self.data
 
-        process._process_node(self.node, self.data, self.node_info)
+        process._process_node(self.node_info, self.node, self.data)
 
         swift_conn.create_object.assert_called_once_with(name, mock.ANY)
         self.assertEqual(expected,
@@ -596,6 +604,11 @@ class TestReapplyNode(BaseTest):
         self.cli.port.create.side_effect = self.ports
         self.cli.node.update.return_value = self.node
         self.cli.node.list_ports.return_value = []
+        self.node_info._state = istate.States.finished
+        db.Node(uuid=self.node_info.uuid, state=self.node_info._state,
+                started_at=self.node_info.started_at,
+                finished_at=self.node_info.finished_at,
+                error=self.node_info.error).save(self.session)
 
     def call(self):
         process._reapply(self.node_info)
@@ -618,12 +631,7 @@ class TestReapplyNode(BaseTest):
         swift_name = 'inspector_data-%s' % self.uuid
         swift_mock.get_object.return_value = json.dumps(self.data)
 
-        with mock.patch.object(process.LOG, 'error',
-                               autospec=True) as log_mock:
-            self.call()
-
-        # no failures logged
-        self.assertFalse(log_mock.called)
+        self.call()
 
         post_hook_mock.assert_called_once_with(mock.ANY, self.node_info)
         swift_mock.create_object.assert_called_once_with(swift_name,
@@ -656,14 +664,7 @@ class TestReapplyNode(BaseTest):
         expected_error = ('Unexpected exception Exception while fetching '
                           'unprocessed introspection data from Swift: Oops')
         swift_mock.get_object.side_effect = exc
-        with mock.patch.object(process.LOG, 'exception',
-                               autospec=True) as log_mock:
-            self.call()
-
-        log_mock.assert_called_once_with('Encountered exception '
-                                         'while fetching stored '
-                                         'introspection data',
-                                         node_info=self.node_info)
+        self.call()
 
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
@@ -684,19 +685,14 @@ class TestReapplyNode(BaseTest):
         with mock.patch.object(example_plugin.ExampleProcessingHook,
                                'before_processing') as before_processing_mock:
             before_processing_mock.side_effect = exc
-            with mock.patch.object(process.LOG, 'error',
-                                   autospec=True) as log_mock:
-                self.call()
+            self.call()
 
-        exc_failure = ('Unexpected exception %(exc_class)s during '
+        exc_failure = ('Pre-processing failures detected reapplying '
+                       'introspection on stored data:\n'
+                       'Unexpected exception %(exc_class)s during '
                        'preprocessing in hook example: %(error)s' %
                        {'exc_class': type(exc).__name__, 'error':
                         exc})
-        log_mock.assert_called_once_with('Pre-processing failures '
-                                         'detected reapplying '
-                                         'introspection on stored '
-                                         'data:\n%s', exc_failure,
-                                         node_info=self.node_info)
         finished_mock.assert_called_once_with(self.node_info,
                                               error=exc_failure)
         # assert _reapply ended having detected the failure
@@ -712,13 +708,8 @@ class TestReapplyNode(BaseTest):
         exc = Exception('Oops')
         self.cli.port.create.side_effect = exc
 
-        with mock.patch.object(process.LOG, 'exception') as log_mock:
-            self.call()
+        self.call()
 
-        log_mock.assert_called_once_with('Encountered exception reapplying'
-                                         ' introspection on stored data',
-                                         node_info=self.node_info,
-                                         data=mock.ANY)
         finished_mock.assert_called_once_with(self.node_info, error=str(exc))
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)

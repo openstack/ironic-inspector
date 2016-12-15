@@ -236,6 +236,7 @@ class TestRootDiskSelection(test_base.NodeTest):
         ]
         self.matched = self.inventory['disks'][2].copy()
         self.node_info = mock.Mock(spec=node_cache.NodeInfo,
+                                   _state='foo',
                                    uuid=self.uuid,
                                    **{'node.return_value': self.node})
 

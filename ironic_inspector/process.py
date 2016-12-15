@@ -28,6 +28,7 @@ from ironic_inspector.common.i18n import _, _LE, _LI, _LW
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import firewall
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import rules
@@ -234,7 +235,7 @@ def process(introspection_data):
             _store_logs(introspection_data, node_info)
 
     try:
-        result = _process_node(node, introspection_data, node_info)
+        result = _process_node(node_info, node, introspection_data)
     except utils.Error as exc:
         node_info.finished(error=str(exc))
         with excutils.save_and_reraise_exception():
@@ -263,7 +264,8 @@ def _run_post_hooks(node_info, introspection_data):
         hook_ext.obj.before_update(introspection_data, node_info)
 
 
-def _process_node(node, introspection_data, node_info):
+@node_cache.fsm_transition(istate.Events.process, reentrant=False)
+def _process_node(node_info, node, introspection_data):
     # NOTE(dtantsur): repeat the check in case something changed
     ir_utils.check_provision_state(node)
 
@@ -284,19 +286,20 @@ def _process_node(node, introspection_data, node_info):
         new_username, new_password = (
             node_info.options.get('new_ipmi_credentials'))
         utils.executor().submit(_finish_set_ipmi_credentials,
-                                ironic, node, node_info, introspection_data,
+                                node_info, ironic, node, introspection_data,
                                 new_username, new_password)
         resp['ipmi_setup_credentials'] = True
         resp['ipmi_username'] = new_username
         resp['ipmi_password'] = new_password
     else:
-        utils.executor().submit(_finish, ironic, node_info, introspection_data,
+        utils.executor().submit(_finish, node_info, ironic, introspection_data,
                                 power_off=CONF.processing.power_off)
 
     return resp
 
 
-def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
+@node_cache.fsm_transition(istate.Events.finish)
+def _finish_set_ipmi_credentials(node_info, ironic, node, introspection_data,
                                  new_username, new_password):
     patch = [{'op': 'add', 'path': '/driver_info/ipmi_username',
               'value': new_username},
@@ -320,7 +323,7 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
                      node_info=node_info, data=introspection_data)
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
         else:
-            _finish(ironic, node_info, introspection_data)
+            _finish_common(node_info, ironic, introspection_data)
             return
 
     msg = (_('Failed to validate updated IPMI credentials for node '
@@ -329,7 +332,7 @@ def _finish_set_ipmi_credentials(ironic, node, node_info, introspection_data,
     raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
 
-def _finish(ironic, node_info, introspection_data, power_off=True):
+def _finish_common(node_info, ironic, introspection_data, power_off=True):
     if power_off:
         LOG.debug('Forcing power off of node %s', node_info.uuid)
         try:
@@ -354,6 +357,9 @@ def _finish(ironic, node_info, introspection_data, power_off=True):
     node_info.finished()
     LOG.info(_LI('Introspection finished successfully'),
              node_info=node_info, data=introspection_data)
+
+
+_finish = node_cache.fsm_transition(istate.Events.finish)(_finish_common)
 
 
 def reapply(node_ident):
@@ -395,30 +401,41 @@ def _reapply(node_info):
         node_info.finished(error=msg)
         return
 
-    failures = []
-    _run_pre_hooks(introspection_data, failures)
-    if failures:
-        LOG.error(_LE('Pre-processing failures detected reapplying '
-                      'introspection on stored data:\n%s'),
-                  '\n'.join(failures), node_info=node_info)
-        node_info.finished(error='\n'.join(failures))
+    try:
+        ironic = ir_utils.get_client()
+    except Exception as exc:
+        msg = _('Encountered an exception while getting the Ironic client: '
+                '%s') % exc
+        LOG.error(msg, node_info=node_info, data=introspection_data)
+        node_info.fsm_event(istate.Events.error)
+        node_info.finished(error=msg)
         return
 
     try:
-        ironic = ir_utils.get_client()
-        node_info.create_ports(introspection_data.get('macs') or ())
-        _run_post_hooks(node_info, introspection_data)
-        _store_data(node_info, introspection_data)
-        node_info.invalidate_cache()
-        rules.apply(node_info, introspection_data)
-        _finish(ironic, node_info, introspection_data,
-                power_off=False)
+        _reapply_with_data(node_info, introspection_data)
     except Exception as exc:
-        LOG.exception(_LE('Encountered exception reapplying '
-                          'introspection on stored data'),
-                      node_info=node_info,
-                      data=introspection_data)
         node_info.finished(error=str(exc))
-    else:
-        LOG.info(_LI('Successfully reapplied introspection on stored '
-                     'data'), node_info=node_info, data=introspection_data)
+        return
+
+    _finish(node_info, ironic, introspection_data,
+            power_off=False)
+
+    LOG.info(_LI('Successfully reapplied introspection on stored '
+                 'data'), node_info=node_info, data=introspection_data)
+
+
+@node_cache.fsm_event_before(istate.Events.reapply)
+@node_cache.triggers_fsm_error_transition()
+def _reapply_with_data(node_info, introspection_data):
+    failures = []
+    _run_pre_hooks(introspection_data, failures)
+    if failures:
+        raise utils.Error(_('Pre-processing failures detected reapplying '
+                            'introspection on stored data:\n%s') %
+                          '\n'.join(failures), node_info=node_info)
+
+    node_info.create_ports(introspection_data.get('macs') or ())
+    _run_post_hooks(node_info, introspection_data)
+    _store_data(node_info, introspection_data)
+    node_info.invalidate_cache()
+    rules.apply(node_info, introspection_data)
