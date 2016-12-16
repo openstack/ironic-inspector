@@ -844,7 +844,7 @@ class TestNodeInfoState(test_base.NodeStateTest):
 
     def test_set_invalid_state(self):
         six.assertRaisesRegex(self, oslo_db.exception.DBError,
-                              'CHECK constraint failed',
+                              'constraint failed',
                               self.node_info._set_state, 'foo')
 
     def test_commit(self):
