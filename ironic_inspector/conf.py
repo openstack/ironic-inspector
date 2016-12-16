@@ -208,7 +208,8 @@ SERVICE_OPTS = [
                       'expression will be affected by introspection_delay '
                       'setting.')),
     cfg.ListOpt('ipmi_address_fields',
-                default=['ilo_address', 'drac_host', 'cimc_address'],
+                default=['ilo_address', 'drac_host', 'drac_address',
+                         'cimc_address'],
                 help=_('Ironic driver_info fields that are equivalent '
                        'to ipmi_address.')),
     cfg.StrOpt('rootwrap_config',
