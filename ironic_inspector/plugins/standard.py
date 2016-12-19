@@ -15,6 +15,7 @@
 
 import sys
 
+from ironic_lib import utils as il_utils
 import netaddr
 from oslo_config import cfg
 from oslo_utils import netutils
@@ -47,41 +48,27 @@ class RootDiskSelectionHook(base.ProcessingHook):
                       node_info=node_info, data=introspection_data)
             return
 
-        if 'size' in hints:
-            # Special case to match IPA behaviour
-            try:
-                hints['size'] = int(hints['size'])
-            except (TypeError, ValueError):
-                raise utils.Error(_('Invalid root device size hint, expected '
-                                    'an integer, got %s') % hints['size'],
-                                  node_info=node_info, data=introspection_data)
-
         inventory = utils.get_inventory(introspection_data,
                                         node_info=node_info)
-        for disk in inventory['disks']:
-            properties = disk.copy()
-            # Root device hints are in GiB, data from IPA is in bytes
-            properties['size'] //= units.Gi
+        try:
+            device = il_utils.match_root_device_hints(inventory['disks'],
+                                                      hints)
+        except (TypeError, ValueError) as e:
+            raise utils.Error(
+                _('No disks could be found using the root device hints '
+                  '%(hints)s because they failed to validate. '
+                  'Error: %(error)s') % {'hints': hints, 'error': e},
+                node_info=node_info, data=introspection_data)
 
-            for name, value in hints.items():
-                actual = properties.get(name)
-                if actual != value:
-                    LOG.debug('Disk %(disk)s does not satisfy hint '
-                              '%(name)s=%(value)s, actual value is %(actual)s',
-                              {'disk': disk.get('name'), 'name': name,
-                               'value': value, 'actual': actual},
+        if not device:
+            raise utils.Error(_('No disks satisfied root device hints'),
                               node_info=node_info, data=introspection_data)
-                    break
-            else:
-                LOG.debug('Disk %(disk)s of size %(size)s satisfies '
-                          'root device hints',
-                          {'disk': disk.get('name'), 'size': disk['size']},
-                          node_info=node_info, data=introspection_data)
-                introspection_data['root_disk'] = disk
-                return
 
-        raise utils.Error(_('No disks satisfied root device hints'),
-                          node_info=node_info, data=introspection_data)
+        LOG.debug('Disk %(disk)s of size %(size)s satisfies '
+                  'root device hints',
+                  {'disk': device.get('name'), 'size': device['size']},
+                  node_info=node_info, data=introspection_data)
+        introspection_data['root_disk'] = device
 
 
 class SchedulerHook(base.ProcessingHook):

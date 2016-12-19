@@ -307,7 +307,7 @@ class TestRootDiskSelection(test_base.NodeTest):
         for bad_size in ('foo', None, {}):
             self.node.properties['root_device'] = {'size': bad_size}
             self.assertRaisesRegex(utils.Error,
-                                   'Invalid root device size hint',
+                                   'No disks could be found',
                                    self.hook.before_update,
                                    self.data, self.node_info)
 
