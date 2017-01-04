@@ -114,7 +114,6 @@ class InspectorDiscoveryTest(manager.InspectorScenarioTest):
                              inspected_node['driver_info'].get(key))
 
     @test.idempotent_id('dd3abe5e-0d23-488d-bb4e-344cdeff7dcb')
-    @test.services('baremetal', 'compute')
     def test_bearmetal_auto_discovery(self):
         """This test case follows this set of operations:
 
