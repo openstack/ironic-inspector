@@ -11,20 +11,14 @@ Start Introspection
 
 ``POST /v1/introspection/<Node ID>`` initiate hardware introspection for node
 ``<Node ID>``. All power management configuration for this node needs to be
-done prior to calling the endpoint (except when :ref:`setting-ipmi-creds`).
+done prior to calling the endpoint.
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
-Optional parameters:
+Deprecated parameters (only available in API before version ``1.9``):
 
-* ``new_ipmi_password`` if set, **ironic-inspector** will try to set IPMI
-  password on the machine to this value. Power credentials validation will be
-  skipped and manual power on will be required. See :ref:`setting-ipmi-creds`
-  for details.
-
-* ``new_ipmi_username`` provides new IPMI user name in addition to password
-  set by ``new_ipmi_password``. Defaults to current ``ipmi_username`` in
-  node ``driver_info`` field.
+* ``new_ipmi_password``
+* ``new_ipmi_username``
 
 Response:
 
@@ -280,8 +274,8 @@ Response:
 * 403 - node is not on introspection
 * 404 - node cannot be found or multiple nodes found
 
-Response body: JSON dictionary. If :ref:`setting-ipmi-creds` is requested,
-body will contain the following keys:
+Response body: JSON dictionary. If setting IPMI credentials (deprecated
+feature) is requested, body will contain the following keys:
 
 * ``ipmi_setup_credentials`` boolean ``True``
 * ``ipmi_username`` new IPMI user name
