@@ -23,9 +23,8 @@ ADMIN_CREDS = common_creds.get_configured_admin_credentials()
 class Manager(clients.Manager):
     def __init__(self,
                  credentials=ADMIN_CREDS,
-                 service=None,
                  api_microversions=None):
-        super(Manager, self).__init__(credentials, service)
+        super(Manager, self).__init__(credentials)
         self.introspection_client = BaremetalIntrospectionClient(
             self.auth_provider,
             CONF.baremetal_introspection.catalog_type,
