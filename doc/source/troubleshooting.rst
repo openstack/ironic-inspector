@@ -131,3 +131,19 @@ On Ubuntu 14.04 this can be done by editing your
 ``/etc/resolvconf/resolv.conf.d/head`` and adding your nameservers there.
 This will ensure they will come up first when ``/etc/resolv.conf``
 is regenerated.
+
+Running Inspector in a VirtualBox environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default VirtualBox does not expose a DMI table to the guest. This prevents
+ironic-inspector from being able to discover the properties of the a node. In
+order to run ironic-inspector on a VirtualBox guest the host must be configured
+to expose DMI data inside the guest. To do this run the following command on
+the VirtualBox host::
+
+    VBoxManage setextradata {NodeName} "VBoxInternal/Devices/pcbios/0/Config/DmiExposeMemoryTable" 1
+
+.. note::
+    Replace `{NodeName}` with the name of the guest you wish to expose the DMI
+    table on. This command will need to be run once per host to enable this
+    functionality.
