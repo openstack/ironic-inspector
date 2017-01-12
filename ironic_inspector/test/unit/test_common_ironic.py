@@ -109,6 +109,12 @@ class TestGetIpmiAddress(base.BaseTest):
                                       'ipmi_bridging': 'single'})
         self.assertIsNone(ir_utils.get_ipmi_address(node))
 
+    def test_loopback_address(self):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'ipmi_address': '127.0.0.2'})
+        ip = ir_utils.get_ipmi_address(node)
+        self.assertIsNone(ip)
+
 
 class TestCapabilities(unittest.TestCase):
 
