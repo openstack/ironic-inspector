@@ -107,9 +107,9 @@ function prepare_tftp {
     else
         # download the agent image tarball
         if [ ! -e "$IRONIC_INSPECTOR_KERNEL_PATH" -o ! -e "$IRONIC_INSPECTOR_INITRAMFS_PATH" ]; then
-            if [ -e "$IRONIC_DEPLOY_KERNEL_PATH" -a -e "$IRONIC_DEPLOY_RAMDISK_PATH" ]; then
-                cp $IRONIC_DEPLOY_KERNEL_PATH $IRONIC_INSPECTOR_KERNEL_PATH
-                cp $IRONIC_DEPLOY_RAMDISK_PATH $IRONIC_INSPECTOR_INITRAMFS_PATH
+            if [ -e "$IRONIC_DEPLOY_KERNEL" -a -e "$IRONIC_DEPLOY_RAMDISK" ]; then
+                cp $IRONIC_DEPLOY_KERNEL $IRONIC_INSPECTOR_KERNEL_PATH
+                cp $IRONIC_DEPLOY_RAMDISK $IRONIC_INSPECTOR_INITRAMFS_PATH
             else
                 wget "$IRONIC_AGENT_KERNEL_URL" -O $IRONIC_INSPECTOR_KERNEL_PATH
                 wget "$IRONIC_AGENT_RAMDISK_URL" -O $IRONIC_INSPECTOR_INITRAMFS_PATH
