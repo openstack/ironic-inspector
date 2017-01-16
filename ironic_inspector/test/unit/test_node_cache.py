@@ -44,9 +44,9 @@ class TestNodeCache(test_base.NodeTest):
                     state=istate.States.starting).save(session)
             db.Node(uuid=uuid2,
                     state=istate.States.starting).save(session)
-            db.Attribute(name='mac',
+            db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
                          value='11:22:11:22:11:22',
-                         uuid=self.uuid).save(session)
+                         node_uuid=self.uuid).save(session)
 
         node = node_cache.add_node(self.node.uuid,
                                    istate.States.starting,
@@ -66,21 +66,22 @@ class TestNodeCache(test_base.NodeTest):
         self.assertEqual(expected, res)
 
         res = (db.model_query(db.Attribute.name,
-                              db.Attribute.value, db.Attribute.uuid).
+                              db.Attribute.value, db.Attribute.node_uuid).
                order_by(db.Attribute.name, db.Attribute.value).all())
         self.assertEqual([('bmc_address', '1.2.3.4', self.uuid),
                           ('mac', self.macs[0], self.uuid),
                           ('mac', self.macs[1], self.uuid),
                           ('mac', self.macs[2], self.uuid)],
-                         [(row.name, row.value, row.uuid) for row in res])
+                         [(row.name, row.value, row.node_uuid) for row in res])
 
     def test__delete_node(self):
         session = db.get_session()
         with session.begin():
             db.Node(uuid=self.node.uuid,
                     state=istate.States.finished).save(session)
-            db.Attribute(name='mac', value='11:22:11:22:11:22',
-                         uuid=self.uuid).save(session)
+            db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
+                         value='11:22:11:22:11:22', node_uuid=self.uuid).save(
+                             session)
             data = {'s': 'value', 'b': True, 'i': 42}
             encoded = json.dumps(data)
             db.Option(uuid=self.uuid, name='name', value=encoded).save(
@@ -92,7 +93,7 @@ class TestNodeCache(test_base.NodeTest):
             uuid=self.uuid).first()
         self.assertIsNone(row_node)
         row_attribute = db.model_query(db.Attribute).filter_by(
-            uuid=self.uuid).first()
+            node_uuid=self.uuid).first()
         self.assertIsNone(row_attribute)
         row_option = db.model_query(db.Option).filter_by(
             uuid=self.uuid).first()
@@ -114,20 +115,6 @@ class TestNodeCache(test_base.NodeTest):
         mock__get_lock_ctx.assert_called_once_with(uuid2)
         mock__get_lock_ctx.return_value.__enter__.assert_called_once_with()
 
-    def test_add_node_duplicate_mac(self):
-        session = db.get_session()
-        uuid = uuidutils.generate_uuid()
-        with session.begin():
-            db.Node(uuid=uuid,
-                    state=istate.States.starting).save(session)
-            db.Attribute(name='mac', value='11:22:11:22:11:22',
-                         uuid=uuid).save(session)
-        self.assertRaises(utils.Error,
-                          node_cache.add_node,
-                          self.node.uuid,
-                          istate.States.starting,
-                          mac=['11:22:11:22:11:22'])
-
     def test_active_macs(self):
         session = db.get_session()
         with session.begin():
@@ -136,8 +123,8 @@ class TestNodeCache(test_base.NodeTest):
             values = [('mac', '11:22:11:22:11:22', self.uuid),
                       ('mac', '22:11:22:11:22:11', self.uuid)]
             for value in values:
-                db.Attribute(name=value[0], value=value[1],
-                             uuid=value[2]).save(session)
+                db.Attribute(uuid=uuidutils.generate_uuid(), name=value[0],
+                             value=value[1], node_uuid=value[2]).save(session)
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11'},
                          node_cache.active_macs())
 
@@ -162,15 +149,45 @@ class TestNodeCache(test_base.NodeTest):
         node_info.add_attribute('key', 'value')
         res = db.model_query(db.Attribute.name,
                              db.Attribute.value,
-                             db.Attribute.uuid,
+                             db.Attribute.node_uuid,
                              session=session)
         res = res.order_by(db.Attribute.name, db.Attribute.value).all()
         self.assertEqual([('key', 'value', self.uuid)],
                          [tuple(row) for row in res])
-        self.assertRaises(utils.Error, node_info.add_attribute,
-                          'key', 'value')
         # check that .attributes got invalidated and reloaded
         self.assertEqual({'key': ['value']}, node_info.attributes)
+
+    def test_add_attribute_same_name(self):
+        session = db.get_session()
+        with session.begin():
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.starting).save(session)
+        node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
+
+        node_info.add_attribute('key', ['foo', 'bar'])
+        node_info.add_attribute('key', 'baz')
+        res = db.model_query(db.Attribute.name, db.Attribute.value,
+                             db.Attribute.node_uuid, session=session)
+        res = res.order_by(db.Attribute.name, db.Attribute.value).all()
+        self.assertEqual([('key', 'bar', self.uuid),
+                          ('key', 'baz', self.uuid),
+                          ('key', 'foo', self.uuid)],
+                         [tuple(row) for row in res])
+
+    def test_add_attribute_same_value(self):
+        session = db.get_session()
+        with session.begin():
+            db.Node(uuid=self.node.uuid,
+                    state=istate.States.starting).save(session)
+        node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
+
+        node_info.add_attribute('key', 'value')
+        node_info.add_attribute('key', 'value')
+        res = db.model_query(db.Attribute.name, db.Attribute.value,
+                             db.Attribute.node_uuid, session=session)
+        self.assertEqual([('key', 'value', self.uuid),
+                          ('key', 'value', self.uuid)],
+                         [tuple(row) for row in res])
 
     def test_attributes(self):
         node_info = node_cache.add_node(self.uuid,
@@ -183,7 +200,8 @@ class TestNodeCache(test_base.NodeTest):
         # check invalidation
         session = db.get_session()
         with session.begin():
-            db.Attribute(name='foo', value='bar', uuid=self.uuid).save(session)
+            db.Attribute(uuid=uuidutils.generate_uuid(), name='foo',
+                         value='bar', node_uuid=self.uuid).save(session)
         # still cached
         self.assertEqual({'bmc_address': ['1.2.3.4'],
                           'mac': self.macs},
@@ -215,6 +233,25 @@ class TestNodeCacheFind(test_base.NodeTest):
             < res.started_at <
             datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._locked)
+
+    def test_same_bmc_different_macs(self):
+        uuid2 = uuidutils.generate_uuid()
+        node_cache.add_node(uuid2,
+                            istate.States.starting,
+                            bmc_address='1.2.3.4',
+                            mac=self.macs2)
+        res = node_cache.find_node(bmc_address='1.2.3.4', mac=self.macs)
+        self.assertEqual(self.uuid, res.uuid)
+        res = node_cache.find_node(bmc_address='1.2.3.4', mac=self.macs2)
+        self.assertEqual(uuid2, res.uuid)
+
+    def test_same_bmc_raises(self):
+        uuid2 = uuidutils.generate_uuid()
+        node_cache.add_node(uuid2,
+                            istate.States.starting,
+                            bmc_address='1.2.3.4')
+        six.assertRaisesRegex(self, utils.Error, 'Multiple nodes',
+                              node_cache.find_node, bmc_address='1.2.3.4')
 
     def test_macs(self):
         res = node_cache.find_node(mac=['11:22:33:33:33:33', self.macs[1]])
@@ -275,8 +312,8 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                     started_at=self.started_at).save(
                 session)
             for v in self.macs:
-                db.Attribute(name='mac', value=v, uuid=self.uuid).save(
-                    session)
+                db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
+                             value=v, node_uuid=self.uuid).save(session)
             db.Option(uuid=self.uuid, name='foo', value='bar').save(
                 session)
 

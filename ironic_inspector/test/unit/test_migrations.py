@@ -399,6 +399,46 @@ class MigrationCheckersMixin(object):
                 finished_at,
                 row['finished_at'])
 
+    def _pre_upgrade_882b2d84cb1b(self, engine):
+        attributes = db_utils.get_table(engine, 'attributes')
+        nodes = db_utils.get_table(engine, 'nodes')
+        self.node_uuid = uuidutils.generate_uuid()
+        node = {
+            'uuid': self.node_uuid,
+            'started_at': datetime.datetime.utcnow(),
+            'finished_at': None,
+            'error': None,
+            'state': istate.States.starting
+        }
+        nodes.insert().values(node).execute()
+        data = {
+            'uuid': self.node_uuid,
+            'name': 'foo',
+            'value': 'bar'
+        }
+        attributes.insert().values(data).execute()
+
+    def _check_882b2d84cb1b(self, engine, data):
+        attributes = db_utils.get_table(engine, 'attributes')
+        col_names = [column.name for column in attributes.c]
+        self.assertIn('uuid', col_names)
+        self.assertIsInstance(attributes.c.uuid.type, sqlalchemy.types.String)
+        self.assertIn('node_uuid', col_names)
+        self.assertIsInstance(attributes.c.node_uuid.type,
+                              sqlalchemy.types.String)
+        self.assertIn('name', col_names)
+        self.assertIsInstance(attributes.c.name.type, sqlalchemy.types.String)
+        self.assertIn('value', col_names)
+        self.assertIsInstance(attributes.c.value.type, sqlalchemy.types.String)
+
+        row = attributes.select(attributes.c.node_uuid ==
+                                self.node_uuid).execute().first()
+        self.assertEqual(self.node_uuid, row.node_uuid)
+        self.assertNotEqual(self.node_uuid, row.uuid)
+        self.assertIsNotNone(row.uuid)
+        self.assertEqual('foo', row.name)
+        self.assertEqual('bar', row.value)
+
     def test_upgrade_and_version(self):
         with patch_with_engine(self.engine):
             self.migration_ext.upgrade('head')

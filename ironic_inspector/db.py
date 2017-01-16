@@ -67,9 +67,11 @@ class Node(Base):
 
 class Attribute(Base):
     __tablename__ = 'attributes'
-    name = Column(String(255), primary_key=True)
-    value = Column(String(255), primary_key=True)
-    uuid = Column(String(36), ForeignKey('nodes.uuid'))
+    uuid = Column(String(36), primary_key=True)
+    node_uuid = Column(String(36), ForeignKey('nodes.uuid',
+                                              name='fk_node_attribute'))
+    name = Column(String(255), nullable=False)
+    value = Column(String(255), nullable=True)
 
 
 class Option(Base):

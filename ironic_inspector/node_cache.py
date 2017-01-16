@@ -13,6 +13,7 @@
 
 """Cache for nodes currently under introspection."""
 
+import collections
 import contextlib
 import copy
 import datetime
@@ -23,7 +24,6 @@ from automaton import exceptions as automaton_errors
 from ironicclient import exceptions
 from oslo_concurrency import lockutils
 from oslo_config import cfg
-from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
 from oslo_utils import reflection
@@ -251,7 +251,7 @@ class NodeInfo(object):
         if self._attributes is None:
             self._attributes = {}
             rows = db.model_query(db.Attribute).filter_by(
-                uuid=self.uuid)
+                node_uuid=self.uuid)
             for row in rows:
                 self._attributes.setdefault(row.name, []).append(row.value)
         return self._attributes
@@ -288,7 +288,7 @@ class NodeInfo(object):
         with db.ensure_transaction() as session:
             self._commit(finished_at=self.finished_at, error=self.error)
             db.model_query(db.Attribute, session=session).filter_by(
-                uuid=self.uuid).delete()
+                node_uuid=self.uuid).delete()
             db.model_query(db.Option, session=session).filter_by(
                 uuid=self.uuid).delete()
 
@@ -298,23 +298,14 @@ class NodeInfo(object):
         :param name: attribute name
         :param value: attribute value or list of possible values
         :param session: optional existing database session
-        :raises: Error if attributes values are already in database
         """
         if not isinstance(value, list):
             value = [value]
 
         with db.ensure_transaction(session) as session:
-            try:
-                for v in value:
-                    db.Attribute(name=name, value=v, uuid=self.uuid).save(
-                        session)
-            except db_exc.DBDuplicateEntry as exc:
-                LOG.error(_LE('Database integrity error %s during '
-                              'adding attributes'), exc, node_info=self)
-                raise utils.Error(_(
-                    'Some or all of %(name)s\'s %(value)s are already '
-                    'on introspection') % {'name': name, 'value': value},
-                    node_info=self)
+            for v in value:
+                db.Attribute(uuid=uuidutils.generate_uuid(), name=name,
+                             value=v, node_uuid=self.uuid).save(session)
             # Invalidate attributes so they're loaded on next usage
             self._attributes = None
 
@@ -719,7 +710,9 @@ def _delete_node(uuid, session=None):
     :param session: optional existing database session
     """
     with db.ensure_transaction(session) as session:
-        for model in (db.Attribute, db.Option, db.Node):
+        db.model_query(db.Attribute, session=session).filter_by(
+            node_uuid=uuid).delete()
+        for model in (db.Option, db.Node):
             db.model_query(model,
                            session=session).filter_by(uuid=uuid).delete()
 
@@ -781,16 +774,17 @@ def get_node(node_id, ironic=None, locked=False):
 def find_node(**attributes):
     """Find node in cache.
 
+    Looks up a node based on attributes in a best-match fashion.
     This function acquires a lock on a node.
 
     :param attributes: attributes known about this node (like macs, BMC etc)
                        also ironic client instance may be passed under 'ironic'
     :returns: structure NodeInfo with attributes ``uuid`` and ``created_at``
-    :raises: Error if node is not found
+    :raises: Error if node is not found or multiple nodes match the attributes
     """
     ironic = attributes.pop('ironic', None)
     # NOTE(dtantsur): sorting is not required, but gives us predictability
-    found = set()
+    found = collections.Counter()
 
     for (name, value) in sorted(attributes.items()):
         if not value:
@@ -804,21 +798,31 @@ def find_node(**attributes):
         value_list = []
         for v in value:
             value_list.append("name='%s' AND value='%s'" % (name, v))
-        stmt = ('select distinct uuid from attributes where ' +
+        stmt = ('select distinct node_uuid from attributes where ' +
                 ' OR '.join(value_list))
-        rows = (db.model_query(db.Attribute.uuid).from_statement(
+        rows = (db.model_query(db.Attribute.node_uuid).from_statement(
             text(stmt)).all())
-        if rows:
-            found.update(item.uuid for item in rows)
+        found.update(row.node_uuid for row in rows)
 
     if not found:
         raise utils.NotFoundInCacheError(_(
             'Could not find a node for attributes %s') % attributes)
-    elif len(found) > 1:
+
+    most_common = found.most_common()
+    LOG.debug('The following nodes match the attributes: %(attributes)s, '
+              'scoring: %(most_common)s',
+              {'most_common': ', '.join('%s: %d' % tpl for tpl in most_common),
+               'attributes': ', '.join('%s=%s' % tpl for tpl in
+                                       attributes.items())})
+
+    # NOTE(milan) most_common is sorted, higher scores first
+    highest_score = most_common[0][1]
+    found = [item[0] for item in most_common if highest_score == item[1]]
+    if len(found) > 1:
         raise utils.Error(_(
-            'Multiple matching nodes found for attributes '
+            'Multiple nodes match the same number of attributes '
             '%(attr)s: %(found)s')
-            % {'attr': attributes, 'found': list(found)}, code=404)
+            % {'attr': attributes, 'found': found}, code=404)
 
     uuid = found.pop()
     node_info = NodeInfo(uuid=uuid, ironic=ironic)
