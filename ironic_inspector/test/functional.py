@@ -40,6 +40,7 @@ from ironic_inspector import db
 from ironic_inspector import dbsync
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
+from ironic_inspector import node_cache
 from ironic_inspector import rules
 from ironic_inspector.test import base
 
@@ -132,6 +133,10 @@ class Base(base.NodeTest):
         self.cfg = self.useFixture(config_fixture.Config())
         conf_file = get_test_conf_file()
         self.cfg.set_config_files([conf_file])
+
+    def tearDown(self):
+        super(Base, self).tearDown()
+        node_cache._delete_node(self.uuid)
 
     def call(self, method, endpoint, data=None, expect_error=None,
              api_version=None):
