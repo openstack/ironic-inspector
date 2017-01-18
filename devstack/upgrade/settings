@@ -1,6 +1,3 @@
-# Enable our tests; also enable ironic tempest plugin as we depend on it.
-export TEMPEST_PLUGINS="/opt/stack/new/ironic /opt/stack/new/ironic-inspector"
-
 # Enabling Inspector grenade plug-in
 # Based on Ironic/devstack/grenade/settings
 register_project_for_upgrade ironic-inspector
