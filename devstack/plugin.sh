@@ -30,7 +30,8 @@ IRONIC_INSPECTOR_DHCP_RANGE=${IRONIC_INSPECTOR_DHCP_RANGE:-172.24.42.100,172.24.
 IRONIC_INSPECTOR_INTERFACE=${IRONIC_INSPECTOR_INTERFACE:-br-inspector}
 IRONIC_INSPECTOR_INTERNAL_URI="http://$IRONIC_INSPECTOR_INTERNAL_IP:$IRONIC_INSPECTOR_PORT"
 IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET="$IRONIC_INSPECTOR_INTERNAL_IP/$IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE"
-
+# Whether DevStack will be setup for bare metal or VMs
+IRONIC_IS_HARDWARE=$(trueorfalse False IRONIC_IS_HARDWARE)
 IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=${IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK:-""}
 
 GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
@@ -254,10 +255,12 @@ function prepare_environment {
     prepare_tftp
     create_ironic_inspector_cache_dir
 
-    sudo ip link add brbm-inspector type veth peer name $IRONIC_INSPECTOR_INTERFACE
-    sudo ip link set dev brbm-inspector up
+    if [[ "$IRONIC_IS_HARDWARE" == "False" ]]; then
+        sudo ip link add brbm-inspector type veth peer name $IRONIC_INSPECTOR_INTERFACE
+        sudo ip link set dev brbm-inspector up
+        sudo ovs-vsctl add-port brbm brbm-inspector
+    fi
     sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE up
-    sudo ovs-vsctl add-port brbm brbm-inspector
     sudo ip addr add $IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET dev $IRONIC_INSPECTOR_INTERFACE
 
     sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
