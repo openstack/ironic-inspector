@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    Periodic clean up fails with DBDeadlock if introspection timeout.

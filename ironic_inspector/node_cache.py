@@ -165,7 +165,6 @@ class NodeInfo(object):
             self._set_version_id(uuidutils.generate_uuid(), session)
             row = self._row(session)
             row.update(fields)
-            row.save(session)
 
     def commit(self):
         """Commit current node status into the database."""
@@ -857,24 +856,19 @@ def clean_up():
                  db.model_query(db.Node.uuid, session=session).filter(
                      db.Node.started_at < threshold,
                      db.Node.finished_at.is_(None)).all()]
-        if not uuids:
-            return []
+    if not uuids:
+        return []
 
-        LOG.error(_LE('Introspection for nodes %s has timed out'), uuids)
-        for u in uuids:
-            node_info = get_node(u, locked=True)
-            try:
-                if node_info.finished_at or node_info.started_at > threshold:
-                    continue
-                node_info.fsm_event(istate.Events.timeout)
-                node_info.finished(error='Introspection timeout')
-
-                db.model_query(db.Attribute, session=session).filter_by(
-                    uuid=u).delete()
-                db.model_query(db.Option, session=session).filter_by(
-                    uuid=u).delete()
-            finally:
-                node_info.release_lock()
+    LOG.error(_LE('Introspection for nodes %s has timed out'), uuids)
+    for u in uuids:
+        node_info = get_node(u, locked=True)
+        try:
+            if node_info.finished_at or node_info.started_at > threshold:
+                continue
+            node_info.fsm_event(istate.Events.timeout)
+            node_info.finished(error='Introspection timeout')
+        finally:
+            node_info.release_lock()
 
     return uuids
 
