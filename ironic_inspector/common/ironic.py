@@ -37,50 +37,6 @@ IRONIC_GROUP = 'ironic'
 IRONIC_OPTS = [
     cfg.StrOpt('os_region',
                help=_('Keystone region used to get Ironic endpoints.')),
-    cfg.StrOpt('os_auth_url',
-               default='',
-               help=_('Keystone authentication endpoint for accessing Ironic '
-                      'API. Use [keystone_authtoken] section for keystone '
-                      'token validation.'),
-               deprecated_group='discoverd',
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use options presented by configured '
-                                   'keystone auth plugin.')),
-    cfg.StrOpt('os_username',
-               default='',
-               help=_('User name for accessing Ironic API. '
-                      'Use [keystone_authtoken] section for keystone '
-                      'token validation.'),
-               deprecated_group='discoverd',
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use options presented by configured '
-                                   'keystone auth plugin.')),
-    cfg.StrOpt('os_password',
-               default='',
-               help=_('Password for accessing Ironic API. '
-                      'Use [keystone_authtoken] section for keystone '
-                      'token validation.'),
-               secret=True,
-               deprecated_group='discoverd',
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use options presented by configured '
-                                   'keystone auth plugin.')),
-    cfg.StrOpt('os_tenant_name',
-               default='',
-               help=_('Tenant name for accessing Ironic API. '
-                      'Use [keystone_authtoken] section for keystone '
-                      'token validation.'),
-               deprecated_group='discoverd',
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use options presented by configured '
-                                   'keystone auth plugin.')),
-    cfg.StrOpt('identity_uri',
-               default='',
-               help=_('Keystone admin endpoint. '
-                      'DEPRECATED: Use [keystone_authtoken] section for '
-                      'keystone token validation.'),
-               deprecated_group='discoverd',
-               deprecated_for_removal=True),
     cfg.StrOpt('auth_strategy',
                default='keystone',
                choices=('keystone', 'noauth'),
@@ -112,12 +68,6 @@ CONF.register_opts(IRONIC_OPTS, group=IRONIC_GROUP)
 keystone.register_auth_opts(IRONIC_GROUP)
 
 IRONIC_SESSION = None
-LEGACY_MAP = {
-    'auth_url': 'os_auth_url',
-    'username': 'os_username',
-    'password': 'os_password',
-    'tenant_name': 'os_tenant_name'
-}
 
 
 class NotFound(utils.Error):
@@ -175,8 +125,7 @@ def get_client(token=None,
     else:
         global IRONIC_SESSION
         if not IRONIC_SESSION:
-            IRONIC_SESSION = keystone.get_session(
-                IRONIC_GROUP, legacy_mapping=LEGACY_MAP)
+            IRONIC_SESSION = keystone.get_session(IRONIC_GROUP)
         if token is None:
             args = {'session': IRONIC_SESSION,
                     'region_name': CONF.ironic.os_region}

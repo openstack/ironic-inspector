@@ -42,18 +42,6 @@ SWIFT_OPTS = [
                default='ironic-inspector',
                help=_('Default Swift container to use when creating '
                       'objects.')),
-    cfg.StrOpt('os_auth_version',
-               default='2',
-               help=_('Keystone authentication API version'),
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use options presented by configured '
-                                   'keystone auth plugin.')),
-    cfg.StrOpt('os_auth_url',
-               default='',
-               help=_('Keystone authentication URL'),
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use options presented by configured '
-                                   'keystone auth plugin.')),
     cfg.StrOpt('os_service_type',
                default='object-store',
                help=_('Swift service type.')),
@@ -64,33 +52,11 @@ SWIFT_OPTS = [
                help=_('Keystone region to get endpoint for.')),
 ]
 
-# NOTE(pas-ha) these old options conflict with options exported by
-# most used keystone auth plugins. Need to register them manually
-# for the backward-compat case.
-LEGACY_OPTS = [
-    cfg.StrOpt('username',
-               default='',
-               help=_('User name for accessing Swift API.')),
-    cfg.StrOpt('password',
-               default='',
-               help=_('Password for accessing Swift API.'),
-               secret=True),
-    cfg.StrOpt('tenant_name',
-               default='',
-               help=_('Tenant name for accessing Swift API.')),
-]
-
 CONF.register_opts(SWIFT_OPTS, group=SWIFT_GROUP)
 keystone.register_auth_opts(SWIFT_GROUP)
 
 OBJECT_NAME_PREFIX = 'inspector_data'
 SWIFT_SESSION = None
-LEGACY_MAP = {
-    'auth_url': 'os_auth_url',
-    'username': 'username',
-    'password': 'password',
-    'tenant_name': 'tenant_name',
-}
 
 
 def reset_swift_session():
@@ -112,9 +78,7 @@ class SwiftAPI(object):
         """
         global SWIFT_SESSION
         if not SWIFT_SESSION:
-            SWIFT_SESSION = keystone.get_session(
-                SWIFT_GROUP, legacy_mapping=LEGACY_MAP,
-                legacy_auth_opts=LEGACY_OPTS)
+            SWIFT_SESSION = keystone.get_session(SWIFT_GROUP)
         # TODO(pas-ha): swiftclient does not support keystone sessions ATM.
         # Must be reworked when LP bug #1518938 is fixed.
         swift_url = SWIFT_SESSION.get_endpoint(

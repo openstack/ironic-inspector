@@ -29,18 +29,15 @@ VALID_STORE_DATA_VALUES = ('none', 'swift')
 FIREWALL_OPTS = [
     cfg.BoolOpt('manage_firewall',
                 default=True,
-                help=_('Whether to manage firewall rules for PXE port.'),
-                deprecated_group='discoverd'),
+                help=_('Whether to manage firewall rules for PXE port.')),
     cfg.StrOpt('dnsmasq_interface',
                default='br-ctlplane',
                help=_('Interface on which dnsmasq listens, the default is for '
-                      'VM\'s.'),
-               deprecated_group='discoverd'),
+                      'VM\'s.')),
     cfg.IntOpt('firewall_update_period',
                default=15,
                help=_('Amount of time in seconds, after which repeat periodic '
-                      'update of firewall.'),
-               deprecated_group='discoverd'),
+                      'update of firewall.')),
     cfg.StrOpt('firewall_chain',
                default='ironic-inspector',
                help=_('iptables chain name to use.')),
@@ -56,8 +53,7 @@ PROCESSING_OPTS = [
                       'IP addresses), pxe (only MAC address of NIC node PXE '
                       'booted from, falls back to "active" if PXE MAC is not '
                       'supplied by the ramdisk).'),
-               choices=VALID_ADD_PORTS_VALUES,
-               deprecated_group='discoverd'),
+               choices=VALID_ADD_PORTS_VALUES),
     cfg.StrOpt('keep_ports',
                default='all',
                help=_('Which ports (already present on a node) to keep after '
@@ -65,20 +61,17 @@ PROCESSING_OPTS = [
                       'anything), present (keep ports which MACs were present '
                       'in introspection data), added (keep only MACs that we '
                       'added during introspection).'),
-               choices=VALID_KEEP_PORTS_VALUES,
-               deprecated_group='discoverd'),
+               choices=VALID_KEEP_PORTS_VALUES),
     cfg.BoolOpt('overwrite_existing',
                 default=True,
                 help=_('Whether to overwrite existing values in node '
                        'database. Disable this option to make '
-                       'introspection a non-destructive operation.'),
-                deprecated_group='discoverd'),
+                       'introspection a non-destructive operation.')),
     cfg.BoolOpt('enable_setting_ipmi_credentials',
                 default=False,
                 help=_('Whether to enable setting IPMI credentials during '
                        'introspection. This feature will be removed in the '
                        'Pike release.'),
-                deprecated_group='discoverd',
                 deprecated_for_removal=True),
     cfg.StrOpt('default_processing_hooks',
                default='ramdisk_error,root_disk_selection,scheduler,'
@@ -96,18 +89,15 @@ PROCESSING_OPTS = [
                       'pipeline. The default for this is '
                       '$default_processing_hooks, hooks can be added before '
                       'or after the defaults like this: '
-                      '"prehook,$default_processing_hooks,posthook".'),
-               deprecated_group='discoverd'),
+                      '"prehook,$default_processing_hooks,posthook".')),
     cfg.StrOpt('ramdisk_logs_dir',
                help=_('If set, logs from ramdisk will be stored in this '
-                      'directory.'),
-               deprecated_group='discoverd'),
+                      'directory.')),
     cfg.BoolOpt('always_store_ramdisk_logs',
                 default=False,
                 help=_('Whether to store ramdisk logs even if it did not '
                        'return an error message (dependent upon '
-                       '"ramdisk_logs_dir" option being set).'),
-                deprecated_group='discoverd'),
+                       '"ramdisk_logs_dir" option being set).')),
     cfg.StrOpt('node_not_found_hook',
                help=_('The name of the hook to run when inspector receives '
                       'inspection information from a node it isn\'t already '
@@ -143,51 +133,32 @@ PROCESSING_OPTS = [
                 help=_('Whether to power off a node after introspection.')),
 ]
 
-
-DISCOVERD_OPTS = [
-    cfg.StrOpt('database',
-               default='',
-               help=_('SQLite3 database to store nodes under introspection, '
-                      'required. Do not use :memory: here, it won\'t work. '
-                      'DEPRECATED: use [database]/connection.'),
-               deprecated_for_removal=True),
-]
-
 SERVICE_OPTS = [
     cfg.StrOpt('listen_address',
                default='0.0.0.0',
-               help=_('IP to listen on.'),
-               deprecated_group='discoverd'),
+               help=_('IP to listen on.')),
     cfg.PortOpt('listen_port',
                 default=5050,
-                help=_('Port to listen on.'),
-                deprecated_group='discoverd'),
+                help=_('Port to listen on.')),
     cfg.StrOpt('auth_strategy',
                default='keystone',
                choices=('keystone', 'noauth'),
                help=_('Authentication method used on the ironic-inspector '
                       'API. Either "noauth" or "keystone" are currently valid '
                       'options. "noauth" will disable all authentication.')),
-    cfg.BoolOpt('authenticate',
-                help=_('DEPRECATED: use auth_strategy.'),
-                deprecated_group='discoverd',
-                deprecated_for_removal=True),
     cfg.IntOpt('timeout',
                default=3600,
                help=_('Timeout after which introspection is considered '
-                      'failed, set to 0 to disable.'),
-               deprecated_group='discoverd'),
+                      'failed, set to 0 to disable.')),
     cfg.IntOpt('node_status_keep_time',
                default=604800,
                help=_('For how much time (in seconds) to keep status '
                       'information about nodes after introspection was '
-                      'finished for them. Default value is 1 week.'),
-               deprecated_group='discoverd'),
+                      'finished for them. Default value is 1 week.')),
     cfg.IntOpt('clean_up_period',
                default=60,
                help=_('Amount of time in seconds, after which repeat clean up '
-                      'of timed out nodes and old nodes status information.'),
-               deprecated_group='discoverd'),
+                      'of timed out nodes and old nodes status information.')),
     cfg.BoolOpt('use_ssl',
                 default=False,
                 help=_('SSL Enabled/Disabled')),
@@ -225,7 +196,6 @@ SERVICE_OPTS = [
 cfg.CONF.register_opts(SERVICE_OPTS)
 cfg.CONF.register_opts(FIREWALL_OPTS, group='firewall')
 cfg.CONF.register_opts(PROCESSING_OPTS, group='processing')
-cfg.CONF.register_opts(DISCOVERD_OPTS, group='discoverd')
 
 
 def list_opts():
@@ -233,7 +203,6 @@ def list_opts():
         ('', SERVICE_OPTS),
         ('firewall', FIREWALL_OPTS),
         ('processing', PROCESSING_OPTS),
-        ('discoverd', DISCOVERD_OPTS),
     ]
 
 

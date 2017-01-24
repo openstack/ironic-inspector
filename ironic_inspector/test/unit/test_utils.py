@@ -57,35 +57,6 @@ class TestCheckAuth(base.BaseTest):
         self.assertEqual('http://127.0.0.1:5000', args1['auth_uri'])
         self.assertEqual('http://127.0.0.1:35357', args1['identity_uri'])
 
-    @mock.patch.object(auth_token, 'AuthProtocol')
-    def test_add_auth_middleware_with_deprecated_items(self, mock_auth):
-        CONF.set_override('os_password', 'os_password', 'ironic')
-        CONF.set_override('admin_password', 'admin_password',
-                          'keystone_authtoken')
-        CONF.set_override('os_username', 'os_username', 'ironic')
-        CONF.set_override('admin_user', 'admin_user', 'keystone_authtoken')
-        CONF.set_override('os_auth_url', 'os_auth_url', 'ironic')
-        CONF.set_override('auth_uri', 'auth_uri', 'keystone_authtoken')
-        CONF.set_override('os_tenant_name', 'os_tenant_name', 'ironic')
-        CONF.set_override('admin_tenant_name', 'admin_tenant_name',
-                          'keystone_authtoken')
-        CONF.set_override('identity_uri', 'identity_uri_ironic', 'ironic')
-        CONF.set_override('identity_uri', 'identity_uri', 'keystone_authtoken')
-
-        app = mock.Mock(wsgi_app=mock.sentinel.app)
-        utils.add_auth_middleware(app)
-
-        call_args = mock_auth.call_args_list[0]
-        args = call_args[0]
-        self.assertEqual(mock.sentinel.app, args[0])
-        args1 = args[1]
-        self.assertEqual('os_password', args1['admin_password'])
-        self.assertEqual('os_username', args1['admin_user'])
-        self.assertEqual('os_auth_url', args1['auth_uri'])
-        self.assertEqual('os_tenant_name', args1['admin_tenant_name'])
-        self.assertTrue(args1['delay_auth_decision'])
-        self.assertEqual('identity_uri_ironic', args1['identity_uri'])
-
     def test_ok(self):
         request = mock.Mock(headers={'X-Identity-Status': 'Confirmed',
                                      'X-Roles': 'admin,member'})

@@ -150,29 +150,6 @@ def add_auth_middleware(app):
     :param app: application.
     """
     auth_conf = dict(CONF.keystone_authtoken)
-    # These items should only be used for accessing Ironic API.
-    # For keystonemiddleware's authentication,
-    # keystone_authtoken's items will be used and
-    # these items will be unsupported.
-    # [ironic]/os_password
-    # [ironic]/os_username
-    # [ironic]/os_auth_url
-    # [ironic]/os_tenant_name
-    auth_conf.update({'admin_password':
-                      CONF.ironic.os_password or
-                      CONF.keystone_authtoken.admin_password,
-                      'admin_user':
-                      CONF.ironic.os_username or
-                      CONF.keystone_authtoken.admin_user,
-                      'auth_uri':
-                      CONF.ironic.os_auth_url or
-                      CONF.keystone_authtoken.auth_uri,
-                      'admin_tenant_name':
-                      CONF.ironic.os_tenant_name or
-                      CONF.keystone_authtoken.admin_tenant_name,
-                      'identity_uri':
-                      CONF.ironic.identity_uri or
-                      CONF.keystone_authtoken.identity_uri})
     auth_conf['delay_auth_decision'] = True
     app.wsgi_app = auth_token.AuthProtocol(app.wsgi_app, auth_conf)
 
@@ -194,7 +171,7 @@ def check_auth(request):
     :param request: Flask request
     :raises: utils.Error if access is denied
     """
-    if get_auth_strategy() == 'noauth':
+    if CONF.auth_strategy == 'noauth':
         return
     if request.headers.get('X-Identity-Status').lower() == 'invalid':
         raise Error(_('Authentication required'), code=401)
@@ -202,12 +179,6 @@ def check_auth(request):
     if 'admin' not in roles:
         LOG.error(_LE('Role "admin" not in user role list %s'), roles)
         raise Error(_('Access denied'), code=403)
-
-
-def get_auth_strategy():
-    if CONF.authenticate is not None:
-        return 'keystone' if CONF.authenticate else 'noauth'
-    return CONF.auth_strategy
 
 
 def get_valid_macs(data):
