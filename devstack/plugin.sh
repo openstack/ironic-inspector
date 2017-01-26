@@ -55,8 +55,6 @@ function inspector_iniset {
 
 function install_inspector {
     setup_develop $IRONIC_INSPECTOR_DIR
-    # NOTE(dtantsur): required for tests
-    install_package jq
 }
 
 function install_inspector_dhcp {
