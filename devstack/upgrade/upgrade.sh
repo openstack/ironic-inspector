@@ -71,10 +71,12 @@ if  [[ -d $IRONIC_INSPECTOR_CONF_DIR ]] && [[ ! -d $SAVE_DIR/etc.inspector ]] ; 
     cp -pr $IRONIC_INSPECTOR_CONF_DIR $SAVE_DIR/etc.inspector
 fi
 
-stack_install_service ironic-inspector
+# This call looks for install_<NAME>, which is install_inspector in our case:
+# https://github.com/openstack-dev/devstack/blob/dec121114c3ea6f9e515a452700e5015d1e34704/lib/stack#L32
+stack_install_service inspector
 
 if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
-    stack_install_service ironic-inspector-dhcp
+    stack_install_service inspector_dhcp
 fi
 
 $IRONIC_INSPECTOR_DBSYNC_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE upgrade
