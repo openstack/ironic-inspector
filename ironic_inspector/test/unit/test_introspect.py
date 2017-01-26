@@ -268,32 +268,8 @@ class TestIntrospect(BaseTest):
 
     @mock.patch.object(time, 'sleep')
     @mock.patch.object(time, 'time')
-    def test_sleep_no_pxe_ssh(self, time_mock, sleep_mock, client_mock,
-                              start_mock, filters_mock):
-        self.node.driver = 'pxe_ipmitool'
-        time_mock.return_value = 42
-        introspect._LAST_INTROSPECTION_TIME = 40
-        CONF.set_override('introspection_delay', 10)
-
-        cli = self._prepare(client_mock)
-        start_mock.return_value = self.node_info
-
-        introspect.introspect(self.uuid)
-
-        self.assertFalse(sleep_mock.called)
-        cli.node.set_boot_device.assert_called_once_with(self.uuid,
-                                                         'pxe',
-                                                         persistent=False)
-        cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                         'reboot')
-        # not changed
-        self.assertEqual(40, introspect._LAST_INTROSPECTION_TIME)
-
-    @mock.patch.object(time, 'sleep')
-    @mock.patch.object(time, 'time')
-    def test_sleep_with_pxe_ssh(self, time_mock, sleep_mock, client_mock,
-                                start_mock, filters_mock):
-        self.node.driver = 'pxe_ssh'
+    def test_introspection_delay(self, time_mock, sleep_mock, client_mock,
+                                 start_mock, filters_mock):
         time_mock.return_value = 42
         introspect._LAST_INTROSPECTION_TIME = 40
         CONF.set_override('introspection_delay', 10)
@@ -314,10 +290,9 @@ class TestIntrospect(BaseTest):
 
     @mock.patch.object(time, 'sleep')
     @mock.patch.object(time, 'time')
-    def test_sleep_not_needed_with_pxe_ssh(self, time_mock, sleep_mock,
-                                           client_mock, start_mock,
-                                           filters_mock):
-        self.node.driver = 'agent_ssh'
+    def test_introspection_delay_not_needed(self, time_mock, sleep_mock,
+                                            client_mock, start_mock,
+                                            filters_mock):
         time_mock.return_value = 100
         introspect._LAST_INTROSPECTION_TIME = 40
         CONF.set_override('introspection_delay', 10)
@@ -338,8 +313,9 @@ class TestIntrospect(BaseTest):
 
     @mock.patch.object(time, 'sleep')
     @mock.patch.object(time, 'time')
-    def test_sleep_with_custom_driver(self, time_mock, sleep_mock, client_mock,
-                                      start_mock, filters_mock):
+    def test_introspection_delay_custom_drivers(self, time_mock, sleep_mock,
+                                                client_mock, start_mock,
+                                                filters_mock):
         self.node.driver = 'foobar'
         time_mock.return_value = 42
         introspect._LAST_INTROSPECTION_TIME = 40

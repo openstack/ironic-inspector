@@ -203,10 +203,11 @@ SERVICE_OPTS = [
                default=5,
                help=_('Delay (in seconds) between two introspections.')),
     cfg.StrOpt('introspection_delay_drivers',
-               default='^.*_ssh$',
+               default='.*',
                help=_('Only node with drivers matching this regular '
                       'expression will be affected by introspection_delay '
-                      'setting.')),
+                      'setting.'),
+               deprecated_for_removal=True),
     cfg.ListOpt('ipmi_address_fields',
                 default=['ilo_address', 'drac_host', 'drac_address',
                          'cimc_address'],
