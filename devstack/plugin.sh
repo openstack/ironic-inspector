@@ -299,7 +299,9 @@ function cleanup_inspector {
     sudo iptables -F ironic-inspector | true
     sudo iptables -X ironic-inspector | true
 
-    sudo ip link show $IRONIC_INSPECTOR_INTERFACE && sudo ip link delete $IRONIC_INSPECTOR_INTERFACE
+    if [[ $IRONIC_INSPECTOR_INTERFACE != $OVS_PHYSICAL_BRIDGE ]]; then
+        sudo ip link show $IRONIC_INSPECTOR_INTERFACE && sudo ip link delete $IRONIC_INSPECTOR_INTERFACE
+    fi
     sudo ip link show brbm-inspector && sudo ip link delete brbm-inspector
     sudo ovs-vsctl --if-exists del-port brbm-inspector
 }
