@@ -72,6 +72,15 @@ class TestApiIntrospect(BaseAPITest):
             token=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
+    def test_introspect_set_ipmi_credentials_disabled(self, introspect_mock):
+        headers = {conf.VERSION_HEADER: '1.9'}
+        res = self.app.post('/v1/introspection/%s?new_ipmi_username=user&'
+                            'new_ipmi_password=password' % self.uuid,
+                            headers=headers)
+        self.assertEqual(400, res.status_code)
+        self.assertFalse(introspect_mock.called)
+
+    @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_set_ipmi_credentials_no_user(self, introspect_mock):
         res = self.app.post('/v1/introspection/%s?'
                             'new_ipmi_password=password' % self.uuid)

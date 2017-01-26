@@ -76,9 +76,10 @@ PROCESSING_OPTS = [
     cfg.BoolOpt('enable_setting_ipmi_credentials',
                 default=False,
                 help=_('Whether to enable setting IPMI credentials during '
-                       'introspection. This is an experimental and not well '
-                       'tested feature, use at your own risk.'),
-                deprecated_group='discoverd'),
+                       'introspection. This feature will be removed in the '
+                       'Pike release.'),
+                deprecated_group='discoverd',
+                deprecated_for_removal=True),
     cfg.StrOpt('default_processing_hooks',
                default='ramdisk_error,root_disk_selection,scheduler,'
                        'validate_interfaces,capabilities,pci_devices',

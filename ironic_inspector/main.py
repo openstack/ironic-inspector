@@ -48,7 +48,10 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 8)
+# TODO(dtantsur): set to the current version as soon we move setting IPMI
+# credentials support completely.
+DEFAULT_API_VERSION = (1, 8)
+CURRENT_API_VERSION = (1, 9)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -67,7 +70,7 @@ def _format_version(ver):
     return '%d.%d' % ver
 
 
-_DEFAULT_API_VERSION = _format_version(CURRENT_API_VERSION)
+_DEFAULT_API_VERSION = _format_version(DEFAULT_API_VERSION)
 
 
 def error_response(exc, code=500):
@@ -220,6 +223,10 @@ def api_introspection(node_id):
             new_ipmi_credentials = (new_ipmi_username, new_ipmi_password)
         else:
             new_ipmi_credentials = None
+
+        if new_ipmi_credentials and _get_version() >= (1, 9):
+            return _('Setting IPMI credentials is deprecated and not allowed '
+                     'starting with API version 1.9'), 400
 
         introspect.introspect(node_id,
                               new_ipmi_credentials=new_ipmi_credentials,

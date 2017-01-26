@@ -130,47 +130,6 @@ from introspection, it's using `python string formatting notation
     {"action": "set-attribute", "path": "/driver_info/ipmi_address",
      "value": "{data[inventory][bmc_address]}"}
 
-.. _setting-ipmi-creds:
-
-Setting IPMI Credentials
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you have physical access to your nodes, you can use **ironic-inspector** to
-set IPMI credentials for them without knowing the original ones. The workflow
-is as follows:
-
-* Ensure nodes will PXE boot on the right network by default.
-
-* Set ``enable_setting_ipmi_credentials = true`` in the **ironic-inspector**
-  configuration file, restart **ironic-inspector**.
-
-* Enroll nodes in Ironic with setting their ``ipmi_address`` only (or
-  equivalent driver-specific property, as per ``ipmi_address_fields``
-  configuration option).
-
-  Use ironic API version ``1.11`` (introduced in ironic 4.0.0),
-  so that new node gets into ``enroll`` provision state::
-
-    ironic --ironic-api-version 1.11 node-create -d <DRIVER> -i ipmi_address=<ADDRESS>
-
-  Providing ``ipmi_address`` allows **ironic-inspector** to distinguish nodes.
-
-* Start introspection with providing additional parameters:
-
-  * ``new_ipmi_password`` IPMI password to set,
-  * ``new_ipmi_username`` IPMI user name to set, defaults to one in node
-    driver_info.
-
-* Manually power on the nodes and wait.
-
-* After introspection is finished (watch nodes power state or use
-  **ironic-inspector** status API) you can move node to ``manageable`` and
-  then ``available`` states - see `Node States`_.
-
-Note that due to various limitations on password value in different BMC,
-**ironic-inspector** will only accept passwords with length between 1 and 20
-consisting only of letters and numbers.
-
 .. _plugins:
 
 Plugins
