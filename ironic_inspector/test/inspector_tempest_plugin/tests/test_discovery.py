@@ -14,6 +14,7 @@ import six
 
 from ironic_tempest_plugin.tests.scenario import baremetal_manager
 from tempest import config
+from tempest.lib import decorators
 from tempest import test  # noqa
 
 from ironic_inspector.test.inspector_tempest_plugin.tests import manager
@@ -113,7 +114,7 @@ class InspectorDiscoveryTest(manager.InspectorScenarioTest):
             self.assertEqual(six.text_type(node_info['driver_info'][key]),
                              inspected_node['driver_info'].get(key))
 
-    @test.idempotent_id('dd3abe5e-0d23-488d-bb4e-344cdeff7dcb')
+    @decorators.idempotent_id('dd3abe5e-0d23-488d-bb4e-344cdeff7dcb')
     def test_bearmetal_auto_discovery(self):
         """This test case follows this set of operations:
 
