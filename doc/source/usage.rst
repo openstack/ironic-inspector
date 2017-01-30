@@ -146,6 +146,13 @@ unless you understand what you're doing:
 ``scheduler``
     validates and updates basic hardware scheduling properties: CPU number and
     architecture, memory and disk size.
+
+    .. note::
+
+      Diskless nodes have the disk size property ``local_gb == 0``. Always use
+      node driver ``root_device`` hints to prevent unexpected HW failures
+      passing silently.
+
 ``validate_interfaces``
     validates network interfaces information.
 

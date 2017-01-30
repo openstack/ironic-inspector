@@ -22,7 +22,7 @@ from oslo_middleware import cors as cors_middleware
 import pytz
 
 from ironicclient.v1 import node
-from ironic_inspector.common.i18n import _, _LE
+from ironic_inspector.common.i18n import _, _LE, _LI
 from ironic_inspector import conf  # noqa
 
 CONF = cfg.CONF
@@ -217,7 +217,7 @@ def get_valid_macs(data):
             if m.get('mac')]
 
 
-_INVENTORY_MANDATORY_KEYS = ('disks', 'memory', 'cpu', 'interfaces')
+_INVENTORY_MANDATORY_KEYS = ('memory', 'cpu', 'interfaces')
 
 
 def get_inventory(data, node_info=None):
@@ -232,6 +232,12 @@ def get_inventory(data, node_info=None):
         if not inventory.get(key):
             raise Error(_('Invalid hardware inventory: %s key is missing '
                           'or empty') % key, data=data, node_info=node_info)
+
+    if not inventory.get('disks'):
+        LOG.info(_LI('No disks were detected in the inventory, assuming this '
+                     'is a disk-less node'), data=data, node_info=node_info)
+        # Make sure the code iterating over it does not fail with a TypeError
+        inventory['disks'] = []
 
     return inventory
 

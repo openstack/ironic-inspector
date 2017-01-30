@@ -687,6 +687,32 @@ class Test(Base):
         self.assertIsNone(row.error)
         self.assertNotEqual(version_id, row.version_id)
 
+    def test_without_root_disk(self):
+        del self.data['root_disk']
+        self.inventory['disks'] = []
+        self.patch[-1] = {'path': '/properties/local_gb',
+                          'value': '0', 'op': 'add'}
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                              'reboot')
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False)
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.node.update)
+        self.cli.port.create.assert_called_once_with(
+            node_uuid=self.uuid, address='11:22:33:44:55:66')
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True)
+
 
 @contextlib.contextmanager
 def mocked_server():

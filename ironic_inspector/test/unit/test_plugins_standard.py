@@ -12,6 +12,8 @@
 # limitations under the License.
 
 import mock
+import six
+
 from oslo_config import cfg
 from oslo_utils import units
 
@@ -37,11 +39,21 @@ class TestSchedulerHook(test_base.NodeTest):
         ext = base.processing_hooks_manager()['scheduler']
         self.assertIsInstance(ext.obj, std_plugins.SchedulerHook)
 
-    def test_no_root_disk(self):
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_no_root_disk(self, mock_patch):
         del self.inventory['disks']
-        self.assertRaisesRegex(utils.Error, 'disks key is missing or empty',
-                               self.hook.before_update, self.data,
-                               self.node_info)
+        del self.data['root_disk']
+
+        patch = [
+            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
+            {'path': '/properties/local_gb', 'value': '0', 'op': 'add'}
+        ]
+
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+        self.assertEqual(0, self.data['local_gb'])
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_ok(self, mock_patch):
@@ -265,10 +277,10 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.node.properties['root_device'] = {'size': 10}
         self.inventory['disks'] = []
 
-        self.assertRaisesRegex(utils.Error,
-                               'disks key is missing or empty',
-                               self.hook.before_update,
-                               self.data, self.node_info)
+        six.assertRaisesRegex(self, utils.Error,
+                              'No disks satisfied root device hints',
+                              self.hook.before_update,
+                              self.data, self.node_info)
 
     def test_one_matches(self):
         self.node.properties['root_device'] = {'size': 10}

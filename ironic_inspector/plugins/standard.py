@@ -88,8 +88,7 @@ class SchedulerHook(base.ProcessingHook):
             if CONF.processing.disk_partitioning_spacing:
                 introspection_data['local_gb'] -= 1
         else:
-            errors.append(_('root disk is not supplied by the ramdisk and '
-                            'root_disk_selection hook is not enabled'))
+            introspection_data['local_gb'] = 0
 
         try:
             introspection_data['cpus'] = int(inventory['cpu']['count'])
