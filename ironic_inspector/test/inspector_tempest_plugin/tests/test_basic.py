@@ -11,6 +11,7 @@
 #    under the License.
 
 from tempest.config import CONF
+from tempest.lib import decorators
 from tempest import test  # noqa
 
 from ironic_inspector.test.inspector_tempest_plugin.tests import manager
@@ -56,7 +57,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
             timeout=CONF.baremetal.active_timeout,
             interval=self.wait_provisioning_state_interval)
 
-    @test.idempotent_id('03bf7990-bee0-4dd7-bf74-b97ad7b52a4b')
+    @decorators.idempotent_id('03bf7990-bee0-4dd7-bf74-b97ad7b52a4b')
     @test.services('compute', 'image', 'network', 'object_storage')
     def test_baremetal_introspection(self):
         """This smoke test case follows this set of operations:
@@ -109,7 +110,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
         ins, _node = self.boot_instance()
         self.terminate_instance(ins)
 
-    @test.idempotent_id('70ca3070-184b-4b7d-8892-e977d2bc2870')
+    @decorators.idempotent_id('70ca3070-184b-4b7d-8892-e977d2bc2870')
     def test_introspection_abort(self):
         """This smoke test case follows this very basic set of operations:
 
@@ -146,7 +147,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
 
 class InspectorSmokeTest(manager.InspectorScenarioTest):
 
-    @test.idempotent_id('a702d1f1-88e4-42ce-88ef-cba2d9e3312e')
+    @decorators.idempotent_id('a702d1f1-88e4-42ce-88ef-cba2d9e3312e')
     @test.attr(type='smoke')
     @test.services('object_storage')
     def test_baremetal_introspection(self):
