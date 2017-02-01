@@ -429,7 +429,7 @@ class Service(object):
         CONF.log_opt_values(LOG, log.DEBUG)
 
     def init(self):
-        if utils.get_auth_strategy() != 'noauth':
+        if CONF.auth_strategy != 'noauth':
             utils.add_auth_middleware(app)
         else:
             LOG.warning(_LW('Starting unauthenticated, please check'

@@ -43,10 +43,6 @@ _FACADE = None
 
 db_opts.set_defaults(cfg.CONF, _DEFAULT_SQL_CONNECTION,
                      'ironic_inspector.sqlite')
-if CONF.discoverd.database:
-    db_opts.set_defaults(CONF,
-                         connection='sqlite:///%s' %
-                         str(CONF.discoverd.database).strip())
 
 
 class Node(Base):
