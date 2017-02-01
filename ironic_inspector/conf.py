@@ -129,7 +129,8 @@ PROCESSING_OPTS = [
     cfg.BoolOpt('log_bmc_address',
                 default=True,
                 help=_('Whether to log node BMC address with every message '
-                       'during processing.')),
+                       'during processing.'),
+                deprecated_for_removal=True),
     cfg.StrOpt('ramdisk_logs_filename_format',
                default='{uuid}_{dt:%Y%m%d-%H%M%S.%f}.tar.gz',
                help=_('File name template for storing ramdisk logs. The '
