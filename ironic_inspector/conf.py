@@ -41,8 +41,17 @@ FIREWALL_OPTS = [
     cfg.StrOpt('firewall_chain',
                default='ironic-inspector',
                help=_('iptables chain name to use.')),
+    cfg.ListOpt('ethoib_interfaces',
+                default=[],
+                help=_('List of Etherent Over InfiniBand interfaces '
+                       'on the Inspector host which are used for physical '
+                       'access to the DHCP network. Multiple interfaces would '
+                       'be attached to a bond or bridge specified in '
+                       'dnsmasq_interface. The MACs of the InfiniBand nodes '
+                       'which are not in desired state are going to be '
+                       'blacklisted based on the list of neighbor MACs '
+                       'on these interfaces.')),
 ]
-
 
 PROCESSING_OPTS = [
     cfg.StrOpt('add_ports',

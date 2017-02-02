@@ -347,6 +347,10 @@ class TestProcessNode(BaseTest):
                           'processing')
         self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
+        self.valid_interfaces['eth3'] = {
+            'mac': self.macs[1], 'ip': self.ips[1], 'extra': {}
+        }
+        self.data['interfaces'] = self.valid_interfaces
         self.ports = self.all_ports
 
         self.new_creds = ('user', 'password')
@@ -398,9 +402,11 @@ class TestProcessNode(BaseTest):
         process._process_node(self.node_info, self.node, self.data)
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
-                                             address=self.macs[0])
+                                             address=self.macs[0],
+                                             extra={})
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
-                                             address=self.macs[1])
+                                             address=self.macs[1],
+                                             extra={})
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
 
@@ -414,9 +420,11 @@ class TestProcessNode(BaseTest):
         process._process_node(self.node_info, self.node, self.data)
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
-                                             address=self.macs[0])
+                                             address=self.macs[0],
+                                             extra={})
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
-                                             address=self.macs[1])
+                                             address=self.macs[1],
+                                             extra={})
 
     def test_set_ipmi_credentials(self):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
@@ -653,7 +661,8 @@ class TestReapplyNode(BaseTest):
         # behind validate_interfaces
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid,
-            address=swifted_data['macs'][0]
+            address=swifted_data['macs'][0],
+            extra={}
         )
 
     @prepare_mocks
@@ -707,7 +716,6 @@ class TestReapplyNode(BaseTest):
         swift_mock.get_object.return_value = json.dumps(self.data)
         exc = Exception('Oops')
         self.cli.port.create.side_effect = exc
-
         self.call()
 
         finished_mock.assert_called_once_with(self.node_info, error=str(exc))

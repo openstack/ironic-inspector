@@ -243,6 +243,8 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
 
     * ``mac_address`` MAC (physical) address of the interface.
 
+    * ``client_id`` InfiniBand Client-ID, for Ethernet is None.
+
 * ``root_disk`` default deployment root disk as calculated by the
   ironic-python-agent algorithm.
 
