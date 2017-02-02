@@ -26,6 +26,7 @@ from oslo_config import cfg
 from oslo_db import exception as db_exc
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
+from oslo_utils import reflection
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from sqlalchemy.orm import exc as orm_errors
@@ -523,14 +524,16 @@ def triggers_fsm_error_transition(errors=(Exception,),
             except no_errors as exc:
                 LOG.debug('Not processing error event for the '
                           'exception: %(exc)s raised by %(func)s',
-                          {'exc': exc, 'func': func}, node_info=node_info)
+                          {'exc': exc,
+                           'func': reflection.get_callable_name(func)},
+                          node_info=node_info)
             except errors as exc:
                 with excutils.save_and_reraise_exception():
                     LOG.error(_LE('Processing the error event because of an '
                                   'exception %(exc_type)s: %(exc)s raised by '
                                   '%(func)s'),
                               {'exc_type': type(exc), 'exc': exc,
-                               'func': func},
+                               'func': reflection.get_callable_name(func)},
                               node_info=node_info)
                     # an error event should be possible from all states
                     node_info.fsm_event(istate.Events.error)
