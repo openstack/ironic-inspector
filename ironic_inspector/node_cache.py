@@ -72,12 +72,12 @@ class NodeInfo(object):
                  finished_at=None, error=None, node=None, ports=None,
                  ironic=None, lock=None):
         self.uuid = uuid
-        self._version_id = version_id
-        self._state = state
         self.started_at = started_at
         self.finished_at = finished_at
         self.error = error
         self.invalidate_cache()
+        self._version_id = version_id
+        self._state = state
         self._node = node
         if ports is not None and not isinstance(ports, dict):
             ports = {p.address: p for p in ports}
@@ -98,8 +98,10 @@ class NodeInfo(object):
 
     def __str__(self):
         """Self represented as an UUID and a state."""
-        return _("%(uuid)s state %(state)s") % {'uuid': self.uuid,
-                                                'state': self._state}
+        parts = [self.uuid]
+        if self._state:
+            parts += [_('state'), self._state]
+        return ' '.join(parts)
 
     def acquire_lock(self, blocking=True):
         """Acquire a lock on the associated node.
@@ -555,10 +557,6 @@ def fsm_event_before(event, strict=False):
                       '%(func)s', {'event': event, 'func': func},
                       node_info=node_info)
             node_info.fsm_event(event, strict=strict)
-            LOG.debug('Calling: %(func)s(<node>, *%(args_)s, '
-                      '**%(kwargs_)s)', {'func': func, 'args_': args,
-                                         'kwargs_': kwargs},
-                      node_info=node_info)
             return func(node_info, *args, **kwargs)
         return inner
     return outer
@@ -576,10 +574,6 @@ def fsm_event_after(event, strict=False):
     def outer(func):
         @six.wraps(func)
         def inner(node_info, *args, **kwargs):
-            LOG.debug('Calling: %(func)s(<node>, *%(args_)s, '
-                      '**%(kwargs_)s)', {'func': func, 'args_': args,
-                                         'kwargs_': kwargs},
-                      node_info=node_info)
             ret = func(node_info, *args, **kwargs)
             LOG.debug('Processing event %(event)s after calling '
                       '%(func)s', {'event': event, 'func': func},

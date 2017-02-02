@@ -112,7 +112,12 @@ class TestProcessingLogger(base.BaseTest):
 
     def test_prefix_NodeInfo_instance(self):
         node_info = node_cache.NodeInfo('NNN')
-        self.assertEqual('[node: NNN state None]',
+        self.assertEqual('[node: NNN]',
+                         utils.processing_logger_prefix(node_info=node_info))
+
+    def test_prefix_NodeInfo_instance_with_state(self):
+        node_info = node_cache.NodeInfo('NNN', state='foobar')
+        self.assertEqual('[node: NNN state foobar]',
                          utils.processing_logger_prefix(node_info=node_info))
 
     def test_adapter_no_bmc(self):
