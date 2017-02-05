@@ -56,7 +56,9 @@ interpreter of one of supported versions (currently 2.7 and 3.4), use
     This command also runs tests for database migrations. By default the sqlite
     backend is used. For testing with mysql or postgresql, you need to set up
     a db named 'openstack_citest' with user 'openstack_citest' and password
-    'openstack_citest' on localhost.
+    'openstack_citest' on localhost. Use the script
+    ``tools/test_setup.sh`` to set the database up the same way as
+    done in the OpenStack CI environment.
 
 .. note::
     Users of Fedora <= 23 will need to run "sudo dnf --releasever=24 update
