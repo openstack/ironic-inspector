@@ -51,7 +51,7 @@ class LLDPBasicProcessingHook(base.ProcessingHook):
                 LOG.warning(_LW(
                     "TLV value for TLV type %(tlv_type)d not in correct "
                     "format, value must be in hexadecimal: %(msg)s"),
-                    {'tlv_type': tlv_type, 'msg': e})
+                    {'tlv_type': tlv_type, 'msg': e},  node_info=node_info)
                 continue
 
             if parser.parse_tlv(tlv_type, data):
