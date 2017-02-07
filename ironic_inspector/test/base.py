@@ -12,7 +12,9 @@
 # limitations under the License.
 
 import datetime
+import time
 
+import fixtures
 import futurist
 import mock
 from oslo_concurrency import lockutils
@@ -190,6 +192,8 @@ class NodeTest(InventoryTest):
             started_at=datetime.datetime(1, 1, 1),
             node=self.node, ports=self.ports)
         self.node_info.node = mock.Mock(return_value=self.node)
+        self.sleep_fixture = self.useFixture(
+            fixtures.MockPatchObject(time, 'sleep', autospec=True))
 
 
 class NodeStateTest(NodeTest):

@@ -14,7 +14,6 @@
 import collections
 import time
 
-import eventlet
 from ironicclient import exceptions
 import mock
 from oslo_config import cfg
@@ -48,7 +47,6 @@ class BaseTest(test_base.NodeTest):
         return cli
 
 
-@mock.patch.object(eventlet.greenthread, 'sleep', lambda _: None)
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'start_introspection', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
@@ -266,9 +264,8 @@ class TestIntrospect(BaseTest):
         self.assertFalse(start_mock.called)
         self.assertFalse(self.node_info.acquire_lock.called)
 
-    @mock.patch.object(time, 'sleep')
     @mock.patch.object(time, 'time')
-    def test_introspection_delay(self, time_mock, sleep_mock, client_mock,
+    def test_introspection_delay(self, time_mock, client_mock,
                                  start_mock, filters_mock):
         time_mock.return_value = 42
         introspect._LAST_INTROSPECTION_TIME = 40
@@ -279,7 +276,7 @@ class TestIntrospect(BaseTest):
 
         introspect.introspect(self.uuid)
 
-        sleep_mock.assert_called_once_with(8)
+        self.sleep_fixture.mock.assert_called_once_with(8)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
@@ -288,11 +285,11 @@ class TestIntrospect(BaseTest):
         # updated to the current time.time()
         self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
 
-    @mock.patch.object(time, 'sleep')
     @mock.patch.object(time, 'time')
-    def test_introspection_delay_not_needed(self, time_mock, sleep_mock,
-                                            client_mock, start_mock,
-                                            filters_mock):
+    def test_introspection_delay_not_needed(
+            self, time_mock, client_mock,
+            start_mock, filters_mock):
+
         time_mock.return_value = 100
         introspect._LAST_INTROSPECTION_TIME = 40
         CONF.set_override('introspection_delay', 10)
@@ -302,7 +299,7 @@ class TestIntrospect(BaseTest):
 
         introspect.introspect(self.uuid)
 
-        self.assertFalse(sleep_mock.called)
+        self.sleep_fixture.mock().assert_not_called()
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
@@ -311,11 +308,9 @@ class TestIntrospect(BaseTest):
         # updated to the current time.time()
         self.assertEqual(100, introspect._LAST_INTROSPECTION_TIME)
 
-    @mock.patch.object(time, 'sleep')
     @mock.patch.object(time, 'time')
-    def test_introspection_delay_custom_drivers(self, time_mock, sleep_mock,
-                                                client_mock, start_mock,
-                                                filters_mock):
+    def test_introspection_delay_custom_drivers(
+            self, time_mock, client_mock, start_mock, filters_mock):
         self.node.driver = 'foobar'
         time_mock.return_value = 42
         introspect._LAST_INTROSPECTION_TIME = 40
@@ -327,7 +322,7 @@ class TestIntrospect(BaseTest):
 
         introspect.introspect(self.uuid)
 
-        sleep_mock.assert_called_once_with(8)
+        self.sleep_fixture.mock.assert_called_once_with(8)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
