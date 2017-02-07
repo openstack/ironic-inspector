@@ -37,22 +37,23 @@ def upgrade():
                                 nullable=True)
     temp_finished_at = sa.Column("temp_finished_at", sa.types.DateTime,
                                  nullable=True)
+    uuid = sa.Column("uuid", sa.String(36), primary_key=True)
 
     op.add_column("nodes", temp_started_at)
     op.add_column("nodes", temp_finished_at)
 
     t = sa.table('nodes', started_at, finished_at,
-                 temp_started_at, temp_finished_at)
+                 temp_started_at, temp_finished_at, uuid)
 
     conn = op.get_bind()
-    rows = conn.execute(sa.select([t.c.started_at, t.c.finished_at]))
+    rows = conn.execute(sa.select([t.c.started_at, t.c.finished_at, t.c.uuid]))
     for row in rows:
         temp_started = datetime.datetime.utcfromtimestamp(row['started_at'])
         temp_finished = row['finished_at']
         # Note(milan) this is just a precaution; sa.null shouldn't happen here
         if temp_finished is not None:
             temp_finished = datetime.datetime.utcfromtimestamp(temp_finished)
-        conn.execute(t.update().values(
+        conn.execute(t.update().where(t.c.uuid == row.uuid).values(
             temp_started_at=temp_started, temp_finished_at=temp_finished))
 
     with op.batch_alter_table('nodes') as batch_op:
