@@ -613,6 +613,9 @@ class TestReapplyNode(BaseTest):
         self.cli.node.update.return_value = self.node
         self.cli.node.list_ports.return_value = []
         self.node_info._state = istate.States.finished
+        self.commit_fixture = self.useFixture(
+            fixtures.MockPatchObject(node_cache.NodeInfo, 'commit',
+                                     autospec=True))
         db.Node(uuid=self.node_info.uuid, state=self.node_info._state,
                 started_at=self.node_info.started_at,
                 finished_at=self.node_info.finished_at,
@@ -641,6 +644,8 @@ class TestReapplyNode(BaseTest):
 
         self.call()
 
+        self.commit_fixture.mock.assert_called_once_with(self.node_info)
+
         post_hook_mock.assert_called_once_with(mock.ANY, self.node_info)
         swift_mock.create_object.assert_called_once_with(swift_name,
                                                          mock.ANY)
@@ -668,13 +673,14 @@ class TestReapplyNode(BaseTest):
     @prepare_mocks
     def test_get_incomming_data_exception(self, finished_mock,
                                           swift_mock, apply_mock,
-                                          post_hook_mock, ):
+                                          post_hook_mock):
         exc = Exception('Oops')
         expected_error = ('Unexpected exception Exception while fetching '
                           'unprocessed introspection data from Swift: Oops')
         swift_mock.get_object.side_effect = exc
         self.call()
 
+        self.commit_fixture.mock.assert_called_once_with(self.node_info)
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
         self.assertFalse(post_hook_mock.called)
@@ -683,7 +689,7 @@ class TestReapplyNode(BaseTest):
 
     @prepare_mocks
     def test_prehook_failure(self, finished_mock, swift_mock,
-                             apply_mock, post_hook_mock, ):
+                             apply_mock, post_hook_mock):
         CONF.set_override('processing_hooks', 'example',
                           'processing')
         plugins_base._HOOKS_MGR = None

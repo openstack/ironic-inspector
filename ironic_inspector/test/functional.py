@@ -561,12 +561,20 @@ class Test(Base):
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         status = self.call_get_status(self.uuid)
+        inspect_started_at = timeutils.parse_isotime(status['started_at'])
         self.check_status(status, finished=True)
 
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
         self.assertEqual('', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True)
+
+        # checks the started_at updated in DB is correct
+        reapply_started_at = timeutils.parse_isotime(status['started_at'])
+        self.assertLess(inspect_started_at, reapply_started_at)
 
         # reapply request data
         get_mock.assert_called_once_with(self.uuid,

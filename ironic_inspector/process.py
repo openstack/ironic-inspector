@@ -23,6 +23,7 @@ import json
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import excutils
+from oslo_utils import timeutils
 
 from ironic_inspector.common.i18n import _, _LE, _LI, _LW
 from ironic_inspector.common import ironic as ir_utils
@@ -389,6 +390,8 @@ def reapply(node_ident):
 def _reapply(node_info):
     # runs in background
     try:
+        node_info.started_at = timeutils.utcnow()
+        node_info.commit()
         introspection_data = _get_unprocessed_data(node_info.uuid)
     except Exception as exc:
         LOG.exception(_LE('Encountered exception while fetching '
