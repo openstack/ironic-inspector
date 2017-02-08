@@ -230,7 +230,7 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
   * ``memory`` memory information containing at least key ``physical_mb`` -
     physical memory size as reported by dmidecode,
 
-  * ``cpu`` CPU infromation containing at least keys ``count`` (CPU count) and
+  * ``cpu`` CPU information containing at least keys ``count`` (CPU count) and
     ``architecture`` (CPU architecture, e.g. ``x86_64``),
 
   * ``bmc_address`` IP address of the node's BMC,
