@@ -25,7 +25,6 @@ The test will then use that db and u/p combo to run the tests.
 
 import contextlib
 import datetime
-import time
 
 import alembic
 from alembic import script
@@ -368,12 +367,14 @@ class MigrationCheckersMixin(object):
 
     def _pre_upgrade_d00d6e3f38c4(self, engine):
         nodes = db_utils.get_table(engine, 'nodes')
-        for finished_at in (None, time.time()):
-            data = {'uuid': uuidutils.generate_uuid(),
-                    'started_at': time.time(),
+        data = []
+        for finished_at in (None, 1234.0):
+            node = {'uuid': uuidutils.generate_uuid(),
+                    'started_at': 1232.0,
                     'finished_at': finished_at,
                     'error': None}
-            nodes.insert().values(data).execute()
+            nodes.insert().values(node).execute()
+            data.append(node)
         return data
 
     def _check_d00d6e3f38c4(self, engine, data):
@@ -387,13 +388,16 @@ class MigrationCheckersMixin(object):
         self.assertIsInstance(nodes.c.finished_at.type,
                               sqlalchemy.types.DateTime)
 
-        node = nodes.select(nodes.c.uuid == data['uuid']).execute().first()
-        self.assertEqual(
-            datetime.datetime.utcfromtimestamp(data['started_at']),
-            node['started_at'])
-        self.assertEqual(
-            datetime.datetime.utcfromtimestamp(data['finished_at']),
-            node['finished_at'])
+        for node in data:
+            finished_at = datetime.datetime.utcfromtimestamp(
+                node['finished_at']) if node['finished_at'] else None
+            row = nodes.select(nodes.c.uuid == node['uuid']).execute().first()
+            self.assertEqual(
+                datetime.datetime.utcfromtimestamp(node['started_at']),
+                row['started_at'])
+            self.assertEqual(
+                finished_at,
+                row['finished_at'])
 
     def test_upgrade_and_version(self):
         with patch_with_engine(self.engine):
