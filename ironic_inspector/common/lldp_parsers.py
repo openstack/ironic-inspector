@@ -56,7 +56,26 @@ LLDP_MTU_NM = 'switch_port_mtu'
 
 
 class LLDPParser(object):
-    """Base class to handle parsing of LLDP TLVs"""
+    """Base class to handle parsing of LLDP TLVs
+
+    Each class that inherits from this base class must provide a parser map.
+    Parser maps are used to associate a LLDP TLV with a function handler
+    and arguments necessary to parse the TLV and generate one or more
+    name/value pairs.  Each LLDP TLV maps to a tuple with the following
+    fields:
+
+    function - handler function to generate name/value pairs
+
+    construct - name of construct definition for TLV
+
+    name - user-friendly name of TLV. For TLVs that generate only one
+    name/value pair this is the name used
+
+    len_check - boolean indicating if length check should be done on construct
+
+    It's valid to have a function handler of None, this is for TLVs that
+    are not mapped to a name/value pair(e.g.LLDP_TLV_TTL).
+    """
 
     def __init__(self, node_info, nv=None):
         """Create LLDPParser
@@ -64,34 +83,16 @@ class LLDPParser(object):
         :param node_info - node being introspected
         :param nv - dictionary of name/value pairs to use
         """
-        if not nv:
-            self.nv_dict = {}
-        else:
-            self.nv_dict = nv
-
+        self.nv_dict = nv or {}
         self.node_info = node_info
-
-        # Parser maps are used to associate a LLDP TLV with a function handler
-        # and arguments necessary to parse the TLV and generate one or more
-        # name/value pairs.  Each LLDP TLV maps to a tuple with the values:
-        #    function - handler function to generate name/value pairs
-        #    construct - name of construct definition for TLV
-        #    name - user-friendly name of TLV. For TLVs that generate only
-        #           one name/value pair this is the name used
-        #    len_check - boolean that indicates whether a len check
-        #                should be done on the construct
-        #
-        # Its valid to have a function handler of None, this is for TLVs that
-        # are not mapped to a name/value pair (e.g. LLDP_TLV_TTL).
-        #
-        # Each class that inherits from this base class must provide a
-        # parser map.
-
         self.parser_map = {}
 
     def set_value(self, name, value):
-        """Set name value pair in dictionary"""
-        self.nv_dict.setdefault(name, value)  # don't change key if it exists
+        """Set name value pair in dictionary
+
+        The value for a name should not be changed if it exists.
+        """
+        self.nv_dict.setdefault(name, value)
 
     def append_value(self, name, value):
         """Add value to a list mapped to name"""
@@ -104,59 +105,76 @@ class LLDPParser(object):
     def parse_tlv(self, tlv_type, data):
         """Parse TLVs from mapping table
 
+        This functions takes the TLV type and the raw data for
+        this TLV and gets a tuple from the parser_map.  The
+        construct field in the tuple contains the construct lib
+        definition of the TLV which can be parsed to access
+        individual fields.  Once the TLV is parsed, the handler
+        function for each TLV will store the individual fields as
+        name/value pairs in nv_dict.
+
+        If the handler function does not exist, then no name/value pairs
+        will be added to nv_dict, but since the TLV was handled,
+        True will be returned.
+
         :param: tlv_type - type identifier for TLV
         :param: data - raw TLV value
+        :returns: True if TLV in parser_map and data is valid, otherwise False.
         """
 
-        # The handler function will generate name/value pairs using the
-        # tlv construct definition.  If the function does not exist, then no
-        # name/value pairs will be added, but since the TLV was handled,
-        # True will be returned
         s = self.parser_map.get(tlv_type)
-        if s:
-            func = s[0]  # handler
-            if func:
-                try:
-                    tlv_parser = s[1]
-                    name = s[2]
-                    check_len = s[3]
-                except KeyError as e:
-                    LOG.warning(_LW("Key error in TLV table: %s"), e,
-                                node_info=self.node_info)
-                    return False
+        if not s:
+            return False
 
-                # Some constructs require a length validation to ensure the
-                # proper number of bytes has been provided, for example
-                # when a BitStruct is used.
-                if check_len and (tlv_parser.sizeof() != len(data)):
-                    LOG.warning(_LW('Invalid data for %(name)s '
-                                    'expected len %(expect)d, got %(actual)d'),
-                                {'name': name, 'expect': tlv_parser.sizeof(),
-                                'actual': len(data)})
-                    return False
+        func = s[0]  # handler
 
-                # Use the construct parser to parse TLV so that it's
-                # individual fields can be accessed
-                try:
-                    struct = tlv_parser.parse(data)
-                except (core.RangeError, core.FieldError, core.MappingError,
-                        netaddr.AddrFormatError) as e:
-                    LOG.warning(_LW("TLV parse error: %s"), e,
-                                node_info=self.node_info)
-                    return False
+        if not func:
+            return True  # TLV is handled
 
-                # Call functions with parsed structure
-                try:
-                    func(struct, name, data)
-                except ValueError as e:
-                    LOG.warning(_LW("TLV value error: %s"), e,
-                                node_info=self.node_info)
-            return True
+        try:
+            tlv_parser = s[1]
+            name = s[2]
+            check_len = s[3]
+        except KeyError as e:
+            LOG.warning(_LW("Key error in TLV table: %s"), e,
+                        node_info=self.node_info)
+            return False
 
-        return False
+        # Some constructs require a length validation to ensure the
+        # proper number of bytes has been provided, for example
+        # when a BitStruct is used.
+        if check_len and (tlv_parser.sizeof() != len(data)):
+            LOG.warning(_LW('Invalid data for %(name)s '
+                            'expected len %(expect)d, got %(actual)d'),
+                        {'name': name, 'expect': tlv_parser.sizeof(),
+                        'actual': len(data)}, node_info=self.node_info)
+            return False
 
-    # This method is in base class since it can be used by both dot1 and dot3
+        # Use the construct parser to parse TLV so that it's
+        # individual fields can be accessed
+        try:
+            struct = tlv_parser.parse(data)
+        except (core.RangeError, core.FieldError, core.MappingError,
+                netaddr.AddrFormatError) as e:
+            LOG.warning(_LW("TLV parse error: %s"), e,
+                        node_info=self.node_info)
+            return False
+
+        # Call functions with parsed structure
+        try:
+            func(struct, name, data)
+        except ValueError as e:
+            LOG.warning(_LW("TLV value error: %s"), e,
+                        node_info=self.node_info)
+            return False
+
+        return True
+
     def add_dot1_link_aggregation(self, struct, name, data):
+        """Add name/value pairs for TLV Dot1_LinkAggregationId
+
+        This is in base class since it can be used by both dot1 and dot3.
+        """
 
         self.set_value(LLDP_PORT_LINK_AGG_ENABLED_NM,
                        struct.status.enabled)
@@ -168,7 +186,7 @@ class LLDPParser(object):
 class LLDPBasicMgmtParser(LLDPParser):
     """Class to handle parsing of 802.1AB Basic Management set
 
-    This class will also handle 802.1Q and 802.3 OUI TLVs
+    This class will also handle 802.1Q and 802.3 OUI TLVs.
     """
     def __init__(self, nv=None):
         super(LLDPBasicMgmtParser, self).__init__(nv)
@@ -199,8 +217,10 @@ class LLDPBasicMgmtParser(LLDPParser):
         }
 
     def add_mgmt_address(self, struct, name, data):
-        """Handle LLDP_TLV_MGMT_ADDRESS"""
-        # There may be multiple Mgmt Address TLVs so store in list
+        """Handle LLDP_TLV_MGMT_ADDRESS
+
+        There can be multiple Mgmt Address TLVs, store in list.
+        """
         self.append_value(name, struct.address)
 
     def _get_capabilities_list(self, caps):
@@ -229,9 +249,10 @@ class LLDPBasicMgmtParser(LLDPParser):
     def handle_org_specific_tlv(self, struct, name, data):
         """Handle Organizationally Unique ID TLVs
 
-        This class supports 802.1Q and 802.3 OUI TLVs
+        This class supports 802.1Q and 802.3 OUI TLVs.
+
         See http://www.ieee802.org/1/pages/802.1Q-2014.html, Annex D
-        and http: // standards.ieee.org / about / get / 802 / 802.3.html
+        and http://standards.ieee.org/about/get/802/802.3.html
         """
         oui = binascii.hexlify(struct.oui).decode()
         subtype = struct.subtype
@@ -250,8 +271,8 @@ class LLDPBasicMgmtParser(LLDPParser):
             else:
                 LOG.debug("Subtype %d not found for 802.3", subtype)
         else:
-            LOG.debug("Organizationally Unique ID %s not "
-                      "recognized", oui)
+            LOG.warning(_LW("Organizationally Unique ID %s not "
+                            "recognized"), oui, node_info=self.node_info)
 
 
 class LLDPdot1Parser(LLDPParser):
@@ -283,22 +304,26 @@ class LLDPdot1Parser(LLDPParser):
         """Handle dot1_PORT_PROTOCOL_VLANID"""
         self.set_value(LLDP_PORT_PROT_VLAN_ENABLED_NM, struct.flags.enabled)
         self.set_value(LLDP_PORT_PROT_VLAN_SUPPORT_NM, struct.flags.supported)
+
         # There can be multiple port/protocol vlans TLVs, store in list
         self.append_value(LLDP_PORT_PROT_VLANIDS_NM, struct.vlanid)
 
     def add_dot1_vlans(self, struct, name, data):
-        """Handle dot1_VLAN_NAME"""
+        """Handle dot1_VLAN_NAME
 
-        # There can be multiple vlan TLVs, add dictionary entry with id/vlan
+        There can be multiple vlan TLVs, add dictionary entry with id/vlan
+        to list.
+        """
         vlan_dict = {}
         vlan_dict['name'] = struct.vlan_name
         vlan_dict['id'] = struct.vlanid
         self.append_value(LLDP_PORT_VLANS_NM, vlan_dict)
 
     def add_dot1_protocol_identities(self, struct, name, data):
-        """handle dot1_PROTOCOL_IDENTITY"""
+        """Handle dot1_PROTOCOL_IDENTITY
 
-        # There can be multiple protocol ids TLVs, store in list
+        There can be multiple protocol ids TLVs, store in list
+        """
         self.append_value(LLDP_PROTOCOL_IDENTITIES_NM,
                           binascii.b2a_hex(struct.protocol).decode())
 
