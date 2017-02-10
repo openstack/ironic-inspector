@@ -18,8 +18,8 @@ import time
 import tempest
 from tempest import config
 from tempest.lib.common.api_version_utils import LATEST_MICROVERSION
+from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions as lib_exc
-from tempest import test
 
 from ironic_inspector.test.inspector_tempest_plugin import exceptions
 from ironic_inspector.test.inspector_tempest_plugin.services import \
@@ -152,7 +152,7 @@ class InspectorScenarioTest(BaremetalScenarioTest):
                 return False
             return True
 
-        if not test.call_until_true(
+        if not test_utils.call_until_true(
                 check_node,
                 duration=CONF.baremetal_introspection.discovery_timeout,
                 sleep_for=20):
