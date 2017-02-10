@@ -245,8 +245,18 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
 
     * ``client_id`` InfiniBand Client-ID, for Ethernet is None.
 
+  * ``disks`` list of disk block devices containing at least ``name`` and
+    ``size`` (in bytes) keys. In case ``disks`` are not provided
+    **ironic-inspector**  assumes that this is a disk-less node.
+
 * ``root_disk`` default deployment root disk as calculated by the
   ironic-python-agent algorithm.
+
+  .. note::
+    **ironic-inspector** default plugin ``root_disk_selection`` may change
+    ``root_disk`` based on root device hints if node specify hints via
+    properties ``root_device`` key. See `Specifying the disk for deployment
+    root device hints`_ for more details.
 
 * ``boot_interface`` MAC address of the NIC that the machine PXE booted from
   either in standard format ``11:22:33:44:55:66`` or in *PXELinux* ``BOOTIF``
@@ -284,6 +294,8 @@ feature) is requested, body will contain the following keys:
 * ``ipmi_password`` new IPMI password
 
 .. _hardware inventory: http://docs.openstack.org/developer/ironic-python-agent/#hardware-inventory
+.. _Specifying the disk for deployment root device hints:
+   http://docs.openstack.org/project-install-guide/baremetal/draft/advanced.html#specifying-the-disk-for-deployment-root-device-hints
 
 Error Response
 ~~~~~~~~~~~~~~
