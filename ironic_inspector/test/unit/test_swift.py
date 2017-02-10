@@ -64,23 +64,9 @@ class SwiftTestCase(BaseTest):
         self.addCleanup(swift.reset_swift_session)
 
     def test___init__(self, connection_mock, load_mock, opts_mock):
-        swift_url = 'http://swiftapi'
-        token = 'secret_token'
-        mock_sess = mock.Mock()
-        mock_sess.get_token.return_value = token
-        mock_sess.get_endpoint.return_value = swift_url
-        mock_sess.verify = False
-        load_mock.return_value = mock_sess
         swift.SwiftAPI()
-        params = {'retries': 2,
-                  'preauthurl': swift_url,
-                  'preauthtoken': token,
-                  'insecure': True}
-        connection_mock.assert_called_once_with(**params)
-        mock_sess.get_endpoint.assert_called_once_with(
-            service_type='object-store',
-            endpoint_type='internalURL',
-            region_name='somewhere')
+        connection_mock.assert_called_once_with(
+            session=load_mock.return_value)
 
     def test_create_object(self, connection_mock, load_mock, opts_mock):
         swiftapi = swift.SwiftAPI()
