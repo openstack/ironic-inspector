@@ -16,7 +16,6 @@
 import json
 
 from oslo_config import cfg
-import six
 from swiftclient import client as swift_client
 from swiftclient import exceptions as swift_exceptions
 
@@ -79,30 +78,8 @@ class SwiftAPI(object):
         global SWIFT_SESSION
         if not SWIFT_SESSION:
             SWIFT_SESSION = keystone.get_session(SWIFT_GROUP)
-        # TODO(pas-ha): swiftclient does not support keystone sessions ATM.
-        # Must be reworked when LP bug #1518938 is fixed.
-        swift_url = SWIFT_SESSION.get_endpoint(
-            service_type=CONF.swift.os_service_type,
-            endpoint_type=CONF.swift.os_endpoint_type,
-            region_name=CONF.swift.os_region
-        )
-        token = SWIFT_SESSION.get_token()
-        params = dict(retries=CONF.swift.max_retries,
-                      preauthurl=swift_url,
-                      preauthtoken=token)
-        # NOTE(pas-ha):session.verify is for HTTPS urls and can be
-        # - False (do not verify)
-        # - True (verify but try to locate system CA certificates)
-        # - Path (verify using specific CA certificate)
-        # This is normally handled inside the Session instance,
-        # but swiftclient still does not support sessions,
-        # so we need to reconstruct these options from Session here.
-        verify = SWIFT_SESSION.verify
-        params['insecure'] = not verify
-        if verify and isinstance(verify, six.string_types):
-            params['cacert'] = verify
 
-        self.connection = swift_client.Connection(**params)
+        self.connection = swift_client.Connection(session=SWIFT_SESSION)
 
     def create_object(self, object, data, container=CONF.swift.container,
                       headers=None):
