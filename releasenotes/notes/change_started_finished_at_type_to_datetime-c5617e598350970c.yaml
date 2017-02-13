@@ -1,11 +1,11 @@
 ---
 fixes:
   - |
-    DB's columns started_at and finished_at are defined as float type,
-    as result timestamp doesn't fit into default Float size. This change
-    migrates columns type to DateTime.
+    Change database columns ``started_at`` and ``finished_at`` to type
+    DateTime from type Float so that timestamps fit into these columns
+    correctly.
 upgrade:
   - |
-    New migration from Float to DateTime consists data migration,
-    which could take some time, based on the number of introspection
+    A database migration is required to change some columns from Float to
+    DateTime type. This may take some time based on the number of introspection
     statuses in DB.

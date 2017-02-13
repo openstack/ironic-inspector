@@ -1,4 +1,4 @@
 ---
 features:
-  - Added a plugin to parse raw LLDP Basic Management, 802.1, and
-    802.3 TLVs and store the data back in Swift.
+  - Add a plugin to parse raw LLDP Basic Management, 802.1, and
+    802.3 TLVs and store the data in Swift.

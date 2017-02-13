@@ -1,8 +1,8 @@
 ---
 features:
   - |
-    InfiniBand interface discovery is supported in the introspection.
-    Therefore the ironic-inspector will add the client-id to the corresponding
-    ironic port that represent InfiniBand interface. The ironic-inspector
-    should be configured with ``firewall.ethoib_interfaces`` to indicate what are
-    Ethernet Over InfiniBand Interfaces that are used for DHCP.
+    InfiniBand interface discovery is now supported through introspection.  The
+    ironic-inspector will add the client-id to the corresponding ironic port
+    that represents the InfiniBand interface. The ironic-inspector should be
+    configured with a list of interfaces ``firewall.ethoib_interfaces`` to
+    indicate which Ethernet Over InfiniBand Interfaces are used for DHCP.

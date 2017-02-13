@@ -1,9 +1,10 @@
 ---
 features:
   - |
-   Add an API endpoint for listing introspection statuses, operators can get
-   status for all running or previously run introspection processing.
+   Add an API endpoint for listing introspection statuses. Operators can use
+   this to get the status for all running or previously run introspection
+   processing.
 
   - |
-    Introduced a new configuration option ``api_max_limit`` that defines the
+    Introduce a new configuration option ``api_max_limit`` that defines the
     maximum number of items per page when API results are paginated.
