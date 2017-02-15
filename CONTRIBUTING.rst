@@ -76,14 +76,28 @@ Of course you may have to modify ``example.conf`` to match your OpenStack
 environment.
 
 You can develop and test **ironic-inspector** using DevStack - see
-`DevStack Support`_ for the current status.
+`Deploying Ironic Inspector with DevStack`_ for the current status.
 
-DevStack Support
-~~~~~~~~~~~~~~~~
+Deploying Ironic Inspector with DevStack
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `DevStack <http://docs.openstack.org/developer/devstack/>`_ provides a way to
-quickly build full OpenStack development environment with requested
-components. There is a plugin for installing **ironic-inspector** on DevStack.
+quickly build a full OpenStack development environment with requested
+components. There is a plugin for installing **ironic-inspector** in DevStack.
+Installing **ironic-inspector** requires a machine running Ubuntu 14.04 (or
+later) or Fedora 23 (or later). Make sure this machine is fully up to date and
+has the latest packages installed before beginning this process.
+
+Download DevStack::
+
+    git clone https://git.openstack.org/openstack-dev/devstack.git
+    cd devstack
+
+
+Create ``local.conf`` file with minimal settings required to
+enable both the **ironic** and the **ironic-inspector**. You can start with the
+`Example local.conf`_ and extend it as needed.
+
 
 Example local.conf
 ------------------
@@ -104,20 +118,57 @@ Notes
 * Network configuration is pretty sensitive, better not to touch it
   without deep understanding.
 
-* This configuration disables Heat and Cinder, adjust it if you need these
-  services.
+* This configuration disables **heat**, **cinder** and **tempest**, adjust it
+  if you need these services.
+
+Start the install::
+
+    ./stack.sh
 
 Usage
 -----
 
-Start introspection for a node manually::
+After installation is complete, you can source ``openrc`` in your shell, and
+then use the OpenStack CLI to manage your DevStack::
 
-    source devstack/openrc admin admin
-    openstack baremetal introspection start <UUID>
+    source openrc admin demo
 
-Then check status via API::
+Show DevStack screens::
 
-    openstack baremetal introspection status <UUID>
+    screen -x stack
+
+To exit screen, hit ``CTRL-a d``.
+
+List baremetal nodes::
+
+    openstack baremetal node list
+
+Bring the node to manageable state::
+
+    openstack baremetal node manage <NodeID>
+
+Inspect the node::
+
+    openstack baremetal node inspect <NodeID>
+
+.. note::
+    The deploy driver used must support the inspect interface. See also the
+    `Ironic Python Agent
+    <http://docs.openstack.org/developer/ironic/drivers/ipa.html#ipa>`_.
+
+A node can also be inspected using the following command. However, this will
+not affect the provision state of the node::
+
+    openstack baremetal introspection start <NodeID>
+
+Check inspection status::
+
+    openstack baremetal introspection status <NodeID>
+
+Optionally, get the inspection data::
+
+    openstack baremetal introspection data save <NodeID>
+
 
 Writing a Plugin
 ~~~~~~~~~~~~~~~~
