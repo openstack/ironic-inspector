@@ -118,8 +118,8 @@ Notes
 * Network configuration is pretty sensitive, better not to touch it
   without deep understanding.
 
-* This configuration disables **heat**, **cinder** and **tempest**, adjust it
-  if you need these services.
+* This configuration disables **horizon**, **heat**, **cinder** and
+  **tempest**, adjust it if you need these services.
 
 Start the install::
 
