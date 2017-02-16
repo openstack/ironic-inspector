@@ -18,7 +18,6 @@ import contextlib
 import copy
 import datetime
 import json
-import six
 
 from automaton import exceptions as automaton_errors
 from ironicclient import exceptions
@@ -29,6 +28,7 @@ from oslo_utils import excutils
 from oslo_utils import reflection
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
+import six
 from sqlalchemy.orm import exc as orm_errors
 from sqlalchemy import text
 

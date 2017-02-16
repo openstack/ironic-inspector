@@ -14,7 +14,6 @@
 import copy
 import datetime
 import json
-import six
 import unittest
 
 import automaton
@@ -23,6 +22,7 @@ from oslo_config import cfg
 import oslo_db
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
+import six
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db

@@ -12,8 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from alembic import context
 from logging.config import fileConfig
+
+from alembic import context
 
 from ironic_inspector import db
 

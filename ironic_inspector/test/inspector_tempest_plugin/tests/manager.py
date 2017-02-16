@@ -12,9 +12,9 @@
 
 import json
 import os
-import six
 import time
 
+import six
 import tempest
 from tempest import config
 from tempest.lib.common.api_version_utils import LATEST_MICROVERSION

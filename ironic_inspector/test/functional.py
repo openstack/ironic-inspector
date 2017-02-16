@@ -11,28 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import eventlet
+import eventlet  # noqa
 eventlet.monkey_patch()
-
-import datetime
-import time
 
 import contextlib
 import copy
+import datetime
 import json
 import os
-import pytz
 import shutil
-import six
-from six.moves import urllib
 import tempfile
+import time
 import unittest
 
 import mock
 from oslo_config import cfg
 from oslo_config import fixture as config_fixture
 from oslo_utils import timeutils
+import pytz
 import requests
+import six
+from six.moves import urllib
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift

@@ -15,11 +15,10 @@
 
 import copy
 import datetime
+import json
 import os
 
 import eventlet
-import json
-
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import excutils

@@ -11,6 +11,7 @@
 # under the License.
 
 import copy
+
 import mock
 
 from ironic_inspector.common import ironic as ir_utils
