@@ -256,7 +256,7 @@ function prepare_environment {
     if [[ "$IRONIC_IS_HARDWARE" == "False" ]]; then
         sudo ip link add brbm-inspector type veth peer name $IRONIC_INSPECTOR_INTERFACE
         sudo ip link set dev brbm-inspector up
-        sudo ovs-vsctl add-port brbm brbm-inspector
+        sudo ovs-vsctl add-port $IRONIC_VM_NETWORK_BRIDGE brbm-inspector
     fi
     sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE up
     sudo ip addr add $IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET dev $IRONIC_INSPECTOR_INTERFACE
