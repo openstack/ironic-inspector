@@ -45,6 +45,7 @@ Response body: JSON dictionary with keys:
 
 * ``finished`` (boolean) whether introspection is finished
   (``true`` on introspection completion or if it ends because of an error)
+* ``state`` state of the introspection
 * ``error`` error string or ``null``; ``Canceled by operator`` in
   case introspection was aborted
 * ``uuid`` node UUID
@@ -76,7 +77,8 @@ Response body: a JSON object containing a list of status objects::
   {
     'introspection': [
       {
-        'finished': true,
+        'finished': false,
+        'state': 'waiting',
         'error': null,
         ...
       },
@@ -88,6 +90,7 @@ Each status object contains these keys:
 
 * ``finished`` (boolean) whether introspection is finished
   (``true`` on introspection completion or if it ends because of an error)
+* ``state`` state of the introspection
 * ``error`` error string or ``null``; ``Canceled by operator`` in
   case introspection was aborted
 * ``uuid`` node UUID
@@ -392,3 +395,5 @@ Version History
 * **1.8** support for listing all introspection statuses.
 * **1.9** de-activate setting IPMI credentials, if IPMI credentials
           are requested, API gets HTTP 400 response.
+* **1.10** adds node state to the GET /v1/introspection/<Node ID> and
+          GET /v1/introspection API response data.

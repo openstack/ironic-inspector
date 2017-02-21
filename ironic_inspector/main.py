@@ -51,7 +51,7 @@ MINIMUM_API_VERSION = (1, 0)
 # TODO(dtantsur): set to the current version as soon we move setting IPMI
 # credentials support completely.
 DEFAULT_API_VERSION = (1, 8)
-CURRENT_API_VERSION = (1, 9)
+CURRENT_API_VERSION = (1, 10)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
@@ -149,6 +149,7 @@ def generate_introspection_status(node):
     status = {}
     status['uuid'] = node.uuid
     status['finished'] = bool(node.finished_at)
+    status['state'] = node.state
     status['started_at'] = started_at
     status['finished_at'] = finished_at
     status['error'] = node.error
