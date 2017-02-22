@@ -881,6 +881,11 @@ def clean_up():
         try:
             if node_info.finished_at or node_info.started_at > threshold:
                 continue
+            if node_info.state != istate.States.waiting:
+                LOG.error('Something went wrong, timeout occurs'
+                          'while introspection in "%s" state',
+                          node_info.state,
+                          node_info=node_info)
             node_info.fsm_event(istate.Events.timeout)
             node_info.finished(error='Introspection timeout')
         finally:
