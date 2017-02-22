@@ -56,6 +56,17 @@ Usual hardware introspection flow is as follows:
 Starting DHCP server and configuring PXE boot environment is not part of this
 package and should be done separately.
 
+State machine diagram
+=====================
+
+The diagram below shows the introspection states that an **ironic-inspector**
+FSM goes through during the node introspection, discovery and reprocessing.
+The diagram also shows events that trigger state transitions.
+
+.. figure:: ./images/states.svg
+   :width: 660px
+   :align: center
+   :alt: ironic-inspector state machine diagram
+
 .. _Ironic inspection documentation: http://docs.openstack.org/developer/ironic/deploy/install-guide.html#hardware-inspection
 .. _Ironic: https://wiki.openstack.org/wiki/Ironic
-
