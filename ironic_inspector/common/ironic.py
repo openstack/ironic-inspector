@@ -26,7 +26,7 @@ CONF = cfg.CONF
 LOG = utils.getProcessingLogger(__name__)
 
 # See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
-VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspectfail'}
+VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect failed'}
 SET_CREDENTIALS_VALID_STATES = {'enroll'}
 
 # 1.11 is API version, which support 'enroll' state
