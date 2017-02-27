@@ -57,6 +57,7 @@ enable_setting_ipmi_credentials = True
 [DEFAULT]
 debug = True
 auth_strategy = noauth
+introspection_delay = 0
 [database]
 connection = sqlite:///%(db_file)s
 [processing]
