@@ -390,3 +390,5 @@ Version History
 * **1.6** endpoint for rules creating returns 201 instead of 200 on success.
 * **1.7** UUID, started_at, finished_at in the introspection status API.
 * **1.8** support for listing all introspection statuses.
+* **1.9** de-activate setting IPMI credentials, if IPMI credentials
+          are requested, API gets HTTP 400 response.
