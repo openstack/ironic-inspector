@@ -34,6 +34,7 @@ IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET="$IRONIC_INSPECTOR_INTERNAL_IP/$IRONIC_INS
 # Whether DevStack will be setup for bare metal or VMs
 IRONIC_IS_HARDWARE=$(trueorfalse False IRONIC_IS_HARDWARE)
 IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=${IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK:-""}
+IRONIC_INSPECTOR_OVS_PORT=${IRONIC_INSPECTOR_OVS_PORT:-brbm-inspector}
 
 GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
 GITREPO["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_REPO:-${GIT_BASE}/openstack/python-ironic-inspector-client.git}
@@ -253,11 +254,11 @@ function prepare_environment {
     prepare_tftp
     create_ironic_inspector_cache_dir
 
-    if [[ "$IRONIC_IS_HARDWARE" == "False" ]]; then
-        sudo ip link add brbm-inspector type veth peer name $IRONIC_INSPECTOR_INTERFACE
-        sudo ip link set dev brbm-inspector up
-        sudo ip link set dev brbm-inspector mtu $PUBLIC_BRIDGE_MTU
-        sudo ovs-vsctl add-port $IRONIC_VM_NETWORK_BRIDGE brbm-inspector
+    if [[ "$IRONIC_BAREMETAL_BASIC_OPS" == "True" && "$IRONIC_IS_HARDWARE" == "False" ]]; then
+        sudo ip link add $IRONIC_INSPECTOR_OVS_PORT type veth peer name $IRONIC_INSPECTOR_INTERFACE
+        sudo ip link set dev $IRONIC_INSPECTOR_OVS_PORT up
+        sudo ip link set dev $IRONIC_INSPECTOR_OVS_PORT mtu $PUBLIC_BRIDGE_MTU
+        sudo ovs-vsctl add-port $IRONIC_VM_NETWORK_BRIDGE $IRONIC_INSPECTOR_OVS_PORT
     fi
     sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE up
     sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE mtu $PUBLIC_BRIDGE_MTU
@@ -302,8 +303,8 @@ function cleanup_inspector {
     if [[ $IRONIC_INSPECTOR_INTERFACE != $OVS_PHYSICAL_BRIDGE && "$IRONIC_INSPECTOR_INTERFACE_PHYSICAL" == "False" ]]; then
         sudo ip link show $IRONIC_INSPECTOR_INTERFACE && sudo ip link delete $IRONIC_INSPECTOR_INTERFACE
     fi
-    sudo ip link show brbm-inspector && sudo ip link delete brbm-inspector
-    sudo ovs-vsctl --if-exists del-port brbm-inspector
+    sudo ip link show $IRONIC_INSPECTOR_OVS_PORT && sudo ip link delete $IRONIC_INSPECTOR_OVS_PORT
+    sudo ovs-vsctl --if-exists del-port $IRONIC_INSPECTOR_OVS_PORT
 }
 
 function sync_inspector_database {
