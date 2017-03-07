@@ -41,17 +41,19 @@ be used in standalone mode with each Ironic version. The Inspection Interface
 column shows which **ironic-inspector** versions can be used with the Ironic
 inspection interface in each version of Ironic.
 
-============== ========== ====================
-Ironic Version Standalone Inspection Interface
-============== ========== ====================
-Juno           1.0        N/A
-Kilo           1.0 - 2.2  1.0 - 1.1
-Liberty        1.1 - 2.X  2.0 - 2.X
-Mitaka+        2.0 - 2.X  2.0 - 2.X
-============== ========== ====================
+============== ============ ====================
+Ironic Version Standalone   Inspection Interface
+============== ============ ====================
+Juno           1.0          N/A
+Kilo           1.0 - 2.2    1.0 - 1.1
+Liberty        1.1 - 2.2.7  2.0 - 2.2.7
+Mitaka         2.3 - 3.X    2.3 - 3.X
+Newton         3.3 - 4.X    3.3 - 4.X
+Ocata+         5.0 - 5.X    5.0 - 5.X
+============== ============ ====================
 
 .. note::
-    ``2.X`` means we don't have specific plans on deprecating support for this
+    ``3.X`` means we don't have specific plans on deprecating support for this
     Ironic version. This does not imply that we'll support it forever though.
 
 Configuration
