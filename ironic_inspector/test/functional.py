@@ -43,6 +43,7 @@ from ironic_inspector import main
 from ironic_inspector import node_cache
 from ironic_inspector import rules
 from ironic_inspector.test import base
+from ironic_inspector.test.unit import test_rules
 
 
 CONF = """
@@ -393,9 +394,16 @@ class Test(Base):
         res = self.call_list_rules()
         self.assertEqual([], res)
 
-        rule = {'conditions': [],
-                'actions': [{'action': 'fail', 'message': 'boom'}],
-                'description': 'Cool actions'}
+        rule = {
+            'conditions': [
+                test_rules.BaseTest.condition_defaults(
+                    {'op': 'eq', 'field': 'memory_mb', 'value': 1024}
+                )
+            ],
+            'actions': [{'action': 'fail', 'message': 'boom'}],
+            'description': 'Cool actions'
+        }
+
         res = self.call_add_rule(rule)
         self.assertTrue(res['uuid'])
         rule['uuid'] = res['uuid']

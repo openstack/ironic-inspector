@@ -51,7 +51,7 @@ MINIMUM_API_VERSION = (1, 0)
 # TODO(dtantsur): set to the current version as soon we move setting IPMI
 # credentials support completely.
 DEFAULT_API_VERSION = (1, 8)
-CURRENT_API_VERSION = (1, 10)
+CURRENT_API_VERSION = (1, 11)
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 

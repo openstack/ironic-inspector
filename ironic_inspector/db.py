@@ -112,6 +112,8 @@ class RuleCondition(Base):
         res = self.params.copy()
         res['op'] = self.op
         res['field'] = self.field
+        res['multiple'] = self.multiple
+        res['invert'] = self.invert
         return res
 
 
