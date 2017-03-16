@@ -13,8 +13,6 @@
 
 import datetime
 import json
-import ssl
-import sys
 import unittest
 
 import mock
@@ -22,8 +20,6 @@ from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import conf
-from ironic_inspector import db
-from ironic_inspector import firewall
 from ironic_inspector import introspect
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
@@ -648,155 +644,3 @@ class TestPlugins(unittest.TestCase):
     def test_manager_is_cached(self):
         self.assertIs(plugins_base.processing_hooks_manager(),
                       plugins_base.processing_hooks_manager())
-
-
-@mock.patch.object(firewall, 'init')
-@mock.patch.object(utils, 'add_auth_middleware')
-@mock.patch.object(ir_utils, 'get_client')
-@mock.patch.object(db, 'init')
-class TestInit(test_base.BaseTest):
-    def setUp(self):
-        super(TestInit, self).setUp()
-        # Tests default to a synchronous executor which can't be used here
-        utils._EXECUTOR = None
-        self.service = main.Service()
-
-    @mock.patch.object(firewall, 'clean_up', lambda: None)
-    def tearDown(self):
-        self.service.shutdown()
-        super(TestInit, self).tearDown()
-
-    def test_ok(self, mock_node_cache, mock_get_client, mock_auth,
-                mock_firewall):
-        CONF.set_override('auth_strategy', 'keystone')
-        self.service.init()
-        mock_auth.assert_called_once_with(main.app)
-        mock_node_cache.assert_called_once_with()
-        mock_firewall.assert_called_once_with()
-
-    def test_init_without_authenticate(self, mock_node_cache, mock_get_client,
-                                       mock_auth, mock_firewall):
-        CONF.set_override('auth_strategy', 'noauth')
-        self.service.init()
-        self.assertFalse(mock_auth.called)
-
-    @mock.patch.object(main.LOG, 'warning')
-    def test_init_with_no_data_storage(self, mock_log, mock_node_cache,
-                                       mock_get_client, mock_auth,
-                                       mock_firewall):
-        msg = ('Introspection data will not be stored. Change '
-               '"[processing] store_data" option if this is not the '
-               'desired behavior')
-        self.service.init()
-        mock_log.assert_called_once_with(msg)
-
-    @mock.patch.object(main.LOG, 'info')
-    def test_init_with_swift_storage(self, mock_log, mock_node_cache,
-                                     mock_get_client, mock_auth,
-                                     mock_firewall):
-        CONF.set_override('store_data', 'swift', 'processing')
-        msg = mock.call('Introspection data will be stored in Swift in the '
-                        'container %s', CONF.swift.container)
-        self.service.init()
-        self.assertIn(msg, mock_log.call_args_list)
-
-    def test_init_without_manage_firewall(self, mock_node_cache,
-                                          mock_get_client, mock_auth,
-                                          mock_firewall):
-        CONF.set_override('manage_firewall', False, 'firewall')
-        self.service.init()
-        self.assertFalse(mock_firewall.called)
-
-    @mock.patch.object(main.LOG, 'critical')
-    def test_init_failed_processing_hook(self, mock_log, mock_node_cache,
-                                         mock_get_client, mock_auth,
-                                         mock_firewall):
-        CONF.set_override('processing_hooks', 'foo!', 'processing')
-        plugins_base._HOOKS_MGR = None
-
-        self.assertRaises(SystemExit, self.service.init)
-        mock_log.assert_called_once_with(
-            'The following hook(s) are missing or failed to load: foo!')
-
-
-class TestCreateSSLContext(test_base.BaseTest):
-
-    def test_use_ssl_false(self):
-        CONF.set_override('use_ssl', False)
-        con = main.create_ssl_context()
-        self.assertIsNone(con)
-
-    @mock.patch.object(sys, 'version_info')
-    def test_old_python_returns_none(self, mock_version_info):
-        mock_version_info.__lt__.return_value = True
-        CONF.set_override('use_ssl', True)
-        con = main.create_ssl_context()
-        self.assertIsNone(con)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_use_ssl_true(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        m_con = mock_cdc()
-        con = main.create_ssl_context()
-        self.assertEqual(m_con, con)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_only_key_path_provided(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_key_path', '/some/fake/path')
-        mock_context = mock_cdc()
-        con = main.create_ssl_context()
-        self.assertEqual(mock_context, con)
-        self.assertFalse(mock_context.load_cert_chain.called)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_only_cert_path_provided(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_cert_path', '/some/fake/path')
-        mock_context = mock_cdc()
-        con = main.create_ssl_context()
-        self.assertEqual(mock_context, con)
-        self.assertFalse(mock_context.load_cert_chain.called)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_both_paths_provided(self, mock_cdc):
-        key_path = '/some/fake/path/key'
-        cert_path = '/some/fake/path/cert'
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_key_path', key_path)
-        CONF.set_override('ssl_cert_path', cert_path)
-        mock_context = mock_cdc()
-        con = main.create_ssl_context()
-        self.assertEqual(mock_context, con)
-        mock_context.load_cert_chain.assert_called_once_with(cert_path,
-                                                             key_path)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_load_cert_chain_fails(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        key_path = '/some/fake/path/key'
-        cert_path = '/some/fake/path/cert'
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_key_path', key_path)
-        CONF.set_override('ssl_cert_path', cert_path)
-        mock_context = mock_cdc()
-        mock_context.load_cert_chain.side_effect = IOError('Boom!')
-        con = main.create_ssl_context()
-        self.assertEqual(mock_context, con)
-        mock_context.load_cert_chain.assert_called_once_with(cert_path,
-                                                             key_path)
