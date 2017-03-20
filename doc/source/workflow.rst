@@ -56,6 +56,8 @@ Usual hardware introspection flow is as follows:
 Starting DHCP server and configuring PXE boot environment is not part of this
 package and should be done separately.
 
+.. _state_machine_diagram:
+
 State machine diagram
 =====================
 
