@@ -19,7 +19,6 @@ from ironicclient import exc as client_exc
 import netaddr
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _LW, _LE
 from ironic_inspector.common import ironic
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
@@ -54,10 +53,10 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
         try:
             data = bytearray(binascii.unhexlify(tlv_value))
         except TypeError:
-            LOG.warning(_LW("TLV value for TLV type %d not in correct"
-                            "format, ensure TLV value is in "
-                            "hexidecimal format when sent to "
-                            "inspector"), tlv_type)
+            LOG.warning("TLV value for TLV type %d not in correct"
+                        "format, ensure TLV value is in "
+                        "hexidecimal format when sent to "
+                        "inspector", tlv_type)
             return
 
         item = value = None
@@ -106,7 +105,7 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
 
             lldp_data = iface.get('lldp')
             if lldp_data is None:
-                LOG.warning(_LW("No LLDP Data found for interface %s"),
+                LOG.warning("No LLDP Data found for interface %s",
                             mac_address, node_info=node_info,
                             data=introspection_data)
                 continue
@@ -124,9 +123,9 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                 cli = ironic.get_client(api_version=REQUIRED_IRONIC_VERSION)
                 node_info.patch_port(port, patches, ironic=cli)
             except client_exc.NotAcceptable:
-                LOG.error(_LE("Unable to set Ironic port local link "
-                              "connection information because Ironic does not "
-                              "support the required version"),
+                LOG.error("Unable to set Ironic port local link "
+                          "connection information because Ironic does not "
+                          "support the required version",
                           node_info=node_info, data=introspection_data)
                 # NOTE(sambetts) May as well break out out of the loop here
                 # because Ironic version is not going to change for the other

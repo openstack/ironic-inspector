@@ -20,7 +20,7 @@ import time
 from eventlet import semaphore
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LI, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import firewall
 from ironic_inspector import introspection_state as istate
@@ -136,7 +136,7 @@ def _background_introspect_locked(node_info, ironic):
     macs = list(node_info.ports())
     if macs:
         node_info.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
-        LOG.info(_LI('Whitelisting MAC\'s %s on the firewall'), macs,
+        LOG.info('Whitelisting MAC\'s %s on the firewall', macs,
                  node_info=node_info)
         firewall.update_filters(ironic)
 
@@ -148,7 +148,7 @@ def _background_introspect_locked(node_info, ironic):
               'ironic ports or providing an IPMI address'),
             node_info=node_info)
 
-    LOG.info(_LI('The following attributes will be used for look up: %s'),
+    LOG.info('The following attributes will be used for look up: %s',
              attrs, node_info=node_info)
 
     if not node_info.options.get('new_ipmi_credentials'):
@@ -156,7 +156,7 @@ def _background_introspect_locked(node_info, ironic):
             ironic.node.set_boot_device(node_info.uuid, 'pxe',
                                         persistent=False)
         except Exception as exc:
-            LOG.warning(_LW('Failed to set boot device to PXE: %s'),
+            LOG.warning('Failed to set boot device to PXE: %s',
                         exc, node_info=node_info)
 
         try:
@@ -165,11 +165,11 @@ def _background_introspect_locked(node_info, ironic):
             raise utils.Error(_('Failed to power on the node, check it\'s '
                                 'power management configuration: %s'),
                               exc, node_info=node_info)
-        LOG.info(_LI('Introspection started successfully'),
+        LOG.info('Introspection started successfully',
                  node_info=node_info)
     else:
-        LOG.info(_LI('Introspection environment is ready, manual power on is '
-                     'required within %d seconds'), CONF.timeout,
+        LOG.info('Introspection environment is ready, manual power on is '
+                 'required within %d seconds', CONF.timeout,
                  node_info=node_info)
 
 
@@ -200,8 +200,8 @@ def _abort(node_info, ironic):
     # runs in background
     if node_info.finished_at is not None:
         # introspection already finished; nothing to do
-        LOG.info(_LI('Cannot abort introspection as it is already '
-                     'finished'), node_info=node_info)
+        LOG.info('Cannot abort introspection as it is already '
+                 'finished', node_info=node_info)
         node_info.release_lock()
         return
 
@@ -210,7 +210,7 @@ def _abort(node_info, ironic):
     try:
         ironic.node.set_power_state(node_info.uuid, 'off')
     except Exception as exc:
-        LOG.warning(_LW('Failed to power off node: %s'), exc,
+        LOG.warning('Failed to power off node: %s', exc,
                     node_info=node_info)
 
     node_info.finished(error=_('Canceled by operator'))
@@ -221,6 +221,6 @@ def _abort(node_info, ironic):
     except Exception as exc:
         # Note(mkovacik): this will be retried in firewall update
         # periodic task; we continue aborting
-        LOG.warning(_LW('Failed to update firewall filters: %s'), exc,
+        LOG.warning('Failed to update firewall filters: %s', exc,
                     node_info=node_info)
-    LOG.info(_LI('Introspection aborted'), node_info=node_info)
+    LOG.info('Introspection aborted', node_info=node_info)
