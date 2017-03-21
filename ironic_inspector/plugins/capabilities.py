@@ -15,7 +15,7 @@
 
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LI, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -56,19 +56,19 @@ class CapabilitiesHook(base.ProcessingHook):
     def _detect_boot_mode(self, inventory, node_info, data=None):
         boot_mode = inventory.get('boot', {}).get('current_boot_mode')
         if boot_mode is not None:
-            LOG.info(_LI('Boot mode was %s'), boot_mode,
+            LOG.info('Boot mode was %s', boot_mode,
                      data=data, node_info=node_info)
             return {'boot_mode': boot_mode}
         else:
-            LOG.warning(_LW('No boot mode information available'),
+            LOG.warning('No boot mode information available',
                         data=data, node_info=node_info)
             return {}
 
     def _detect_cpu_flags(self, inventory, node_info, data=None):
         flags = inventory['cpu'].get('flags')
         if not flags:
-            LOG.warning(_LW('No CPU flags available, please update your '
-                            'introspection ramdisk'),
+            LOG.warning('No CPU flags available, please update your '
+                        'introspection ramdisk',
                         data=data, node_info=node_info)
             return {}
 
@@ -78,7 +78,7 @@ class CapabilitiesHook(base.ProcessingHook):
             if flag in flags:
                 caps[name] = 'true'
 
-        LOG.info(_LI('CPU capabilities: %s'), list(caps),
+        LOG.info('CPU capabilities: %s', list(caps),
                  data=data, node_info=node_info)
         return caps
 

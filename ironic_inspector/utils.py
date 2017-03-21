@@ -15,14 +15,14 @@ import datetime
 import logging as pylog
 
 import futurist
+from ironicclient.v1 import node
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 import pytz
 
-from ironicclient.v1 import node
-from ironic_inspector.common.i18n import _, _LE, _LI
+from ironic_inspector.common.i18n import _
 from ironic_inspector import conf  # noqa
 
 CONF = cfg.CONF
@@ -177,7 +177,7 @@ def check_auth(request):
         raise Error(_('Authentication required'), code=401)
     roles = (request.headers.get('X-Roles') or '').split(',')
     if 'admin' not in roles:
-        LOG.error(_LE('Role "admin" not in user role list %s'), roles)
+        LOG.error('Role "admin" not in user role list %s', roles)
         raise Error(_('Access denied'), code=403)
 
 
@@ -205,8 +205,8 @@ def get_inventory(data, node_info=None):
                           'or empty') % key, data=data, node_info=node_info)
 
     if not inventory.get('disks'):
-        LOG.info(_LI('No disks were detected in the inventory, assuming this '
-                     'is a disk-less node'), data=data, node_info=node_info)
+        LOG.info('No disks were detected in the inventory, assuming this '
+                 'is a disk-less node', data=data, node_info=node_info)
         # Make sure the code iterating over it does not fail with a TypeError
         inventory['disks'] = []
 

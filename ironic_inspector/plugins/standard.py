@@ -22,7 +22,7 @@ from oslo_utils import netutils
 from oslo_utils import units
 import six
 
-from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector import conf
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
@@ -111,8 +111,8 @@ class SchedulerHook(base.ProcessingHook):
                               '; '.join(errors),
                               node_info=node_info, data=introspection_data)
 
-        LOG.info(_LI('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
-                     'memory %(memory_mb)s MiB, disk %(local_gb)s GiB'),
+        LOG.info('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
+                 'memory %(memory_mb)s MiB, disk %(local_gb)s GiB',
                  {key: introspection_data.get(key) for key in self.KEYS},
                  node_info=node_info, data=introspection_data)
 
@@ -128,15 +128,15 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
     def __init__(self):
         if CONF.processing.add_ports not in conf.VALID_ADD_PORTS_VALUES:
-            LOG.critical(_LC('Accepted values for [processing]add_ports are '
-                             '%(valid)s, got %(actual)s'),
+            LOG.critical('Accepted values for [processing]add_ports are '
+                         '%(valid)s, got %(actual)s',
                          {'valid': conf.VALID_ADD_PORTS_VALUES,
                           'actual': CONF.processing.add_ports})
             sys.exit(1)
 
         if CONF.processing.keep_ports not in conf.VALID_KEEP_PORTS_VALUES:
-            LOG.critical(_LC('Accepted values for [processing]keep_ports are '
-                             '%(valid)s, got %(actual)s'),
+            LOG.critical('Accepted values for [processing]keep_ports are '
+                         '%(valid)s, got %(actual)s',
                          {'valid': conf.VALID_KEEP_PORTS_VALUES,
                           'actual': CONF.processing.keep_ports})
             sys.exit(1)
@@ -156,7 +156,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
             client_id = iface.get('client_id')
 
             if not name:
-                LOG.error(_LE('Malformed interface record: %s'),
+                LOG.error('Malformed interface record: %s',
                           iface, data=data)
                 continue
 
@@ -166,8 +166,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
                 continue
 
             if not netutils.is_valid_mac(mac):
-                LOG.warning(_LW('MAC %(mac)s for interface %(name)s is '
-                                'not valid, skipping'),
+                LOG.warning('MAC %(mac)s for interface %(name)s is '
+                            'not valid, skipping',
                             {'mac': mac, 'name': name},
                             data=data)
                 continue
@@ -193,8 +193,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
         pxe_mac = utils.get_pxe_mac(data)
         if not pxe_mac and CONF.processing.add_ports == 'pxe':
-            LOG.warning(_LW('No boot interface provided in the introspection '
-                            'data, will add all ports with IP addresses'))
+            LOG.warning('No boot interface provided in the introspection '
+                        'data, will add all ports with IP addresses')
 
         result = {}
 
@@ -241,7 +241,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
         interfaces = self._validate_interfaces(all_interfaces,
                                                introspection_data)
 
-        LOG.info(_LI('Using network interface(s): %s'),
+        LOG.info('Using network interface(s): %s',
                  ', '.join('%s %s' % (name, items)
                            for (name, items) in interfaces.items()),
                  data=introspection_data)
@@ -266,8 +266,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
         # list is required as we modify underlying dict
         for port in list(node_info.ports().values()):
             if port.address not in expected_macs:
-                LOG.info(_LI("Deleting port %(port)s as its MAC %(mac)s is "
-                             "not in expected MAC list %(expected)s"),
+                LOG.info("Deleting port %(port)s as its MAC %(mac)s is "
+                         "not in expected MAC list %(expected)s",
                          {'port': port.uuid,
                           'mac': port.address,
                           'expected': list(sorted(expected_macs))},

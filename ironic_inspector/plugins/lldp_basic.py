@@ -15,7 +15,6 @@
 
 import binascii
 
-from ironic_inspector.common.i18n import _LW
 from ironic_inspector.common import lldp_parsers
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
@@ -48,9 +47,9 @@ class LLDPBasicProcessingHook(base.ProcessingHook):
             try:
                 data = bytearray(binascii.a2b_hex(tlv_value))
             except TypeError as e:
-                LOG.warning(_LW(
+                LOG.warning(
                     "TLV value for TLV type %(tlv_type)d not in correct "
-                    "format, value must be in hexadecimal: %(msg)s"),
+                    "format, value must be in hexadecimal: %(msg)s",
                     {'tlv_type': tlv_type, 'msg': e},  node_info=node_info)
                 continue
 
@@ -73,7 +72,7 @@ class LLDPBasicProcessingHook(base.ProcessingHook):
 
             tlvs = iface.get('lldp')
             if tlvs is None:
-                LOG.warning(_LW("No LLDP Data found for interface %s"),
+                LOG.warning("No LLDP Data found for interface %s",
                             if_name, node_info=node_info)
                 continue
 

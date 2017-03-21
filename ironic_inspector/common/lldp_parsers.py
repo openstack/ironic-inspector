@@ -18,7 +18,7 @@ import binascii
 from construct import core
 import netaddr
 
-from ironic_inspector.common.i18n import _, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import lldp_tlvs as tlv
 from ironic_inspector import utils
 
@@ -136,7 +136,7 @@ class LLDPParser(object):
             name = s[2]
             check_len = s[3]
         except KeyError as e:
-            LOG.warning(_LW("Key error in TLV table: %s"), e,
+            LOG.warning("Key error in TLV table: %s", e,
                         node_info=self.node_info)
             return False
 
@@ -144,10 +144,11 @@ class LLDPParser(object):
         # proper number of bytes has been provided, for example
         # when a BitStruct is used.
         if check_len and (tlv_parser.sizeof() != len(data)):
-            LOG.warning(_LW('Invalid data for %(name)s '
-                            'expected len %(expect)d, got %(actual)d'),
-                        {'name': name, 'expect': tlv_parser.sizeof(),
-                        'actual': len(data)}, node_info=self.node_info)
+            LOG.warning("Invalid data for %(name)s expected len %(expect)d, "
+                        "got %(actual)d", {'name': name,
+                                           'expect': tlv_parser.sizeof(),
+                                           'actual': len(data)},
+                        node_info=self.node_info)
             return False
 
         # Use the construct parser to parse TLV so that it's
@@ -156,7 +157,7 @@ class LLDPParser(object):
             struct = tlv_parser.parse(data)
         except (core.RangeError, core.FieldError, core.MappingError,
                 netaddr.AddrFormatError) as e:
-            LOG.warning(_LW("TLV parse error: %s"), e,
+            LOG.warning("TLV parse error: %s", e,
                         node_info=self.node_info)
             return False
 
@@ -164,7 +165,7 @@ class LLDPParser(object):
         try:
             func(struct, name, data)
         except ValueError as e:
-            LOG.warning(_LW("TLV value error: %s"), e,
+            LOG.warning("TLV value error: %s", e,
                         node_info=self.node_info)
             return False
 
@@ -271,8 +272,8 @@ class LLDPBasicMgmtParser(LLDPParser):
             else:
                 LOG.debug("Subtype %d not found for 802.3", subtype)
         else:
-            LOG.warning(_LW("Organizationally Unique ID %s not "
-                            "recognized"), oui, node_info=self.node_info)
+            LOG.warning("Organizationally Unique ID %s not "
+                        "recognized", oui, node_info=self.node_info)
 
 
 class LLDPdot1Parser(LLDPParser):
