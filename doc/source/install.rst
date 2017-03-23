@@ -9,8 +9,8 @@ environment)::
     pip install ironic-inspector
 
 Also there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
-plugin for **ironic-inspector** - see :ref:`contributing_link` for the current
-status.
+plugin for **ironic-inspector** - see :ref:`contributing_link` for the
+current status.
 
 Finally, some distributions (e.g. Fedora) provide **ironic-inspector**
 packaged, some of them - under its old name *ironic-discoverd*.
@@ -24,22 +24,23 @@ if you plan on installing **ironic-inspector** manually.
 
 .. _PyPI: https://pypi.python.org/pypi/ironic-inspector
 
-Note for Ubuntu users
-  Please beware :ref:`possible DNS issues <ubuntu-dns>` when installing
-  Ironic-Inspector on Ubuntu.
+.. note::
+    Please beware of :ref:`possible DNS issues <ubuntu-dns>` when installing
+    **ironic-inspector** on Ubuntu.
 
 Version Support Matrix
 ~~~~~~~~~~~~~~~~~~~~~~
 
-**ironic-inspector** currently requires bare metal API version ``1.11`` to be
-provided by Ironic. This version is available starting with Ironic Liberty
-release.
+**ironic-inspector** currently requires the Bare Metal API version
+``1.11`` to be provided by **ironic**. This version is available starting
+with the Liberty release of **ironic**.
 
-Here is a mapping between Ironic versions and supported **ironic-inspector**
-versions. The Standalone column shows which **ironic-inspector** versions can
-be used in standalone mode with each Ironic version. The Inspection Interface
-column shows which **ironic-inspector** versions can be used with the Ironic
-inspection interface in each version of Ironic.
+Here is a mapping between the ironic versions and the supported
+ironic-inspector versions. The Standalone column shows which
+ironic-inspector versions can be used in standalone mode with each
+ironic version. The Inspection Interface column shows which
+ironic-inspector versions can be used with the inspection interface in
+each version of **ironic**.
 
 ============== ============ ====================
 Ironic Version Standalone   Inspection Interface
@@ -53,32 +54,33 @@ Ocata+         5.0 - 5.X    5.0 - 5.X
 ============== ============ ====================
 
 .. note::
-    ``3.X`` means we don't have specific plans on deprecating support for this
-    Ironic version. This does not imply that we'll support it forever though.
+    ``3.X`` means there are no specific plans to deprecate support for this
+    ironic version. This does not imply that it will be supported forever.
 
 Configuration
 ~~~~~~~~~~~~~
 
 Copy ``example.conf`` to some permanent place
 (e.g. ``/etc/ironic-inspector/inspector.conf``).
-Fill in at least these configuration values:
+Fill in these minimum configuration values:
 
 * The ``keystone_authtoken`` section - credentials to use when checking user
   authentication.
 
-* The ``ironic`` section - credentials to use when accessing the Ironic API.
+* The ``ironic`` section - credentials to use when accessing **ironic**
+  API.
 
 * ``connection`` in the ``database`` section - SQLAlchemy connection string
-  for the database;
+  for the database.
 
-* ``dnsmasq_interface`` - interface on which ``dnsmasq`` (or another DHCP
-  service) listens for PXE boot requests (defaults to ``br-ctlplane`` which is
-  a sane default for TripleO-based installations but is unlikely to work for
-  other cases).
+* ``dnsmasq_interface`` in the ``firewall`` section - interface on which
+  ``dnsmasq`` (or another DHCP service) listens for PXE boot requests
+  (defaults to ``br-ctlplane`` which is a sane default for **tripleo**-based
+  installations but is unlikely to work for other cases).
 
 See comments inside `example.conf
 <https://github.com/openstack/ironic-inspector/blob/master/example.conf>`_
-for the other possible configuration options.
+for other possible configuration options.
 
 .. note::
     Configuration file contains a password and thus should be owned by ``root``
@@ -127,8 +129,8 @@ Here is an example *inspector.conf* (adapted from a gate run)::
 .. note::
     Set ``debug = true`` if you want to see complete logs.
 
-**ironic-inspector** requires root rights for managing iptables. It gets them
-by running ``ironic-inspector-rootwrap`` utility with ``sudo``.
+**ironic-inspector** requires root rights for managing ``iptables``. It
+gets them by running ``ironic-inspector-rootwrap`` utility with ``sudo``.
 To allow it, copy file ``rootwrap.conf`` and directory ``rootwrap.d`` to the
 configuration directory (e.g. ``/etc/ironic-inspector/``) and create file
 ``/etc/sudoers.d/ironic-inspector-rootwrap`` with the following content::
@@ -159,15 +161,15 @@ Replace ``stack`` with whatever user you'll be using to run
 Configuring IPA
 ^^^^^^^^^^^^^^^
 
-ironic-python-agent_ is a ramdisk developed for Ironic. During the Liberty
-cycle support for **ironic-inspector** was added. This is the default ramdisk
-starting with the Mitaka release.
+ironic-python-agent_ is a ramdisk developed for **ironic** and support
+for **ironic-inspector** was added during the Liberty cycle. This is the
+default ramdisk starting with the Mitaka release.
 
 .. note::
     You need at least 1.5 GiB of RAM on the machines to use IPA built with
     diskimage-builder_ and at least 384 MiB to use the *TinyIPA*.
 
-To build an ironic-python-agent ramdisk, do the following:
+To build an **ironic-python-agent** ramdisk, do the following:
 
 * Get the new enough version of diskimage-builder_::
 
@@ -188,13 +190,13 @@ Alternatively, you can download a `prebuilt TinyIPA image
 the `other builders
 <http://docs.openstack.org/developer/ironic-python-agent/#image-builders>`_.
 
-.. _diskimage-builder: https://github.com/openstack/diskimage-builder
-.. _ironic-python-agent: https://github.com/openstack/ironic-python-agent
+.. _diskimage-builder: https://docs.openstack.org/developer/diskimage-builder/
+.. _ironic-python-agent: https://docs.openstack.org/developer/ironic-python-agent/
 
 Configuring PXE
 ^^^^^^^^^^^^^^^
 
-As for PXE boot environment, you'll need:
+For the PXE boot environment, you'll need:
 
 * TFTP server running and accessible (see below for using *dnsmasq*).
   Ensure ``pxelinux.0`` is present in the TFTP root.
@@ -202,7 +204,7 @@ As for PXE boot environment, you'll need:
   Copy ``ironic-agent.kernel`` and ``ironic-agent.initramfs`` to the TFTP
   root as well.
 
-* Next, set up ``$TFTPROOT/pxelinux.cfg/default`` as follows::
+* Next, setup ``$TFTPROOT/pxelinux.cfg/default`` as follows::
 
     default introspect
 
@@ -223,8 +225,8 @@ As for PXE boot environment, you'll need:
 
   IPA is pluggable: you can insert introspection plugins called
   *collectors* into it. For example, to enable a very handy ``logs`` collector
-  (sending ramdisk logs to **ironic-inspector**), modify the ``append`` line in
-  ``$TFTPROOT/pxelinux.cfg/default``::
+  (sending ramdisk logs to **ironic-inspector**), modify the ``append``
+  line in ``$TFTPROOT/pxelinux.cfg/default``::
 
     append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default,logs systemd.journald.forward_to_console=yes
 
@@ -234,7 +236,7 @@ As for PXE boot environment, you'll need:
 
 * You need PXE boot server (e.g. *dnsmasq*) running on **the same** machine as
   **ironic-inspector**. Don't do any firewall configuration:
-  **ironic-inspector** will handle it for you. In the **ironic-inspector**
+  **ironic-inspector** will handle it for you. In **ironic-inspector**
   configuration file set ``dnsmasq_interface`` to the interface your
   PXE boot server listens on. Here is an example *dnsmasq.conf*::
 
@@ -256,8 +258,8 @@ Configuring iPXE
 ^^^^^^^^^^^^^^^^
 
 iPXE allows better scaling as it primarily uses the HTTP protocol instead of
-slow and unreliable TFTP. You still need a TFTP server as a fall back for
-nodes not supporting iPXE. To use iPXE you'll need:
+slow and unreliable TFTP. You still need a TFTP server as a fallback for
+nodes not supporting iPXE. To use iPXE, you'll need:
 
 * TFTP server running and accessible (see above for using *dnsmasq*).
   Ensure ``undionly.kpxe`` is present in the TFTP root. If any of your nodes
@@ -285,12 +287,12 @@ nodes not supporting iPXE. To use iPXE you'll need:
      Older versions of the iPXE ROM tend to misbehave on unreliable network
      connection, thus we use the timeout option with retries.
 
-  Just like with PXE you can customize the list of collectors by appending
-  the ``ipa-inspector-collectors`` kernel option, for example::
+  Just like with PXE, you can customize the list of collectors by appending
+  the ``ipa-inspector-collectors`` kernel option. For example::
 
     ipa-inspection-collectors=default,logs,extra_hardware
 
-* Just as with PXE you'll need a PXE boot server. The configuration, however,
+* Just as with PXE, you'll need a PXE boot server. The configuration, however,
   will be different. Here is an example *dnsmasq.conf*::
 
     port=0
@@ -312,22 +314,22 @@ nodes not supporting iPXE. To use iPXE you'll need:
   will get ``ipxe.efi`` firmware to execute, while the remaining will get
   ``undionly.kpxe``.
 
-Managing the **ironic-inspector** database
+Managing the **ironic-inspector** Database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**ironic-inspector** provides a command line client for managing its database,
-this client can be used for upgrading, and downgrading the database using
-alembic migrations.
+**ironic-inspector** provides a command line client for managing its
+database. This client can be used for upgrading, and downgrading the database
+using `alembic <https://alembic.readthedocs.org/>`_ migrations.
 
 If this is your first time running **ironic-inspector** to migrate the
-database simply run:
+database, simply run:
 ::
 
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
 
 If you have previously run a version of **ironic-inspector** earlier than
 2.2.0, the safest thing is to delete the existing SQLite database and run
-``upgrade`` as shown above. If you, however, want to save the existing
+``upgrade`` as shown above. However, if you want to save the existing
 database, to ensure your database will work with the migrations, you'll need to
 run an extra step before upgrading the database. You only need to do this the
 first time running version 2.2.0 or later.
@@ -338,7 +340,7 @@ If you are upgrading from **ironic-inspector** version 2.1.0 or lower:
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf stamp --revision 578f84f38d
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
 
-If you are upgrading from a git master install of **ironic-inspector** from
+If you are upgrading from a git master install of the **ironic-inspector**
 after :ref:`rules` were introduced:
 ::
 
