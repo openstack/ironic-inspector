@@ -68,6 +68,11 @@ To run the functional tests, use::
 
     tox -e func
 
+Once you have added new state or transition into inspection state machine, you
+should regenerate :ref:`state_machine_diagram` with::
+
+    tox -e genstates
+
 Run the service with::
 
     .tox/py27/bin/ironic-inspector --config-file example.conf
