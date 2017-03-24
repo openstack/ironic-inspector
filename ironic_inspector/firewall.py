@@ -14,8 +14,8 @@
 import contextlib
 import os
 import re
-import subprocess
 
+from eventlet.green import subprocess
 from eventlet import semaphore
 from oslo_config import cfg
 from oslo_log import log
