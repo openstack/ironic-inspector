@@ -230,7 +230,7 @@ def _ib_mac_to_rmac_mapping(blacklist_macs, ports_active):
     :param blacklist_macs: List of InfiniBand baremetal hosts macs to
                            blacklist.
     :param ports_active: list of active ironic ports
-    :return baremetal InfiniBand to remote mac on ironic node mapping
+    :return: baremetal InfiniBand to remote mac on ironic node mapping
     """
     ethoib_interfaces = CONF.firewall.ethoib_interfaces
     ib_mac_to_remote_mac = {}
