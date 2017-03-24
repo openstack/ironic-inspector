@@ -13,7 +13,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import subprocess
 
 import mock
 from oslo_config import cfg
@@ -34,7 +33,7 @@ EMAC=02:00:00:61:00:02 IMAC=61:fe:80:00:00:00:00:00:00:7c:fe:90:03:00:29:24:4f
 
 @mock.patch.object(firewall, '_iptables')
 @mock.patch.object(ir_utils, 'get_client')
-@mock.patch.object(subprocess, 'check_call')
+@mock.patch.object(firewall.subprocess, 'check_call')
 class TestFirewall(test_base.NodeTest):
     CLIENT_ID = 'ff:00:00:00:00:00:02:00:00:02:c9:00:7c:fe:90:03:00:29:24:4f'
 
@@ -69,7 +68,7 @@ class TestFirewall(test_base.NodeTest):
                                     mock_iptables):
         rootwrap_path = '/some/fake/path'
         CONF.set_override('rootwrap_config', rootwrap_path)
-        mock_call.side_effect = subprocess.CalledProcessError(2, '')
+        mock_call.side_effect = firewall.subprocess.CalledProcessError(2, '')
         firewall.init()
         init_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport', '67',
