@@ -52,11 +52,10 @@ class BaseTest(test_base.BaseTestCase):
         self.addCleanup(db.get_engine().dispose)
         plugins_base._HOOKS_MGR = None
         node_cache._SEMAPHORES = lockutils.Semaphores()
-        for name in ('_', '_LI', '_LW', '_LE', '_LC'):
-            patch = mock.patch.object(i18n, name, lambda s: s)
-            patch.start()
-            # 'p=patch' magic is due to how closures work
-            self.addCleanup(lambda p=patch: p.stop())
+        patch = mock.patch.object(i18n, '_', lambda s: s)
+        patch.start()
+        # 'p=patch' magic is due to how closures work
+        self.addCleanup(lambda p=patch: p.stop())
         utils._EXECUTOR = futurist.SynchronousExecutor(green=True)
 
     def init_test_conf(self):

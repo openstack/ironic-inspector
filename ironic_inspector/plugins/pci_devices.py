@@ -18,7 +18,7 @@ import json
 
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LI, _LW, _LE
+from ironic_inspector.common.i18n import _
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -49,12 +49,12 @@ def _parse_pci_alias_entry():
         try:
             parsed_entry = json.loads(pci_alias_entry)
             if set(parsed_entry) != {'vendor_id', 'product_id', 'name'}:
-                raise KeyError(_LE("The 'alias' entry should contain "
-                                   "exactly 'vendor_id', 'product_id' and "
-                                   "'name' keys"))
+                raise KeyError("The 'alias' entry should contain "
+                               "exactly 'vendor_id', 'product_id' and "
+                               "'name' keys")
             parsed_pci_devices.append(parsed_entry)
         except (ValueError, KeyError) as ex:
-            LOG.error(_LE("Error parsing 'alias' option: %s"), ex)
+            LOG.error("Error parsing 'alias' option: %s", ex)
     return {(dev['vendor_id'], dev['product_id']): dev['name']
             for dev in parsed_pci_devices}
 
@@ -75,13 +75,12 @@ class PciDevicesHook(base.ProcessingHook):
     def before_update(self, introspection_data, node_info, **kwargs):
         if 'pci_devices' not in introspection_data:
             if CONF.pci_devices.alias:
-                LOG.warning(_LW('No PCI devices information was received from '
-                            'the ramdisk.'))
+                LOG.warning('No PCI devices information was received from '
+                            'the ramdisk.')
             return
         alias_count = {self.aliases[id_pair]: count for id_pair, count in
                        self._found_pci_devices_count(
                            introspection_data['pci_devices']).items()}
         if alias_count:
             node_info.update_capabilities(**alias_count)
-            LOG.info(_LI('Found the following PCI devices: %s'),
-                     alias_count)
+            LOG.info('Found the following PCI devices: %s', alias_count)

@@ -22,7 +22,7 @@ from oslo_utils import uuidutils
 import six
 from sqlalchemy import orm
 
-from ironic_inspector.common.i18n import _, _LE, _LI
+from ironic_inspector.common.i18n import _
 from ironic_inspector import db
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
@@ -153,9 +153,9 @@ class IntrospectionRule(object):
                               cond.field, node_info=node_info, data=data)
                     field_values = [None]
                 else:
-                    LOG.info(_LI('Field with JSON path %(path)s was not found '
-                                 'in data, rule "%(rule)s" will not '
-                                 'be applied'),
+                    LOG.info('Field with JSON path %(path)s was not found '
+                             'in data, rule "%(rule)s" will not '
+                             'be applied',
                              {'path': cond.field, 'rule': self.description},
                              node_info=node_info, data=data)
                     return False
@@ -171,14 +171,14 @@ class IntrospectionRule(object):
                     break
 
             if not result:
-                LOG.info(_LI('Rule "%(rule)s" will not be applied: condition '
-                             '%(field)s %(op)s %(params)s failed'),
+                LOG.info('Rule "%(rule)s" will not be applied: condition '
+                         '%(field)s %(op)s %(params)s failed',
                          {'rule': self.description, 'field': cond.field,
                           'op': cond.op, 'params': cond.params},
                          node_info=node_info, data=data)
                 return False
 
-        LOG.info(_LI('Rule "%s" will be applied'), self.description,
+        LOG.info('Rule "%s" will be applied', self.description,
                  node_info=node_info, data=data)
         return True
 
@@ -347,12 +347,12 @@ def create(conditions_json, actions_json, uuid=None,
 
             rule.save(session)
     except db_exc.DBDuplicateEntry as exc:
-        LOG.error(_LE('Database integrity error %s when '
-                      'creating a rule'), exc)
+        LOG.error('Database integrity error %s when '
+                  'creating a rule', exc)
         raise utils.Error(_('Rule with UUID %s already exists') % uuid,
                           code=409)
 
-    LOG.info(_LI('Created rule %(uuid)s with description "%(descr)s"'),
+    LOG.info('Created rule %(uuid)s with description "%(descr)s"',
              {'uuid': uuid, 'descr': description})
     return IntrospectionRule(uuid=uuid,
                              conditions=rule.conditions,
@@ -393,7 +393,7 @@ def delete(uuid):
         if not count:
             raise utils.Error(_('Rule %s was not found') % uuid, code=404)
 
-    LOG.info(_LI('Introspection rule %s was deleted'), uuid)
+    LOG.info('Introspection rule %s was deleted', uuid)
 
 
 def delete_all():
@@ -403,7 +403,7 @@ def delete_all():
         db.model_query(db.RuleCondition, session=session).delete()
         db.model_query(db.Rule, session=session).delete()
 
-    LOG.info(_LI('All introspection rules were deleted'))
+    LOG.info('All introspection rules were deleted')
 
 
 def apply(node_info, data):
@@ -440,5 +440,5 @@ def apply(node_info, data):
     else:
         LOG.debug('No actions to apply', node_info=node_info, data=data)
 
-    LOG.info(_LI('Successfully applied custom introspection rules'),
+    LOG.info('Successfully applied custom introspection rules',
              node_info=node_info, data=data)

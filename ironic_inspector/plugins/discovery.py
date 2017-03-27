@@ -15,7 +15,7 @@
 
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 from ironic_inspector import utils
@@ -46,8 +46,8 @@ def _extract_node_driver_info(introspection_data):
     if ipmi_address:
         node_driver_info['ipmi_address'] = ipmi_address
     else:
-        LOG.warning(_LW('No BMC address provided, discovered node will be '
-                        'created without ipmi address'))
+        LOG.warning('No BMC address provided, discovered node will be '
+                    'created without ipmi address')
     return node_driver_info
 
 
@@ -63,9 +63,9 @@ def _check_existing_nodes(introspection_data, node_driver_info, ironic):
                 _('Port %(mac)s already exists, uuid: %(uuid)s') %
                 {'mac': mac, 'uuid': ports[0].uuid}, data=introspection_data)
     else:
-        LOG.warning(_LW('No suitable interfaces found for discovered node. '
-                        'Check that validate_interfaces hook is listed in '
-                        '[processing]default_processing_hooks config option'))
+        LOG.warning('No suitable interfaces found for discovered node. '
+                    'Check that validate_interfaces hook is listed in '
+                    '[processing]default_processing_hooks config option')
 
     # verify existing node with discovered ipmi address
     ipmi_address = node_driver_info.get('ipmi_address')

@@ -38,7 +38,6 @@ from oslo_log import log as logging
 from oslo_utils import uuidutils
 import sqlalchemy
 
-from ironic_inspector.common.i18n import _LE
 from ironic_inspector import db
 from ironic_inspector import dbsync
 from ironic_inspector import introspection_state as istate
@@ -140,8 +139,8 @@ class WalkVersionsMixin(object):
                 if check:
                     check(engine, data)
         except Exception:
-            LOG.error(_LE("Failed to migrate to version %(version)s on engine "
-                          "%(engine)s"),
+            LOG.error("Failed to migrate to version %(version)s on engine "
+                      "%(engine)s",
                       {'version': version, 'engine': engine})
             raise
 

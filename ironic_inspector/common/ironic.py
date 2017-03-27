@@ -18,7 +18,7 @@ from ironicclient import exceptions as ironic_exc
 import netaddr
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import keystone
 from ironic_inspector import utils
 
@@ -108,7 +108,7 @@ def get_ipmi_address(node):
                               node_info=node)
 
         if netaddr.IPAddress(ip).is_loopback():
-            LOG.warning(_LW('Ignoring loopback BMC address %s'), ip,
+            LOG.warning('Ignoring loopback BMC address %s', ip,
                         node_info=node)
             ip = None
 

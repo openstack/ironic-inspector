@@ -20,7 +20,6 @@ is stored in the 'inspector' container.
 
 import json
 
-from ironic_inspector.common.i18n import _LW
 from ironic_inspector.common import swift
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
@@ -47,9 +46,9 @@ class ExtraHardwareHook(base.ProcessingHook):
         Otherwise, it does nothing.
         """
         if 'data' not in introspection_data:
-            LOG.warning(_LW('No extra hardware information was received from '
-                            'the ramdisk'),
-                        node_info=node_info, data=introspection_data)
+            LOG.warning('No extra hardware information was received from '
+                        'the ramdisk', node_info=node_info,
+                        data=introspection_data)
             return
         data = introspection_data['data']
 
@@ -66,10 +65,10 @@ class ExtraHardwareHook(base.ProcessingHook):
                       node_info=node_info, data=introspection_data)
             introspection_data['extra'] = self._convert_edeploy_data(data)
         else:
-            LOG.warning(_LW('Extra hardware data was not in a recognised '
-                            'format (eDeploy), and will not be forwarded to '
-                            'introspection rules'),
-                        node_info=node_info, data=introspection_data)
+            LOG.warning('Extra hardware data was not in a recognised '
+                        'format (eDeploy), and will not be forwarded to '
+                        'introspection rules', node_info=node_info,
+                        data=introspection_data)
 
         LOG.debug('Deleting \"data\" key from introspection data as it is '
                   'assumed unusable by introspection rules. Raw data is '

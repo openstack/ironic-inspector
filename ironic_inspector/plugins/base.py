@@ -20,7 +20,7 @@ from oslo_log import log
 import six
 import stevedore
 
-from ironic_inspector.common.i18n import _, _LW
+from ironic_inspector.common.i18n import _
 
 
 CONF = cfg.CONF
@@ -207,8 +207,8 @@ def rule_actions_manager():
         for act in _ACTIONS_MGR:
             # a trick to detect if function was overridden
             if "rollback" in act.obj.__class__.__dict__:
-                LOG.warning(_LW('Defining "rollback" for introspection rules '
-                                'actions is deprecated (action "%s")'),
+                LOG.warning('Defining "rollback" for introspection rules '
+                            'actions is deprecated (action "%s")',
                             act.name)
     return _ACTIONS_MGR
 
