@@ -41,8 +41,7 @@ CONF = cfg.CONF
 _DEFAULT_SQL_CONNECTION = 'sqlite:///ironic_inspector.sqlite'
 _FACADE = None
 
-db_opts.set_defaults(cfg.CONF, _DEFAULT_SQL_CONNECTION,
-                     'ironic_inspector.sqlite')
+db_opts.set_defaults(cfg.CONF, connection=_DEFAULT_SQL_CONNECTION)
 
 
 class Node(Base):
