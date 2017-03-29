@@ -24,7 +24,7 @@ from oslo_serialization import base64
 from oslo_utils import excutils
 from oslo_utils import timeutils
 
-from ironic_inspector.common.i18n import _, _LE, _LI, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import firewall
@@ -47,14 +47,14 @@ _UNPROCESSED_DATA_STORE_SUFFIX = 'UNPROCESSED'
 def _store_logs(introspection_data, node_info):
     logs = introspection_data.get('logs')
     if not logs:
-        LOG.warning(_LW('No logs were passed by the ramdisk'),
+        LOG.warning('No logs were passed by the ramdisk',
                     data=introspection_data, node_info=node_info)
         return
 
     if not CONF.processing.ramdisk_logs_dir:
-        LOG.warning(_LW('Failed to store logs received from the ramdisk '
-                        'because ramdisk_logs_dir configuration option '
-                        'is not set'),
+        LOG.warning('Failed to store logs received from the ramdisk '
+                    'because ramdisk_logs_dir configuration option '
+                    'is not set',
                     data=introspection_data, node_info=node_info)
         return
 
@@ -76,10 +76,10 @@ def _store_logs(introspection_data, node_info):
                   'wb') as fp:
             fp.write(base64.decode_as_bytes(logs))
     except EnvironmentError:
-        LOG.exception(_LE('Could not store the ramdisk logs'),
+        LOG.exception('Could not store the ramdisk logs',
                       data=introspection_data, node_info=node_info)
     else:
-        LOG.info(_LI('Ramdisk logs were stored in file %s'), file_name,
+        LOG.info('Ramdisk logs were stored in file %s', file_name,
                  data=introspection_data, node_info=node_info)
 
 
@@ -123,15 +123,15 @@ def _run_pre_hooks(introspection_data, failures):
         try:
             hook_ext.obj.before_processing(introspection_data)
         except utils.Error as exc:
-            LOG.error(_LE('Hook %(hook)s failed, delaying error report '
-                          'until node look up: %(error)s'),
+            LOG.error('Hook %(hook)s failed, delaying error report '
+                      'until node look up: %(error)s',
                       {'hook': hook_ext.name, 'error': exc},
                       data=introspection_data)
             failures.append('Preprocessing hook %(hook)s: %(error)s' %
                             {'hook': hook_ext.name, 'error': exc})
         except Exception as exc:
-            LOG.exception(_LE('Hook %(hook)s failed, delaying error report '
-                              'until node look up: %(error)s'),
+            LOG.exception('Hook %(hook)s failed, delaying error report '
+                          'until node look up: %(error)s',
                           {'hook': hook_ext.name, 'error': exc},
                           data=introspection_data)
             failures.append(_('Unexpected exception %(exc_class)s during '
@@ -157,8 +157,8 @@ def _store_data(node_info, data, suffix=None):
         node_info.uuid,
         suffix=suffix
     )
-    LOG.info(_LI('Introspection data was stored in Swift in object '
-                 '%s'), swift_object_name, node_info=node_info)
+    LOG.info('Introspection data was stored in Swift in object '
+             '%s', swift_object_name, node_info=node_info)
     if CONF.processing.store_data_location:
         node_info.patch([{'op': 'add', 'path': '/extra/%s' %
                           CONF.processing.store_data_location,
@@ -171,8 +171,8 @@ def _store_unprocessed_data(node_info, data):
         _store_data(node_info, data,
                     suffix=_UNPROCESSED_DATA_STORE_SUFFIX)
     except Exception:
-        LOG.exception(_LE('Encountered exception saving unprocessed '
-                          'introspection data'), node_info=node_info,
+        LOG.exception('Encountered exception saving unprocessed '
+                      'introspection data', node_info=node_info,
                       data=data)
 
 
@@ -212,7 +212,7 @@ def process(introspection_data):
         _store_logs(introspection_data, node_info)
         raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
-    LOG.info(_LI('Matching node is %s'), node_info.uuid,
+    LOG.info('Matching node is %s', node_info.uuid,
              node_info=node_info, data=introspection_data)
 
     if node_info.finished_at is not None:
@@ -241,7 +241,7 @@ def process(introspection_data):
         with excutils.save_and_reraise_exception():
             _store_logs(introspection_data, node_info)
     except Exception as exc:
-        LOG.exception(_LE('Unexpected exception during processing'))
+        LOG.exception('Unexpected exception during processing')
         msg = _('Unexpected exception %(exc_class)s during processing: '
                 '%(error)s') % {'exc_class': exc.__class__.__name__,
                                 'error': exc}
@@ -316,8 +316,8 @@ def _finish_set_ipmi_credentials(node_info, ironic, node, introspection_data,
             # We don't care about boot device, obviously.
             ironic.node.get_boot_device(node_info.uuid)
         except Exception as exc:
-            LOG.info(_LI('Waiting for credentials update, attempt %(attempt)d '
-                         'current error is %(exc)s'),
+            LOG.info('Waiting for credentials update, attempt %(attempt)d '
+                     'current error is %(exc)s',
                      {'attempt': attempt, 'exc': exc},
                      node_info=node_info, data=introspection_data)
             eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
@@ -338,9 +338,9 @@ def _finish_common(node_info, ironic, introspection_data, power_off=True):
             ironic.node.set_power_state(node_info.uuid, 'off')
         except Exception as exc:
             if node_info.node().provision_state == 'enroll':
-                LOG.info(_LI("Failed to power off the node in"
-                             "'enroll' state, ignoring; error was "
-                             "%s"), exc, node_info=node_info,
+                LOG.info("Failed to power off the node in"
+                         "'enroll' state, ignoring; error was "
+                         "%s", exc, node_info=node_info,
                          data=introspection_data)
             else:
                 msg = (_('Failed to power off node %(node)s, check '
@@ -350,11 +350,11 @@ def _finish_common(node_info, ironic, introspection_data, power_off=True):
                 node_info.finished(error=msg)
                 raise utils.Error(msg, node_info=node_info,
                                   data=introspection_data)
-        LOG.info(_LI('Node powered-off'), node_info=node_info,
+        LOG.info('Node powered-off', node_info=node_info,
                  data=introspection_data)
 
     node_info.finished()
-    LOG.info(_LI('Introspection finished successfully'),
+    LOG.info('Introspection finished successfully',
              node_info=node_info, data=introspection_data)
 
 
@@ -393,8 +393,8 @@ def _reapply(node_info):
         node_info.commit()
         introspection_data = _get_unprocessed_data(node_info.uuid)
     except Exception as exc:
-        LOG.exception(_LE('Encountered exception while fetching '
-                          'stored introspection data'),
+        LOG.exception('Encountered exception while fetching '
+                      'stored introspection data',
                       node_info=node_info)
         msg = (_('Unexpected exception %(exc_class)s while fetching '
                  'unprocessed introspection data from Swift: %(error)s') %
@@ -421,8 +421,8 @@ def _reapply(node_info):
     _finish(node_info, ironic, introspection_data,
             power_off=False)
 
-    LOG.info(_LI('Successfully reapplied introspection on stored '
-                 'data'), node_info=node_info, data=introspection_data)
+    LOG.info('Successfully reapplied introspection on stored '
+             'data', node_info=node_info, data=introspection_data)
 
 
 @node_cache.fsm_event_before(istate.Events.reapply)

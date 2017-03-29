@@ -28,11 +28,11 @@ from oslo_utils import uuidutils
 import werkzeug
 
 from ironic_inspector import api_tools
-from ironic_inspector import db
-from ironic_inspector.common.i18n import _, _LC, _LE, _LI, _LW
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import conf  # noqa
+from ironic_inspector import db
 from ironic_inspector import firewall
 from ironic_inspector import introspect
 from ironic_inspector import node_cache
@@ -90,7 +90,7 @@ def convert_exceptions(func):
         except werkzeug.exceptions.HTTPException as exc:
             return error_response(exc, exc.code or 400)
         except Exception as exc:
-            LOG.exception(_LE('Internal server error'))
+            LOG.exception('Internal server error')
             msg = _('Internal server error')
             if CONF.debug:
                 msg += ' (%s): %s' % (exc.__class__.__name__, exc)
@@ -355,7 +355,7 @@ def periodic_update():  # pragma: no cover
     try:
         firewall.update_filters()
     except Exception:
-        LOG.exception(_LE('Periodic update of firewall rules failed'))
+        LOG.exception('Periodic update of firewall rules failed')
 
 
 def periodic_clean_up():  # pragma: no cover
@@ -364,7 +364,7 @@ def periodic_clean_up():  # pragma: no cover
             firewall.update_filters()
         sync_with_ironic()
     except Exception:
-        LOG.exception(_LE('Periodic clean up of node cache failed'))
+        LOG.exception('Periodic clean up of node cache failed')
 
 
 def sync_with_ironic():
@@ -382,9 +382,9 @@ def create_ssl_context():
     MIN_VERSION = (2, 7, 9)
 
     if sys.version_info < MIN_VERSION:
-        LOG.warning(_LW('Unable to use SSL in this version of Python: '
-                        '%(current)s, please ensure your version of Python is '
-                        'greater than %(min)s to enable this feature.'),
+        LOG.warning('Unable to use SSL in this version of Python: '
+                    '%(current)s, please ensure your version of Python is '
+                    'greater than %(min)s to enable this feature.',
                     {'current': '.'.join(map(str, sys.version_info[:3])),
                      'min': '.'.join(map(str, MIN_VERSION))})
         return
@@ -394,15 +394,15 @@ def create_ssl_context():
         try:
             context.load_cert_chain(CONF.ssl_cert_path, CONF.ssl_key_path)
         except IOError as exc:
-            LOG.warning(_LW('Failed to load certificate or key from defined '
-                            'locations: %(cert)s and %(key)s, will continue '
-                            'to run with the default settings: %(exc)s'),
+            LOG.warning('Failed to load certificate or key from defined '
+                        'locations: %(cert)s and %(key)s, will continue '
+                        'to run with the default settings: %(exc)s',
                         {'cert': CONF.ssl_cert_path, 'key': CONF.ssl_key_path,
                          'exc': exc})
         except ssl.SSLError as exc:
-            LOG.warning(_LW('There was a problem with the loaded certificate '
-                            'and key, will continue to run with the default '
-                            'settings: %s'), exc)
+            LOG.warning('There was a problem with the loaded certificate '
+                        'and key, will continue to run with the default '
+                        'settings: %s', exc)
     return context
 
 
@@ -432,16 +432,16 @@ class Service(object):
         if CONF.auth_strategy != 'noauth':
             utils.add_auth_middleware(app)
         else:
-            LOG.warning(_LW('Starting unauthenticated, please check'
-                            ' configuration'))
+            LOG.warning('Starting unauthenticated, please check'
+                        ' configuration')
 
         if CONF.processing.store_data == 'none':
-            LOG.warning(_LW('Introspection data will not be stored. Change '
-                            '"[processing] store_data" option if this is not '
-                            'the desired behavior'))
+            LOG.warning('Introspection data will not be stored. Change '
+                        '"[processing] store_data" option if this is not '
+                        'the desired behavior')
         elif CONF.processing.store_data == 'swift':
-            LOG.info(_LI('Introspection data will be stored in Swift in the '
-                         'container %s'), CONF.swift.container)
+            LOG.info('Introspection data will be stored in Swift in the '
+                     'container %s', CONF.swift.container)
 
         utils.add_cors_middleware(app)
 
@@ -453,11 +453,11 @@ class Service(object):
         except KeyError as exc:
             # callback function raises MissingHookError derived from KeyError
             # on missing hook
-            LOG.critical(_LC('Hook(s) %s failed to load or was not found'),
+            LOG.critical('Hook(s) %s failed to load or was not found',
                          str(exc))
             sys.exit(1)
 
-        LOG.info(_LI('Enabled processing hooks: %s'), hooks)
+        LOG.info('Enabled processing hooks: %s', hooks)
 
         if CONF.firewall.manage_firewall:
             firewall.init()
@@ -489,7 +489,7 @@ class Service(object):
         if utils.executor().alive:
             utils.executor().shutdown(wait=True)
 
-        LOG.info(_LI('Shut down successfully'))
+        LOG.info('Shut down successfully')
 
     def run(self, args, application):
         self.setup_logging(args)

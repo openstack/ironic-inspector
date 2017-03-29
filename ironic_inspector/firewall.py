@@ -20,7 +20,6 @@ from eventlet import semaphore
 from oslo_config import cfg
 from oslo_log import log
 
-from ironic_inspector.common.i18n import _LE, _LW
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 
@@ -51,7 +50,7 @@ def _iptables(*args, **kwargs):
             LOG.debug('Ignoring failed iptables %(args)s: %(output)s',
                       {'args': args, 'output': output})
         else:
-            LOG.error(_LE('iptables %(iptables)s failed: %(exc)s'),
+            LOG.error('iptables %(iptables)s failed: %(exc)s',
                       {'iptables': args, 'exc': output})
             raise
 
@@ -79,8 +78,8 @@ def init():
             subprocess.check_call(BASE_COMMAND + ('-w', '-h'),
                                   stderr=null, stdout=null)
     except subprocess.CalledProcessError:
-        LOG.warning(_LW('iptables does not support -w flag, please update '
-                        'it to at least version 1.4.21'))
+        LOG.warning('iptables does not support -w flag, please update '
+                    'it to at least version 1.4.21')
     else:
         BASE_COMMAND += ('-w',)
 
@@ -241,9 +240,8 @@ def _ib_mac_to_rmac_mapping(blacklist_macs, ports_active):
             with open(neighs_file, 'r') as fd:
                 data = fd.read()
         except IOError:
-            LOG.error(
-                _LE('Interface %s is not Ethernet Over InfiniBand; '
-                    'Skipping ...'), interface)
+            LOG.error('Interface %s is not Ethernet Over InfiniBand; '
+                      'Skipping ...', interface)
             continue
         for port in ports_active:
             if port.address in blacklist_macs:

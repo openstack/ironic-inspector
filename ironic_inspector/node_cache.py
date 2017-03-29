@@ -32,9 +32,9 @@ import six
 from sqlalchemy.orm import exc as orm_errors
 from sqlalchemy import text
 
-from ironic_inspector import db
-from ironic_inspector.common.i18n import _, _LE, _LW, _LI
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import utils
 
@@ -93,8 +93,8 @@ class NodeInfo(object):
 
     def __del__(self):
         if self._locked:
-            LOG.warning(_LW('BUG: node lock was not released by the moment '
-                            'node info object is deleted'))
+            LOG.warning('BUG: node lock was not released by the moment '
+                        'node info object is deleted')
             self._lock.release()
 
     def __str__(self):
@@ -202,7 +202,7 @@ class NodeInfo(object):
             yield fsm
         finally:
             if fsm.current_state != self.state:
-                LOG.info(_LI('Updating node state: %(current)s --> %(new)s'),
+                LOG.info('Updating node state: %(current)s --> %(new)s',
                          {'current': self.state, 'new': fsm.current_state},
                          node_info=self)
                 self._set_state(fsm.current_state)
@@ -361,7 +361,7 @@ class NodeInfo(object):
                 existing_macs.append(mac)
 
         if existing_macs:
-            LOG.warning(_LW('Did not create ports %s as they already exist'),
+            LOG.warning('Did not create ports %s as they already exist',
                         existing_macs, node_info=self)
 
     def ports(self, ironic=None):
@@ -383,7 +383,7 @@ class NodeInfo(object):
             port = ironic.port.create(
                 node_uuid=self.uuid, address=mac, extra=extra)
         except exceptions.Conflict:
-            LOG.warning(_LW('Port %s already exists, skipping'),
+            LOG.warning('Port %s already exists, skipping',
                         mac, node_info=self)
             # NOTE(dtantsur): we didn't get port object back, so we have to
             # reload ports on next access
@@ -537,9 +537,9 @@ def triggers_fsm_error_transition(errors=(Exception,),
                           node_info=node_info)
             except errors as exc:
                 with excutils.save_and_reraise_exception():
-                    LOG.error(_LE('Processing the error event because of an '
-                                  'exception %(exc_type)s: %(exc)s raised by '
-                                  '%(func)s'),
+                    LOG.error('Processing the error event because of an '
+                              'exception %(exc_type)s: %(exc)s raised by '
+                              '%(func)s',
                               {'exc_type': type(exc), 'exc': exc,
                                'func': reflection.get_callable_name(func)},
                               node_info=node_info)
@@ -696,9 +696,8 @@ def delete_nodes_not_in_list(uuids):
     """
     inspector_uuids = _list_node_uuids()
     for uuid in inspector_uuids - uuids:
-        LOG.warning(
-            _LW('Node %s was deleted from Ironic, dropping from Ironic '
-                'Inspector database'), uuid)
+        LOG.warning('Node %s was deleted from Ironic, dropping from Ironic '
+                    'Inspector database', uuid)
         with _get_lock_ctx(uuid):
             _delete_node(uuid)
 
@@ -876,7 +875,7 @@ def clean_up():
     if not uuids:
         return []
 
-    LOG.error(_LE('Introspection for nodes %s has timed out'), uuids)
+    LOG.error('Introspection for nodes %s has timed out', uuids)
     for u in uuids:
         node_info = get_node(u, locked=True)
         try:
@@ -908,9 +907,9 @@ def create_node(driver, ironic=None, **attributes):
     try:
         node = ironic.node.create(driver=driver, **attributes)
     except exceptions.InvalidAttribute as e:
-        LOG.error(_LE('Failed to create new node: %s'), e)
+        LOG.error('Failed to create new node: %s', e)
     else:
-        LOG.info(_LI('Node %s was created successfully'), node.uuid)
+        LOG.info('Node %s was created successfully', node.uuid)
         return add_node(node.uuid, istate.States.enrolling, ironic=ironic)
 
 
