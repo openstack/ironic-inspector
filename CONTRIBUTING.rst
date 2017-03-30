@@ -272,16 +272,12 @@ database models found in ironic_inspector.db_ and then create a migration to
 reflect that change.
 
 There are two ways to create a migration which are described below, both of
-these generate a new migration file. In this file there are two functions:
+these generate a new migration file. In this file there is only one function:
 
-* upgrade - The upgrade function is run when
+* ``upgrade`` - The function to run when
     ``ironic-inspector-dbsync upgrade`` is run, and should be populated with
     code to bring the database up to its new state from the state it was in
     after the last migration.
-
-* downgrade - The downgrade function should have code to undo the actions which
-    upgrade performs, returning the database to the state it would have been in
-    before the migration ran.
 
 For further information on creating a migration, refer to
 `Create a Migration Script`_ from the alembic documentation.
@@ -305,9 +301,9 @@ Manual
 ------
 
 This will generate an empty migration file, with the correct revision
-information already included. However upgrade and downgrade are left empty and
-must be manually populated in order to perform the correct actions on the
-database::
+information already included. However the upgrade function is left empty
+and must be manually populated in order to perform the correct actions on
+the database::
 
     ironic-inspector-dbsync revision -m "A short description"
 
