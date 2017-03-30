@@ -70,5 +70,5 @@ The diagram also shows events that trigger state transitions.
    :align: center
    :alt: ironic-inspector state machine diagram
 
-.. _Ironic inspection documentation: http://docs.openstack.org/developer/ironic/deploy/install-guide.html#hardware-inspection
+.. _Ironic inspection documentation: https://docs.openstack.org/developer/ironic/deploy/inspection.html
 .. _Ironic: https://wiki.openstack.org/wiki/Ironic
