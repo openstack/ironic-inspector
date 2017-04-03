@@ -66,8 +66,8 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
-    connectable = db.create_facade_lazily().get_engine()
-    with connectable.connect() as connection:
+    session = db.get_writer_session()
+    with session.connection() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata

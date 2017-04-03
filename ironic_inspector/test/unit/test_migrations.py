@@ -31,6 +31,7 @@ from alembic import script
 import mock
 from oslo_config import cfg
 from oslo_db.sqlalchemy.migration_cli import ext_alembic
+from oslo_db.sqlalchemy import orm
 from oslo_db.sqlalchemy import test_base
 from oslo_db.sqlalchemy import test_migrations
 from oslo_db.sqlalchemy import utils as db_utils
@@ -82,18 +83,12 @@ def _is_backend_avail(backend, user, passwd, database):
         return True
 
 
-class FakeFacade(object):
-    def __init__(self, engine):
-        self.engine = engine
-
-    def get_engine(self):
-        return self.engine
-
-
 @contextlib.contextmanager
 def patch_with_engine(engine):
-    with mock.patch.object(db, 'create_facade_lazily') as patch_engine:
-        patch_engine.return_value = FakeFacade(engine)
+    with mock.patch.object(db, 'get_writer_session') as patch_w_sess, \
+            mock.patch.object(db, 'get_reader_session') as patch_r_sess:
+        patch_w_sess.return_value = patch_r_sess.return_value = (
+            orm.get_maker(engine)())
         yield
 
 
