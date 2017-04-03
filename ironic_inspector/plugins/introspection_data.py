@@ -20,7 +20,7 @@ from oslo_config import cfg
 from oslo_utils import excutils
 
 from ironic_inspector.common import swift
-from ironic_inspector import node_cache
+from ironic_inspector.db import api as db
 from ironic_inspector import utils
 
 
@@ -99,7 +99,7 @@ class DatabaseStore(object):
     def get(self, node_uuid, processed=True, get_json=False):
         LOG.debug('Fetching introspection data from database for %(node)s',
                   {'node': node_uuid})
-        data = node_cache.get_introspection_data(node_uuid, processed)
+        data = db.get_introspection_data(node_uuid, processed)
         if get_json:
             return data
         return json.dumps(data)
@@ -107,8 +107,8 @@ class DatabaseStore(object):
     def save(self, node_uuid, data, processed=True):
         introspection_data = _filter_data_excluded_keys(data)
         try:
-            node_cache.store_introspection_data(node_uuid,
-                                                introspection_data, processed)
+            db.store_introspection_data(node_uuid,
+                                        introspection_data, processed)
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.exception('Failed to store introspection data in '

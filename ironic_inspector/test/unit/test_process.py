@@ -29,7 +29,7 @@ from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
-from ironic_inspector import db
+from ironic_inspector.db import api as db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -43,7 +43,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-class BaseTest(test_base.NodeTest):
+class BaseTest(test_base.NodeTestBase):
     def setUp(self):
         super(BaseTest, self).setUp()
         self.started_at = timeutils.utcnow()
@@ -445,10 +445,10 @@ class TestProcessNode(BaseTest):
         self.useFixture(fixtures.MockPatchObject(
             eventlet.greenthread, 'sleep', autospec=True))
         self.node_info._state = istate.States.waiting
-        db.Node(uuid=self.node_info.uuid, state=self.node_info._state,
-                started_at=self.node_info.started_at,
-                finished_at=self.node_info.finished_at,
-                error=self.node_info.error).save(self.session)
+        db.create_node(uuid=self.node_info.uuid, state=self.node_info._state,
+                       started_at=self.node_info.started_at,
+                       finished_at=self.node_info.finished_at,
+                       error=self.node_info.error)
 
     def test_return_includes_uuid(self):
         ret_val = process._process_node(self.node_info, self.node, self.data)
@@ -594,7 +594,7 @@ class TestProcessNode(BaseTest):
         self.assertNotIn('logs',
                          json.loads(swift_conn.create_object.call_args[0][1]))
 
-    @mock.patch.object(node_cache, 'store_introspection_data', autospec=True)
+    @mock.patch.object(db, 'store_introspection_data', autospec=True)
     def test_store_data_with_database(self, store_mock):
         CONF.set_override('store_data', 'database', 'processing')
 
@@ -604,7 +604,7 @@ class TestProcessNode(BaseTest):
         store_mock.assert_called_once_with(self.node_info.uuid, data, True)
         self.assertEqual(data, store_mock.call_args[0][1])
 
-    @mock.patch.object(node_cache, 'store_introspection_data', autospec=True)
+    @mock.patch.object(db, 'store_introspection_data', autospec=True)
     def test_store_data_no_logs_with_database(self, store_mock):
         CONF.set_override('store_data', 'database', 'processing')
 
@@ -698,10 +698,10 @@ class TestReapplyNode(BaseTest):
         self.commit_fixture = self.useFixture(
             fixtures.MockPatchObject(node_cache.NodeInfo, 'commit',
                                      autospec=True))
-        db.Node(uuid=self.node_info.uuid, state=self.node_info._state,
-                started_at=self.node_info.started_at,
-                finished_at=self.node_info.finished_at,
-                error=self.node_info.error).save(self.session)
+        db.create_node(uuid=self.node_info.uuid, state=self.node_info._state,
+                       started_at=self.node_info.started_at,
+                       finished_at=self.node_info.finished_at,
+                       error=self.node_info.error)
 
     def call(self):
         process._reapply(self.node_info, introspection_data=self.data)

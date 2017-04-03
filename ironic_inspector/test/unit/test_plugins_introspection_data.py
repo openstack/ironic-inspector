@@ -18,7 +18,8 @@ import fixtures
 from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector import db
+from ironic_inspector.db import api as db
+from ironic_inspector.db import model
 from ironic_inspector import introspection_state as istate
 from ironic_inspector.plugins import introspection_data
 from ironic_inspector.test import base as test_base
@@ -26,7 +27,7 @@ from ironic_inspector.test import base as test_base
 CONF = cfg.CONF
 
 
-class BaseTest(test_base.NodeTest):
+class BaseTest(test_base.NodeTestBase):
     data = {
         'ipmi_address': '1.2.3.4',
         'cpus': 2,
@@ -75,18 +76,16 @@ class TestSwiftStore(BaseTest):
     def _create_node(self):
         session = db.get_writer_session()
         with session.begin():
-            db.Node(uuid=self.node_info.uuid,
-                    state=istate.States.starting).save(session)
+            model.Node(uuid=self.node_info.uuid,
+                       state=istate.States.starting).save(session)
 
 
 class TestDatabaseStore(BaseTest):
     def setUp(self):
         super(TestDatabaseStore, self).setUp()
         self.driver = introspection_data.DatabaseStore()
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.node_info.uuid,
-                    state=istate.States.starting).save(session)
+        db.create_node(uuid=self.node_info.uuid,
+                       state=istate.States.starting)
 
     def test_store_and_get_data(self):
         self.driver.save(self.node_info.uuid, self.data)

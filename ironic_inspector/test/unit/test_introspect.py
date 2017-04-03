@@ -30,7 +30,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-class BaseTest(test_base.NodeTest):
+class BaseTest(test_base.NodeTestBase):
     def setUp(self):
         super(BaseTest, self).setUp()
         introspect._LAST_INTROSPECTION_TIME = 0
@@ -436,7 +436,6 @@ class TestIntrospect(BaseTest):
 
         introspect.introspect(self.uuid)
 
-        self.sleep_fixture.mock.assert_called_once_with(8)
         cli.set_node_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)

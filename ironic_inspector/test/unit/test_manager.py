@@ -48,8 +48,6 @@ class BaseManagerTest(test_base.NodeTest):
 class TestManagerInitHost(BaseManagerTest):
     def setUp(self):
         super(TestManagerInitHost, self).setUp()
-        self.mock_db_init = self.useFixture(fixtures.MockPatchObject(
-            manager.db, 'init')).mock
         self.mock_validate_processing_hooks = self.useFixture(
             fixtures.MockPatchObject(manager.plugins_base,
                                      'validate_processing_hooks')).mock
@@ -95,7 +93,6 @@ class TestManagerInitHost(BaseManagerTest):
         mock_coordinator = mock.MagicMock()
         mock_get_coord.return_value = mock_coordinator
         self.manager.init_host()
-        self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
@@ -113,7 +110,6 @@ class TestManagerInitHost(BaseManagerTest):
         self.mock_exit.side_effect = SystemExit('Stop!')
         self.assertRaisesRegex(SystemExit, 'Stop!', self.manager.init_host)
 
-        self.mock_db_init.assert_called_once_with()
         self.mock_log.critical.assert_called_once_with(str(error))
         self.mock_exit.assert_called_once_with(1)
         self.mock_filter.init_filter.assert_not_called()
@@ -126,7 +122,6 @@ class TestManagerInitHost(BaseManagerTest):
         mock_coordinator = mock.MagicMock()
         mock_get_coord.return_value = mock_coordinator
         self.manager.init_host()
-        self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
@@ -140,7 +135,6 @@ class TestManagerInitHost(BaseManagerTest):
         mock_coordinator = mock.MagicMock()
         mock_get_coord.return_value = mock_coordinator
         self.manager.init_host()
-        self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
@@ -157,7 +151,6 @@ class TestManagerInitHost(BaseManagerTest):
                                                      'backend failed.'),
                                       None)
         self.assertRaises(tooz.ToozError, self.manager.init_host)
-        self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_not_called()
         self.mock_filter.init_filter.assert_not_called()
         self.assertIsNone(self.manager._periodics_worker)

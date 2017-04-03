@@ -36,13 +36,13 @@ import requests
 from ironic_inspector.cmd import all as inspector_cmd
 from ironic_inspector.cmd import dbsync
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector import db
+from ironic_inspector.db import api as db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
-from ironic_inspector import node_cache
 from ironic_inspector import rules
 from ironic_inspector.test import base
 from ironic_inspector.test.unit import test_rules
+
 
 eventlet.monkey_patch()
 
@@ -105,6 +105,7 @@ def _query_string(*field_names):
 
 class Base(base.NodeTest):
     ROOT_URL = 'http://127.0.0.1:5050'
+
     IS_FUNCTIONAL = True
 
     def setUp(self):
@@ -146,7 +147,7 @@ class Base(base.NodeTest):
 
     def tearDown(self):
         super(Base, self).tearDown()
-        node_cache._delete_node(self.uuid)
+        db.delete_node(self.uuid)
 
     def call(self, method, endpoint, data=None, expect_error=None,
              api_version=None):
@@ -243,17 +244,18 @@ class Base(base.NodeTest):
 
     def db_row(self):
         """return database row matching self.uuid."""
-        return db.model_query(db.Node).get(self.uuid)
+        return db.get_node(self.uuid)
 
 
 class Test(Base):
     def test_bmc(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
         self.cli.set_node_power_state.assert_called_once_with(self.uuid,
                                                               'rebooting')
-
         status = self.call_get_status(self.uuid)
+
         self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
@@ -381,11 +383,9 @@ class Test(Base):
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
-
         # fetch all statuses and db nodes to assert pagination
         statuses = self.call_get_statuses().get('introspection')
-        nodes = db.model_query(db.Node).order_by(
-            db.Node.started_at.desc()).all()
+        nodes = db.get_nodes()
 
         # assert ordering
         self.assertEqual([node.uuid for node in nodes],
@@ -694,10 +694,8 @@ class Test(Base):
         # waiting -> processing is a strict state transition
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        row = self.db_row()
-        row.state = istate.States.processing
-        with db.ensure_transaction() as session:
-            row.save(session)
+
+        db.update_node(self.uuid, state=istate.States.processing)
         self.call_continue(self.data, expect_error=400)
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.error,
@@ -830,7 +828,6 @@ def mocked_server():
         except requests.ConnectionError:
             if i == 9:
                 raise
-            print('Service did not start yet')
             eventlet.greenthread.sleep(3)
         else:
             break

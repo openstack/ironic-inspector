@@ -1,0 +1,37 @@
+---
+upgrade:
+  - |
+    The minimum version of SQLAlchemy is now ``1.4.0``, in preparation for the
+    future anticipated release of SQLAlchemy ``2.0.0``.
+  - |
+    The minimum version of Oslo.DB is now ``12.1.0``, in preparation for the
+    future anticipated release of SQLAlchemy ``2.0.0``.
+  - |
+    Database schema upgrades from versions prior to ``7.3.0`` are not
+    supported. Please upgrade to an intermediate release prior to upgrading
+    to this release.
+fixes:
+  - |
+    Fixes an issue where database responses of nodes would get orphaned
+    in inspector process RAM, and would not be garbage collected.
+    We were able to discover and reproduce this issue while working on
+    database connectivity locks remaining in place.
+    Please see `story 2009727 <https://storyboard.openstack.org/#!/story/2009727>`_
+    for more details.
+deprecations:
+  - |
+    Plugin maintainers should be aware that the Node Cache object field
+    ``version_id`` filed is no longer in use. It is still returned
+    by the data model if stored for the purposes of compatability, but
+    Inspector will not update the field through the normal course of it's
+    operation.
+other:
+  - |
+    Plugin maintainers who are directly working with the database will
+    need to update their plugins. Specifically the Database API has
+    been delineated into using ``enginefacade`` with a dedicated
+    reader and writer model, in anticipation of support for SQLAlchemy 2.0
+    and an eventual merge of Inspector into Ironic at some point in the
+    future. Database actions are now performed through the
+    ``ironic_inspector.db.api`` module, where previously they were spread
+    across ``ironic_inspector.db`` and ``ironic_inspector.node_cache``.

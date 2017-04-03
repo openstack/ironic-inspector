@@ -208,6 +208,32 @@ class DeferredBasicAuthMiddleware(object):
         return req.get_response(self.app)
 
 
+class NodeNotFoundInDBError(Error):
+    """The node was not found in the database."""
+    # NOTE(TheJulia): This exception exists largely to help facilitate
+    # Internal error handling.
+    def __init__(self, **kwargs):
+        msg = 'The requested node was not found.'
+        super(NodeNotFoundInDBError, self).__init__(
+            msg, code=404, log_level='error', **kwargs)
+
+
+class RuleUUIDExistError(Error):
+    """Rule requested already exists in the database."""
+    def __init__(self, uuid, *args, **kwargs):
+        message = _('Rule with UUID %s already exists') % uuid
+        kwargs.setdefault('code', 409)
+        super(RuleUUIDExistError, self).__init__(message, *args, **kwargs)
+
+
+class RuleNotFoundError(Error):
+    """The requested rule was not found."""
+    def __init__(self, uuid, *args, **kwargs):
+        message = _('Rule %s was not found') % uuid
+        kwargs.setdefault('code', 404)
+        super(RuleNotFoundError, self).__init__(message, *args, **kwargs)
+
+
 def executor():
     """Return the current futures executor."""
     global _EXECUTOR

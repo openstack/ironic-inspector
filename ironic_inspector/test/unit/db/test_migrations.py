@@ -42,7 +42,8 @@ from oslotest import base as test_base
 import sqlalchemy
 
 from ironic_inspector.cmd import dbsync
-from ironic_inspector import db
+from ironic_inspector.db import api as db
+from ironic_inspector.db import model as db_model
 from ironic_inspector import introspection_state as istate
 from ironic_inspector.test import base
 
@@ -53,12 +54,10 @@ LOG = logging.getLogger(__name__)
 @contextlib.contextmanager
 def patch_with_engine(engine):
     with mock.patch.object(db, 'get_writer_session',
-                           autospec=True) as patch_w_sess, \
-            mock.patch.object(db, 'get_reader_session',
-                              autospec=True) as patch_r_sess:
+                           autospec=True) as patch_w_sess:
         # FIXME(stephenfin): we need to remove reliance on autocommit semantics
         # ASAP since it's not compatible with SQLAlchemy 2.0
-        patch_w_sess.return_value = patch_r_sess.return_value = (
+        patch_w_sess.return_value = (
             orm.get_maker(engine, autocommit=True)())
         yield
 
@@ -479,7 +478,7 @@ class ModelsMigrationSyncMixin(object):
         self.engine = enginefacade.writer.get_engine()
 
     def get_metadata(self):
-        return db.Base.metadata
+        return db_model.Base.metadata
 
     def get_engine(self):
         return self.engine
