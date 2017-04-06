@@ -721,6 +721,51 @@ class TestUpdate(test_base.NodeTest):
         self.ironic.port.delete.assert_called_once_with('0')
         self.assertEqual(['mac1'], list(self.node_info.ports()))
 
+    @mock.patch.object(node_cache.LOG, 'warning', autospec=True)
+    def test_create_ports(self, mock_warn):
+        ports = [
+            'mac2',
+            {'mac': 'mac3', 'client_id': '42'},
+            {'mac': 'mac4'}
+        ]
+
+        self.node_info.create_ports(ports)
+        self.assertEqual({'mac0', 'mac1', 'mac2', 'mac3', 'mac4'},
+                         set(self.node_info.ports()))
+
+        create_calls = [
+            mock.call(node_uuid=self.uuid, address='mac2', extra={}),
+            mock.call(node_uuid=self.uuid, address='mac3',
+                      extra={'client-id': '42'}),
+            mock.call(node_uuid=self.uuid, address='mac4', extra={}),
+        ]
+        self.assertEqual(create_calls, self.ironic.port.create.call_args_list)
+        # No conflicts - cache was not cleared - no calls to port.list
+        self.assertFalse(mock_warn.called)
+        self.assertFalse(self.ironic.port.list.called)
+
+    @mock.patch.object(node_cache.LOG, 'warning', autospec=True)
+    def test_create_ports_with_conflicts(self, mock_warn):
+        self.ironic.port.create.return_value = mock.sentinel.port
+
+        ports = [
+            'mac',
+            {'mac': 'mac0'},
+            'mac1',
+            {'mac': 'mac2', 'client_id': '42'},
+        ]
+
+        self.node_info.create_ports(ports)
+
+        create_calls = [
+            mock.call(node_uuid=self.uuid, address='mac', extra={}),
+            mock.call(node_uuid=self.uuid, address='mac2',
+                      extra={'client-id': '42'}),
+        ]
+        self.assertEqual(create_calls, self.ironic.port.create.call_args_list)
+        mock_warn.assert_called_once_with(mock.ANY, ['mac0', 'mac1'],
+                                          node_info=self.node_info)
+
 
 class TestNodeCacheGetByPath(test_base.NodeTest):
     def setUp(self):
