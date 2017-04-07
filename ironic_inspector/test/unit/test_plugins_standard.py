@@ -96,18 +96,7 @@ class TestSchedulerHook(test_base.NodeTest):
         self.assertCalledWithPatch(patch, mock_patch)
 
 
-class TestValidateInterfacesHook(test_base.NodeTest):
-    def setUp(self):
-        super(TestValidateInterfacesHook, self).setUp()
-        self.hook = std_plugins.ValidateInterfacesHook()
-        self.existing_ports = [mock.Mock(spec=['address', 'uuid'],
-                                         address=a)
-                               for a in (self.macs[1],
-                                         '44:44:44:44:44:44')]
-        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
-                                             node=self.node,
-                                             ports=self.existing_ports)
-
+class TestValidateInterfacesHookLoad(test_base.NodeTest):
     def test_hook_loadable_by_name(self):
         CONF.set_override('processing_hooks', 'validate_interfaces',
                           'processing')
@@ -121,6 +110,12 @@ class TestValidateInterfacesHook(test_base.NodeTest):
     def test_wrong_keep_ports(self):
         CONF.set_override('keep_ports', 'foobar', 'processing')
         self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
+
+
+class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
+    def setUp(self):
+        super(TestValidateInterfacesHookBeforeProcessing, self).setUp()
+        self.hook = std_plugins.ValidateInterfacesHook()
 
     def test_no_interfaces(self):
         self.assertRaisesRegex(utils.Error,
@@ -212,27 +207,61 @@ class TestValidateInterfacesHook(test_base.NodeTest):
         self.assertRaisesRegex(utils.Error, 'No suitable interfaces found',
                                self.hook.before_processing, self.data)
 
-    @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
-    def test_keep_all(self, mock_delete_port):
+
+@mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
+@mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
+class TestValidateInterfacesHookBeforeUpdate(test_base.NodeTest):
+    def setUp(self):
+        super(TestValidateInterfacesHookBeforeUpdate, self).setUp()
+        self.hook = std_plugins.ValidateInterfacesHook()
+        self.interfaces_to_create = sorted(self.valid_interfaces.values(),
+                                           key=lambda i: i['mac'])
+        self.existing_ports = [mock.Mock(spec=['address', 'uuid'],
+                                         address=a)
+                               for a in (self.macs[1],
+                                         '44:44:44:44:44:44')]
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
+                                             node=self.node,
+                                             ports=self.existing_ports)
+
+    def test_keep_all(self, mock_create_ports, mock_delete_port):
         self.hook.before_update(self.data, self.node_info)
+
+        # NOTE(dtantsur): dictionary ordering is not defined
+        mock_create_ports.assert_called_once_with(self.node_info, mock.ANY)
+        self.assertEqual(self.interfaces_to_create,
+                         sorted(mock_create_ports.call_args[0][1],
+                                key=lambda i: i['mac']))
+
         self.assertFalse(mock_delete_port.called)
 
-    @mock.patch.object(node_cache.NodeInfo, 'delete_port')
-    def test_keep_present(self, mock_delete_port):
+    def test_keep_present(self, mock_create_ports, mock_delete_port):
         CONF.set_override('keep_ports', 'present', 'processing')
         self.data['all_interfaces'] = self.all_interfaces
         self.hook.before_update(self.data, self.node_info)
 
-        mock_delete_port.assert_called_once_with(self.existing_ports[1])
+        mock_create_ports.assert_called_once_with(self.node_info, mock.ANY)
+        self.assertEqual(self.interfaces_to_create,
+                         sorted(mock_create_ports.call_args[0][1],
+                                key=lambda i: i['mac']))
 
-    @mock.patch.object(node_cache.NodeInfo, 'delete_port')
-    def test_keep_added(self, mock_delete_port):
+        mock_delete_port.assert_called_once_with(self.node_info,
+                                                 self.existing_ports[1])
+
+    def test_keep_added(self, mock_create_ports, mock_delete_port):
         CONF.set_override('keep_ports', 'added', 'processing')
         self.data['macs'] = [self.pxe_mac]
         self.hook.before_update(self.data, self.node_info)
 
-        mock_delete_port.assert_any_call(self.existing_ports[0])
-        mock_delete_port.assert_any_call(self.existing_ports[1])
+        mock_create_ports.assert_called_once_with(self.node_info, mock.ANY)
+        self.assertEqual(self.interfaces_to_create,
+                         sorted(mock_create_ports.call_args[0][1],
+                                key=lambda i: i['mac']))
+
+        mock_delete_port.assert_any_call(self.node_info,
+                                         self.existing_ports[0])
+        mock_delete_port.assert_any_call(self.node_info,
+                                         self.existing_ports[1])
 
 
 class TestRootDiskSelection(test_base.NodeTest):

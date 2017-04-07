@@ -268,8 +268,6 @@ def _run_post_hooks(node_info, introspection_data):
 def _process_node(node_info, node, introspection_data):
     # NOTE(dtantsur): repeat the check in case something changed
     ir_utils.check_provision_state(node)
-    interfaces = introspection_data.get('interfaces')
-    node_info.create_ports(list(interfaces.values()))
     _run_post_hooks(node_info, introspection_data)
     _store_data(node_info, introspection_data)
 
@@ -435,8 +433,6 @@ def _reapply_with_data(node_info, introspection_data):
                             'introspection on stored data:\n%s') %
                           '\n'.join(failures), node_info=node_info)
 
-    interfaces = introspection_data.get('interfaces')
-    node_info.create_ports(list(interfaces.values()))
     _run_post_hooks(node_info, introspection_data)
     _store_data(node_info, introspection_data)
     node_info.invalidate_cache()

@@ -252,7 +252,10 @@ class ValidateInterfacesHook(base.ProcessingHook):
         introspection_data['macs'] = valid_macs
 
     def before_update(self, introspection_data, node_info, **kwargs):
-        """Drop ports that are not present in the data."""
+        """Create new ports and drop ports that are not present in the data."""
+        interfaces = introspection_data.get('interfaces')
+        node_info.create_ports(list(interfaces.values()))
+
         if CONF.processing.keep_ports == 'present':
             expected_macs = {
                 iface['mac']
