@@ -16,11 +16,9 @@
 import binascii
 
 from construct import core
-from ironicclient import exc as client_exc
 import netaddr
 from oslo_config import cfg
 
-from ironic_inspector.common import ironic
 from ironic_inspector.common import lldp_parsers
 from ironic_inspector.common import lldp_tlvs as tlv
 from ironic_inspector.plugins import base
@@ -29,8 +27,6 @@ from ironic_inspector import utils
 LOG = utils.getProcessingLogger(__name__)
 
 CONF = cfg.CONF
-
-REQUIRED_IRONIC_VERSION = '1.19'
 
 PORT_ID_ITEM_NAME = "port_id"
 SWITCH_ID_ITEM_NAME = "switch_id"
@@ -150,18 +146,4 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                     if patch is not None:
                         patches.append(patch)
 
-            try:
-                # NOTE(sambetts) We need a newer version of Ironic API for this
-                # transaction, so create a new ironic client and explicitly
-                # pass it into the function.
-                cli = ironic.get_client(api_version=REQUIRED_IRONIC_VERSION)
-                node_info.patch_port(port, patches, ironic=cli)
-            except client_exc.NotAcceptable:
-                LOG.error("Unable to set Ironic port local link "
-                          "connection information because Ironic does not "
-                          "support the required version",
-                          node_info=node_info, data=introspection_data)
-                # NOTE(sambetts) May as well break out out of the loop here
-                # because Ironic version is not going to change for the other
-                # interfaces.
-                break
+            node_info.patch_port(port, patches)

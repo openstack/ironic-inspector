@@ -28,6 +28,7 @@ import mock
 from oslo_config import cfg
 from oslo_config import fixture as config_fixture
 from oslo_utils import timeutils
+from oslo_utils import uuidutils
 import pytz
 import requests
 import six
@@ -252,18 +253,30 @@ class Test(Base):
         self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={})
+            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
+            pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
 
-    def test_bmc_with_client_id(self):
-        self.pxe_mac = self.macs[2]
-        self.data['boot_interface'] = ('20-' + self.pxe_mac.replace(':', '-'))
-        self.pxe_iface_name = 'ib0'
-        self.pxe_interfaces = {
-            self.pxe_iface_name: self.all_interfaces[self.pxe_iface_name]
-        }
+    def test_port_creation_update_and_deletion(self):
+        cfg.CONF.set_override('add_ports', 'active', 'processing')
+        cfg.CONF.set_override('keep_ports', 'added', 'processing')
+
+        uuid_to_delete = uuidutils.generate_uuid()
+        uuid_to_update = uuidutils.generate_uuid()
+        # Two ports already exist: one with incorrect pxe_enabled, the other
+        # should be deleted.
+        self.cli.node.list_ports.return_value = [
+            mock.Mock(address=self.macs[1], uuid=uuid_to_update,
+                      node_uuid=self.uuid, extra={}, pxe_enabled=True),
+            mock.Mock(address='foobar', uuid=uuid_to_delete,
+                      node_uuid=self.uuid, extra={}, pxe_enabled=True),
+        ]
+        # Two more ports are created, one with client_id. Make sure the
+        # returned object has the same properties as requested in create().
+        self.cli.port.create.side_effect = mock.Mock
+
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
@@ -278,9 +291,17 @@ class Test(Base):
 
         self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
-        self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address=self.macs[2],
-            extra={'client-id': self.client_id})
+        calls = [
+            mock.call(node_uuid=self.uuid, address=self.macs[0],
+                      extra={}, pxe_enabled=True),
+            mock.call(node_uuid=self.uuid, address=self.macs[2],
+                      extra={'client-id': self.client_id}, pxe_enabled=False),
+        ]
+        self.cli.port.create.assert_has_calls(calls, any_order=True)
+        self.cli.port.delete.assert_called_once_with(uuid_to_delete)
+        self.cli.port.update.assert_called_once_with(
+            uuid_to_update,
+            [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
@@ -310,7 +331,8 @@ class Test(Base):
         self.assertCalledWithPatch(self.patch + patch_credentials,
                                    self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={})
+            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
+            pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
@@ -513,7 +535,8 @@ class Test(Base):
 
         self.assertCalledWithPatch(self.patch_root_hints, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={})
+            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
+            pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)
@@ -747,7 +770,8 @@ class Test(Base):
         self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, extra={}, address='11:22:33:44:55:66')
+            node_uuid=self.uuid, extra={}, address='11:22:33:44:55:66',
+            pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True)

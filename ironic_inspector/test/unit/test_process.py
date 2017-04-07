@@ -348,7 +348,7 @@ class TestProcessNode(BaseTest):
         self.validate_attempts = 5
         self.data['macs'] = self.macs  # validate_interfaces hook
         self.valid_interfaces['eth3'] = {
-            'mac': self.macs[1], 'ip': self.ips[1], 'extra': {}
+            'mac': self.macs[1], 'ip': self.ips[1], 'extra': {}, 'pxe': False
         }
         self.data['interfaces'] = self.valid_interfaces
         self.ports = self.all_ports
@@ -403,10 +403,12 @@ class TestProcessNode(BaseTest):
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0],
-                                             extra={})
+                                             extra={},
+                                             pxe_enabled=True)
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1],
-                                             extra={})
+                                             extra={},
+                                             pxe_enabled=False)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.assertFalse(self.cli.node.validate.called)
 
@@ -421,10 +423,10 @@ class TestProcessNode(BaseTest):
 
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0],
-                                             extra={})
+                                             extra={}, pxe_enabled=True)
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1],
-                                             extra={})
+                                             extra={}, pxe_enabled=False)
 
     def test_set_ipmi_credentials(self):
         self.node_info.set_option('new_ipmi_credentials', self.new_creds)
@@ -667,7 +669,8 @@ class TestReapplyNode(BaseTest):
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid,
             address=swifted_data['macs'][0],
-            extra={}
+            extra={},
+            pxe_enabled=True
         )
 
     @prepare_mocks

@@ -579,7 +579,7 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
 
         mock_ironic.assert_called_once_with()
         mock_ironic.return_value.node.list_ports.assert_called_once_with(
-            self.uuid, limit=0)
+            self.uuid, limit=0, detail=True)
 
     def test_ports_ironic_preset(self, mock_ironic):
         mock_ironic2 = mock.Mock()
@@ -591,7 +591,7 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
 
         self.assertFalse(mock_ironic.called)
         mock_ironic2.node.list_ports.assert_called_once_with(
-            self.uuid, limit=0)
+            self.uuid, limit=0, detail=True)
 
 
 class TestUpdate(test_base.NodeTest):
@@ -725,8 +725,8 @@ class TestUpdate(test_base.NodeTest):
     def test_create_ports(self, mock_warn):
         ports = [
             'mac2',
-            {'mac': 'mac3', 'client_id': '42'},
-            {'mac': 'mac4'}
+            {'mac': 'mac3', 'client_id': '42', 'pxe': False},
+            {'mac': 'mac4', 'pxe': True}
         ]
 
         self.node_info.create_ports(ports)
@@ -734,10 +734,12 @@ class TestUpdate(test_base.NodeTest):
                          set(self.node_info.ports()))
 
         create_calls = [
-            mock.call(node_uuid=self.uuid, address='mac2', extra={}),
+            mock.call(node_uuid=self.uuid, address='mac2', extra={},
+                      pxe_enabled=True),
             mock.call(node_uuid=self.uuid, address='mac3',
-                      extra={'client-id': '42'}),
-            mock.call(node_uuid=self.uuid, address='mac4', extra={}),
+                      extra={'client-id': '42'}, pxe_enabled=False),
+            mock.call(node_uuid=self.uuid, address='mac4', extra={},
+                      pxe_enabled=True),
         ]
         self.assertEqual(create_calls, self.ironic.port.create.call_args_list)
         # No conflicts - cache was not cleared - no calls to port.list
@@ -752,15 +754,16 @@ class TestUpdate(test_base.NodeTest):
             'mac',
             {'mac': 'mac0'},
             'mac1',
-            {'mac': 'mac2', 'client_id': '42'},
+            {'mac': 'mac2', 'client_id': '42', 'pxe': False},
         ]
 
         self.node_info.create_ports(ports)
 
         create_calls = [
-            mock.call(node_uuid=self.uuid, address='mac', extra={}),
+            mock.call(node_uuid=self.uuid, address='mac', extra={},
+                      pxe_enabled=True),
             mock.call(node_uuid=self.uuid, address='mac2',
-                      extra={'client-id': '42'}),
+                      extra={'client-id': '42'}, pxe_enabled=False),
         ]
         self.assertEqual(create_calls, self.ironic.port.create.call_args_list)
         mock_warn.assert_called_once_with(mock.ANY, ['mac0', 'mac1'],

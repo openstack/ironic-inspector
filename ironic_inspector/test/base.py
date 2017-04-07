@@ -101,9 +101,9 @@ class InventoryTest(BaseTest):
             'ff:00:00:00:00:00:02:00:00:02:c9:00:7c:fe:90:03:00:29:26:52')
         self.valid_interfaces = {
             self.pxe_iface_name: {'ip': self.ips[0], 'mac': self.macs[0],
-                                  'client_id': None},
+                                  'client_id': None, 'pxe': True},
             'ib0': {'ip': self.ips[2], 'mac': self.macs[2],
-                    'client_id': self.client_id}
+                    'client_id': self.client_id, 'pxe': False}
         }
         self.data = {
             'boot_interface': '01-' + self.pxe_mac.replace(':', '-'),
@@ -145,20 +145,18 @@ class InventoryTest(BaseTest):
         self.inventory = self.data['inventory']
         self.all_interfaces = {
             'eth1': {'mac': self.macs[0], 'ip': self.ips[0],
-                     'client_id': None},
-            'eth2': {'mac': self.inactive_mac, 'ip': None, 'client_id': None},
+                     'client_id': None, 'pxe': True},
+            'eth2': {'mac': self.inactive_mac, 'ip': None,
+                     'client_id': None, 'pxe': False},
             'eth3': {'mac': self.macs[1], 'ip': self.ips[1],
-                     'client_id': None},
+                     'client_id': None, 'pxe': False},
             'ib0': {'mac': self.macs[2], 'ip': self.ips[2],
-                    'client_id': self.client_id}
+                    'client_id': self.client_id, 'pxe': False}
         }
         self.active_interfaces = {
-            'eth1': {'mac': self.macs[0], 'ip': self.ips[0],
-                     'client_id': None},
-            'eth3': {'mac': self.macs[1], 'ip': self.ips[1],
-                     'client_id': None},
-            'ib0': {'mac': self.macs[2], 'ip': self.ips[2],
-                    'client_id': self.client_id}
+            name: data
+            for (name, data) in self.all_interfaces.items()
+            if data.get('ip')
         }
         self.pxe_interfaces = {
             self.pxe_iface_name: self.all_interfaces[self.pxe_iface_name]
