@@ -19,7 +19,6 @@ import copy
 import datetime
 import json
 import os
-import shutil
 import tempfile
 import time
 import unittest
@@ -789,35 +788,31 @@ class Test(Base):
 
 @contextlib.contextmanager
 def mocked_server():
-    d = tempfile.mkdtemp()
-    try:
-        conf_file = get_test_conf_file()
-        with mock.patch.object(ir_utils, 'get_client'):
-            dbsync.main(args=['--config-file', conf_file, 'upgrade'])
+    conf_file = get_test_conf_file()
+    with mock.patch.object(ir_utils, 'get_client'):
+        dbsync.main(args=['--config-file', conf_file, 'upgrade'])
 
-            cfg.CONF.reset()
-            cfg.CONF.unregister_opt(dbsync.command_opt)
+        cfg.CONF.reset()
+        cfg.CONF.unregister_opt(dbsync.command_opt)
 
-            eventlet.greenthread.spawn_n(main.main,
-                                         args=['--config-file', conf_file])
-            eventlet.greenthread.sleep(1)
-            # Wait for service to start up to 30 seconds
-            for i in range(10):
-                try:
-                    requests.get('http://127.0.0.1:5050/v1')
-                except requests.ConnectionError:
-                    if i == 9:
-                        raise
-                    print('Service did not start yet')
-                    eventlet.greenthread.sleep(3)
-                else:
-                    break
-            # start testing
-            yield
-            # Make sure all processes finished executing
-            eventlet.greenthread.sleep(1)
-    finally:
-        shutil.rmtree(d)
+        eventlet.greenthread.spawn_n(main.main,
+                                     args=['--config-file', conf_file])
+        eventlet.greenthread.sleep(1)
+        # Wait for service to start up to 30 seconds
+        for i in range(10):
+            try:
+                requests.get('http://127.0.0.1:5050/v1')
+            except requests.ConnectionError:
+                if i == 9:
+                    raise
+                print('Service did not start yet')
+                eventlet.greenthread.sleep(3)
+            else:
+                break
+        # start testing
+        yield
+        # Make sure all processes finished executing
+        eventlet.greenthread.sleep(1)
 
 
 if __name__ == '__main__':
