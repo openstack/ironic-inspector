@@ -31,6 +31,12 @@ LOG = log.getLogger(__name__)
 class ProcessingHook(object):  # pragma: no cover
     """Abstract base class for introspection data processing hooks."""
 
+    dependencies = []
+    """An ordered list of hooks that must be enabled before this one.
+
+    The items here should be entry point names, not classes.
+    """
+
     def before_processing(self, introspection_data, **kwargs):
         """Hook to run before any other data processing.
 
@@ -151,8 +157,8 @@ _ACTIONS_MGR = None
 
 def missing_entrypoints_callback(names):
     """Raise MissingHookError with comma-separated list of missing hooks"""
-    missing_names = ', '.join(names)
-    raise MissingHookError(missing_names)
+    error = _('The following hook(s) are missing or failed to load: %s')
+    raise RuntimeError(error % ', '.join(names))
 
 
 def processing_hooks_manager(*args):
@@ -173,6 +179,35 @@ def processing_hooks_manager(*args):
             on_missing_entrypoints_callback=missing_entrypoints_callback,
             name_order=True)
     return _HOOKS_MGR
+
+
+def validate_processing_hooks():
+    """Validate the enabled processing hooks.
+
+    :raises: MissingHookError on missing or failed to load hooks
+    :raises: RuntimeError on validation failure
+    :returns: the list of hooks passed validation
+    """
+    hooks = [ext for ext in processing_hooks_manager()]
+    enabled = set()
+    errors = []
+    for hook in hooks:
+        deps = getattr(hook.obj, 'dependencies', ())
+        missing = [d for d in deps if d not in enabled]
+        if missing:
+            errors.append('Hook %(hook)s requires the following hooks to be '
+                          'enabled before it: %(deps)s. The following hooks '
+                          'are missing: %(missing)s.' %
+                          {'hook': hook.name,
+                           'deps': ', '.join(deps),
+                           'missing': ', '.join(missing)})
+        enabled.add(hook.name)
+
+    if errors:
+        raise RuntimeError("Some hooks failed to load due to dependency "
+                           "problems:\n%s" % "\n".join(errors))
+
+    return hooks
 
 
 def node_not_found_hook_manager(*args):
@@ -211,7 +246,3 @@ def rule_actions_manager():
                             'actions is deprecated (action "%s")',
                             act.name)
     return _ACTIONS_MGR
-
-
-class MissingHookError(KeyError):
-    """Exception when hook is not found when processing it."""

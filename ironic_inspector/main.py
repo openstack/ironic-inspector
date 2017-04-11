@@ -448,16 +448,12 @@ class Service(object):
         db.init()
 
         try:
-            hooks = [ext.name for ext in
-                     plugins_base.processing_hooks_manager()]
-        except KeyError as exc:
-            # callback function raises MissingHookError derived from KeyError
-            # on missing hook
-            LOG.critical('Hook(s) %s failed to load or was not found',
-                         str(exc))
+            hooks = plugins_base.validate_processing_hooks()
+        except Exception as exc:
+            LOG.critical(str(exc))
             sys.exit(1)
 
-        LOG.info('Enabled processing hooks: %s', hooks)
+        LOG.info('Enabled processing hooks: %s', [h.name for h in hooks])
 
         if CONF.firewall.manage_firewall:
             firewall.init()
