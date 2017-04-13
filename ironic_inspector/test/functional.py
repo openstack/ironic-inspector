@@ -23,6 +23,7 @@ import tempfile
 import time
 import unittest
 
+import fixtures
 import mock
 from oslo_config import cfg
 from oslo_config import fixture as config_fixture
@@ -110,8 +111,9 @@ class Base(base.NodeTest):
         super(Base, self).setUp()
         rules.delete_all()
 
-        self.cli = ir_utils.get_client()
-        self.cli.reset_mock()
+        self.cli_fixture = self.useFixture(
+            fixtures.MockPatchObject(ir_utils, 'get_client'))
+        self.cli = self.cli_fixture.mock.return_value
         self.cli.node.get.return_value = self.node
         self.cli.node.update.return_value = self.node
         self.cli.node.list.return_value = [self.node]
@@ -789,30 +791,29 @@ class Test(Base):
 @contextlib.contextmanager
 def mocked_server():
     conf_file = get_test_conf_file()
-    with mock.patch.object(ir_utils, 'get_client'):
-        dbsync.main(args=['--config-file', conf_file, 'upgrade'])
+    dbsync.main(args=['--config-file', conf_file, 'upgrade'])
 
-        cfg.CONF.reset()
-        cfg.CONF.unregister_opt(dbsync.command_opt)
+    cfg.CONF.reset()
+    cfg.CONF.unregister_opt(dbsync.command_opt)
 
-        eventlet.greenthread.spawn_n(main.main,
-                                     args=['--config-file', conf_file])
-        eventlet.greenthread.sleep(1)
-        # Wait for service to start up to 30 seconds
-        for i in range(10):
-            try:
-                requests.get('http://127.0.0.1:5050/v1')
-            except requests.ConnectionError:
-                if i == 9:
-                    raise
-                print('Service did not start yet')
-                eventlet.greenthread.sleep(3)
-            else:
-                break
-        # start testing
-        yield
-        # Make sure all processes finished executing
-        eventlet.greenthread.sleep(1)
+    eventlet.greenthread.spawn_n(main.main,
+                                 args=['--config-file', conf_file])
+    eventlet.greenthread.sleep(1)
+    # Wait for service to start up to 30 seconds
+    for i in range(10):
+        try:
+            requests.get('http://127.0.0.1:5050/v1')
+        except requests.ConnectionError:
+            if i == 9:
+                raise
+            print('Service did not start yet')
+            eventlet.greenthread.sleep(3)
+        else:
+            break
+    # start testing
+    yield
+    # Make sure all processes finished executing
+    eventlet.greenthread.sleep(1)
 
 
 if __name__ == '__main__':
