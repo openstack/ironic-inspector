@@ -191,7 +191,9 @@ Here are some plugins that can be additionally enabled:
     port ID and chassis ID, if found it configures the local link connection
     information on the nodes Ironic ports with that data. To enable LLDP in the
     inventory from IPA ``ipa-collect-lldp=1`` should be passed as a kernel
-    parameter to the IPA ramdisk.
+    parameter to the IPA ramdisk.  In order to avoid processing the raw LLDP
+    data twice, the ``lldp_basic`` plugin should also be installed and run
+    prior to this plugin.
 ``lldp_basic``
     Processes LLDP data returned from inspection and parses TLVs from the
     Basic Management (802.1AB), 802.1Q, and 802.3 sets and stores the
