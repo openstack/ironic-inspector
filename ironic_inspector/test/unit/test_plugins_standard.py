@@ -103,14 +103,6 @@ class TestValidateInterfacesHookLoad(test_base.NodeTest):
         ext = base.processing_hooks_manager()['validate_interfaces']
         self.assertIsInstance(ext.obj, std_plugins.ValidateInterfacesHook)
 
-    def test_wrong_add_ports(self):
-        CONF.set_override('add_ports', 'foobar', 'processing')
-        self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
-
-    def test_wrong_keep_ports(self):
-        CONF.set_override('keep_ports', 'foobar', 'processing')
-        self.assertRaises(SystemExit, std_plugins.ValidateInterfacesHook)
-
 
 class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
     def setUp(self):

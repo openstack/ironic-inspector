@@ -13,7 +13,6 @@
 
 """Standard set of plugins."""
 
-import sys
 
 from ironic_lib import utils as il_utils
 import netaddr
@@ -23,7 +22,6 @@ from oslo_utils import units
 import six
 
 from ironic_inspector.common.i18n import _
-from ironic_inspector import conf
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -125,21 +123,6 @@ class SchedulerHook(base.ProcessingHook):
 
 class ValidateInterfacesHook(base.ProcessingHook):
     """Hook to validate network interfaces."""
-
-    def __init__(self):
-        if CONF.processing.add_ports not in conf.VALID_ADD_PORTS_VALUES:
-            LOG.critical('Accepted values for [processing]add_ports are '
-                         '%(valid)s, got %(actual)s',
-                         {'valid': conf.VALID_ADD_PORTS_VALUES,
-                          'actual': CONF.processing.add_ports})
-            sys.exit(1)
-
-        if CONF.processing.keep_ports not in conf.VALID_KEEP_PORTS_VALUES:
-            LOG.critical('Accepted values for [processing]keep_ports are '
-                         '%(valid)s, got %(actual)s',
-                         {'valid': conf.VALID_KEEP_PORTS_VALUES,
-                          'actual': CONF.processing.keep_ports})
-            sys.exit(1)
 
     def _get_interfaces(self, data=None):
         """Convert inventory to a dict with interfaces.
