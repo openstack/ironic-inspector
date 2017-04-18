@@ -63,7 +63,7 @@ class BaseTest(test_base.BaseTestCase):
         log.register_options(CONF)
         self.cfg = self.useFixture(config_fixture.Config(CONF))
         self.cfg.set_default('connection', "sqlite:///", group='database')
-        self.cfg.set_default('slave_connection', False, group='database')
+        self.cfg.set_default('slave_connection', None, group='database')
         self.cfg.set_default('max_retries', 10, group='database')
 
     def assertPatchEqual(self, expected, actual):
