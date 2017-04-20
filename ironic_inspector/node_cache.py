@@ -385,6 +385,11 @@ class NodeInfo(object):
         try:
             port = ironic.port.create(
                 node_uuid=self.uuid, address=mac, **kwargs)
+            LOG.info('Port %(uuid)s was created successfully, MAC: %(mac)s,'
+                     'attributes: %(attrs)s',
+                     {'uuid': port.uuid, 'mac': port.address,
+                      'attrs': kwargs},
+                     node_info=self)
         except exceptions.Conflict:
             LOG.warning('Port %s already exists, skipping',
                         mac, node_info=self)
