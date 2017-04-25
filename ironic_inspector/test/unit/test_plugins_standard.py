@@ -144,6 +144,8 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
     def test_only_pxe_no_boot_interface(self):
         del self.data['boot_interface']
         self.hook.before_processing(self.data)
+        self.active_interfaces[self.pxe_iface_name]['pxe'] = False
+        self.all_interfaces[self.pxe_iface_name]['pxe'] = False
 
         self.assertEqual(self.active_interfaces, self.data['interfaces'])
         self.assertEqual(sorted(i['mac'] for i in
@@ -202,9 +204,9 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
 
 @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
 @mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
-class TestValidateInterfacesHookBeforeUpdate(test_base.NodeTest):
+class TestValidateInterfacesHookBeforeUpdateDeletion(test_base.NodeTest):
     def setUp(self):
-        super(TestValidateInterfacesHookBeforeUpdate, self).setUp()
+        super(TestValidateInterfacesHookBeforeUpdateDeletion, self).setUp()
         self.hook = std_plugins.ValidateInterfacesHook()
         self.interfaces_to_create = sorted(self.valid_interfaces.values(),
                                            key=lambda i: i['mac'])
@@ -254,6 +256,40 @@ class TestValidateInterfacesHookBeforeUpdate(test_base.NodeTest):
                                          self.existing_ports[0])
         mock_delete_port.assert_any_call(self.node_info,
                                          self.existing_ports[1])
+
+
+@mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
+@mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
+class TestValidateInterfacesHookBeforeUpdatePXEEnabled(test_base.NodeTest):
+    def setUp(self):
+        super(TestValidateInterfacesHookBeforeUpdatePXEEnabled, self).setUp()
+        self.hook = std_plugins.ValidateInterfacesHook()
+        # Note(milan) assumes the ordering of self.macs from test_base.NodeTest
+        # where the first item '11:22:33:44:55:66' is the MAC of the
+        # self.pxe_iface_name 'eth1', the "real" PXE interface
+        sorted_interfaces = sorted(self.valid_interfaces.values(),
+                                   key=lambda i: i['mac'])
+        self.existing_ports = [
+            mock.Mock(spec=['address', 'uuid', 'pxe_enabled'],
+                      address=iface['mac'], pxe_enabled=True)
+            for iface in sorted_interfaces
+        ]
+        self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
+                                             node=self.node,
+                                             ports=self.existing_ports)
+
+    def test_fix_pxe_enabled(self, mock_create_ports, mock_patch_port):
+        self.hook.before_update(self.data, self.node_info)
+        # Note(milan) there are just 2 self.valid_interfaces, 'eth1' and 'ib0'
+        # eth1 is the PXE booting interface and eth1.mac < ib0.mac
+        mock_patch_port.assert_called_once_with(
+            self.node_info, self.existing_ports[1],
+            [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
+
+    def test_no_overwrite(self, mock_create_ports, mock_patch_port):
+        CONF.set_override('overwrite_existing', False, 'processing')
+        self.hook.before_update(self.data, self.node_info)
+        self.assertFalse(mock_patch_port.called)
 
 
 class TestRootDiskSelection(test_base.NodeTest):

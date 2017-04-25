@@ -349,14 +349,17 @@ class NodeInfo(object):
         for port in ports:
             mac = port
             extra = {}
+            pxe_enabled = True
             if isinstance(port, dict):
                 mac = port['mac']
                 client_id = port.get('client_id')
                 if client_id:
                     extra = {'client-id': client_id}
+                pxe_enabled = port.get('pxe', True)
 
             if mac not in self.ports():
-                self._create_port(mac, ironic=ironic, extra=extra)
+                self._create_port(mac, ironic=ironic, extra=extra,
+                                  pxe_enabled=pxe_enabled)
             else:
                 existing_macs.append(mac)
 
@@ -373,15 +376,15 @@ class NodeInfo(object):
         """
         if self._ports is None:
             ironic = ironic or self.ironic
-            self._ports = {p.address: p for p in
-                           ironic.node.list_ports(self.uuid, limit=0)}
+            port_list = ironic.node.list_ports(self.uuid, limit=0, detail=True)
+            self._ports = {p.address: p for p in port_list}
         return self._ports
 
-    def _create_port(self, mac, ironic=None, extra=None):
+    def _create_port(self, mac, ironic=None, **kwargs):
         ironic = ironic or self.ironic
         try:
             port = ironic.port.create(
-                node_uuid=self.uuid, address=mac, extra=extra)
+                node_uuid=self.uuid, address=mac, **kwargs)
         except exceptions.Conflict:
             LOG.warning('Port %s already exists, skipping',
                         mac, node_info=self)

@@ -132,6 +132,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
         result = {}
         inventory = utils.get_inventory(data)
 
+        pxe_mac = utils.get_pxe_mac(data)
+
         for iface in inventory['interfaces']:
             name = iface.get('name')
             mac = iface.get('mac_address')
@@ -161,7 +163,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
                       'IP address "%(ip)s" and client_id "%(client_id)s"',
                       {'name': name, 'mac': mac, 'ip': ip,
                        'client_id': client_id}, data=data)
-            result[name] = {'ip': ip, 'mac': mac, 'client_id': client_id}
+            result[name] = {'ip': ip, 'mac': mac, 'client_id': client_id,
+                            'pxe': (mac == pxe_mac)}
 
         return result
 
@@ -182,16 +185,14 @@ class ValidateInterfacesHook(base.ProcessingHook):
         result = {}
 
         for name, iface in interfaces.items():
-            mac = iface.get('mac')
             ip = iface.get('ip')
-            client_id = iface.get('client_id')
+            pxe = iface.get('pxe', True)
 
             if name == 'lo' or (ip and netaddr.IPAddress(ip).is_loopback()):
                 LOG.debug('Skipping local interface %s', name, data=data)
                 continue
 
-            if (CONF.processing.add_ports == 'pxe' and pxe_mac
-                    and mac != pxe_mac):
+            if CONF.processing.add_ports == 'pxe' and pxe_mac and not pxe:
                 LOG.debug('Skipping interface %s as it was not PXE booting',
                           name, data=data)
                 continue
@@ -201,8 +202,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                           name, data=data)
                 continue
 
-            result[name] = {'ip': ip, 'mac': mac.lower(),
-                            'client_id': client_id}
+            result[name] = iface
 
         if not result:
             raise utils.Error(_('No suitable interfaces found in %s') %
@@ -246,19 +246,37 @@ class ValidateInterfacesHook(base.ProcessingHook):
             }
         elif CONF.processing.keep_ports == 'added':
             expected_macs = set(introspection_data['macs'])
-        else:
-            return
 
-        # list is required as we modify underlying dict
-        for port in list(node_info.ports().values()):
-            if port.address not in expected_macs:
-                LOG.info("Deleting port %(port)s as its MAC %(mac)s is "
-                         "not in expected MAC list %(expected)s",
-                         {'port': port.uuid,
-                          'mac': port.address,
-                          'expected': list(sorted(expected_macs))},
-                         node_info=node_info, data=introspection_data)
-                node_info.delete_port(port)
+        if CONF.processing.keep_ports != 'all':
+            # list is required as we modify underlying dict
+            for port in list(node_info.ports().values()):
+                if port.address not in expected_macs:
+                    LOG.info("Deleting port %(port)s as its MAC %(mac)s is "
+                             "not in expected MAC list %(expected)s",
+                             {'port': port.uuid,
+                              'mac': port.address,
+                              'expected': list(sorted(expected_macs))},
+                             node_info=node_info, data=introspection_data)
+                    node_info.delete_port(port)
+
+        if CONF.processing.overwrite_existing:
+            # Make sure pxe_enabled is up-to-date
+            ports = node_info.ports().copy()
+            for iface in introspection_data['interfaces'].values():
+                try:
+                    port = ports[iface['mac']]
+                except KeyError:
+                    continue
+
+                real_pxe = iface.get('pxe', True)
+                if port.pxe_enabled != real_pxe:
+                    LOG.info('Fixing pxe_enabled=%(val)s on port %(port)s '
+                             'to match introspected data',
+                             {'port': port.address, 'val': real_pxe},
+                             node_info=node_info, data=introspection_data)
+                    node_info.patch_port(port, [{'op': 'replace',
+                                                 'path': '/pxe_enabled',
+                                                 'value': real_pxe}])
 
 
 class RamdiskErrorHook(base.ProcessingHook):

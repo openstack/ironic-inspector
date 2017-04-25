@@ -29,8 +29,8 @@ LOG = utils.getProcessingLogger(__name__)
 VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect failed'}
 SET_CREDENTIALS_VALID_STATES = {'enroll'}
 
-# 1.11 is API version, which support 'enroll' state
-DEFAULT_IRONIC_API_VERSION = '1.11'
+# 1.19 is API version, which supports port.pxe_enabled
+DEFAULT_IRONIC_API_VERSION = '1.19'
 
 IRONIC_GROUP = 'ironic'
 
