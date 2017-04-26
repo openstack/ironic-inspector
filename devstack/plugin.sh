@@ -76,8 +76,10 @@ function start_inspector {
 }
 
 function start_inspector_dhcp {
+    # NOTE(dtantsur): USE_SYSTEMD requires an absolute path
     run_process ironic-inspector-dhcp \
-        "sudo dnsmasq --conf-file=$IRONIC_INSPECTOR_DHCP_CONF_FILE"
+        "$(which dnsmasq) --conf-file=$IRONIC_INSPECTOR_DHCP_CONF_FILE" \
+        "" root
 }
 
 function stop_inspector {
@@ -182,9 +184,7 @@ function configure_inspector {
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI
 
-    if [ "$LOG_COLOR" == "True" ] && [ "$SYSLOG" == "False" ]; then
-        setup_colorized_logging $IRONIC_INSPECTOR_CONF_FILE DEFAULT
-    fi
+    setup_logging $IRONIC_INSPECTOR_CONF_FILE DEFAULT
 
     cp "$IRONIC_INSPECTOR_DIR/rootwrap.conf" "$IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE"
     cp -r "$IRONIC_INSPECTOR_DIR/rootwrap.d" "$IRONIC_INSPECTOR_CONF_DIR"
