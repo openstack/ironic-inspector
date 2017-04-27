@@ -138,7 +138,8 @@ Plugins
 **ironic-inspector** heavily relies on plugins for data processing. Even the
 standard functionality is largely based on plugins. Set ``processing_hooks``
 option in the configuration file to change the set of plugins to be run on
-introspection data. Note that order does matter in this option.
+introspection data. Note that order does matter in this option, especially
+for hooks that have dependencies on other hooks.
 
 These are plugins that are enabled by default and should not be disabled,
 unless you understand what you're doing:

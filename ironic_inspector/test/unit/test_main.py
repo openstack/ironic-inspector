@@ -710,7 +710,8 @@ class TestInit(test_base.BaseTest):
         plugins_base._HOOKS_MGR = None
 
         self.assertRaises(SystemExit, self.service.init)
-        mock_log.assert_called_once_with(mock.ANY, "'foo!'")
+        mock_log.assert_called_once_with(
+            'The following hook(s) are missing or failed to load: foo!')
 
 
 class TestCreateSSLContext(test_base.BaseTest):
