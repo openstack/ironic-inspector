@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Adds new transition ``starting`` -> ``error`` as reaction on ``timeout``
+    event.
+fixes:
+  - |
+    Timeout event on ``starting`` state lead to undefined transition error.

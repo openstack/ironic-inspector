@@ -127,6 +127,7 @@ State_space = [
             Events.error: States.error,
             Events.start: States.starting,
             Events.wait: States.waiting,
+            Events.timeout: States.error
         },
     },
     {
