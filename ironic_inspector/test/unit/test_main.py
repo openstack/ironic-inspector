@@ -25,6 +25,7 @@ from ironic_inspector import conf
 from ironic_inspector import db
 from ironic_inspector import firewall
 from ironic_inspector import introspect
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -193,7 +194,8 @@ class GetStatusAPIBaseTest(BaseAPITest):
             uuid=self.uuid,
             started_at=datetime.datetime(1, 1, 1),
             finished_at=datetime.datetime(1, 1, 2),
-            error='boom')
+            error='boom',
+            state=istate.States.error)
         self.finished_node.links = [
             {u'href': u'http://localhost/v1/introspection/%s' %
              self.finished_node.uuid,
@@ -201,6 +203,7 @@ class GetStatusAPIBaseTest(BaseAPITest):
         ]
         self.finished_node.status = {
             'finished': True,
+            'state': self.finished_node._state,
             'started_at': self.finished_node.started_at.isoformat(),
             'finished_at': self.finished_node.finished_at.isoformat(),
             'error': self.finished_node.error,
@@ -210,7 +213,8 @@ class GetStatusAPIBaseTest(BaseAPITest):
 
         self.unfinished_node = node_cache.NodeInfo(
             uuid=self.uuid2,
-            started_at=datetime.datetime(1, 1, 1))
+            started_at=datetime.datetime(1, 1, 1),
+            state=istate.States.processing)
         self.unfinished_node.links = [
             {u'href': u'http://localhost/v1/introspection/%s' %
              self.unfinished_node.uuid,
@@ -220,6 +224,7 @@ class GetStatusAPIBaseTest(BaseAPITest):
                        if self.unfinished_node.finished_at else None)
         self.unfinished_node.status = {
             'finished': False,
+            'state': self.unfinished_node._state,
             'started_at': self.unfinished_node.started_at.isoformat(),
             'finished_at': finished_at,
             'error': None,

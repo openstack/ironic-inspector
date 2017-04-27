@@ -204,18 +204,20 @@ class Base(base.NodeTest):
     def call_get_rule(self, uuid, **kwargs):
         return self.call('get', '/v1/rules/' + uuid, **kwargs).json()
 
-    def _fake_status(self, finished=mock.ANY, error=mock.ANY,
+    def _fake_status(self, finished=mock.ANY, state=mock.ANY, error=mock.ANY,
                      started_at=mock.ANY, finished_at=mock.ANY,
                      links=mock.ANY):
         return {'uuid': self.uuid, 'finished': finished, 'error': error,
-                'finished_at': finished_at, 'started_at': started_at,
+                'state': state, 'finished_at': finished_at,
+                'started_at': started_at,
                 'links': [{u'href': u'%s/v1/introspection/%s' % (self.ROOT_URL,
                                                                  self.uuid),
                            u'rel': u'self'}]}
 
-    def check_status(self, status, finished, error=None):
+    def check_status(self, status, finished, state, error=None):
         self.assertEqual(
             self._fake_status(finished=finished,
+                              state=state,
                               finished_at=finished and mock.ANY or None,
                               error=error),
             status
@@ -244,7 +246,7 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -257,7 +259,7 @@ class Test(Base):
             pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
     def test_port_creation_update_and_deletion(self):
         cfg.CONF.set_override('add_ports', 'active', 'processing')
@@ -283,7 +285,7 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -304,7 +306,7 @@ class Test(Base):
             [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
     def test_setup_ipmi(self):
         patch_credentials = [
@@ -320,7 +322,7 @@ class Test(Base):
         self.assertFalse(self.cli.node.set_power_state.called)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
         self.assertEqual('admin', res['ipmi_username'])
@@ -335,7 +337,7 @@ class Test(Base):
             pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
     def test_introspection_statuses(self):
         self.call_introspect(self.uuid)
@@ -362,7 +364,7 @@ class Test(Base):
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
         # fetch all statuses and db nodes to assert pagination
         statuses = self.call_get_statuses().get('introspection')
@@ -527,7 +529,7 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -539,7 +541,7 @@ class Test(Base):
             pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
     def test_abort_introspection(self):
         self.call_introspect(self.uuid)
@@ -547,7 +549,7 @@ class Test(Base):
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                               'reboot')
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_abort_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
@@ -586,7 +588,7 @@ class Test(Base):
 
         status = self.call_get_status(self.uuid)
         inspect_started_at = timeutils.parse_isotime(status['started_at'])
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
@@ -594,7 +596,7 @@ class Test(Base):
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
         # checks the started_at updated in DB is correct
         reapply_started_at = timeutils.parse_isotime(status['started_at'])
@@ -633,52 +635,6 @@ class Test(Base):
         self.assertEqual(store_processing_call,
                          store_mock.call_args_list[-1])
 
-    # TODO(milan): remove the test case in favor of other tests once
-    # the introspection status endpoint exposes the state information
-    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
-    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
-    def test_state_transitions(self, get_mock, store_mock):
-        """Assert state transitions work as expected."""
-        cfg.CONF.set_override('store_data', 'swift', 'processing')
-
-        # ramdisk data copy
-        # please mind the data is changed during processing
-        ramdisk_data = json.dumps(copy.deepcopy(self.data))
-        get_mock.return_value = ramdisk_data
-
-        self.call_introspect(self.uuid)
-        reboot_call = mock.call(self.uuid, 'reboot')
-        self.cli.node.set_power_state.assert_has_calls([reboot_call])
-
-        eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        row = self.db_row()
-        self.assertEqual(istate.States.waiting, row.state)
-
-        self.call_continue(self.data)
-        eventlet.greenthread.sleep(DEFAULT_SLEEP)
-
-        row = self.db_row()
-        self.assertEqual(istate.States.finished, row.state)
-        self.assertIsNone(row.error)
-        version_id = row.version_id
-
-        self.call_reapply(self.uuid)
-        eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        row = self.db_row()
-        self.assertEqual(istate.States.finished, row.state)
-        self.assertIsNone(row.error)
-        # the finished state was visited from the reapplying state
-        self.assertNotEqual(version_id, row.version_id)
-
-        self.call_introspect(self.uuid)
-        eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        row = self.db_row()
-        self.assertEqual(istate.States.waiting, row.state)
-        self.call_abort_introspect(self.uuid)
-        row = self.db_row()
-        self.assertEqual(istate.States.error, row.state)
-        self.assertEqual('Canceled by operator', row.error)
-
     @mock.patch.object(swift, 'store_introspection_data', autospec=True)
     @mock.patch.object(swift, 'get_introspection_data', autospec=True)
     def test_edge_state_transitions(self, get_mock, store_mock):
@@ -694,30 +650,26 @@ class Test(Base):
         self.call_introspect(self.uuid)
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        # TODO(milan): switch to API once the introspection status
-        # endpoint exposes the state information
-        row = self.db_row()
-        self.assertEqual(istate.States.waiting, row.state)
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         # an error -start-> starting state transition is possible
         self.call_abort_introspect(self.uuid)
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        row = self.db_row()
-        self.assertEqual(istate.States.waiting, row.state)
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         # double abort works
         self.call_abort_introspect(self.uuid)
-        row = self.db_row()
-        version_id = row.version_id
-        error = row.error
-        self.assertEqual(istate.States.error, row.state)
+        status = self.call_get_status(self.uuid)
+        error = status['error']
+        self.check_status(status, finished=True, state=istate.States.error,
+                          error=error)
         self.call_abort_introspect(self.uuid)
-        row = self.db_row()
-        self.assertEqual(istate.States.error, row.state)
-        # assert the error didn't change
-        self.assertEqual(error, row.error)
-        self.assertEqual(version_id, row.version_id)
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.error,
+                          error=error)
 
         # preventing stale data race condition
         # waiting -> processing is a strict state transition
@@ -728,26 +680,24 @@ class Test(Base):
         with db.ensure_transaction() as session:
             row.save(session)
         self.call_continue(self.data, expect_error=400)
-        row = self.db_row()
-        self.assertEqual(istate.States.error, row.state)
-        self.assertIn('no defined transition', row.error)
-
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.error,
+                          error=mock.ANY)
+        self.assertIn('no defined transition', status['error'])
         # multiple reapply calls
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.call_continue(self.data)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.call_reapply(self.uuid)
-        row = self.db_row()
-        version_id = row.version_id
-        self.assertEqual(istate.States.finished, row.state)
-        self.assertIsNone(row.error)
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.finished,
+                          error=None)
         self.call_reapply(self.uuid)
         # assert an finished -reapply-> reapplying -> finished state transition
-        row = self.db_row()
-        self.assertEqual(istate.States.finished, row.state)
-        self.assertIsNone(row.error)
-        self.assertNotEqual(version_id, row.version_id)
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.finished,
+                          error=None)
 
     def test_without_root_disk(self):
         del self.data['root_disk']
@@ -761,7 +711,7 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -774,7 +724,7 @@ class Test(Base):
             pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
     @mock.patch.object(swift, 'store_introspection_data', autospec=True)
     @mock.patch.object(swift, 'get_introspection_data', autospec=True)
@@ -790,14 +740,14 @@ class Test(Base):
                                                               'reboot')
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False)
+        self.check_status(status, finished=False, state=istate.States.waiting)
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True)
+        self.check_status(status, finished=True, state=istate.States.finished)
 
         # Verify that the lldp_processed data is written to swift
         # as expected by the lldp plugin
