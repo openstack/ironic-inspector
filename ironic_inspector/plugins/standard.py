@@ -261,7 +261,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
 
         if CONF.processing.overwrite_existing:
             # Make sure pxe_enabled is up-to-date
-            ports = node_info.ports().copy()
+            ports = node_info.ports()
             for iface in introspection_data['interfaces'].values():
                 try:
                     port = ports[iface['mac']]
