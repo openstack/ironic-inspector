@@ -885,7 +885,7 @@ def clean_up():
             if node_info.finished_at or node_info.started_at > threshold:
                 continue
             if node_info.state != istate.States.waiting:
-                LOG.error('Something went wrong, timeout occurs'
+                LOG.error('Something went wrong, timeout occurred '
                           'while introspection in "%s" state',
                           node_info.state,
                           node_info=node_info)
