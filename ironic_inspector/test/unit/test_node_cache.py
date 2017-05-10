@@ -766,9 +766,26 @@ class TestUpdate(test_base.NodeTest):
         self.assertFalse(mock_warn.called)
         self.assertFalse(self.ironic.port.list.called)
 
+    @mock.patch.object(node_cache.LOG, 'info', autospec=True)
+    def test__create_port(self, mock_info):
+        uuid = uuidutils.generate_uuid()
+        address = 'mac1'
+        self.ironic.port.create.return_value = mock.Mock(uuid=uuid,
+                                                         address=address)
+
+        self.node_info._create_port(address, client_id='42')
+
+        self.ironic.port.create.assert_called_once_with(
+            node_uuid=self.uuid, address='mac1', client_id='42')
+        mock_info.assert_called_once_with(
+            mock.ANY, {'uuid': uuid, 'mac': address,
+                       'attrs': {'client_id': '42'}},
+            node_info=self.node_info)
+
     @mock.patch.object(node_cache.LOG, 'warning', autospec=True)
     def test_create_ports_with_conflicts(self, mock_warn):
-        self.ironic.port.create.return_value = mock.sentinel.port
+        self.ironic.port.create.return_value = mock.Mock(
+            uuid='fake', address='mac')
 
         ports = [
             'mac',
