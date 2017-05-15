@@ -445,6 +445,23 @@ class TestApplyActions(BaseTest):
                          self.act_mock.rollback.call_count)
         self.assertFalse(self.act_mock.apply.called)
 
+    @mock.patch.object(rules.LOG, 'warning', autospec=True)
+    def test_rollback_ignores_formatting_failures(self, mock_log,
+                                                  mock_ext_mgr):
+        self.rule = rules.create(
+            actions_json=[
+                {'action': 'set-attribute',
+                 'path': '/driver_info/ipmi_address',
+                 'value': '{data[foo][bar]}'}],
+            conditions_json=self.conditions_json
+        )
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+
+        self.rule.apply_actions(self.node_info, rollback=True, data=self.data)
+
+        self.assertTrue(mock_log.called)
+        self.assertFalse(self.act_mock.rollback.called)
+
 
 @mock.patch.object(rules, 'get_all', autospec=True)
 class TestApply(BaseTest):
