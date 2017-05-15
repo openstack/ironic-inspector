@@ -201,6 +201,7 @@ class IntrospectionRule(object):
         ext_mgr = plugins_base.rule_actions_manager()
         for act in self._actions:
             ext = ext_mgr[act.action].obj
+
             for formatted_param in ext.FORMATTED_PARAMS:
                 value = act.params.get(formatted_param)
                 if not value or not isinstance(value, six.string_types):
@@ -212,15 +213,22 @@ class IntrospectionRule(object):
                 try:
                     act.params[formatted_param] = value.format(data=data)
                 except KeyError as e:
-                    raise utils.Error(_('Invalid formatting variable key '
-                                        'provided: %s') % e,
-                                      node_info=node_info, data=data)
-
-            LOG.debug('Running %(what)s action `%(action)s %(params)s`',
-                      {'action': act.action, 'params': act.params,
-                       'what': method},
-                      node_info=node_info, data=data)
-            getattr(ext, method)(node_info, act.params)
+                    if rollback:
+                        LOG.warning('Invalid formatting variable key provided:'
+                                    ' %(key)s, skipping rollback for action '
+                                    '%(action)s',
+                                    {'key': e, 'action': act.action})
+                        break
+                    else:
+                        raise utils.Error(_('Invalid formatting variable key '
+                                            'provided: %s') % e,
+                                          node_info=node_info, data=data)
+            else:
+                LOG.debug('Running %(what)s action `%(action)s %(params)s`',
+                          {'action': act.action, 'params': act.params,
+                           'what': method},
+                          node_info=node_info, data=data)
+                getattr(ext, method)(node_info, act.params)
 
         LOG.debug('Successfully applied %s',
                   'rollback actions' if rollback else 'actions',
