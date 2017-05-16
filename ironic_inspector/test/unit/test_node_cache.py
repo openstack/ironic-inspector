@@ -378,23 +378,25 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
     @mock.patch.object(node_cache, '_get_lock', autospec=True)
     @mock.patch.object(timeutils, 'utcnow')
-    def test_timeout_starting(self, time_mock, get_lock_mock):
+    def test_timeout_active_state(self, time_mock, get_lock_mock):
         time_mock.return_value = self.started_at
         session = db.get_session()
-        db.model_query(db.Node, session=session).filter_by(
-            uuid=self.uuid).update({'state': istate.States.starting})
-
         CONF.set_override('timeout', 1)
-        current_time = self.started_at + datetime.timedelta(seconds=2)
-        time_mock.return_value = current_time
+        for state in [istate.States.starting, istate.States.enrolling,
+                      istate.States.processing, istate.States.reapplying]:
+            db.model_query(db.Node, session=session).filter_by(
+                uuid=self.uuid).update({'state': state, 'finished_at': None})
 
-        self.assertEqual([self.uuid], node_cache.clean_up())
+            current_time = self.started_at + datetime.timedelta(seconds=2)
+            time_mock.return_value = current_time
 
-        res = [(row.state, row.finished_at, row.error) for row in
-               db.model_query(db.Node).all()]
-        self.assertEqual(
-            [(istate.States.error, current_time, 'Introspection timeout')],
-            res)
+            self.assertEqual([self.uuid], node_cache.clean_up())
+
+            res = [(row.state, row.finished_at, row.error) for row in
+                   db.model_query(db.Node).all()]
+            self.assertEqual(
+                [(istate.States.error, current_time, 'Introspection timeout')],
+                res)
 
     def test_old_status(self):
         CONF.set_override('node_status_keep_time', 42)

@@ -87,6 +87,7 @@ State_space = [
         'next_states': {
             Events.error: States.error,
             Events.process: States.processing,
+            Events.timeout: States.error,
         },
     },
     {
@@ -111,6 +112,7 @@ State_space = [
         'next_states': {
             Events.error: States.error,
             Events.finish: States.finished,
+            Events.timeout: States.error,
         },
     },
     {
@@ -119,6 +121,7 @@ State_space = [
             Events.error: States.error,
             Events.finish: States.finished,
             Events.reapply: States.reapplying,
+            Events.timeout: States.error,
         },
     },
     {
