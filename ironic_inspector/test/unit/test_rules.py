@@ -13,7 +13,6 @@
 # under the License.
 
 """Tests for introspection rules."""
-
 import mock
 from oslo_utils import uuidutils
 
@@ -41,6 +40,13 @@ class BaseTest(test_base.NodeTest):
             'local_gb': 42,
         }
 
+    @staticmethod
+    def condition_defaults(condition):
+        condition = condition.copy()
+        condition.setdefault('multiple', 'any')
+        condition.setdefault('invert', False)
+        return condition
+
 
 class TestCreateRule(BaseTest):
     def test_only_actions(self):
@@ -60,12 +66,22 @@ class TestCreateRule(BaseTest):
                                uuid=self.uuid)
 
     def test_with_conditions(self):
+        self.conditions_json.extend([
+            # multiple present&default, invert absent
+            {'op': 'eq', 'field': 'local_gb', 'value': 60, 'multiple': 'any'},
+            # multiple absent, invert present&default
+            {'op': 'eq', 'field': 'local_gb', 'value': 60, 'invert': False},
+            # multiple&invert present&non-default
+            {'op': 'eq', 'field': 'memory_mb', 'value': 1024,
+             'multiple': 'all', 'invert': True},
+        ])
         rule = rules.create(self.conditions_json, self.actions_json)
         rule_json = rule.as_dict()
 
         self.assertTrue(rule_json.pop('uuid'))
         self.assertEqual({'description': None,
-                          'conditions': self.conditions_json,
+                          'conditions': [BaseTest.condition_defaults(cond)
+                                         for cond in self.conditions_json],
                           'actions': self.actions_json},
                          rule_json)
 
@@ -140,7 +156,8 @@ class TestGetRule(BaseTest):
 
         self.assertTrue(rule_json.pop('uuid'))
         self.assertEqual({'description': None,
-                          'conditions': self.conditions_json,
+                          'conditions': [BaseTest.condition_defaults(cond)
+                                         for cond in self.conditions_json],
                           'actions': self.actions_json},
                          rule_json)
 

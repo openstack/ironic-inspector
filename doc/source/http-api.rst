@@ -397,3 +397,4 @@ Version History
           are requested, API gets HTTP 400 response.
 * **1.10** adds node state to the GET /v1/introspection/<Node ID> and
           GET /v1/introspection API response data.
+* **1.11** adds invert&multiple fields into rules response data
