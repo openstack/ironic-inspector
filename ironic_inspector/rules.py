@@ -182,20 +182,13 @@ class IntrospectionRule(object):
                  node_info=node_info, data=data)
         return True
 
-    def apply_actions(self, node_info, rollback=False, data=None):
+    def apply_actions(self, node_info, data=None):
         """Run actions on a node.
 
         :param node_info: NodeInfo instance
-        :param rollback: if True, rollback actions are executed
         :param data: introspection data
         """
-        if rollback:
-            method = 'rollback'
-        else:
-            method = 'apply'
-
-        LOG.debug('Running %(what)s actions for rule "%(rule)s"',
-                  {'what': method, 'rule': self.description},
+        LOG.debug('Running actions for rule "%s"', self.description,
                   node_info=node_info, data=data)
 
         ext_mgr = plugins_base.rule_actions_manager()
@@ -213,25 +206,16 @@ class IntrospectionRule(object):
                 try:
                     act.params[formatted_param] = value.format(data=data)
                 except KeyError as e:
-                    if rollback:
-                        LOG.warning('Invalid formatting variable key provided:'
-                                    ' %(key)s, skipping rollback for action '
-                                    '%(action)s',
-                                    {'key': e, 'action': act.action})
-                        break
-                    else:
-                        raise utils.Error(_('Invalid formatting variable key '
-                                            'provided: %s') % e,
-                                          node_info=node_info, data=data)
-            else:
-                LOG.debug('Running %(what)s action `%(action)s %(params)s`',
-                          {'action': act.action, 'params': act.params,
-                           'what': method},
-                          node_info=node_info, data=data)
-                getattr(ext, method)(node_info, act.params)
+                    raise utils.Error(_('Invalid formatting variable key '
+                                        'provided: %s') % e,
+                                      node_info=node_info, data=data)
 
-        LOG.debug('Successfully applied %s',
-                  'rollback actions' if rollback else 'actions',
+            LOG.debug('Running action `%(action)s %(params)s`',
+                      {'action': act.action, 'params': act.params},
+                      node_info=node_info, data=data)
+            ext.apply(node_info, act.params)
+
+        LOG.debug('Successfully applied actions',
                   node_info=node_info, data=data)
 
 
@@ -425,26 +409,15 @@ def apply(node_info, data):
     LOG.debug('Applying custom introspection rules',
               node_info=node_info, data=data)
 
-    to_rollback = []
     to_apply = []
     for rule in rules:
         if rule.check_conditions(node_info, data):
             to_apply.append(rule)
-        else:
-            to_rollback.append(rule)
-
-    if to_rollback:
-        LOG.debug('Running rollback actions', node_info=node_info, data=data)
-        for rule in to_rollback:
-            rule.apply_actions(node_info, rollback=True, data=data)
-    else:
-        LOG.debug('No rollback actions to apply',
-                  node_info=node_info, data=data)
 
     if to_apply:
         LOG.debug('Running actions', node_info=node_info, data=data)
         for rule in to_apply:
-            rule.apply_actions(node_info, rollback=False, data=data)
+            rule.apply_actions(node_info, data=data)
     else:
         LOG.debug('No actions to apply', node_info=node_info, data=data)
 
