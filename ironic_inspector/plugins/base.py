@@ -137,17 +137,6 @@ class RuleActionPlugin(WithValidation):  # pragma: no cover
         :raises: utils.Error on failure
         """
 
-    def rollback(self, node_info, params, **kwargs):
-        """Rollback action effects from previous run on a failed match.
-
-        Default implementation does nothing.
-
-        :param node_info: NodeInfo object
-        :param params: parameters as a dictionary
-        :param kwargs: used for extensibility without breaking existing plugins
-        :raises: utils.Error on failure
-        """
-
 
 _HOOKS_MGR = None
 _NOT_FOUND_HOOK_MGR = None
@@ -239,10 +228,4 @@ def rule_actions_manager():
         _ACTIONS_MGR = stevedore.ExtensionManager(
             'ironic_inspector.rules.actions',
             invoke_on_load=True)
-        for act in _ACTIONS_MGR:
-            # a trick to detect if function was overridden
-            if "rollback" in act.obj.__class__.__dict__:
-                LOG.warning('Defining "rollback" for introspection rules '
-                            'actions is deprecated (action "%s")',
-                            act.name)
     return _ACTIONS_MGR

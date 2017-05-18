@@ -407,7 +407,6 @@ class TestApplyActions(BaseTest):
         self.act_mock.apply.assert_any_call(self.node_info, {})
         self.assertEqual(len(self.actions_json),
                          self.act_mock.apply.call_count)
-        self.assertFalse(self.act_mock.rollback.called)
 
     def test_apply_data_format_value(self, mock_ext_mgr):
         self.rule = rules.create(actions_json=[
@@ -421,7 +420,6 @@ class TestApplyActions(BaseTest):
         self.rule.apply_actions(self.node_info, data=self.data)
 
         self.assertEqual(1, self.act_mock.apply.call_count)
-        self.assertFalse(self.act_mock.rollback.called)
 
     def test_apply_data_format_value_fail(self, mock_ext_mgr):
         self.rule = rules.create(
@@ -448,36 +446,6 @@ class TestApplyActions(BaseTest):
         self.rule.apply_actions(self.node_info, data=self.data)
 
         self.assertEqual(1, self.act_mock.apply.call_count)
-        self.assertFalse(self.act_mock.rollback.called)
-
-    def test_rollback(self, mock_ext_mgr):
-        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
-
-        self.rule.apply_actions(self.node_info, rollback=True)
-
-        self.act_mock.rollback.assert_any_call(self.node_info,
-                                               {'message': 'boom!'})
-        self.act_mock.rollback.assert_any_call(self.node_info, {})
-        self.assertEqual(len(self.actions_json),
-                         self.act_mock.rollback.call_count)
-        self.assertFalse(self.act_mock.apply.called)
-
-    @mock.patch.object(rules.LOG, 'warning', autospec=True)
-    def test_rollback_ignores_formatting_failures(self, mock_log,
-                                                  mock_ext_mgr):
-        self.rule = rules.create(
-            actions_json=[
-                {'action': 'set-attribute',
-                 'path': '/driver_info/ipmi_address',
-                 'value': '{data[foo][bar]}'}],
-            conditions_json=self.conditions_json
-        )
-        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
-
-        self.rule.apply_actions(self.node_info, rollback=True, data=self.data)
-
-        self.assertTrue(mock_log.called)
-        self.assertFalse(self.act_mock.rollback.called)
 
 
 @mock.patch.object(rules, 'get_all', autospec=True)
@@ -492,7 +460,7 @@ class TestApply(BaseTest):
 
         rules.apply(self.node_info, self.data)
 
-    def test_no_actions(self, mock_get_all):
+    def test_apply(self, mock_get_all):
         mock_get_all.return_value = self.rules
         for idx, rule in enumerate(self.rules):
             rule.check_conditions.return_value = not bool(idx)
@@ -502,44 +470,8 @@ class TestApply(BaseTest):
         for idx, rule in enumerate(self.rules):
             rule.check_conditions.assert_called_once_with(self.node_info,
                                                           self.data)
-            rule.apply_actions.assert_called_once_with(
-                self.node_info, rollback=bool(idx), data=self.data)
-
-    def test_actions(self, mock_get_all):
-        mock_get_all.return_value = self.rules
-        for idx, rule in enumerate(self.rules):
-            rule.check_conditions.return_value = not bool(idx)
-
-        rules.apply(self.node_info, self.data)
-
-        for idx, rule in enumerate(self.rules):
-            rule.check_conditions.assert_called_once_with(self.node_info,
-                                                          self.data)
-            rule.apply_actions.assert_called_once_with(
-                self.node_info, rollback=bool(idx), data=self.data)
-
-    def test_no_rollback(self, mock_get_all):
-        mock_get_all.return_value = self.rules
-        for rule in self.rules:
-            rule.check_conditions.return_value = True
-
-        rules.apply(self.node_info, self.data)
-
-        for rule in self.rules:
-            rule.check_conditions.assert_called_once_with(self.node_info,
-                                                          self.data)
-            rule.apply_actions.assert_called_once_with(
-                self.node_info, rollback=False, data=self.data)
-
-    def test_only_rollback(self, mock_get_all):
-        mock_get_all.return_value = self.rules
-        for rule in self.rules:
-            rule.check_conditions.return_value = False
-
-        rules.apply(self.node_info, self.data)
-
-        for rule in self.rules:
-            rule.check_conditions.assert_called_once_with(self.node_info,
-                                                          self.data)
-            rule.apply_actions.assert_called_once_with(
-                self.node_info, rollback=True, data=self.data)
+            if rule.check_conditions.return_value:
+                rule.apply_actions.assert_called_once_with(
+                    self.node_info, data=self.data)
+            else:
+                self.assertFalse(rule.apply_actions.called)
