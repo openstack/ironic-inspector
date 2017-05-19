@@ -396,9 +396,7 @@ class Test(Base):
 
         rule = {
             'conditions': [
-                test_rules.BaseTest.condition_defaults(
-                    {'op': 'eq', 'field': 'memory_mb', 'value': 1024}
-                )
+                {'op': 'eq', 'field': 'memory_mb', 'value': 1024},
             ],
             'actions': [{'action': 'fail', 'message': 'boom'}],
             'description': 'Cool actions'
@@ -408,6 +406,9 @@ class Test(Base):
         self.assertTrue(res['uuid'])
         rule['uuid'] = res['uuid']
         rule['links'] = res['links']
+        rule['conditions'] = [
+            test_rules.BaseTest.condition_defaults(rule['conditions'][0]),
+        ]
         self.assertEqual(rule, res)
 
         res = self.call('get', rule['links'][0]['href']).json()
