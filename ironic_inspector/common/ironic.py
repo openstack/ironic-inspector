@@ -27,7 +27,6 @@ LOG = utils.getProcessingLogger(__name__)
 
 # See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
 VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect failed'}
-SET_CREDENTIALS_VALID_STATES = {'enroll'}
 
 # 1.19 is API version, which supports port.pxe_enabled
 DEFAULT_IRONIC_API_VERSION = '1.19'
@@ -143,15 +142,9 @@ def get_client(token=None,
     return client.Client(1, **args)
 
 
-def check_provision_state(node, with_credentials=False):
+def check_provision_state(node):
     state = node.provision_state.lower()
-    if with_credentials and state not in SET_CREDENTIALS_VALID_STATES:
-        msg = _('Invalid provision state for setting IPMI credentials: '
-                '"%(state)s", valid states are %(valid)s')
-        raise utils.Error(msg % {'state': state,
-                                 'valid': list(SET_CREDENTIALS_VALID_STATES)},
-                          node_info=node)
-    elif not with_credentials and state not in VALID_STATES:
+    if state not in VALID_STATES:
         msg = _('Invalid provision state for introspection: '
                 '"%(state)s", valid states are "%(valid)s"')
         raise utils.Error(msg % {'state': state, 'valid': list(VALID_STATES)},

@@ -72,8 +72,6 @@ class TestIntrospect(BaseTest):
                                                          persistent=False)
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
-        self.node_info.set_option.assert_called_once_with(
-            'new_ipmi_credentials', None)
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
@@ -99,8 +97,6 @@ class TestIntrospect(BaseTest):
                                                          persistent=False)
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
-        self.node_info.set_option.assert_called_once_with(
-            'new_ipmi_credentials', None)
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
@@ -330,89 +326,6 @@ class TestIntrospect(BaseTest):
                                                          'reboot')
         # updated to the current time.time()
         self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
-
-
-@mock.patch.object(firewall, 'update_filters', autospec=True)
-@mock.patch.object(node_cache, 'start_introspection', autospec=True)
-@mock.patch.object(ir_utils, 'get_client', autospec=True)
-class TestSetIpmiCredentials(BaseTest):
-    def setUp(self):
-        super(TestSetIpmiCredentials, self).setUp()
-        CONF.set_override('enable_setting_ipmi_credentials', True,
-                          'processing')
-        self.new_creds = ('user', 'password')
-        self.node_info.options['new_ipmi_credentials'] = self.new_creds
-        self.node.provision_state = 'enroll'
-
-    def test_ok(self, client_mock, start_mock, filters_mock):
-        cli = self._prepare(client_mock)
-        start_mock.return_value = self.node_info
-
-        introspect.introspect(self.uuid, new_ipmi_credentials=self.new_creds)
-
-        start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=self.bmc_address,
-                                           ironic=cli)
-        filters_mock.assert_called_with(cli)
-        self.assertFalse(cli.node.validate.called)
-        self.assertFalse(cli.node.set_boot_device.called)
-        self.assertFalse(cli.node.set_power_state.called)
-        start_mock.return_value.set_option.assert_called_once_with(
-            'new_ipmi_credentials', self.new_creds)
-
-    def test_disabled(self, client_mock, start_mock, filters_mock):
-        CONF.set_override('enable_setting_ipmi_credentials', False,
-                          'processing')
-        self._prepare(client_mock)
-
-        self.assertRaisesRegex(utils.Error, 'disabled',
-                               introspect.introspect, self.uuid,
-                               new_ipmi_credentials=self.new_creds)
-
-    def test_no_username(self, client_mock, start_mock, filters_mock):
-        self._prepare(client_mock)
-
-        self.assertRaises(utils.Error, introspect.introspect, self.uuid,
-                          new_ipmi_credentials=(None, 'password'))
-
-    def test_default_username(self, client_mock, start_mock, filters_mock):
-        cli = self._prepare(client_mock)
-        start_mock.return_value = self.node_info
-        self.node.driver_info['ipmi_username'] = self.new_creds[0]
-
-        introspect.introspect(self.uuid,
-                              new_ipmi_credentials=(None, self.new_creds[1]))
-
-        start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=self.bmc_address,
-                                           ironic=cli)
-        filters_mock.assert_called_with(cli)
-        self.assertFalse(cli.node.validate.called)
-        self.assertFalse(cli.node.set_boot_device.called)
-        self.assertFalse(cli.node.set_power_state.called)
-        start_mock.return_value.set_option.assert_called_once_with(
-            'new_ipmi_credentials', self.new_creds)
-
-    def test_wrong_letters(self, client_mock, start_mock, filters_mock):
-        self.new_creds = ('user', 'p ssw@rd')
-        self._prepare(client_mock)
-
-        self.assertRaises(utils.Error, introspect.introspect, self.uuid,
-                          new_ipmi_credentials=self.new_creds)
-
-    def test_too_long(self, client_mock, start_mock, filters_mock):
-        self.new_creds = ('user', 'password' * 100)
-        self._prepare(client_mock)
-
-        self.assertRaises(utils.Error, introspect.introspect, self.uuid,
-                          new_ipmi_credentials=self.new_creds)
-
-    def test_wrong_state(self, client_mock, start_mock, filters_mock):
-        self.node.provision_state = 'manageable'
-        self._prepare(client_mock)
-
-        self.assertRaises(utils.Error, introspect.introspect, self.uuid,
-                          new_ipmi_credentials=self.new_creds)
 
 
 @mock.patch.object(firewall, 'update_filters', autospec=True)

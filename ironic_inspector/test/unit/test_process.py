@@ -353,14 +353,6 @@ class TestProcessNode(BaseTest):
         self.data['interfaces'] = self.valid_interfaces
         self.ports = self.all_ports
 
-        self.new_creds = ('user', 'password')
-        self.patch_credentials = [
-            {'op': 'add', 'path': '/driver_info/ipmi_username',
-             'value': self.new_creds[0]},
-            {'op': 'add', 'path': '/driver_info/ipmi_password',
-             'value': self.new_creds[1]},
-        ]
-
         self.cli.node.get_boot_device.side_effect = (
             [RuntimeError()] * self.validate_attempts + [None])
         self.cli.port.create.side_effect = self.ports
@@ -381,12 +373,6 @@ class TestProcessNode(BaseTest):
     def test_return_includes_uuid(self):
         ret_val = process._process_node(self.node_info, self.node, self.data)
         self.assertEqual(self.uuid, ret_val.get('uuid'))
-
-    def test_return_includes_uuid_with_ipmi_creds(self):
-        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
-        ret_val = process._process_node(self.node_info, self.node, self.data)
-        self.assertEqual(self.uuid, ret_val.get('uuid'))
-        self.assertTrue(ret_val.get('ipmi_setup_credentials'))
 
     @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
     def test_wrong_provision_state(self, post_hook_mock):
@@ -427,49 +413,6 @@ class TestProcessNode(BaseTest):
         self.cli.port.create.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1],
                                              extra={}, pxe_enabled=False)
-
-    def test_set_ipmi_credentials(self):
-        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
-
-        process._process_node(self.node_info, self.node, self.data)
-
-        self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.cli.node.get_boot_device.assert_called_with(self.uuid)
-        self.assertEqual(self.validate_attempts + 1,
-                         self.cli.node.get_boot_device.call_count)
-
-    def test_set_ipmi_credentials_no_address(self):
-        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
-        del self.node.driver_info['ipmi_address']
-        self.patch_credentials.append({'op': 'add',
-                                       'path': '/driver_info/ipmi_address',
-                                       'value': self.bmc_address})
-
-        process._process_node(self.node_info, self.node, self.data)
-
-        self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.cli.node.get_boot_device.assert_called_with(self.uuid)
-        self.assertEqual(self.validate_attempts + 1,
-                         self.cli.node.get_boot_device.call_count)
-
-    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
-    def test_set_ipmi_credentials_timeout(self, finished_mock):
-        self.node_info.set_option('new_ipmi_credentials', self.new_creds)
-        self.cli.node.get_boot_device.side_effect = RuntimeError('boom')
-
-        process._process_node(self.node_info, self.node, self.data)
-
-        self.cli.node.update.assert_any_call(self.uuid, self.patch_credentials)
-        self.assertEqual(2, self.cli.node.update.call_count)
-        self.assertEqual(process._CREDENTIALS_WAIT_RETRIES,
-                         self.cli.node.get_boot_device.call_count)
-        self.assertFalse(self.cli.node.set_power_state.called)
-        finished_mock.assert_called_once_with(
-            mock.ANY,
-            error='Failed to validate updated IPMI credentials for node %s, '
-            'node might require maintenance' % self.uuid)
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_power_off_failed(self, finished_mock):
@@ -609,7 +552,6 @@ class TestReapplyNode(BaseTest):
                                              started_at=self.started_at,
                                              node=self.node)
         self.node_info.invalidate_cache = mock.Mock()
-        self.new_creds = ('user', 'password')
 
         self.cli.port.create.side_effect = self.ports
         self.cli.node.update.return_value = self.node

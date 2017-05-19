@@ -18,7 +18,6 @@ import datetime
 import json
 import os
 
-import eventlet
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import excutils
@@ -38,8 +37,6 @@ CONF = cfg.CONF
 
 LOG = utils.getProcessingLogger(__name__)
 
-_CREDENTIALS_WAIT_RETRIES = 10
-_CREDENTIALS_WAIT_PERIOD = 3
 _STORAGE_EXCLUDED_KEYS = {'logs'}
 _UNPROCESSED_DATA_STORE_SUFFIX = 'UNPROCESSED'
 
@@ -279,54 +276,10 @@ def _process_node(node_info, node, introspection_data):
 
     resp = {'uuid': node.uuid}
 
-    if node_info.options.get('new_ipmi_credentials'):
-        new_username, new_password = (
-            node_info.options.get('new_ipmi_credentials'))
-        utils.executor().submit(_finish_set_ipmi_credentials,
-                                node_info, ironic, node, introspection_data,
-                                new_username, new_password)
-        resp['ipmi_setup_credentials'] = True
-        resp['ipmi_username'] = new_username
-        resp['ipmi_password'] = new_password
-    else:
-        utils.executor().submit(_finish, node_info, ironic, introspection_data,
-                                power_off=CONF.processing.power_off)
+    utils.executor().submit(_finish, node_info, ironic, introspection_data,
+                            power_off=CONF.processing.power_off)
 
     return resp
-
-
-@node_cache.fsm_transition(istate.Events.finish)
-def _finish_set_ipmi_credentials(node_info, ironic, node, introspection_data,
-                                 new_username, new_password):
-    patch = [{'op': 'add', 'path': '/driver_info/ipmi_username',
-              'value': new_username},
-             {'op': 'add', 'path': '/driver_info/ipmi_password',
-              'value': new_password}]
-    new_ipmi_address = utils.get_ipmi_address_from_data(introspection_data)
-    if not ir_utils.get_ipmi_address(node) and new_ipmi_address:
-        patch.append({'op': 'add', 'path': '/driver_info/ipmi_address',
-                      'value': new_ipmi_address})
-    node_info.patch(patch)
-
-    for attempt in range(_CREDENTIALS_WAIT_RETRIES):
-        try:
-            # We use this call because it requires valid credentials.
-            # We don't care about boot device, obviously.
-            ironic.node.get_boot_device(node_info.uuid)
-        except Exception as exc:
-            LOG.info('Waiting for credentials update, attempt %(attempt)d '
-                     'current error is %(exc)s',
-                     {'attempt': attempt, 'exc': exc},
-                     node_info=node_info, data=introspection_data)
-            eventlet.greenthread.sleep(_CREDENTIALS_WAIT_PERIOD)
-        else:
-            _finish_common(node_info, ironic, introspection_data)
-            return
-
-    msg = (_('Failed to validate updated IPMI credentials for node '
-             '%s, node might require maintenance') % node_info.uuid)
-    node_info.finished(error=msg)
-    raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
 
 def _finish_common(node_info, ironic, introspection_data, power_off=True):

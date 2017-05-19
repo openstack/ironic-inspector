@@ -14,7 +14,6 @@
 """Handling introspection request."""
 
 import re
-import string
 import time
 
 from eventlet import semaphore
@@ -31,67 +30,32 @@ CONF = cfg.CONF
 
 
 LOG = utils.getProcessingLogger(__name__)
-PASSWORD_ACCEPTED_CHARS = set(string.ascii_letters + string.digits)
-PASSWORD_MAX_LENGTH = 20  # IPMI v2.0
 
 _LAST_INTROSPECTION_TIME = 0
 _LAST_INTROSPECTION_LOCK = semaphore.BoundedSemaphore()
 
 
-def _validate_ipmi_credentials(node, new_ipmi_credentials):
-    if not CONF.processing.enable_setting_ipmi_credentials:
-        raise utils.Error(
-            _('IPMI credentials setup is disabled in configuration'))
-
-    new_username, new_password = new_ipmi_credentials
-    if not new_username:
-        new_username = node.driver_info.get('ipmi_username')
-    if not new_username:
-        raise utils.Error(_('Setting IPMI credentials requested, but neither '
-                            'new user name nor driver_info[ipmi_username] '
-                            'are provided'),
-                          node_info=node)
-    wrong_chars = {c for c in new_password
-                   if c not in PASSWORD_ACCEPTED_CHARS}
-    if wrong_chars:
-        raise utils.Error(_('Forbidden characters encountered in new IPMI '
-                            'password: "%s"; use only letters and numbers')
-                          % ''.join(wrong_chars), node_info=node)
-    if not 0 < len(new_password) <= PASSWORD_MAX_LENGTH:
-        raise utils.Error(_('IPMI password length should be > 0 and <= %d')
-                          % PASSWORD_MAX_LENGTH, node_info=node)
-
-    return new_username, new_password
-
-
-def introspect(node_id, new_ipmi_credentials=None, token=None):
+def introspect(node_id, token=None):
     """Initiate hardware properties introspection for a given node.
 
     :param node_id: node UUID or name
-    :param new_ipmi_credentials: tuple (new username, new password) or None
     :param token: authentication token
     :raises: Error
     """
     ironic = ir_utils.get_client(token)
     node = ir_utils.get_node(node_id, ironic=ironic)
 
-    ir_utils.check_provision_state(node, with_credentials=new_ipmi_credentials)
-
-    if new_ipmi_credentials:
-        new_ipmi_credentials = (
-            _validate_ipmi_credentials(node, new_ipmi_credentials))
-    else:
-        validation = ironic.node.validate(node.uuid)
-        if not validation.power['result']:
-            msg = _('Failed validation of power interface, reason: %s')
-            raise utils.Error(msg % validation.power['reason'],
-                              node_info=node)
+    ir_utils.check_provision_state(node)
+    validation = ironic.node.validate(node.uuid)
+    if not validation.power['result']:
+        msg = _('Failed validation of power interface, reason: %s')
+        raise utils.Error(msg % validation.power['reason'],
+                          node_info=node)
 
     bmc_address = ir_utils.get_ipmi_address(node)
     node_info = node_cache.start_introspection(node.uuid,
                                                bmc_address=bmc_address,
                                                ironic=ironic)
-    node_info.set_option('new_ipmi_credentials', new_ipmi_credentials)
 
     def _handle_exceptions(fut):
         try:
@@ -111,17 +75,16 @@ def introspect(node_id, new_ipmi_credentials=None, token=None):
 def _background_introspect(ironic, node_info):
     global _LAST_INTROSPECTION_TIME
 
-    if not node_info.options.get('new_ipmi_credentials'):
-        if re.match(CONF.introspection_delay_drivers, node_info.node().driver):
-            LOG.debug('Attempting to acquire lock on last introspection time')
-            with _LAST_INTROSPECTION_LOCK:
-                delay = (_LAST_INTROSPECTION_TIME - time.time()
-                         + CONF.introspection_delay)
-                if delay > 0:
-                    LOG.debug('Waiting %d seconds before sending the next '
-                              'node on introspection', delay)
-                    time.sleep(delay)
-                _LAST_INTROSPECTION_TIME = time.time()
+    if re.match(CONF.introspection_delay_drivers, node_info.node().driver):
+        LOG.debug('Attempting to acquire lock on last introspection time')
+        with _LAST_INTROSPECTION_LOCK:
+            delay = (_LAST_INTROSPECTION_TIME - time.time()
+                     + CONF.introspection_delay)
+            if delay > 0:
+                LOG.debug('Waiting %d seconds before sending the next '
+                          'node on introspection', delay)
+                time.sleep(delay)
+            _LAST_INTROSPECTION_TIME = time.time()
 
     node_info.acquire_lock()
     try:
@@ -151,26 +114,21 @@ def _background_introspect_locked(node_info, ironic):
     LOG.info('The following attributes will be used for look up: %s',
              attrs, node_info=node_info)
 
-    if not node_info.options.get('new_ipmi_credentials'):
-        try:
-            ironic.node.set_boot_device(node_info.uuid, 'pxe',
-                                        persistent=False)
-        except Exception as exc:
-            LOG.warning('Failed to set boot device to PXE: %s',
-                        exc, node_info=node_info)
+    try:
+        ironic.node.set_boot_device(node_info.uuid, 'pxe',
+                                    persistent=False)
+    except Exception as exc:
+        LOG.warning('Failed to set boot device to PXE: %s',
+                    exc, node_info=node_info)
 
-        try:
-            ironic.node.set_power_state(node_info.uuid, 'reboot')
-        except Exception as exc:
-            raise utils.Error(_('Failed to power on the node, check it\'s '
-                                'power management configuration: %s'),
-                              exc, node_info=node_info)
-        LOG.info('Introspection started successfully',
-                 node_info=node_info)
-    else:
-        LOG.info('Introspection environment is ready, manual power on is '
-                 'required within %d seconds', CONF.timeout,
-                 node_info=node_info)
+    try:
+        ironic.node.set_power_state(node_info.uuid, 'reboot')
+    except Exception as exc:
+        raise utils.Error(_('Failed to power on the node, check it\'s '
+                            'power management configuration: %s'),
+                          exc, node_info=node_info)
+    LOG.info('Introspection started successfully',
+             node_info=node_info)
 
 
 def abort(node_id, token=None):

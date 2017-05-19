@@ -54,8 +54,6 @@ os_password = password
 os_tenant_name = tenant
 [firewall]
 manage_firewall = False
-[processing]
-enable_setting_ipmi_credentials = True
 [DEFAULT]
 debug = True
 auth_strategy = noauth
@@ -163,13 +161,8 @@ class Base(base.NodeTest):
                 raise AssertionError(msg)
         return res
 
-    def call_introspect(self, uuid, new_ipmi_username=None,
-                        new_ipmi_password=None, **kwargs):
+    def call_introspect(self, uuid, **kwargs):
         endpoint = '/v1/introspection/%s' % uuid
-        if new_ipmi_password:
-            endpoint += '?new_ipmi_password=%s' % new_ipmi_password
-            if new_ipmi_username:
-                endpoint += '&new_ipmi_username=%s' % new_ipmi_username
         return self.call('post', endpoint, **kwargs)
 
     def call_get_status(self, uuid, **kwargs):
@@ -305,37 +298,6 @@ class Test(Base):
         self.cli.port.update.assert_called_once_with(
             uuid_to_update,
             [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
-
-        status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=True, state=istate.States.finished)
-
-    def test_setup_ipmi(self):
-        patch_credentials = [
-            {'op': 'add', 'path': '/driver_info/ipmi_username',
-             'value': 'admin'},
-            {'op': 'add', 'path': '/driver_info/ipmi_password',
-             'value': 'pwd'},
-        ]
-        self.node.provision_state = 'enroll'
-        self.call_introspect(self.uuid, new_ipmi_username='admin',
-                             new_ipmi_password='pwd')
-        eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.assertFalse(self.cli.node.set_power_state.called)
-
-        status = self.call_get_status(self.uuid)
-        self.check_status(status, finished=False, state=istate.States.waiting)
-
-        res = self.call_continue(self.data)
-        self.assertEqual('admin', res['ipmi_username'])
-        self.assertEqual('pwd', res['ipmi_password'])
-        self.assertTrue(res['ipmi_setup_credentials'])
-        eventlet.greenthread.sleep(DEFAULT_SLEEP)
-
-        self.assertCalledWithPatch(self.patch + patch_credentials,
-                                   self.cli.node.update)
-        self.cli.port.create.assert_called_once_with(
-            node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
-            pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)

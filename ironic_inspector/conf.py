@@ -76,12 +76,6 @@ PROCESSING_OPTS = [
                 help=_('Whether to overwrite existing values in node '
                        'database. Disable this option to make '
                        'introspection a non-destructive operation.')),
-    cfg.BoolOpt('enable_setting_ipmi_credentials',
-                default=False,
-                help=_('Whether to enable setting IPMI credentials during '
-                       'introspection. This feature will be removed in the '
-                       'Pike release.'),
-                deprecated_for_removal=True),
     cfg.StrOpt('default_processing_hooks',
                default='ramdisk_error,root_disk_selection,scheduler,'
                        'validate_interfaces,capabilities,pci_devices',
