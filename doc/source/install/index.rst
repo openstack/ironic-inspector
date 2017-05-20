@@ -76,6 +76,9 @@ Fill in these minimum configuration values:
   (defaults to ``br-ctlplane`` which is a sane default for **tripleo**-based
   installations but is unlikely to work for other cases).
 
+* if you wish to use the ``dnsmasq`` PXE/DHCP filter driver rather than the
+  default ``iptables`` driver, see the :ref:`dnsmasq_pxe_filter` description.
+
 See comments inside `example.conf
 <https://github.com/openstack/ironic-inspector/blob/master/example.conf>`_
 for other possible configuration options.
