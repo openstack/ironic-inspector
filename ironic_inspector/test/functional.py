@@ -34,6 +34,7 @@ import requests
 import six
 from six.moves import urllib
 
+from ironic_inspector.cmd import all as inspector_cmd
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import db
@@ -779,7 +780,7 @@ def mocked_server():
     cfg.CONF.reset()
     cfg.CONF.unregister_opt(dbsync.command_opt)
 
-    eventlet.greenthread.spawn_n(main.main,
+    eventlet.greenthread.spawn_n(inspector_cmd.main,
                                  args=['--config-file', conf_file])
     eventlet.greenthread.sleep(1)
     # Wait for service to start up to 30 seconds
