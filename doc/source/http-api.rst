@@ -15,11 +15,6 @@ done prior to calling the endpoint.
 
 Requires X-Auth-Token header with Keystone token for authentication.
 
-Deprecated parameters (only available in API before version ``1.9``):
-
-* ``new_ipmi_password``
-* ``new_ipmi_username``
-
 Response:
 
 * 202 - accepted introspection request
@@ -289,12 +284,7 @@ Response:
 * 403 - node is not on introspection
 * 404 - node cannot be found or multiple nodes found
 
-Response body: JSON dictionary. If setting IPMI credentials (deprecated
-feature) is requested, body will contain the following keys:
-
-* ``ipmi_setup_credentials`` boolean ``True``
-* ``ipmi_username`` new IPMI user name
-* ``ipmi_password`` new IPMI password
+Response body: JSON dictionary with ``uuid`` key.
 
 .. _hardware inventory: http://docs.openstack.org/developer/ironic-python-agent/#hardware-inventory
 .. _Specifying the disk for deployment root device hints:
@@ -398,3 +388,5 @@ Version History
 * **1.10** adds node state to the GET /v1/introspection/<Node ID> and
           GET /v1/introspection API response data.
 * **1.11** adds invert&multiple fields into rules response data
+* **1.12** this version indicates that support for setting IPMI credentials
+  was completely removed from API (all versions).

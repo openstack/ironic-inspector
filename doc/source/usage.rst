@@ -320,7 +320,6 @@ These steps are avoided, based on the feature requirements:
 
 Limitations:
 
-* IPMI credentials are not updated --- ramdisk not running
 * there's no way to update the unprocessed data atm.
 * the unprocessed data is never cleaned from the store
 * check for stored data presence is performed in background;
