@@ -124,6 +124,15 @@ class SchedulerHook(base.ProcessingHook):
 class ValidateInterfacesHook(base.ProcessingHook):
     """Hook to validate network interfaces."""
 
+    def __init__(self):
+        # Some configuration checks
+        if (CONF.processing.add_ports == 'disabled' and
+                CONF.processing.keep_ports == 'added'):
+            msg = _("Configuration error: add_ports set to disabled "
+                    "and keep_ports set to added. Please change keep_ports "
+                    "to all.")
+            raise utils.Error(msg)
+
     def _get_interfaces(self, data=None):
         """Convert inventory to a dict with interfaces.
 
@@ -237,7 +246,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
     def before_update(self, introspection_data, node_info, **kwargs):
         """Create new ports and drop ports that are not present in the data."""
         interfaces = introspection_data.get('interfaces')
-        node_info.create_ports(list(interfaces.values()))
+        if CONF.processing.add_ports != 'disabled':
+            node_info.create_ports(list(interfaces.values()))
 
         if CONF.processing.keep_ports == 'present':
             expected_macs = {
