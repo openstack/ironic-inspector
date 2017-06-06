@@ -71,7 +71,7 @@ Fill in these minimum configuration values:
 * ``connection`` in the ``database`` section - SQLAlchemy connection string
   for the database.
 
-* ``dnsmasq_interface`` in the ``firewall`` section - interface on which
+* ``dnsmasq_interface`` in the ``iptables`` section - interface on which
   ``dnsmasq`` (or another DHCP service) listens for PXE boot requests
   (defaults to ``br-ctlplane`` which is a sane default for **tripleo**-based
   installations but is unlikely to work for other cases).
@@ -93,7 +93,10 @@ Here is an example *inspector.conf* (adapted from a gate run)::
     [database]
     connection = mysql+pymysql://root:<PASSWORD>@127.0.0.1/ironic_inspector?charset=utf8
 
-    [firewall]
+    [pxe_filter]
+    driver=iptables
+
+    [iptables]
     dnsmasq_interface = br-ctlplane
 
     [ironic]

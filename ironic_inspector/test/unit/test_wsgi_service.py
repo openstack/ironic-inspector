@@ -89,8 +89,8 @@ class TestWSGIServiceInitHost(BaseWSGITest):
         self.mock_validate_processing_hooks = self.useFixture(
             fixtures.MockPatchObject(wsgi_service.plugins_base,
                                      'validate_processing_hooks')).mock
-        self.mock_firewall_init = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.firewall, 'init')).mock
+        self.mock_filter = self.useFixture(fixtures.MockPatchObject(
+            wsgi_service.pxe_filter, 'driver')).mock.return_value
         self.mock_periodic = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.periodics, 'periodic')).mock
         self.mock_PeriodicWorker = self.useFixture(fixtures.MockPatchObject(
@@ -102,35 +102,25 @@ class TestWSGIServiceInitHost(BaseWSGITest):
         self.mock_exit = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.sys, 'exit')).mock
 
-        # 'positive' settings
-        CONF.set_override('manage_firewall', True, 'firewall')
-
     def assert_periodics(self):
-        outer_update_decorator_call = mock.call(
-            spacing=CONF.firewall.firewall_update_period,
-            enabled=CONF.firewall.manage_firewall)
         outer_cleanup_decorator_call = mock.call(
             spacing=CONF.clean_up_period)
         self.mock_periodic.assert_has_calls([
-            outer_update_decorator_call,
-            mock.call()(wsgi_service.firewall.update_filters),
             outer_cleanup_decorator_call,
             mock.call()(wsgi_service.periodic_clean_up)])
 
         inner_decorator = self.mock_periodic.return_value
-        inner_update_decorator_call = mock.call(
-            wsgi_service.firewall.update_filters)
         inner_cleanup_decorator_call = mock.call(
             wsgi_service.periodic_clean_up)
-        inner_decorator.assert_has_calls([inner_update_decorator_call,
-                                          inner_cleanup_decorator_call])
+        inner_decorator.assert_has_calls([inner_cleanup_decorator_call])
 
         self.mock_ExistingExecutor.assert_called_once_with(
             self.mock_executor.return_value)
 
         periodic_worker = self.mock_PeriodicWorker.return_value
 
-        callables = [(inner_decorator.return_value, None, None),
+        periodic_sync = self.mock_filter.get_periodic_sync_task.return_value
+        callables = [(periodic_sync, None, None),
                      (inner_decorator.return_value, None, None)]
         self.mock_PeriodicWorker.assert_called_once_with(
             callables=callables,
@@ -146,7 +136,7 @@ class TestWSGIServiceInitHost(BaseWSGITest):
 
         self.mock_db_init.asset_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
-        self.mock_firewall_init.assert_called_once_with()
+        self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
 
     def test_init_host_validate_processing_hooks_exception(self):
@@ -164,14 +154,7 @@ class TestWSGIServiceInitHost(BaseWSGITest):
         self.mock_db_init.assert_called_once_with()
         self.mock_log.critical.assert_called_once_with(str(error))
         self.mock_exit.assert_called_once_with(1)
-
-    def test_init_host_not_manage_firewall(self):
-        CONF.set_override('manage_firewall', False, 'firewall')
-        self.service._init_host()
-
-        self.mock_db_init.assert_called_once_with()
-        self.mock_firewall_init.assert_not_called()
-        self.assert_periodics()
+        self.mock_filter.init_filter.assert_not_called()
 
 
 class TestWSGIServicePeriodicWatchDog(BaseWSGITest):
@@ -252,8 +235,8 @@ class TestWSGIServiceRun(BaseWSGITest):
 class TestWSGIServiceShutdown(BaseWSGITest):
     def setUp(self):
         super(TestWSGIServiceShutdown, self).setUp()
-        self.mock_firewall_clean_up = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.firewall, 'clean_up')).mock
+        self.mock_filter = self.useFixture(fixtures.MockPatchObject(
+            wsgi_service.pxe_filter, 'driver')).mock.return_value
         self.mock_executor = mock.Mock()
         self.mock_executor.alive = True
         self.mock_get_executor = self.useFixture(fixtures.MockPatchObject(
@@ -279,7 +262,7 @@ class TestWSGIServiceShutdown(BaseWSGITest):
         self.mock__periodic_worker.wait.assert_called_once_with()
         self.assertIsNone(self.service._periodics_worker)
         self.mock_executor.shutdown.assert_called_once_with(wait=True)
-        self.mock_firewall_clean_up.assert_called_once_with()
+        self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
         self.mock_exit.assert_called_once_with(error)
 
@@ -297,7 +280,7 @@ class TestWSGIServiceShutdown(BaseWSGITest):
         self.assertIs(self.mock__periodic_worker,
                       self.service._periodics_worker)
         self.mock_executor.shutdown.assert_not_called()
-        self.mock_firewall_clean_up.assert_not_called()
+        self.mock_filter.tear_down_filter.assert_not_called()
         self.mock__shutting_down.release.assert_not_called()
         self.mock_exit.assert_not_called()
 
@@ -319,7 +302,7 @@ class TestWSGIServiceShutdown(BaseWSGITest):
             error)
         self.assertIsNone(self.service._periodics_worker)
         self.mock_executor.shutdown.assert_called_once_with(wait=True)
-        self.mock_firewall_clean_up.assert_called_once_with()
+        self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
         self.mock_exit.assert_called_once_with(None)
 
@@ -334,7 +317,7 @@ class TestWSGIServiceShutdown(BaseWSGITest):
         self.mock__periodic_worker.wait.assert_not_called()
         self.assertIsNone(self.service._periodics_worker)
         self.mock_executor.shutdown.assert_called_once_with(wait=True)
-        self.mock_firewall_clean_up.assert_called_once_with()
+        self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
         self.mock_exit.assert_called_once_with(None)
 
@@ -349,7 +332,7 @@ class TestWSGIServiceShutdown(BaseWSGITest):
         self.mock__periodic_worker.wait.assert_called_once_with()
         self.assertIsNone(self.service._periodics_worker)
         self.mock_executor.shutdown.assert_not_called()
-        self.mock_firewall_clean_up.assert_called_once_with()
+        self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
         self.mock_exit.assert_called_once_with(None)
 

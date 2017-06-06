@@ -20,9 +20,9 @@ from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector import firewall
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -97,9 +97,9 @@ def _background_introspect_locked(node_info, ironic):
     macs = list(node_info.ports())
     if macs:
         node_info.add_attribute(node_cache.MACS_ATTRIBUTE, macs)
-        LOG.info('Whitelisting MAC\'s %s on the firewall', macs,
+        LOG.info('Whitelisting MAC\'s %s for a PXE boot', macs,
                  node_info=node_info)
-        firewall.update_filters(ironic)
+        pxe_filter.driver().sync(ironic)
 
     attrs = node_info.attributes
     if CONF.processing.node_not_found_hook is None and not attrs:
@@ -173,10 +173,10 @@ def _abort(node_info, ironic):
 
     # block this node from PXE Booting the introspection image
     try:
-        firewall.update_filters(ironic)
+        pxe_filter.driver().sync(ironic)
     except Exception as exc:
-        # Note(mkovacik): this will be retried in firewall update
+        # Note(mkovacik): this will be retried in the PXE filter sync
         # periodic task; we continue aborting
-        LOG.warning('Failed to update firewall filters: %s', exc,
+        LOG.warning('Failed to sync the PXE filter: %s', exc,
                     node_info=node_info)
     LOG.info('Introspection aborted', node_info=node_info)

@@ -29,12 +29,12 @@ from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db
-from ironic_inspector import firewall
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
 from ironic_inspector import process
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
 
@@ -383,7 +383,7 @@ class TestProcessNode(BaseTest):
         self.cli.node.list_ports.return_value = []
 
         self.useFixture(fixtures.MockPatchObject(
-            firewall, 'update_filters', autospec=True))
+            pxe_filter, 'driver', autospec=True))
 
         self.useFixture(fixtures.MockPatchObject(
             eventlet.greenthread, 'sleep', autospec=True))

@@ -371,12 +371,12 @@ InfiniBand network interfaces. A recent (Ocata or newer) IPA image is required
 for that to work. When an InfiniBand network interface is discovered, the
 **Ironic Inspector** adds a ``client-id`` attribute to the ``extra`` attribute
 in the ironic port. The **Ironic Inspector** should be configured with
-``firewall.ethoib_interfaces`` to indicate the Ethernet Over InfiniBand (EoIB)
+``iptables.ethoib_interfaces`` to indicate the Ethernet Over InfiniBand (EoIB)
 which are used for physical access access to the DHCP network.
 For example if **Ironic Inspector** DHCP server is using ``br-inspector`` and
 the ``br-inspector`` has EoIB port e.g. ``eth0``,
-the ``firewall.ethoib_interfaces`` should be set to ``eth0``.
-The ``firewall.ethoib_interfaces`` allows to map the baremetal GUID to it's
+the ``iptables.ethoib_interfaces`` should be set to ``eth0``.
+The ``iptables.ethoib_interfaces`` allows to map the baremetal GUID to it's
 EoIB MAC based on the neighs files. This is needed for blocking DHCP traffic
 of the nodes (MACs) which are not part of the introspection.
 

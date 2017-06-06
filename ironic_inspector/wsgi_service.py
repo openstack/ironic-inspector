@@ -23,10 +23,10 @@ from oslo_utils import reflection
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db
-from ironic_inspector import firewall
 from ironic_inspector import main as app
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector import utils
 
 
@@ -114,19 +114,15 @@ class WSGIService(object):
 
         LOG.info('Enabled processing hooks: %s', [h.name for h in hooks])
 
-        if CONF.firewall.manage_firewall:
-            firewall.init()
+        driver = pxe_filter.driver()
+        driver.init_filter()
 
-        periodic_update_ = periodics.periodic(
-            spacing=CONF.firewall.firewall_update_period,
-            enabled=CONF.firewall.manage_firewall
-        )(firewall.update_filters)
         periodic_clean_up_ = periodics.periodic(
             spacing=CONF.clean_up_period
         )(periodic_clean_up)
 
         self._periodics_worker = periodics.PeriodicWorker(
-            callables=[(periodic_update_, None, None),
+            callables=[(driver.get_periodic_sync_task(), None, None),
                        (periodic_clean_up_, None, None)],
             executor_factory=periodics.ExistingExecutor(utils.executor()),
             on_failure=self._periodics_watchdog)
@@ -164,7 +160,7 @@ class WSGIService(object):
         if utils.executor().alive:
             utils.executor().shutdown(wait=True)
 
-        firewall.clean_up()
+        pxe_filter.driver().tear_down_filter()
 
         self._shutting_down.release()
         LOG.info('Shut down successfully')
@@ -197,7 +193,7 @@ class WSGIService(object):
 def periodic_clean_up():  # pragma: no cover
     try:
         if node_cache.clean_up():
-            firewall.update_filters()
+            pxe_filter.driver().sync(ir_utils.get_client())
         sync_with_ironic()
     except Exception:
         LOG.exception('Periodic clean up of node cache failed')
