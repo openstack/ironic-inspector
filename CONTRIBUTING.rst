@@ -316,3 +316,52 @@ the database::
 .. _Create a Migration Script: http://alembic.zzzcomputing.com/en/latest/tutorial.html#create-a-migration-script
 .. _ironic_inspector.db: http://docs.openstack.org/developer/ironic-inspector/api/ironic_inspector.db.html
 .. _What does Autogenerate Detect (and what does it not detect?): http://alembic.zzzcomputing.com/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect
+
+Implementing PXE Filter Drivers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Background
+----------
+
+**inspector** in-band introspection PXE-boots the Ironic Python Agent "live"
+image, to inspect the baremetal server. **ironic** also PXE-boots IPA to
+perform tasks on a node, such as deploying an image. **ironic** uses
+**neutron** to provide DHCP, however **neutron** does not provide DHCP for
+unknown MAC addresses so **inspector** has to use its own DHCP/TFTP stack for
+discovery and inspection.
+
+When **ironic** and **inspector** are operating in the same L2 network, there
+is a potential for the two DHCPs to race, which could result in a node being
+deployed by **ironic** being PXE booted by **inspector**.
+
+To prevent DHCP races between the **inspector** DHCP and **ironic** DHCP,
+**inspector** has to be able to filter which nodes can get a DHCP lease from
+the **inspector** DHCP server. These filters can then be used to prevent
+node's enrolled in **ironic** inventory from being PXE-booted unless they are
+explicitly moved into the ``inspected`` state.
+
+Filter Interface
+----------------
+
+.. py:currentmodule:: ironic_inspector.pxe_filter.interface
+
+The contract between **inspector** and a PXE filter driver is described in the
+:class:`FilterDriver` interface. The methods a driver has to implement are:
+
+* :meth:`~FilterDriver.init_filter` called on the service start to initialize
+  internal driver state
+
+* :meth:`~FilterDriver.sync` called both periodically and when a node starts or
+  finishes introspection to white or blacklist its ports MAC addresses in the
+  driver
+
+* :meth:`~FilterDriver.tear_down_filter` called on service exit to reset the
+  internal driver state
+
+.. py:currentmodule:: ironic_inspector.pxe_filter.base
+
+The driver-specific configuration is suggested to be parsed during
+instantiation. There's also a convenience generic interface implementation
+:class:`BaseFilter` that provides base locking and initialization
+implementation. If required, a driver can opt-out from the periodic
+synchronization by overriding the :meth:`~BaseFilter.get_periodic_sync_task`.

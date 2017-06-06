@@ -199,10 +199,18 @@ SERVICE_OPTS = [
                help=_('Limit the number of elements an API list-call returns'))
 ]
 
+PXE_FILTER_OPTS = [
+    cfg.StrOpt('driver', default='noop',
+               help=_('PXE boot filter driver to use, such as iptables')),
+    cfg.IntOpt('sync_period', default=15, min=0,
+               help=_('Amount of time in seconds, after which repeat periodic '
+                      'update of the filter.')),
+]
 
 cfg.CONF.register_opts(SERVICE_OPTS)
 cfg.CONF.register_opts(FIREWALL_OPTS, group='firewall')
 cfg.CONF.register_opts(PROCESSING_OPTS, group='processing')
+cfg.CONF.register_opts(PXE_FILTER_OPTS, 'pxe_filter')
 
 
 def list_opts():
@@ -210,6 +218,7 @@ def list_opts():
         ('', SERVICE_OPTS),
         ('firewall', FIREWALL_OPTS),
         ('processing', PROCESSING_OPTS),
+        ('pxe_filter', PXE_FILTER_OPTS),
     ]
 
 
