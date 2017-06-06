@@ -282,7 +282,8 @@ def _process_node(node_info, node, introspection_data):
     return resp
 
 
-def _finish_common(node_info, ironic, introspection_data, power_off=True):
+@node_cache.fsm_transition(istate.Events.finish)
+def _finish(node_info, ironic, introspection_data, power_off=True):
     if power_off:
         LOG.debug('Forcing power off of node %s', node_info.uuid)
         try:
@@ -307,9 +308,6 @@ def _finish_common(node_info, ironic, introspection_data, power_off=True):
     node_info.finished()
     LOG.info('Introspection finished successfully',
              node_info=node_info, data=introspection_data)
-
-
-_finish = node_cache.fsm_transition(istate.Events.finish)(_finish_common)
 
 
 def reapply(node_ident):
