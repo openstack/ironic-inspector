@@ -340,9 +340,10 @@ class NodeInfo(object):
 
         :param ports: List of ports with all their attributes
                       e.g  [{'mac': xx, 'ip': xx, 'client_id': None},
-                            {'mac': xx, 'ip': None, 'client_id': None}]
+                      {'mac': xx, 'ip': None, 'client_id': None}]
                       It also support the old style of list of macs.
-        A warning is issued if port already exists on a node.
+                      A warning is issued if port already exists on a node.
+
         :param ironic: Ironic client to use instead of self.ironic
         """
         existing_macs = []
