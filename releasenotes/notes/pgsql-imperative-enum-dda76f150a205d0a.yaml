@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Create the node_state enum explicitly in the migration, as it is required
+    by PostgreSQL

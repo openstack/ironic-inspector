@@ -36,10 +36,12 @@ Node = sql.table('nodes',
 
 
 def upgrade():
+    state_enum = sa.Enum(*istate.States.all(), name='node_state')
+    state_enum.create(op.get_bind())
+
     op.add_column('nodes', sa.Column('version_id', sa.String(36),
                                      server_default=''))
-    op.add_column('nodes', sa.Column('state', sa.Enum(*istate.States.all(),
-                                                      name='node_state'),
+    op.add_column('nodes', sa.Column('state', state_enum,
                                      nullable=False,
                                      default=istate.States.finished,
                                      server_default=istate.States.finished))
