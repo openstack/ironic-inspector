@@ -4,11 +4,27 @@ register_project_for_upgrade ironic-inspector
 register_db_to_save ironic_inspector
 
 # Inspector plugin and service registration
-devstack_localrc base enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
-devstack_localrc base enable_service ironic-inspector ironic-inspector-dhcp
+# NOTE(rama_y): Change similar to what was done in ironic for multi-node grenade testing.
+#               This file is sourced by the 'load_settings' function in
+#               grenade/inc/plugin. So usage of local will work.
+local insp_gren_conf
+local insp_gren_stage
 
-devstack_localrc target enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
-devstack_localrc target enable_service ironic-inspector ironic-inspector-dhcp
+for insp_gren_stage in base target; do
+    # TODO(rama_y): Remove this logic for checking if the ironic-inspector devstack
+    # plugin is enabled, once the enabling of the ironic-inspector devstack plugin is
+    # being done in project-config.
+    insp_gren_conf=$(localrc_path ${insp_gren_stage})
+    # Only 'enable_plugin ironic-inspector' if it isn't in the file already.
+    if ! grep -q '^enable_plugin ironic-inspector ' ${insp_gren_conf} ; then
+        echo "Enabling ironic-inspector devstack plugin via grenade for ${insp_gren_stage}"
+        devstack_localrc ${insp_gren_stage} enable_plugin ironic-inspector https://github.com/openstack/ironic-inspector
+    else
+        echo "ironic-inspector devstack plugin already enabled for ${insp_gren_stage}"
+    fi
+
+    devstack_localrc ${insp_gren_stage} enable_service ironic-inspector ironic-inspector-dhcp
+done
 
 # NOTE(dtantsur): enable possible work arounds for grenade specifically.
 # We can't use shell variables "thanks" to tempest using tox.
