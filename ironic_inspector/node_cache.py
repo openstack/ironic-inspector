@@ -865,22 +865,23 @@ def clean_up():
 
     :return: list of timed out node UUID's
     """
-    status_keep_threshold = (timeutils.utcnow() - datetime.timedelta(
-                             seconds=CONF.node_status_keep_time))
+    if CONF.node_status_keep_time > 0:
+        status_keep_threshold = (timeutils.utcnow() - datetime.timedelta(
+                                 seconds=CONF.node_status_keep_time))
+        with db.ensure_transaction() as session:
+            db.model_query(db.Node, session=session).filter(
+                db.Node.finished_at.isnot(None),
+                db.Node.finished_at < status_keep_threshold).delete()
 
-    with db.ensure_transaction() as session:
-        db.model_query(db.Node, session=session).filter(
-            db.Node.finished_at.isnot(None),
-            db.Node.finished_at < status_keep_threshold).delete()
+    timeout = CONF.timeout
+    if timeout <= 0:
+        return []
+    threshold = timeutils.utcnow() - datetime.timedelta(seconds=timeout)
+    uuids = [row.uuid for row in
+             db.model_query(db.Node.uuid).filter(
+                 db.Node.started_at < threshold,
+                 db.Node.finished_at.is_(None)).all()]
 
-        timeout = CONF.timeout
-        if timeout <= 0:
-            return []
-        threshold = timeutils.utcnow() - datetime.timedelta(seconds=timeout)
-        uuids = [row.uuid for row in
-                 db.model_query(db.Node.uuid, session=session).filter(
-                     db.Node.started_at < threshold,
-                     db.Node.finished_at.is_(None)).all()]
     if not uuids:
         return []
 

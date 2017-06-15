@@ -410,6 +410,18 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
         self.assertEqual([], db.model_query(db.Node).all())
 
+    def test_old_status_disabled(self):
+        # Status clean up is disabled by default
+        session = db.get_session()
+        with session.begin():
+            db.model_query(db.Node).update(
+                {'finished_at': (datetime.datetime.utcnow() -
+                                 datetime.timedelta(days=10000))})
+
+        self.assertEqual([], node_cache.clean_up())
+
+        self.assertNotEqual([], db.model_query(db.Node).all())
+
 
 class TestNodeCacheGetNode(test_base.NodeTest):
     def test_ok(self):
