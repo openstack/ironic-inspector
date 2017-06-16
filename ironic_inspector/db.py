@@ -17,10 +17,11 @@
 
 import contextlib
 
+from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_db import options as db_opts
+from oslo_db.sqlalchemy import enginefacade
 from oslo_db.sqlalchemy import models
-from oslo_db.sqlalchemy import session as db_session
 from oslo_db.sqlalchemy import types as db_types
 from sqlalchemy import (Boolean, Column, DateTime, Enum, ForeignKey,
                         Integer, String, Text)
@@ -39,9 +40,11 @@ class ModelBase(models.ModelBase):
 Base = declarative_base(cls=ModelBase)
 CONF = cfg.CONF
 _DEFAULT_SQL_CONNECTION = 'sqlite:///ironic_inspector.sqlite'
-_FACADE = None
+_CTX_MANAGER = None
 
-db_opts.set_defaults(cfg.CONF, connection=_DEFAULT_SQL_CONNECTION)
+db_opts.set_defaults(CONF, connection=_DEFAULT_SQL_CONNECTION)
+
+_synchronized = lockutils.synchronized_with_prefix("ironic-inspector-")
 
 
 class Node(Base):
@@ -131,18 +134,12 @@ class RuleAction(Base):
 
 
 def init():
-    """Initialize the database."""
-    return get_session()
+    """Initialize the database.
 
-
-def get_session(**kwargs):
-    facade = create_facade_lazily()
-    return facade.get_session(**kwargs)
-
-
-def get_engine():
-    facade = create_facade_lazily()
-    return facade.get_engine()
+    Method called on service start up, initialize transaction
+    context manager and try to create db session.
+    """
+    get_writer_session()
 
 
 def model_query(model, *args, **kwargs):
@@ -150,21 +147,51 @@ def model_query(model, *args, **kwargs):
 
     :param session: if present, the session to use
     """
-
-    session = kwargs.get('session') or get_session()
+    session = kwargs.get('session') or get_reader_session()
     query = session.query(model, *args)
     return query
 
 
-def create_facade_lazily():
-    global _FACADE
-    if _FACADE is None:
-        _FACADE = db_session.EngineFacade.from_config(cfg.CONF)
-    return _FACADE
-
-
 @contextlib.contextmanager
 def ensure_transaction(session=None):
-    session = session or get_session()
+    session = session or get_writer_session()
     with session.begin(subtransactions=True):
         yield session
+
+
+@_synchronized("transaction-context-manager")
+def _create_context_manager():
+    _ctx_mgr = enginefacade.transaction_context()
+    # TODO(aarefiev): enable foreign keys for SQLite once all unit
+    #                 tests with failed constraint will be fixed.
+    _ctx_mgr.configure(sqlite_fk=False)
+
+    return _ctx_mgr
+
+
+def get_context_manager():
+    """Create transaction context manager lazily.
+
+    :returns: The transaction context manager.
+    """
+    global _CTX_MANAGER
+    if _CTX_MANAGER is None:
+        _CTX_MANAGER = _create_context_manager()
+
+    return _CTX_MANAGER
+
+
+def get_reader_session():
+    """Help method to get reader session.
+
+    :returns: The reader session.
+    """
+    return get_context_manager().reader.get_sessionmaker()()
+
+
+def get_writer_session():
+    """Help method to get writer session.
+
+    :returns: The writer session.
+    """
+    return get_context_manager().writer.get_sessionmaker()()
