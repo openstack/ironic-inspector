@@ -21,7 +21,7 @@ MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
 MAX_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Maximum-Version'
 VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Version'
 
-VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe')
+VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe', 'disabled')
 VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
 VALID_STORE_DATA_VALUES = ('none', 'swift')
 

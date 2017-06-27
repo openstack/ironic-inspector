@@ -47,6 +47,11 @@ Usual hardware introspection flow is as follows:
     created for all detected NIC's, and all other ports will be deleted.
     Refer to the `Ironic inspection documentation`_ for details.
 
+    Ironic inspector can also be configured to not create any ports. This is
+    done by setting ``add_ports=disabled``. If setting ``add_ports`` to disabled
+    the ``keep_ports`` option should be also set to ``all``. This will ensure
+    no manually added ports will be deleted.
+
 * Separate API (see :ref:`usage` and :ref:`api`) can be used to query
   introspection results for a given node.
 
