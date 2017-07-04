@@ -6,7 +6,7 @@
 
 # Sphinx
 _build
-#doc/source/api/
+doc/source/contributor/api/
 
 # release notes build
 releasenotes/build
@@ -40,4 +40,3 @@ ChangeLog
 
 # Vagrant
 .vagrant
-doc/source/api/

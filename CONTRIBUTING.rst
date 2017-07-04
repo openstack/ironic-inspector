@@ -107,7 +107,7 @@ enable both the **ironic** and the **ironic-inspector**. You can start with the
 Example local.conf
 ------------------
 
-.. literalinclude:: ../../devstack/example.local.conf
+.. literalinclude:: ../../../devstack/example.local.conf
 
 
 Notes

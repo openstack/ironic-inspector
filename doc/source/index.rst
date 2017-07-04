@@ -20,21 +20,13 @@ Admin Guide
   Installation <install>
   Upgrade <upgrade>
 
-Developer Guide
-===============
+Contributor
+===========
 
 .. toctree::
-  :maxdepth: 2
+   :maxdepth: 2
 
-  Contributing <contributing>
-
-Python API
-----------
-
-.. toctree::
-  :maxdepth: 1
-
-  api/autoindex
+   contributor/index
 
 Indices and tables
 ==================
