@@ -2,6 +2,9 @@
 Hardware introspection for OpenStack Bare Metal
 ===============================================
 
+Introduction
+============
+
 .. image:: http://governance.openstack.org/badges/ironic-inspector.svg
     :target: http://governance.openstack.org/reference/tags/index.html
 
@@ -25,6 +28,9 @@ scheduling from a bare metal node, given it's power management credentials
 
 .. note::
     **ironic-inspector** was called *ironic-discoverd* before version 2.0.0.
+
+Release Notes
+=============
 
 For information on any current or prior version, see `the release notes`_.
 
