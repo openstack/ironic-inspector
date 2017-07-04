@@ -1,9 +1,9 @@
-.. _usage:
-
 Usage
-=====
+-----
 
-Refer to :ref:`api` for information on the HTTP API.
+.. _usage_guide:
+
+Refer to :ref:`api <http_api>` for information on the HTTP API.
 Refer to the `client documentation`_ for information on how to use CLI and
 Python library.
 
@@ -18,10 +18,10 @@ drivers, please refer to `Ironic inspection documentation`_ for details.
 
 .. _Ironic inspection documentation: http://docs.openstack.org/developer/ironic/deploy/inspection.html
 
-.. _node_states:
-
 Node States
 ~~~~~~~~~~~
+
+.. _node_states:
 
 * The nodes should be moved to ``MANAGEABLE`` provision state before
   introspection (requires *python-ironicclient* of version 0.5.0 or newer)::
@@ -38,10 +38,10 @@ Node States
     before Nova becomes aware of available nodes after issuing this command.
     Use ``nova hypervisor-stats`` command output to check it.
 
-.. _rules:
-
 Introspection Rules
 ~~~~~~~~~~~~~~~~~~~
+
+.. _introspection_rules:
 
 Inspector supports a simple JSON-based DSL to define rules to run during
 introspection. Inspector provides an API to manage such rules, and will run
@@ -51,8 +51,8 @@ A rule consists of conditions to check, and actions to run. If conditions
 evaluate to true on the introspection data, then actions are run on a node.
 
 Available conditions and actions are defined by plugins, and can be extended,
-see :ref:`contributing_link` for details. See :ref:`api` for specific calls
-to define introspection rules.
+see :ref:`contributing_link` for details. See :ref:`api <http_api>` for
+specific calls to define introspection rules.
 
 Conditions
 ^^^^^^^^^^
@@ -130,10 +130,10 @@ from introspection, it's using `python string formatting notation
     {"action": "set-attribute", "path": "/driver_info/ipmi_address",
      "value": "{data[inventory][bmc_address]}"}
 
-.. _plugins:
-
 Plugins
 ~~~~~~~
+
+.. _introspection_plugins:
 
 **ironic-inspector** heavily relies on plugins for data processing. Even the
 standard functionality is largely based on plugins. Set ``processing_hooks``
@@ -165,7 +165,7 @@ needed:
 
 ``ramdisk_error``
     reports error, if ``error`` field is set by the ramdisk, also optionally
-    stores logs from ``logs`` field, see :ref:`api` for details.
+    stores logs from ``logs`` field, see :ref:`api <http_api>` for details.
 ``capabilities``
     detect node capabilities: CPU, boot mode, etc. See `Capabilities
     Detection`_ for more details.
@@ -225,13 +225,13 @@ file, to the Ironic driver you want).
 
 The ``enroll`` hook will also set the ``ipmi_address`` property on the new
 node, if its available in the introspection data we received,
-see :ref:`ramdisk_callback`.
+see :ref:`ramdisk_callback <ramdisk_callback>`.
 
 Once the ``enroll`` hook is finished, **ironic-inspector** will process the
 introspection data in the same way it would for an identified node. It runs
-the processing :ref:`plugins`, and after that it runs introspection
-rules, which would allow for more customisable node configuration,
-see :ref:`rules`.
+the processing :ref:`plugins <introspection_plugins>`, and after that it runs
+introspection rules, which would allow for more customisable node
+configuration, see :ref:`rules <introspection_rules>`.
 
 A rule to set a node's Ironic driver to the ``agent_ipmitool`` driver and
 populate the required driver_info for that driver would look like::

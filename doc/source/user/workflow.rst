@@ -1,5 +1,8 @@
+How Ironic Inspector Works
+==========================
+
 Workflow
-========
+--------
 
 Usual hardware introspection flow is as follows:
 
@@ -7,10 +10,10 @@ Usual hardware introspection flow is as follows:
   Power management credentials should be provided to Ironic at this step.
 
 * Nodes are put in the correct state for introspection as described in
-  :ref:`node_states`.
+  :ref:`node states <node_states>`.
 
 * Operator sends nodes on introspection using **ironic-inspector** API or CLI
-  (see :ref:`usage`).
+  (see :ref:`usage <usage_guide>`).
 
 * On receiving node UUID **ironic-inspector**:
 
@@ -52,28 +55,29 @@ Usual hardware introspection flow is as follows:
     the ``keep_ports`` option should be also set to ``all``. This will ensure
     no manually added ports will be deleted.
 
-* Separate API (see :ref:`usage` and :ref:`api`) can be used to query
-  introspection results for a given node.
+.. _Ironic inspection documentation: http://docs.openstack.org/developer/ironic/deploy/inspection.html
+
+* Separate API (see :ref:`usage <usage_guide>` and :ref:`api <http_api>`) can
+  be used to query introspection results for a given node.
 
 * Nodes are put in the correct state for deploying as described in
-  :ref:`node_states`.
+  :ref:`node states <node_states>`.
 
 Starting DHCP server and configuring PXE boot environment is not part of this
 package and should be done separately.
 
-.. _state_machine_diagram:
-
 State machine diagram
-=====================
+---------------------
+
+.. _state_machine_diagram:
 
 The diagram below shows the introspection states that an **ironic-inspector**
 FSM goes through during the node introspection, discovery and reprocessing.
 The diagram also shows events that trigger state transitions.
 
-.. figure:: ./images/states.svg
+.. figure:: ../images/states.svg
    :width: 660px
    :align: center
    :alt: ironic-inspector state machine diagram
 
-.. _Ironic inspection documentation: https://docs.openstack.org/developer/ironic/deploy/inspection.html
 .. _Ironic: https://wiki.openstack.org/wiki/Ironic
