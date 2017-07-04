@@ -7,8 +7,17 @@
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
-              'oslosphinx'
               ]
+try:
+    import openstackdocstheme
+    extensions.append('openstackdocstheme')
+except ImportError:
+    openstackdocstheme = None
+
+repository_name = 'openstack/ironic-inspector'
+bug_project = 'ironic-inspector'
+bug_tag = ''
+html_last_updated_fmt = '%Y-%m-%d %H:%M'
 
 wsme_protocols = ['restjson']
 
@@ -64,6 +73,10 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  Major themes that come with
 # Sphinx are currently 'default' and 'sphinxdoc'.
+if openstackdocstheme is not None:
+    html_theme = 'openstackdocs'
+else:
+    html_theme = 'default'
 #html_theme_path = ["."]
 #html_theme = '_theme'
 #html_static_path = ['_static']
