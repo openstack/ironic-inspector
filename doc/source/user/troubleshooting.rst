@@ -90,6 +90,18 @@ ramdisk or to boot them, make sure that:
 
 #. no firewall rules prevent access to TFTP port,
 
+#. SELinux is configured properly to allow external TFTP access,
+
+   If SELinux is neither permissive nor disabled,
+   you should config ``tftp_home_dir`` in SELinux by executing the command
+   ::
+
+    $ sudo setsebool -P tftp_home_dir 1
+
+   See `the man page`_ for more details.
+
+   .. _the man page: https://www.systutorials.com/docs/linux/man/8-tftpd_selinux/
+
 #. DHCP server is correctly set to point to the TFTP server,
 
 #. ``pxelinux.cfg/default`` within TFTP root contains correct reference to the
