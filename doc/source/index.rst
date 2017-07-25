@@ -1,29 +1,22 @@
 .. include:: ../../README.rst
 
-Install
-=======
+Using Ironic Inspector
+======================
 
 .. toctree::
   :maxdepth: 2
 
   install/index
+  user/index
   admin/index
 
-Contributor
-===========
-
-.. toctree::
-   :maxdepth: 2
-
-   contributor/index
-
-User
-====
+Contributor Docs
+================
 
 .. toctree::
   :maxdepth: 2
 
-  user/index
+  contributor/index
 
 Indices and tables
 ==================
