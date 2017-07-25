@@ -11,14 +11,14 @@ User Guide
   HTTP API <http-api>
   Troubleshooting <troubleshooting>
 
-Admin Guide
-===========
+Install
+=======
 
 .. toctree::
   :maxdepth: 2
 
-  Installation <install>
-  Upgrade <upgrade>
+  install/index
+  admin/index
 
 Contributor
 ===========

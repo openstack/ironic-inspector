@@ -1,6 +1,5 @@
-==============================================
-Bare Metal Introspection Service Upgrade Guide
-==============================================
+Upgrade Guide
+-------------
 
 The `release notes <http://docs.openstack.org/releasenotes/ironic-inspector/>`_
 should always be read carefully when upgrading the ironic-inspector service.

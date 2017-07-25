@@ -1,7 +1,5 @@
-.. _install_guide:
-
-Installation
-------------
+Install Guide
+=============
 
 Install from PyPI_ (you may want to use virtualenv to isolate your
 environment)::
@@ -29,7 +27,7 @@ if you plan on installing **ironic-inspector** manually.
     **ironic-inspector** on Ubuntu.
 
 Version Support Matrix
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 **ironic-inspector** currently requires the Bare Metal API version
 ``1.11`` to be provided by **ironic**. This version is available starting
@@ -58,7 +56,7 @@ Ocata+         5.0 - 5.X    5.0 - 5.X
     ironic version. This does not imply that it will be supported forever.
 
 Configuration
-~~~~~~~~~~~~~
+-------------
 
 Copy ``example.conf`` to some permanent place
 (e.g. ``/etc/ironic-inspector/inspector.conf``).
@@ -159,7 +157,7 @@ Replace ``stack`` with whatever user you'll be using to run
 **ironic-inspector**.
 
 Configuring IPA
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 ironic-python-agent_ is a ramdisk developed for **ironic** and support
 for **ironic-inspector** was added during the Liberty cycle. This is the
@@ -194,7 +192,7 @@ the `other builders
 .. _ironic-python-agent: https://docs.openstack.org/developer/ironic-python-agent/
 
 Configuring PXE
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 For the PXE boot environment, you'll need:
 
@@ -255,7 +253,7 @@ For the PXE boot environment, you'll need:
     several nodes.
 
 Configuring iPXE
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 iPXE allows better scaling as it primarily uses the HTTP protocol instead of
 slow and unreliable TFTP. You still need a TFTP server as a fallback for
@@ -315,7 +313,7 @@ nodes not supporting iPXE. To use iPXE, you'll need:
   ``undionly.kpxe``.
 
 Managing the **ironic-inspector** Database
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------
 
 **ironic-inspector** provides a command line client for managing its
 database. This client can be used for upgrading, and downgrading the database
@@ -352,7 +350,7 @@ Other available commands can be discovered by running::
     ironic-inspector-dbsync --help
 
 Running
-~~~~~~~
+-------
 
 ::
 
