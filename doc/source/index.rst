@@ -1,16 +1,5 @@
 .. include:: ../../README.rst
 
-User Guide
-===========
-
-.. toctree::
-  :maxdepth: 2
-
-  Workflow <workflow>
-  Usage <usage>
-  HTTP API <http-api>
-  Troubleshooting <troubleshooting>
-
 Install
 =======
 
@@ -27,6 +16,14 @@ Contributor
    :maxdepth: 2
 
    contributor/index
+
+User
+====
+
+.. toctree::
+  :maxdepth: 2
+
+  user/index
 
 Indices and tables
 ==================

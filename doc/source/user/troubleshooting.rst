@@ -1,17 +1,17 @@
 Troubleshooting
-===============
+---------------
 
 Errors when starting introspection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * *Invalid provision state "available"*
 
-  In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic
-  defaults to reporting provision state ``AVAILABLE`` for newly enrolled
-  nodes.  **ironic-inspector** will refuse to conduct introspection in
-  this state, as such nodes are supposed to be used by Nova for scheduling.
-  See :ref:`node_states` for instructions on how to put nodes into
-  the correct state.
+  In Kilo release with *python-ironicclient* 0.5.0 or newer Ironic defaults to
+  reporting provision state ``AVAILABLE`` for newly enrolled nodes.
+  **ironic-inspector** will refuse to conduct introspection in this state, as
+  such nodes are supposed to be used by Nova for scheduling. See :ref:`node
+  states <node_states>` for instructions on how to put nodes into the correct
+  state.
 
 Introspection times out
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -116,10 +116,10 @@ one.
 .. _devuser: http://docs.openstack.org/developer/diskimage-builder/elements/devuser/README.html
 .. _dynamic-login: http://docs.openstack.org/developer/diskimage-builder/elements/dynamic-login/README.html
 
-.. _ubuntu-dns:
-
 Troubleshooting DNS issues on Ubuntu
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _ubuntu-dns:
 
 Ubuntu uses local DNS caching, so tries localhost for DNS results first
 before calling out to an external DNS server. When DNSmasq is installed and

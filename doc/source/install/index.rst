@@ -339,7 +339,7 @@ If you are upgrading from **ironic-inspector** version 2.1.0 or lower:
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf upgrade
 
 If you are upgrading from a git master install of the **ironic-inspector**
-after :ref:`rules` were introduced:
+after :ref:`rules <introspection_rules>` were introduced:
 ::
 
     ironic-inspector-dbsync --config-file /etc/ironic-inspector/inspector.conf stamp --revision d588418040d
