@@ -55,7 +55,7 @@ Usual hardware introspection flow is as follows:
     the ``keep_ports`` option should be also set to ``all``. This will ensure
     no manually added ports will be deleted.
 
-.. _Ironic inspection documentation: http://docs.openstack.org/developer/ironic/deploy/inspection.html
+.. _Ironic inspection documentation: https://docs.openstack.org/ironic/latest/admin/inspection.html
 
 * Separate API (see :ref:`usage <usage_guide>` and :ref:`api <http_api>`) can
   be used to query introspection results for a given node.

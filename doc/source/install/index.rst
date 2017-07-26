@@ -6,7 +6,7 @@ environment)::
 
     pip install ironic-inspector
 
-Also there is a `DevStack <http://docs.openstack.org/developer/devstack/>`_
+Also there is a `DevStack <https://docs.openstack.org/devstack/latest/>`_
 plugin for **ironic-inspector** - see :ref:`contributing_link` for the
 current status.
 
@@ -186,10 +186,10 @@ To build an **ironic-python-agent** ramdisk, do the following:
 Alternatively, you can download a `prebuilt TinyIPA image
 <http://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_ or use
 the `other builders
-<http://docs.openstack.org/developer/ironic-python-agent/#image-builders>`_.
+<https://docs.openstack.org/ironic-python-agent/latest/install/index.html#image-builders>`_.
 
-.. _diskimage-builder: https://docs.openstack.org/developer/diskimage-builder/
-.. _ironic-python-agent: https://docs.openstack.org/developer/ironic-python-agent/
+.. _diskimage-builder: https://docs.openstack.org/diskimage-builder/latest/
+.. _ironic-python-agent: https://docs.openstack.org/ironic-python-agent/latest/
 
 Configuring PXE
 ~~~~~~~~~~~~~~~
