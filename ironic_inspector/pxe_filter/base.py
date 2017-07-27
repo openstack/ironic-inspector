@@ -182,15 +182,27 @@ class BaseFilter(interface.FilterDriver):
     def get_periodic_sync_task(self):
         """Get periodic sync task for the filter.
 
+        The periodic task returned is casting the InvalidFilterDriverState
+        to the periodics.NeverAgain exception to quit looping.
+
+        :raises: periodics.NeverAgain
         :returns: a periodic task to be run in the background.
         """
         ironic = ir_utils.get_client()
+
+        def periodic_sync_task():
+            try:
+                self.sync(ironic)
+            except InvalidFilterDriverState as e:
+                LOG.warning('Filter driver %s disabling periodic sync '
+                            'task because of an invalid state.', self)
+                raise periodics.NeverAgain(e)
+
         return periodics.periodic(
             # NOTE(milan): the periodic decorator doesn't support 0 as
             # a spacing value of (a switched off) periodic
             spacing=CONF.pxe_filter.sync_period or float('inf'),
-            enabled=bool(CONF.pxe_filter.sync_period))(
-                lambda: self.sync(ironic))
+            enabled=bool(CONF.pxe_filter.sync_period))(periodic_sync_task)
 
 
 class NoopFilter(BaseFilter):
