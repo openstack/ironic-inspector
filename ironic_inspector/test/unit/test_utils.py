@@ -120,18 +120,6 @@ class TestProcessingLogger(base.BaseTest):
         self.assertEqual('[node: NNN state foobar]',
                          utils.processing_logger_prefix(node_info=node_info))
 
-    def test_adapter_no_bmc(self):
-        CONF.set_override('log_bmc_address', False, 'processing')
-        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
-        data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
-                'inventory': {'bmc_address': '1.2.3.4'}}
-        logger = utils.getProcessingLogger(__name__)
-        msg, _kwargs = logger.process('foo', {'node_info': node_info,
-                                              'data': data})
-        self.assertEqual(
-            '[node: NNN MAC aa:bb:cc:dd:ee:ff] foo',
-            msg)
-
     def test_adapter_with_bmc(self):
         node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
         data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',

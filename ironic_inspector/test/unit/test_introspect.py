@@ -304,29 +304,6 @@ class TestIntrospect(BaseTest):
         # updated to the current time.time()
         self.assertEqual(100, introspect._LAST_INTROSPECTION_TIME)
 
-    @mock.patch.object(time, 'time')
-    def test_introspection_delay_custom_drivers(
-            self, time_mock, client_mock, start_mock, filters_mock):
-        self.node.driver = 'foobar'
-        time_mock.return_value = 42
-        introspect._LAST_INTROSPECTION_TIME = 40
-        CONF.set_override('introspection_delay', 10)
-        CONF.set_override('introspection_delay_drivers', 'fo{1,2}b.r')
-
-        cli = self._prepare(client_mock)
-        start_mock.return_value = self.node_info
-
-        introspect.introspect(self.uuid)
-
-        self.sleep_fixture.mock.assert_called_once_with(8)
-        cli.node.set_boot_device.assert_called_once_with(self.uuid,
-                                                         'pxe',
-                                                         persistent=False)
-        cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                         'reboot')
-        # updated to the current time.time()
-        self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
-
 
 @mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'get_node', autospec=True)
