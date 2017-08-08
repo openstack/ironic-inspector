@@ -7,7 +7,9 @@
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
-              ]
+              'oslo_config.sphinxext',
+              'oslo_config.sphinxconfiggen']
+
 try:
     import openstackdocstheme
     extensions.append('openstackdocstheme')
@@ -37,6 +39,9 @@ master_doc = 'index'
 # General information about the project.
 project = u'Ironic Inspector'
 copyright = u'OpenStack Foundation'
+
+config_generator_config_file = '../../config-generator.conf'
+sample_config_basename = '_static/ironic-inspector'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
