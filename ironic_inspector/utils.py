@@ -32,9 +32,15 @@ _EXECUTOR = None
 
 def get_ipmi_address_from_data(introspection_data):
     try:
-        return introspection_data['inventory']['bmc_address']
+        result = introspection_data['inventory']['bmc_address']
     except KeyError:
-        return introspection_data.get('ipmi_address')
+        result = introspection_data.get('ipmi_address')
+
+    if result in ('', '0.0.0.0'):
+        # ipmitool can return these values, if it does not know the address
+        return None
+    else:
+        return result
 
 
 def get_pxe_mac(introspection_data):
