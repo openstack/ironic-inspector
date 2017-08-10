@@ -18,11 +18,11 @@ scheduling from a bare metal node, given it's power management credentials
 * Source: http://git.openstack.org/cgit/openstack/ironic-inspector
 * Bugs: http://bugs.launchpad.net/ironic-inspector
 * Downloads: https://pypi.python.org/pypi/ironic-inspector
-* Documentation: http://docs.openstack.org/developer/ironic-inspector
+* Documentation: https://docs.openstack.org/ironic-inspector/latest/
 * Python client library and CLI tool: `python-ironic-inspector-client
   <https://pypi.python.org/pypi/python-ironic-inspector-client>`_
   (`documentation
-  <http://docs.openstack.org/developer/python-ironic-inspector-client>`_).
+  <https://docs.openstack.org/python-ironic-inspector-client/latest/>`_).
 
 .. _Ironic: https://wiki.openstack.org/wiki/Ironic
 

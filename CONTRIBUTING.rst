@@ -86,7 +86,7 @@ You can develop and test **ironic-inspector** using DevStack - see
 Deploying Ironic Inspector with DevStack
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`DevStack <http://docs.openstack.org/developer/devstack/>`_ provides a way to
+`DevStack <https://docs.openstack.org/devstack/latest/>`_ provides a way to
 quickly build a full OpenStack development environment with requested
 components. There is a plugin for installing **ironic-inspector** in DevStack.
 Installing **ironic-inspector** requires a machine running Ubuntu 14.04 (or
@@ -159,7 +159,7 @@ Inspect the node::
 .. note::
     The deploy driver used must support the inspect interface. See also the
     `Ironic Python Agent
-    <http://docs.openstack.org/developer/ironic/drivers/ipa.html#ipa>`_.
+    <https://docs.openstack.org/ironic/latest/admin/drivers/ipa.html>`_.
 
 A node can also be inspected using the following command. However, this will
 not affect the provision state of the node::
@@ -267,8 +267,8 @@ Writing a Plugin
     ``**`` argument is needed so that we can add optional arguments without
     breaking out-of-tree plugins. Please make sure to include and ignore it.
 
-.. _ironic_inspector.plugins.base: http://docs.openstack.org/developer/ironic-inspector/api/ironic_inspector.plugins.base.html
-.. _Introspection Rules: http://docs.openstack.org/developer/ironic-inspector/usage.html#introspection-rules
+.. _ironic_inspector.plugins.base: https://docs.openstack.org/ironic-inspector/latest/api/ironic_inspector.plugins.base.html
+.. _Introspection Rules: https://docs.openstack.org/ironic-inspector/latest/usage.html#introspection-rules
 
 Making changes to the database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -314,7 +314,7 @@ the database::
     ironic-inspector-dbsync revision -m "A short description"
 
 .. _Create a Migration Script: http://alembic.zzzcomputing.com/en/latest/tutorial.html#create-a-migration-script
-.. _ironic_inspector.db: http://docs.openstack.org/developer/ironic-inspector/api/ironic_inspector.db.html
+.. _ironic_inspector.db: https://docs.openstack.org/ironic-inspector/latest/api/ironic_inspector.db.html
 .. _What does Autogenerate Detect (and what does it not detect?): http://alembic.zzzcomputing.com/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect
 
 Implementing PXE Filter Drivers

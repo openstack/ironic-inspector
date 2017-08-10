@@ -125,8 +125,8 @@ to log into it. Use the `dynamic-login`_ or `devuser`_ element for a DIB-based
 build or put an authorized_keys file in ``/usr/share/oem/`` for a CoreOS-based
 one.
 
-.. _devuser: http://docs.openstack.org/developer/diskimage-builder/elements/devuser/README.html
-.. _dynamic-login: http://docs.openstack.org/developer/diskimage-builder/elements/dynamic-login/README.html
+.. _devuser: https://docs.openstack.org/diskimage-builder/latest/elements/devuser/README.html
+.. _dynamic-login: https://docs.openstack.org/diskimage-builder/latest/elements/dynamic-login/README.html
 
 Troubleshooting DNS issues on Ubuntu
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
