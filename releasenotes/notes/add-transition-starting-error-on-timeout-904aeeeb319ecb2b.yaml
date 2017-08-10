@@ -1,4 +1,0 @@
----
-fixes:
-  - |
-    Timeout event on ``starting`` state lead to undefined transition error.
