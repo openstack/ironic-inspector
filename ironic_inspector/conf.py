@@ -119,11 +119,6 @@ PROCESSING_OPTS = [
                        'partitioning. Only has effect when used with the IPA '
                        'as a ramdisk, for older ramdisk local_gb is '
                        'calculated on the ramdisk side.')),
-    cfg.BoolOpt('log_bmc_address',
-                default=True,
-                help=_('Whether to log node BMC address with every message '
-                       'during processing.'),
-                deprecated_for_removal=True),
     cfg.StrOpt('ramdisk_logs_filename_format',
                default='{uuid}_{dt:%Y%m%d-%H%M%S.%f}.tar.gz',
                help=_('File name template for storing ramdisk logs. The '
@@ -180,12 +175,6 @@ SERVICE_OPTS = [
     cfg.IntOpt('introspection_delay',
                default=5,
                help=_('Delay (in seconds) between two introspections.')),
-    cfg.StrOpt('introspection_delay_drivers',
-               default='.*',
-               help=_('Only node with drivers matching this regular '
-                      'expression will be affected by introspection_delay '
-                      'setting.'),
-               deprecated_for_removal=True),
     cfg.ListOpt('ipmi_address_fields',
                 default=['ilo_address', 'drac_host', 'drac_address',
                          'cimc_address'],

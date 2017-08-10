@@ -72,10 +72,9 @@ def processing_logger_prefix(data=None, node_info=None):
     if pxe_mac:
         parts.append('MAC %s' % pxe_mac)
 
-    if CONF.processing.log_bmc_address:
-        bmc_address = get_ipmi_address_from_data(data) if data else None
-        if bmc_address:
-            parts.append('BMC %s' % bmc_address)
+    bmc_address = get_ipmi_address_from_data(data) if data else None
+    if bmc_address:
+        parts.append('BMC %s' % bmc_address)
 
     if parts:
         return _('[node: %s]') % ' '.join(parts)

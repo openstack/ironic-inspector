@@ -13,7 +13,6 @@
 
 """Handling introspection request."""
 
-import re
 import time
 
 from eventlet import semaphore
@@ -75,16 +74,15 @@ def introspect(node_id, token=None):
 def _background_introspect(ironic, node_info):
     global _LAST_INTROSPECTION_TIME
 
-    if re.match(CONF.introspection_delay_drivers, node_info.node().driver):
-        LOG.debug('Attempting to acquire lock on last introspection time')
-        with _LAST_INTROSPECTION_LOCK:
-            delay = (_LAST_INTROSPECTION_TIME - time.time()
-                     + CONF.introspection_delay)
-            if delay > 0:
-                LOG.debug('Waiting %d seconds before sending the next '
-                          'node on introspection', delay)
-                time.sleep(delay)
-            _LAST_INTROSPECTION_TIME = time.time()
+    LOG.debug('Attempting to acquire lock on last introspection time')
+    with _LAST_INTROSPECTION_LOCK:
+        delay = (_LAST_INTROSPECTION_TIME - time.time()
+                 + CONF.introspection_delay)
+        if delay > 0:
+            LOG.debug('Waiting %d seconds before sending the next '
+                      'node on introspection', delay)
+            time.sleep(delay)
+        _LAST_INTROSPECTION_TIME = time.time()
 
     node_info.acquire_lock()
     try:
