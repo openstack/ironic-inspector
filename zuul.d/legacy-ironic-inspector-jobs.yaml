@@ -15,6 +15,7 @@
     irrelevant-files:
       - ^test-requirements.txt$
       - ^.*\.rst$
+      - ^api-ref/.*$
       - ^doc/.*$
       - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
