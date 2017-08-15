@@ -190,10 +190,11 @@ SERVICE_OPTS = [
 
 PXE_FILTER_OPTS = [
     cfg.StrOpt('driver', default='noop',
-               help=_('PXE boot filter driver to use, such as iptables')),
+               help=_('PXE boot filter driver to use, such as iptables. '
+                      'This option has no effect yet.')),
     cfg.IntOpt('sync_period', default=15, min=0,
                help=_('Amount of time in seconds, after which repeat periodic '
-                      'update of the filter.')),
+                      'update of the filter. This option has no effect yet.')),
 ]
 
 cfg.CONF.register_opts(SERVICE_OPTS)
