@@ -320,6 +320,8 @@ the database::
 Implementing PXE Filter Drivers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. note:: It is not possible yet to use PXE filter drivers.
+
 Background
 ----------
 
