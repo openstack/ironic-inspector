@@ -6,4 +6,4 @@ features:
     discovered and existing ports are affected.
 upgrade:
   - |
-    Bare metal API version '1.19' is now required.
+    Bare metal API version `1.19` is now required.
