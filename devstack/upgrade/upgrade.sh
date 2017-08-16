@@ -93,11 +93,9 @@ fi
 
 # Don't succeed unless the services come up
 ensure_services_started ironic-inspector
-ensure_logs_exist ironic-inspector
 
 if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
     ensure_services_started dnsmasq
-    ensure_logs_exist ironic-inspector-dhcp
 fi
 
 set +o xtrace
