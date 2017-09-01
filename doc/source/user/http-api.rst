@@ -338,7 +338,7 @@ API Discovery
 ~~~~~~~~~~~~~
 
 The API supports API discovery. You can query different parts of the API to
-discover what other endpoints are avaliable.
+discover what other endpoints are available.
 
 * ``GET /`` List API Versions
 

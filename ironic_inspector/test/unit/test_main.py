@@ -570,7 +570,7 @@ class TestApiVersions(BaseAPITest):
     def test_usual_requests(self, get_mock):
         get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
                                                     started_at=42.0)
-        # Successfull
+        # Successful
         self._check_version_present(
             self.app.post('/v1/introspection/%s' % self.uuid))
         # With error
