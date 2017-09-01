@@ -1,7 +1,7 @@
 Upgrade Guide
 -------------
 
-The `release notes <http://docs.openstack.org/releasenotes/ironic-inspector/>`_
+The `release notes <https://docs.openstack.org/releasenotes/ironic-inspector/>`_
 should always be read carefully when upgrading the ironic-inspector service.
 Starting with the Mitaka series, specific upgrade steps and considerations are
 well-documented in the release notes.

@@ -15,8 +15,8 @@ packaged, some of them - under its old name *ironic-discoverd*.
 
 There are several projects you can use to set up **ironic-inspector** in
 production. `puppet-ironic
-<http://git.openstack.org/cgit/openstack/puppet-ironic/>`_ provides Puppet
-manifests, while `bifrost <http://docs.openstack.org/developer/bifrost/>`_
+<https://git.openstack.org/cgit/openstack/puppet-ironic/>`_ provides Puppet
+manifests, while `bifrost <https://docs.openstack.org/bifrost/latest/>`_
 provides an Ansible-based standalone installer. Refer to Configuration_
 if you plan on installing **ironic-inspector** manually.
 

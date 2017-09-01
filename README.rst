@@ -5,8 +5,8 @@ Hardware introspection for OpenStack Bare Metal
 Introduction
 ============
 
-.. image:: http://governance.openstack.org/badges/ironic-inspector.svg
-    :target: http://governance.openstack.org/reference/tags/index.html
+.. image:: https://governance.openstack.org/tc/badges/ironic-inspector.svg
+    :target: https://governance.openstack.org/tc/reference/tags/index.html
 
 This is an auxiliary service for discovering hardware properties for a
 node managed by `Ironic`_. Hardware introspection or hardware
@@ -34,4 +34,4 @@ Release Notes
 
 For information on any current or prior version, see `the release notes`_.
 
-.. _the release notes: http://docs.openstack.org/releasenotes/ironic-inspector/
+.. _the release notes: https://docs.openstack.org/releasenotes/ironic-inspector/
