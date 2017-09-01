@@ -302,8 +302,12 @@ nodes not supporting iPXE. To use iPXE, you'll need:
     dhcp-sequential-ip
     dhcp-match=ipxe,175
     dhcp-match=set:efi,option:client-arch,7
+    dhcp-match=set:efi,option:client-arch,9
+    # Client is already running iPXE; move to next stage of chainloading
     dhcp-boot=tag:ipxe,http://{IP}:8088/inspector.ipxe
-    dhcp-boot=tag:efi,ipxe.efi
+    # Client is PXE booting over EFI without iPXE ROM,
+    # send EFI version of iPXE chainloader
+    dhcp-boot=tag:efi,tag:!ipxe,ipxe.efi
     dhcp-boot=undionly.kpxe,localhost.localdomain,{IP}
 
   First, we configure the same common parameters as with PXE. Then we define
