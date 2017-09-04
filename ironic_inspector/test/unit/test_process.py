@@ -112,6 +112,18 @@ class TestProcess(BaseProcessTest):
         self.process_mock.assert_called_once_with(self.node_info, self.node,
                                                   self.data)
 
+    def test_ipmi_not_detected_with_old_field(self):
+        self.inventory['bmc_address'] = '0.0.0.0'
+        self.data['ipmi_address'] = '0.0.0.0'
+        process.process(self.data)
+
+        self.find_mock.assert_called_once_with(bmc_address=None, mac=mock.ANY)
+        actual_macs = self.find_mock.call_args[1]['mac']
+        self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
+        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.process_mock.assert_called_once_with(self.node_info, self.node,
+                                                  self.data)
+
     def test_not_found_in_cache(self):
         self.find_mock.side_effect = utils.Error('not found')
         self.assertRaisesRegex(utils.Error,
