@@ -222,9 +222,9 @@ class ValidateInterfacesHook(base.ProcessingHook):
         """Validate information about network interfaces."""
 
         bmc_address = utils.get_ipmi_address_from_data(introspection_data)
-        if bmc_address:
-            introspection_data['ipmi_address'] = bmc_address
-        else:
+        # Overwrite the old ipmi_address field to avoid inconsistency
+        introspection_data['ipmi_address'] = bmc_address
+        if not bmc_address:
             LOG.debug('No BMC address provided in introspection data, '
                       'assuming virtual environment', data=introspection_data)
 
