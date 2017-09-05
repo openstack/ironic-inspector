@@ -12,10 +12,14 @@
 
 import ssl
 import sys
+import traceback as traceback_mod
 
+import eventlet
+from eventlet import semaphore
 from futurist import periodics
 from oslo_config import cfg
 from oslo_log import log
+from oslo_utils import reflection
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db
@@ -36,6 +40,7 @@ class WSGIService(object):
     def __init__(self):
         self.app = app.app
         self._periodics_worker = None
+        self._shutting_down = semaphore.Semaphore()
 
     def _init_middleware(self):
         """Initialize WSGI middleware.
@@ -115,7 +120,7 @@ class WSGIService(object):
         periodic_update_ = periodics.periodic(
             spacing=CONF.firewall.firewall_update_period,
             enabled=CONF.firewall.manage_firewall
-        )(periodic_update)
+        )(firewall.update_filters)
         periodic_clean_up_ = periodics.periodic(
             spacing=CONF.clean_up_period
         )(periodic_clean_up)
@@ -123,18 +128,29 @@ class WSGIService(object):
         self._periodics_worker = periodics.PeriodicWorker(
             callables=[(periodic_update_, None, None),
                        (periodic_clean_up_, None, None)],
-            executor_factory=periodics.ExistingExecutor(utils.executor()))
+            executor_factory=periodics.ExistingExecutor(utils.executor()),
+            on_failure=self._periodics_watchdog)
         utils.executor().submit(self._periodics_worker.start)
 
-    def shutdown(self):
+    def _periodics_watchdog(self, callable_, activity, spacing, exc_info,
+                            traceback=None):
+        LOG.exception("The periodic %(callable)s failed with: %(exception)s", {
+            'exception': ''.join(traceback_mod.format_exception(*exc_info)),
+            'callable': reflection.get_callable_name(callable_)})
+        # NOTE(milan): spawn new thread otherwise waiting would block
+        eventlet.spawn(self.shutdown, error=str(exc_info[1]))
+
+    def shutdown(self, error=None):
         """Stop serving API, clean up.
 
         :returns: None
         """
         # TODO(aarefiev): move shutdown code to WorkerService
-        LOG.debug('Shutting down')
+        if not self._shutting_down.acquire(blocking=False):
+            LOG.warning('Attempted to shut down while already shutting down')
+            return
 
-        firewall.clean_up()
+        LOG.debug('Shutting down')
 
         if self._periodics_worker is not None:
             try:
@@ -148,7 +164,11 @@ class WSGIService(object):
         if utils.executor().alive:
             utils.executor().shutdown(wait=True)
 
+        firewall.clean_up()
+
+        self._shutting_down.release()
         LOG.info('Shut down successfully')
+        sys.exit(error)
 
     def run(self):
         """Start serving this service using loaded application.
@@ -168,15 +188,10 @@ class WSGIService(object):
 
         try:
             self.app.run(**app_kwargs)
-        finally:
+        except Exception as e:
+            self.shutdown(error=str(e))
+        else:
             self.shutdown()
-
-
-def periodic_update():  # pragma: no cover
-    try:
-        firewall.update_filters()
-    except Exception:
-        LOG.exception('Periodic update of firewall rules failed')
 
 
 def periodic_clean_up():  # pragma: no cover

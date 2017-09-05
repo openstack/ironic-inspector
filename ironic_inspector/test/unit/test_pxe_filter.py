@@ -231,6 +231,29 @@ class TestBaseFilterInterface(BaseFilterBaseTest):
         self.mock_periodic.return_value.call_args[0][0]()
         sync_mock.assert_called_once_with(self.mock_get_client.return_value)
 
+    def test_get_periodic_sync_task_invalid_state(self):
+        sync_mock = self.useFixture(
+            fixtures.MockPatchObject(self.driver, 'sync')).mock
+        sync_mock.side_effect = pxe_filter.InvalidFilterDriverState('Oops!')
+
+        self.driver.get_periodic_sync_task()
+        self.mock_periodic.assert_called_once_with(spacing=15, enabled=True)
+        self.assertRaisesRegex(periodics.NeverAgain, 'Oops!',
+                               self.mock_periodic.return_value.call_args[0][0])
+
+    def test_get_periodic_sync_task_custom_error(self):
+        class MyError(Exception):
+            pass
+
+        sync_mock = self.useFixture(
+            fixtures.MockPatchObject(self.driver, 'sync')).mock
+        sync_mock.side_effect = MyError('Oops!')
+
+        self.driver.get_periodic_sync_task()
+        self.mock_periodic.assert_called_once_with(spacing=15, enabled=True)
+        self.assertRaisesRegex(
+            MyError, 'Oops!', self.mock_periodic.return_value.call_args[0][0])
+
     def test_get_periodic_sync_task_disabled(self):
         CONF.set_override('sync_period', 0, 'pxe_filter')
         self.driver.get_periodic_sync_task()
