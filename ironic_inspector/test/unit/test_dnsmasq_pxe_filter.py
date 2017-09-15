@@ -86,6 +86,98 @@ class TestDnsmasqDriverAPI(DnsmasqTestBase):
             self.stop_command, ignore_errors=True)
 
 
+class TestExclusiveWriteOrPass(test_base.BaseTest):
+    def setUp(self):
+        super(TestExclusiveWriteOrPass, self).setUp()
+        self.mock_open = self.useFixture(fixtures.MockPatchObject(
+            six.moves.builtins, 'open', new=mock.mock_open())).mock
+        self.mock_fd = self.mock_open.return_value
+        self.mock_fcntl = self.useFixture(fixtures.MockPatchObject(
+            dnsmasq.fcntl, 'flock', autospec=True)).mock
+        self.path = '/foo/bar/baz'
+        self.buf = 'spam'
+        self.fcntl_lock_call = mock.call(
+            self.mock_fd, dnsmasq.fcntl.LOCK_EX | dnsmasq.fcntl.LOCK_NB)
+        self.fcntl_unlock_call = mock.call(self.mock_fd, dnsmasq.fcntl.LOCK_UN)
+        self.mock_log = self.useFixture(fixtures.MockPatchObject(
+            dnsmasq.LOG, 'debug')).mock
+        self.mock_sleep = self.useFixture(fixtures.MockPatchObject(
+            dnsmasq.time, 'sleep')).mock
+
+    def test_write(self):
+        wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
+        self.assertIs(bool(self.mock_fd.write.return_value), wrote)
+        self.mock_open.assert_called_once_with(self.path, 'w', 1)
+        self.mock_fcntl.assert_has_calls(
+            [self.fcntl_lock_call, self.fcntl_unlock_call])
+        self.mock_fd.write.assert_called_once_with(self.buf)
+        self.mock_log.assert_not_called()
+
+    def test_write_would_block(self):
+        err = IOError('Oops!')
+        err.errno = os.errno.EWOULDBLOCK
+        # lock/unlock paired calls
+        self.mock_fcntl.side_effect = [
+            # first try
+            err, None,
+            # second try
+            None, None]
+        wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
+
+        self.assertIs(bool(self.mock_fd.write.return_value), wrote)
+        self.mock_open.assert_called_once_with(self.path, 'w', 1)
+        self.mock_fcntl.assert_has_calls(
+            [self.fcntl_lock_call, self.fcntl_unlock_call],
+            [self.fcntl_lock_call, self.fcntl_unlock_call])
+        self.mock_fd.write.assert_called_once_with(self.buf)
+        self.mock_log.assert_called_once_with(
+            '%s locked; will try again (later)', self.path)
+        self.mock_sleep.assert_called_once_with(
+            dnsmasq._EXCLUSIVE_WRITE_ATTEMPTS_DELAY)
+
+    def test_write_would_block_too_many_times(self):
+        self.useFixture(fixtures.MonkeyPatch(
+            'ironic_inspector.pxe_filter.dnsmasq._EXCLUSIVE_WRITE_ATTEMPTS',
+            1))
+        err = IOError('Oops!')
+        err.errno = os.errno.EWOULDBLOCK
+        self.mock_fcntl.side_effect = [err, None]
+
+        wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
+        self.assertEqual(0, wrote)
+        self.mock_open.assert_called_once_with(self.path, 'w', 1)
+        self.mock_fcntl.assert_has_calls(
+            [self.fcntl_lock_call, self.fcntl_unlock_call])
+        self.mock_fd.write.assert_not_called()
+        retry_log_call = mock.call('%s locked; will try again (later)',
+                                   self.path)
+        failed_log_call = mock.call(
+            'Failed to write the exclusively-locked path: %(path)s for '
+            '%(attempts)s times', {
+                'attempts': dnsmasq._EXCLUSIVE_WRITE_ATTEMPTS,
+                'path': self.path
+            })
+        self.mock_log.assert_has_calls([retry_log_call, failed_log_call])
+        self.mock_sleep.assert_called_once_with(
+            dnsmasq._EXCLUSIVE_WRITE_ATTEMPTS_DELAY)
+
+    def test_write_custom_ioerror(self):
+
+        err = IOError('Oops!')
+        err.errno = os.errno.EBADF
+        self.mock_fcntl.side_effect = [err, None]
+
+        self.assertRaisesRegex(
+            IOError, 'Oops!', dnsmasq._exclusive_write_or_pass, self.path,
+            self.buf)
+
+        self.mock_open.assert_called_once_with(self.path, 'w', 1)
+        self.mock_fcntl.assert_has_calls(
+            [self.fcntl_lock_call, self.fcntl_unlock_call])
+        self.mock_fd.write.assert_not_called()
+        self.mock_log.assert_not_called()
+
+
 class TestMACHandlers(test_base.BaseTest):
     def setUp(self):
         super(TestMACHandlers, self).setUp()
@@ -102,26 +194,22 @@ class TestMACHandlers(test_base.BaseTest):
         self.mock_join = self.useFixture(
             fixtures.MockPatchObject(os.path, 'join')).mock
         self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir, self.mac)
+        self.mock__exclusive_write_or_pass = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq, '_exclusive_write_or_pass')).mock
 
     def test__whitelist_mac(self):
-        with mock.patch.object(six.moves.builtins, 'open',
-                               new=mock.mock_open()) as mock_open:
-            dnsmasq._whitelist_mac(self.mac)
+        dnsmasq._whitelist_mac(self.mac)
 
-        mock_fd = mock_open.return_value
         self.mock_join.assert_called_once_with(self.dhcp_hostsdir, self.mac)
-        mock_open.assert_called_once_with(self.mock_join.return_value, 'w', 1)
-        mock_fd.write.assert_called_once_with('%s\n' % self.mac)
+        self.mock__exclusive_write_or_pass.assert_called_once_with(
+            self.mock_join.return_value, '%s\n' % self.mac)
 
     def test__blacklist_mac(self):
-        with mock.patch.object(six.moves.builtins, 'open',
-                               new=mock.mock_open()) as mock_open:
-            dnsmasq._blacklist_mac(self.mac)
+        dnsmasq._blacklist_mac(self.mac)
 
-        mock_fd = mock_open.return_value
         self.mock_join.assert_called_once_with(self.dhcp_hostsdir, self.mac)
-        mock_open.assert_called_once_with(self.mock_join.return_value, 'w', 1)
-        mock_fd.write.assert_called_once_with('%s,ignore\n' % self.mac)
+        self.mock__exclusive_write_or_pass.assert_called_once_with(
+            self.mock_join.return_value, '%s,ignore\n' % self.mac)
 
     def test__get_blacklist(self):
         self.mock_listdir.return_value = [self.mac]
@@ -151,6 +239,14 @@ class TestMACHandlers(test_base.BaseTest):
         self.mock_join.assert_called_once_with(self.dhcp_hostsdir, self.mac)
         self.mock_remove.assert_called_once_with('%s/%s' % (self.dhcp_hostsdir,
                                                             self.mac))
+
+    def test_disabled__purge_dhcp_hostsdir(self):
+        CONF.set_override('purge_dhcp_hostsdir', False, 'dnsmasq_pxe_filter')
+
+        dnsmasq._purge_dhcp_hostsdir()
+        self.mock_listdir.assert_not_called()
+        self.mock_join.assert_not_called()
+        self.mock_remove.assert_not_called()
 
 
 class TestSync(DnsmasqTestBase):

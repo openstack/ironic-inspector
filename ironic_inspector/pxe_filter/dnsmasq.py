@@ -20,7 +20,9 @@
 #     http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html
 
 
+import fcntl
 import os
+import time
 
 from oslo_concurrency import processutils
 from oslo_config import cfg
@@ -33,6 +35,9 @@ from ironic_inspector.pxe_filter import base as pxe_filter
 
 CONF = cfg.CONF
 LOG = log.getLogger(__name__)
+
+_EXCLUSIVE_WRITE_ATTEMPTS = 10
+_EXCLUSIVE_WRITE_ATTEMPTS_DELAY = 0.01
 
 _ROOTWRAP_COMMAND = 'sudo ironic-inspector-rootwrap {rootwrap_config!s}'
 _MACBL_LEN = len('ff:ff:ff:ff:ff:ff,ignore\n')
@@ -116,6 +121,10 @@ def _purge_dhcp_hostsdir():
     :returns: None.
     """
     dhcp_hostsdir = CONF.dnsmasq_pxe_filter.dhcp_hostsdir
+    if not CONF.dnsmasq_pxe_filter.purge_dhcp_hostsdir:
+        LOG.debug('Not purging %s; disabled in configuration.', dhcp_hostsdir)
+        return
+
     LOG.debug('Purging %s', dhcp_hostsdir)
     for mac in os.listdir(dhcp_hostsdir):
         path = os.path.join(dhcp_hostsdir, mac)
@@ -137,6 +146,40 @@ def _get_blacklist():
                _MACBL_LEN)
 
 
+def _exclusive_write_or_pass(path, buf):
+    """Write exclusively or pass if path locked.
+
+    The intention is to be able to run multiple instances of the filter on the
+    same node in multiple inspector processes.
+
+    :param path: where to write to
+    :param buf: the content to write
+    :raises: FileNotFoundError, IOError
+    :returns: True if the write was successful.
+    """
+    # NOTE(milan) line-buffering enforced to ensure dnsmasq record update
+    # through inotify, which reacts on f.close()
+    attempts = _EXCLUSIVE_WRITE_ATTEMPTS
+    with open(path, 'w', 1) as f:
+        while attempts:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return bool(f.write(buf))
+            except IOError as e:
+                if e.errno == os.errno.EWOULDBLOCK:
+                    LOG.debug('%s locked; will try again (later)', path)
+                    attempts -= 1
+                    time.sleep(_EXCLUSIVE_WRITE_ATTEMPTS_DELAY)
+                    continue
+                raise
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    LOG.debug('Failed to write the exclusively-locked path: %(path)s for '
+              '%(attempts)s times', {'attempts': _EXCLUSIVE_WRITE_ATTEMPTS,
+                                     'path': path})
+    return 0
+
+
 def _blacklist_mac(mac):
     """Creates a dhcp_hostsdir ignore record for the MAC.
 
@@ -145,11 +188,11 @@ def _blacklist_mac(mac):
     :returns: None.
     """
     path = os.path.join(CONF.dnsmasq_pxe_filter.dhcp_hostsdir, mac)
-    # NOTE(milan) line-buffering enforced to ensure dnsmasq record update
-    # through inotify, which reacts on f.close()
-    with open(path, 'w', 1) as f:
-        f.write('%s,ignore\n' % mac)
-    LOG.debug('Blacklisted %s', mac)
+    if _exclusive_write_or_pass(path, '%s,ignore\n' % mac):
+        LOG.debug('Blacklisted %s', mac)
+    else:
+        LOG.warning('Failed to blacklist %s; retrying next periodic sync '
+                    'time', mac)
 
 
 def _whitelist_mac(mac):
@@ -160,10 +203,12 @@ def _whitelist_mac(mac):
     :returns: None.
     """
     path = os.path.join(CONF.dnsmasq_pxe_filter.dhcp_hostsdir, mac)
-    with open(path, 'w', 1) as f:
-        # remove the ,ignore directive
-        f.write('%s\n' % mac)
-    LOG.debug('Whitelisted %s', mac)
+    # remove the ,ignore directive
+    if _exclusive_write_or_pass(path, '%s\n' % mac):
+        LOG.debug('Whitelisted %s', mac)
+    else:
+        LOG.warning('Failed to whitelist %s; retrying next periodic sync '
+                    'time', mac)
 
 
 def _execute(cmd=None, ignore_errors=False):
