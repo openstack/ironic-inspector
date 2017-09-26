@@ -95,7 +95,7 @@ class InspectorScenarioTest(BaremetalScenarioTest):
         self.baremetal_client.set_node_provision_state(self, uuid, state)
 
     def hypervisor_stats(self):
-        return (self.admin_manager.hypervisor_client.
+        return (self.os_admin.hypervisor_client.
                 show_hypervisor_statistics())
 
     def server_show(self, uuid):
