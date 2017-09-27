@@ -1,0 +1,59 @@
+# Full read/write API access
+#"is_admin": "role:admin or role:administrator or role:baremetal_admin"
+
+# Read-only API access
+#"is_observer": "role:baremetal_observer"
+
+# Internal flag for public API routes
+#"public_api": "is_public_api:True"
+
+# Default API access policy
+#"default": "!"
+
+# Access the API root for available versions information
+# GET  /
+#"introspection": "rule:public_api"
+
+# Access the versioned API root for version information
+# GET  /{version}
+#"introspection:version": "rule:public_api"
+
+# Ramdisk callback to continue introspection
+# POST  /continue
+#"introspection:continue": "rule:public_api"
+
+# Get introspection status
+# GET  /introspection
+# GET  /introspection/{node_id}
+#"introspection:status": "rule:is_admin or rule:is_observer"
+
+# Start introspection
+# POST  /introspection/{node_id}
+#"introspection:start": "rule:is_admin"
+
+# Abort introspection
+# POST  /introspection/{node_id}/abort
+#"introspection:abort": "rule:is_admin"
+
+# Get introspection data
+# GET  /introspection/{node_id}/data
+#"introspection:data": "rule:is_admin"
+
+# Reapply introspection on stored data
+# POST  /introspection/{node_id}/data/unprocessed
+#"introspection:reapply": "rule:is_admin"
+
+# Get introspection rule(s)
+# GET  /rules
+# GET  /rules/{rule_id}
+#"introspection:rule:get": "rule:is_admin"
+
+# Delete introspection rule(s)
+# DELETE  /rules
+# DELETE  /rules/{rule_id}
+#"introspection:rule:delete": "rule:is_admin"
+
+# Create introspection rule
+# POST  /rules
+#"introspection:rule:create": "rule:is_admin"
+

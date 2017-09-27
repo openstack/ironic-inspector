@@ -9,5 +9,7 @@ file. The overview of configuration file options follow.
 
   Ironic Inspector Configuration Options <ironic-inspector>
   Sample Ironic Inspector Configuration <sample-config>
+  Policies <policy>
+  Sample policy file <sample-policy>
 
 

@@ -24,6 +24,7 @@ import pytz
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector import conf  # noqa
+from ironic_inspector import policy
 
 CONF = cfg.CONF
 
@@ -170,20 +171,21 @@ def add_cors_middleware(app):
     app.wsgi_app = cors_middleware.CORS(app.wsgi_app, CONF)
 
 
-def check_auth(request):
+def check_auth(request, rule=None, target=None):
     """Check authentication on request.
 
     :param request: Flask request
+    :param rule: policy rule to check the request against
     :raises: utils.Error if access is denied
     """
     if CONF.auth_strategy == 'noauth':
         return
-    if request.headers.get('X-Identity-Status').lower() == 'invalid':
-        raise Error(_('Authentication required'), code=401)
-    roles = (request.headers.get('X-Roles') or '').split(',')
-    if 'admin' not in roles:
-        LOG.error('Role "admin" not in user role list %s', roles)
-        raise Error(_('Access denied'), code=403)
+    if not request.context.is_public_api:
+        if request.headers.get('X-Identity-Status', '').lower() == 'invalid':
+            raise Error(_('Authentication required'), code=401)
+    target = {} if target is None else target
+    if not policy.authorize(rule, target, request.context.to_policy_values()):
+        raise Error(_("Access denied by policy"), code=403)
 
 
 def get_valid_macs(data):

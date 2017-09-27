@@ -7,6 +7,8 @@
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
+              'oslo_policy.sphinxext',
+              'oslo_policy.sphinxpolicygen',
               'oslo_config.sphinxext',
               'oslo_config.sphinxconfiggen']
 
@@ -42,6 +44,9 @@ copyright = u'OpenStack Foundation'
 
 config_generator_config_file = '../../config-generator.conf'
 sample_config_basename = '_static/ironic-inspector'
+
+policy_generator_config_file = '../../policy-generator.conf'
+sample_policy_basename = '_static/ironic-inspector'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

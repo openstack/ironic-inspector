@@ -21,6 +21,7 @@ from oslo_utils import uuidutils
 import werkzeug
 
 from ironic_inspector import api_tools
+from ironic_inspector.common import context
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
@@ -146,8 +147,44 @@ def generate_introspection_status(node):
     return status
 
 
-@app.route('/', methods=['GET'])
-@convert_exceptions
+def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
+        **flask_kwargs):
+    """Decorator to wrap api methods.
+
+    Performs flask routing, exception convertion,
+    generation of oslo context for request and API access policy enforcement.
+
+    :param path: flask app route path
+    :param is_public_api: whether this API path should be treated
+                          as public, with minimal access enforcement
+    :param rule: API access policy rule to enforce.
+                 If rule is None, the 'default' policy rule will be enforced,
+                 which is "deny all" if not overridden in policy confif file.
+    :param verb_to_rule_map: if both rule and this are given,
+                             defines mapping between http verbs (uppercase)
+                             and strings to format the 'rule' string with
+    :param kwargs: all the rest kwargs are passed to flask app.route
+    """
+    def outer(func):
+        @app.route(path, **flask_kwargs)
+        @convert_exceptions
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            flask.request.context = context.RequestContext.from_environ(
+                flask.request.environ,
+                is_public_api=is_public_api)
+            if verb_to_rule_map and rule:
+                policy_rule = rule.format(
+                    verb_to_rule_map[flask.request.method.upper()])
+            else:
+                policy_rule = rule
+            utils.check_auth(flask.request, rule=policy_rule)
+            return func(*args, **kwargs)
+        return wrapper
+    return outer
+
+
+@api('/', rule='introspection', is_public_api=True, methods=['GET'])
 def api_root():
     versions = [
         {
@@ -163,8 +200,8 @@ def api_root():
     return flask.jsonify(versions=versions)
 
 
-@app.route('/<version>', methods=['GET'])
-@convert_exceptions
+@api('/<version>', rule='introspection:version', is_public_api=True,
+     methods=['GET'])
 def version_root(version):
     pat = re.compile("^\/%s\/[^\/]*?$" % version)
 
@@ -179,8 +216,8 @@ def version_root(version):
     return flask.jsonify(resources=generate_resource_data(resources))
 
 
-@app.route('/v1/continue', methods=['POST'])
-@convert_exceptions
+@api('/v1/continue', rule="introspection:continue", is_public_api=True,
+     methods=['POST'])
 def api_continue():
     data = flask.request.get_json(force=True)
     if not isinstance(data, dict):
@@ -196,11 +233,11 @@ def api_continue():
 
 
 # TODO(sambetts) Add API discovery for this endpoint
-@app.route('/v1/introspection/<node_id>', methods=['GET', 'POST'])
-@convert_exceptions
+@api('/v1/introspection/<node_id>',
+     rule="introspection:{}",
+     verb_to_rule_map={'GET': 'status', 'POST': 'start'},
+     methods=['GET', 'POST'])
 def api_introspection(node_id):
-    utils.check_auth(flask.request)
-
     if flask.request.method == 'POST':
         introspect.introspect(node_id,
                               token=flask.request.headers.get('X-Auth-Token'))
@@ -210,11 +247,8 @@ def api_introspection(node_id):
         return flask.json.jsonify(generate_introspection_status(node_info))
 
 
-@app.route('/v1/introspection', methods=['GET'])
-@convert_exceptions
+@api('/v1/introspection', rule='introspection:status', methods=['GET'])
 def api_introspection_statuses():
-    utils.check_auth(flask.request)
-
     nodes = node_cache.get_node_list(
         marker=api_tools.marker_field(),
         limit=api_tools.limit_field(default=CONF.api_max_limit)
@@ -226,19 +260,16 @@ def api_introspection_statuses():
     return flask.json.jsonify(data)
 
 
-@app.route('/v1/introspection/<node_id>/abort', methods=['POST'])
-@convert_exceptions
+@api('/v1/introspection/<node_id>/abort', rule="introspection:abort",
+     methods=['POST'])
 def api_introspection_abort(node_id):
-    utils.check_auth(flask.request)
     introspect.abort(node_id, token=flask.request.headers.get('X-Auth-Token'))
     return '', 202
 
 
-@app.route('/v1/introspection/<node_id>/data', methods=['GET'])
-@convert_exceptions
+@api('/v1/introspection/<node_id>/data', rule="introspection:data",
+     methods=['GET'])
 def api_introspection_data(node_id):
-    utils.check_auth(flask.request)
-
     if CONF.processing.store_data == 'swift':
         if not uuidutils.is_uuid_like(node_id):
             node = ir_utils.get_node(node_id, fields=['uuid'])
@@ -252,11 +283,9 @@ def api_introspection_data(node_id):
                               code=404)
 
 
-@app.route('/v1/introspection/<node_id>/data/unprocessed', methods=['POST'])
-@convert_exceptions
+@api('/v1/introspection/<node_id>/data/unprocessed',
+     rule="introspection:reapply", methods=['POST'])
 def api_introspection_reapply(node_id):
-    utils.check_auth(flask.request)
-
     if flask.request.content_length:
         return error_response(_('User data processing is not '
                                 'supported yet'), code=400)
@@ -280,11 +309,11 @@ def rule_repr(rule, short):
     return result
 
 
-@app.route('/v1/rules', methods=['GET', 'POST', 'DELETE'])
-@convert_exceptions
+@api('/v1/rules',
+     rule="introspection:rule:{}",
+     verb_to_rule_map={'GET': 'get', 'POST': 'create', 'DELETE': 'delete'},
+     methods=['GET', 'POST', 'DELETE'])
 def api_rules():
-    utils.check_auth(flask.request)
-
     if flask.request.method == 'GET':
         res = [rule_repr(rule, short=True) for rule in rules.get_all()]
         return flask.jsonify(rules=res)
@@ -306,11 +335,11 @@ def api_rules():
             flask.jsonify(rule_repr(rule, short=False)), response_code)
 
 
-@app.route('/v1/rules/<uuid>', methods=['GET', 'DELETE'])
-@convert_exceptions
+@api('/v1/rules/<uuid>',
+     rule="introspection:rule:{}",
+     verb_to_rule_map={'GET': 'get', 'DELETE': 'delete'},
+     methods=['GET', 'DELETE'])
 def api_rule(uuid):
-    utils.check_auth(flask.request)
-
     if flask.request.method == 'GET':
         rule = rules.get(uuid)
         return flask.jsonify(rule_repr(rule, short=False))
