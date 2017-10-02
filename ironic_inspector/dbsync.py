@@ -59,8 +59,6 @@ command_opt = cfg.SubCommandOpt('command',
                                 help='Available commands',
                                 handler=add_command_parsers)
 
-CONF.register_cli_opt(command_opt)
-
 
 def _get_alembic_config():
     return alembic_config.Config(os.path.join(os.path.dirname(__file__),
@@ -86,6 +84,7 @@ def do_alembic_command(config, cmd, *args, **kwargs):
 
 def main(args=sys.argv[1:]):
     log.register_options(CONF)
+    CONF.register_cli_opt(command_opt)
     CONF(args, project='ironic-inspector')
     config = _get_alembic_config()
     config.set_main_option('script_location', "ironic_inspector:migrations")
