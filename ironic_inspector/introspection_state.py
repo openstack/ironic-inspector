@@ -128,7 +128,6 @@ State_space = [
         'name': States.starting,
         'next_states': {
             Events.error: States.error,
-            Events.start: States.starting,
             Events.wait: States.waiting,
             Events.timeout: States.error
         },
