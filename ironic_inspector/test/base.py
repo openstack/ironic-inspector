@@ -18,7 +18,6 @@ import fixtures
 import futurist
 import mock
 from oslo_concurrency import lockutils
-from oslo_config import cfg
 from oslo_config import fixture as config_fixture
 from oslo_log import log
 from oslo_utils import units
@@ -26,15 +25,14 @@ from oslo_utils import uuidutils
 from oslotest import base as test_base
 
 from ironic_inspector.common import i18n
-# Import configuration options
-from ironic_inspector import conf  # noqa
+from ironic_inspector import conf
 from ironic_inspector import db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
 
-CONF = cfg.CONF
+CONF = conf.cfg.CONF
 
 
 class BaseTest(test_base.BaseTestCase):
@@ -65,6 +63,7 @@ class BaseTest(test_base.BaseTestCase):
         self.cfg.set_default('connection', "sqlite:///", group='database')
         self.cfg.set_default('slave_connection', None, group='database')
         self.cfg.set_default('max_retries', 10, group='database')
+        conf.parse_args([], default_config_files=[])
 
     def assertPatchEqual(self, expected, actual):
         expected = sorted(expected, key=lambda p: p['path'])

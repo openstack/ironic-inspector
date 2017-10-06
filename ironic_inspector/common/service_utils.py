@@ -10,25 +10,19 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from oslo_config import cfg
 from oslo_log import log
 
+from ironic_inspector import conf
 
 LOG = log.getLogger(__name__)
-CONF = cfg.CONF
+CONF = conf.cfg.CONF
 
 
-def prepare_service(args):
+def prepare_service(args=None):
+    args = [] if args is None else args
     log.register_options(CONF)
-    log.set_defaults(default_log_levels=['sqlalchemy=WARNING',
-                                         'iso8601=WARNING',
-                                         'requests=WARNING',
-                                         'urllib3.connectionpool=WARNING',
-                                         'keystonemiddleware=WARNING',
-                                         'swiftclient=WARNING',
-                                         'keystoneauth=WARNING',
-                                         'ironicclient=WARNING'])
-    CONF(args, project='ironic-inspector')
+    conf.set_config_defaults()
+    conf.parse_args(args)
     log.setup(CONF, 'ironic_inspector')
 
     LOG.debug("Configuration:")

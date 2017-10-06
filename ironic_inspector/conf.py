@@ -12,9 +12,11 @@
 # limitations under the License.
 
 from oslo_config import cfg
+from oslo_log import log
 from oslo_middleware import cors
 
 from ironic_inspector.common.i18n import _
+from ironic_inspector import version
 
 
 MIN_VERSION_HEADER = 'X-OpenStack-Ironic-Inspector-API-Minimum-Version'
@@ -214,6 +216,14 @@ def list_opts():
 
 def set_config_defaults():
     """This method updates all configuration default values."""
+    log.set_defaults(default_log_levels=['sqlalchemy=WARNING',
+                                         'iso8601=WARNING',
+                                         'requests=WARNING',
+                                         'urllib3.connectionpool=WARNING',
+                                         'keystonemiddleware=WARNING',
+                                         'swiftclient=WARNING',
+                                         'keystoneauth=WARNING',
+                                         'ironicclient=WARNING'])
     set_cors_middleware_defaults()
 
 
@@ -229,3 +239,10 @@ def set_cors_middleware_defaults():
         allow_methods=['GET', 'POST', 'PUT', 'HEAD',
                        'PATCH', 'DELETE', 'OPTIONS']
     )
+
+
+def parse_args(args, default_config_files=None):
+    cfg.CONF(args,
+             project='ironic-inspector',
+             version=version.version_info.release_string(),
+             default_config_files=default_config_files)
