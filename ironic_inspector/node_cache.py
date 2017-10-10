@@ -211,8 +211,8 @@ class NodeInfo(object):
         """Update node_info.state based on a fsm.process_event(event) call.
 
         An AutomatonException triggers an error event.
-        If strict, node_info.finished(error=str(exc)) is called with the
-        AutomatonException instance and a EventError raised.
+        If strict, node_info.finished(istate.Events.error, error=str(exc))
+        is called with the AutomatonException instance and a EventError raised.
 
         :param event: an event to process by the fsm
         :strict: whether to fail the introspection upon an invalid event
@@ -229,8 +229,7 @@ class NodeInfo(object):
                 if strict:
                     LOG.error(msg, node_info=self)
                     # assuming an error event is always possible
-                    fsm.process_event(istate.Events.error)
-                    self.finished(error=str(exc))
+                    self.finished(istate.Events.error, error=str(exc))
                 else:
                     LOG.warning(msg, node_info=self)
                 raise utils.NodeStateInvalidEvent(str(exc), node_info=self)
@@ -273,19 +272,21 @@ class NodeInfo(object):
             db.Option(uuid=self.uuid, name=name, value=encoded).save(
                 session)
 
-    def finished(self, error=None):
-        """Record status for this node.
+    def finished(self, event, error=None):
+        """Record status for this node and process a terminal transition.
 
         Also deletes look up attributes from the cache.
 
+        :param event: the event to process
         :param error: error message
         """
-        self.release_lock()
 
+        self.release_lock()
         self.finished_at = timeutils.utcnow()
         self.error = error
 
         with db.ensure_transaction() as session:
+            self.fsm_event(event)
             self._commit(finished_at=self.finished_at, error=self.error)
             db.model_query(db.Attribute, session=session).filter_by(
                 node_uuid=self.uuid).delete()
@@ -553,7 +554,7 @@ def triggers_fsm_error_transition(errors=(Exception,),
                                'func': reflection.get_callable_name(func)},
                               node_info=node_info)
                     # an error event should be possible from all states
-                    node_info.fsm_event(istate.Events.error)
+                    node_info.finished(istate.Events.error, error=str(exc))
             return ret
         return inner
     return outer
@@ -899,8 +900,8 @@ def clean_up():
                           'while introspection in "%s" state',
                           node_info.state,
                           node_info=node_info)
-            node_info.fsm_event(istate.Events.timeout)
-            node_info.finished(error='Introspection timeout')
+            node_info.finished(
+                istate.Events.timeout, error='Introspection timeout')
         finally:
             node_info.release_lock()
 

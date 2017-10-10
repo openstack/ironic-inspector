@@ -140,7 +140,8 @@ class TestProcess(BaseProcessTest):
                                process.process, self.data)
         self.cli.node.get.assert_called_once_with(self.uuid)
         self.assertFalse(self.process_mock.called)
-        self.node_info.finished.assert_called_once_with(error=mock.ANY)
+        self.node_info.finished.assert_called_once_with(
+            istate.Events.error, error=mock.ANY)
 
     def test_already_finished(self):
         self.node_info.finished_at = timeutils.utcnow()
@@ -155,7 +156,8 @@ class TestProcess(BaseProcessTest):
         self.assertRaisesRegex(utils.Error, 'boom',
                                process.process, self.data)
 
-        self.node_info.finished.assert_called_once_with(error='boom')
+        self.node_info.finished.assert_called_once_with(
+            istate.Events.error, error='boom')
 
     def test_unexpected_exception(self):
         self.process_mock.side_effect = RuntimeError('boom')
@@ -166,6 +168,7 @@ class TestProcess(BaseProcessTest):
 
         self.assertEqual(500, ctx.exception.http_code)
         self.node_info.finished.assert_called_once_with(
+            istate.Events.error,
             error='Unexpected exception RuntimeError during processing: boom')
 
     def test_hook_unexpected_exceptions(self):
@@ -179,7 +182,7 @@ class TestProcess(BaseProcessTest):
                                process.process, self.data)
 
         self.node_info.finished.assert_called_once_with(
-            error=mock.ANY)
+            istate.Events.error, error=mock.ANY)
         error_message = self.node_info.finished.call_args[1]['error']
         self.assertIn('RuntimeError', error_message)
         self.assertIn('boom', error_message)
@@ -422,7 +425,7 @@ class TestProcessNode(BaseTest):
         self.assertFalse(self.cli.node.validate.called)
 
         post_hook_mock.assert_called_once_with(self.data, self.node_info)
-        finished_mock.assert_called_once_with(mock.ANY)
+        finished_mock.assert_called_once_with(mock.ANY, istate.Events.finish)
 
     def test_port_failed(self):
         self.cli.port.create.side_effect = (
@@ -445,9 +448,9 @@ class TestProcessNode(BaseTest):
 
         self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         finished_mock.assert_called_once_with(
-            mock.ANY,
+            mock.ANY, istate.Events.error,
             error='Failed to power off node %s, check its power '
-                  'management configuration: boom' % self.uuid
+            'management configuration: boom' % self.uuid
         )
 
     @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
@@ -460,7 +463,8 @@ class TestProcessNode(BaseTest):
 
         self.assertTrue(post_hook_mock.called)
         self.assertTrue(self.cli.node.set_power_state.called)
-        finished_mock.assert_called_once_with(self.node_info)
+        finished_mock.assert_called_once_with(
+            self.node_info, istate.Events.finish)
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_no_power_off(self, finished_mock):
@@ -468,7 +472,8 @@ class TestProcessNode(BaseTest):
         process._process_node(self.node_info, self.node, self.data)
 
         self.assertFalse(self.cli.node.set_power_state.called)
-        finished_mock.assert_called_once_with(self.node_info)
+        finished_mock.assert_called_once_with(
+            self.node_info, istate.Events.finish)
 
     @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
     def test_store_data(self, swift_mock):
@@ -524,6 +529,7 @@ class TestReapply(BaseTest):
             pop_mock.return_value = node_cache.NodeInfo(
                 uuid=self.node.uuid,
                 started_at=self.started_at)
+
             pop_mock.return_value.finished = mock.Mock()
             pop_mock.return_value.acquire_lock = mock.Mock()
             return func(self, pop_mock, *args, **kw)
@@ -604,8 +610,7 @@ class TestReapplyNode(BaseTest):
         return wrapper
 
     @prepare_mocks
-    def test_ok(self, finished_mock, swift_mock, apply_mock,
-                post_hook_mock):
+    def test_ok(self, finished_mock, swift_mock, apply_mock, post_hook_mock):
         swift_name = 'inspector_data-%s' % self.uuid
         swift_mock.get_object.return_value = json.dumps(self.data)
 
@@ -623,7 +628,8 @@ class TestReapplyNode(BaseTest):
 
         # assert no power operations were performed
         self.assertFalse(self.cli.node.set_power_state.called)
-        finished_mock.assert_called_once_with(self.node_info)
+        finished_mock.assert_called_once_with(
+            self.node_info, istate.Events.finish)
 
         # asserting validate_interfaces was called
         self.assertEqual(self.pxe_interfaces, swifted_data['interfaces'])
@@ -639,9 +645,8 @@ class TestReapplyNode(BaseTest):
         )
 
     @prepare_mocks
-    def test_get_incomming_data_exception(self, finished_mock,
-                                          swift_mock, apply_mock,
-                                          post_hook_mock):
+    def test_get_incomming_data_exception(self, finished_mock, swift_mock,
+                                          apply_mock, post_hook_mock):
         exc = Exception('Oops')
         expected_error = ('Unexpected exception Exception while fetching '
                           'unprocessed introspection data from Swift: Oops')
@@ -652,12 +657,12 @@ class TestReapplyNode(BaseTest):
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
         self.assertFalse(post_hook_mock.called)
-        finished_mock.assert_called_once_with(self.node_info,
-                                              expected_error)
+        finished_mock.assert_called_once_with(
+            self.node_info, istate.Events.error, error=expected_error)
 
     @prepare_mocks
-    def test_prehook_failure(self, finished_mock, swift_mock,
-                             apply_mock, post_hook_mock):
+    def test_prehook_failure(self, finished_mock, swift_mock, apply_mock,
+                             post_hook_mock):
         CONF.set_override('processing_hooks', 'example',
                           'processing')
         plugins_base._HOOKS_MGR = None
@@ -676,23 +681,23 @@ class TestReapplyNode(BaseTest):
                        'preprocessing in hook example: %(error)s' %
                        {'exc_class': type(exc).__name__, 'error':
                         exc})
-        finished_mock.assert_called_once_with(self.node_info,
-                                              error=exc_failure)
+        finished_mock.assert_called_once_with(
+            self.node_info, istate.Events.error, error=exc_failure)
         # assert _reapply ended having detected the failure
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
         self.assertFalse(post_hook_mock.called)
 
     @prepare_mocks
-    def test_generic_exception_creating_ports(self, finished_mock,
-                                              swift_mock, apply_mock,
-                                              post_hook_mock):
+    def test_generic_exception_creating_ports(self, finished_mock, swift_mock,
+                                              apply_mock, post_hook_mock):
         swift_mock.get_object.return_value = json.dumps(self.data)
         exc = Exception('Oops')
         self.cli.port.create.side_effect = exc
         self.call()
 
-        finished_mock.assert_called_once_with(self.node_info, error=str(exc))
+        finished_mock.assert_called_once_with(
+            self.node_info, istate.Events.error, error=str(exc))
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
         self.assertFalse(post_hook_mock.called)

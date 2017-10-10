@@ -56,22 +56,12 @@ def introspect(node_id, token=None):
                                                bmc_address=bmc_address,
                                                ironic=ironic)
 
-    def _handle_exceptions(fut):
-        try:
-            fut.result()
-        except utils.Error as exc:
-            # Logging has already happened in Error.__init__
-            node_info.finished(error=str(exc))
-        except Exception as exc:
-            msg = _('Unexpected exception in background introspection thread')
-            LOG.exception(msg, node_info=node_info)
-            node_info.finished(error=msg)
-
-    future = utils.executor().submit(_background_introspect, ironic, node_info)
-    future.add_done_callback(_handle_exceptions)
+    utils.executor().submit(_background_introspect, node_info, ironic)
 
 
-def _background_introspect(ironic, node_info):
+@node_cache.release_lock
+@node_cache.fsm_transition(istate.Events.wait)
+def _background_introspect(node_info, ironic):
     global _LAST_INTROSPECTION_TIME
 
     LOG.debug('Attempting to acquire lock on last introspection time')
@@ -85,13 +75,9 @@ def _background_introspect(ironic, node_info):
         _LAST_INTROSPECTION_TIME = time.time()
 
     node_info.acquire_lock()
-    try:
-        _background_introspect_locked(node_info, ironic)
-    finally:
-        node_info.release_lock()
+    _background_introspect_locked(node_info, ironic)
 
 
-@node_cache.fsm_transition(istate.Events.wait)
 def _background_introspect_locked(node_info, ironic):
     # TODO(dtantsur): pagination
     macs = list(node_info.ports())
@@ -151,17 +137,10 @@ def abort(node_id, token=None):
 
 
 @node_cache.release_lock
-@node_cache.fsm_transition(istate.Events.abort, reentrant=False)
+@node_cache.fsm_event_before(istate.Events.abort)
 def _abort(node_info, ironic):
     # runs in background
-    if node_info.finished_at is not None:
-        # introspection already finished; nothing to do
-        LOG.info('Cannot abort introspection as it is already '
-                 'finished', node_info=node_info)
-        node_info.release_lock()
-        return
 
-    # finish the introspection
     LOG.debug('Forcing power-off', node_info=node_info)
     try:
         ironic.node.set_power_state(node_info.uuid, 'off')
@@ -169,7 +148,8 @@ def _abort(node_info, ironic):
         LOG.warning('Failed to power off node: %s', exc,
                     node_info=node_info)
 
-    node_info.finished(error=_('Canceled by operator'))
+    node_info.finished(istate.Events.abort_end,
+                       error=_('Canceled by operator'))
 
     # block this node from PXE Booting the introspection image
     try:

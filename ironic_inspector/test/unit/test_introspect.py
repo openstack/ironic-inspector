@@ -21,6 +21,7 @@ from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import introspect
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.test import base as test_base
@@ -135,7 +136,7 @@ class TestIntrospect(BaseTest):
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
         start_mock.return_value.finished.assert_called_once_with(
-            error=mock.ANY)
+            introspect.istate.Events.error, error=mock.ANY)
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
@@ -153,7 +154,7 @@ class TestIntrospect(BaseTest):
                                            ironic=cli)
         self.assertFalse(cli.node.set_boot_device.called)
         start_mock.return_value.finished.assert_called_once_with(
-            error=mock.ANY)
+            introspect.istate.Events.error, error=mock.ANY)
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
@@ -186,7 +187,8 @@ class TestIntrospect(BaseTest):
         introspect.introspect(self.uuid)
 
         self.node_info.ports.assert_called_once_with()
-        self.node_info.finished.assert_called_once_with(error=mock.ANY)
+        self.node_info.finished.assert_called_once_with(
+            introspect.istate.Events.error, error=mock.ANY)
         self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.node_info.acquire_lock.assert_called_once_with()
@@ -311,6 +313,10 @@ class TestAbort(BaseTest):
         super(TestAbort, self).setUp()
         self.node_info.started_at = None
         self.node_info.finished_at = None
+        # NOTE(milan): node_info.finished() is a mock; no fsm_event call, then
+        self.fsm_calls = [
+            mock.call(istate.Events.abort, strict=False),
+        ]
 
     def test_ok(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
@@ -326,8 +332,9 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.node_info.finished.assert_called_once_with(error='Canceled '
-                                                        'by operator')
+        self.node_info.finished.assert_called_once_with(
+            introspect.istate.Events.abort_end, error='Canceled by operator')
+        self.node_info.fsm_event.assert_has_calls(self.fsm_calls)
 
     def test_node_not_found(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
@@ -340,6 +347,7 @@ class TestAbort(BaseTest):
         self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, self.node_info.finished.call_count)
+        self.assertEqual(0, self.node_info.fsm_event.call_count)
 
     def test_node_locked(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
@@ -353,19 +361,7 @@ class TestAbort(BaseTest):
         self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, self.node_info.finshed.call_count)
-
-    def test_introspection_already_finished(self, client_mock, get_mock):
-        cli = self._prepare(client_mock)
-        get_mock.return_value = self.node_info
-        self.node_info.acquire_lock.return_value = True
-        self.node_info.started_at = time.time()
-        self.node_info.finished_at = time.time()
-
-        introspect.abort(self.uuid)
-
-        self.assertEqual(0, self.sync_filter_mock.call_count)
-        self.assertEqual(0, cli.node.set_power_state.call_count)
-        self.assertEqual(0, self.node_info.finshed.call_count)
+        self.assertEqual(0, self.node_info.fsm_event.call_count)
 
     def test_firewall_update_exception(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
@@ -382,8 +378,9 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.node_info.finished.assert_called_once_with(error='Canceled '
-                                                        'by operator')
+        self.node_info.finished.assert_called_once_with(
+            introspect.istate.Events.abort_end, error='Canceled by operator')
+        self.node_info.fsm_event.assert_has_calls(self.fsm_calls)
 
     def test_node_power_off_exception(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
@@ -400,5 +397,6 @@ class TestAbort(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.node_info.finished.assert_called_once_with(error='Canceled '
-                                                        'by operator')
+        self.node_info.finished.assert_called_once_with(
+            introspect.istate.Events.abort_end, error='Canceled by operator')
+        self.node_info.fsm_event.assert_has_calls(self.fsm_calls)
