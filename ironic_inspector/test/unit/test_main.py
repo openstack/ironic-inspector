@@ -16,6 +16,7 @@ import json
 import unittest
 
 import mock
+from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
@@ -30,7 +31,6 @@ from ironic_inspector import process
 from ironic_inspector import rules
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
-from oslo_config import cfg
 
 CONF = cfg.CONF
 

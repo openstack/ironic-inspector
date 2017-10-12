@@ -10,12 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from ironic_tempest_plugin.tests.scenario import baremetal_manager
 from tempest.config import CONF
 from tempest.lib import decorators
 from tempest import test  # noqa
 
 from ironic_inspector.test.inspector_tempest_plugin.tests import manager
-from ironic_tempest_plugin.tests.scenario import baremetal_manager
 
 
 class InspectorBasicTest(manager.InspectorScenarioTest):

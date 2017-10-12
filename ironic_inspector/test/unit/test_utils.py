@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ironicclient.v1 import node
 from keystonemiddleware import auth_token
 import mock
 from oslo_config import cfg
@@ -18,7 +19,6 @@ from oslo_config import cfg
 from ironic_inspector import node_cache
 from ironic_inspector.test import base
 from ironic_inspector import utils
-from ironicclient.v1 import node
 
 CONF = cfg.CONF
 

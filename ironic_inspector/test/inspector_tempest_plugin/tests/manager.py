@@ -14,6 +14,12 @@ import json
 import os
 import time
 
+from ironic_tempest_plugin.tests.api.admin.api_microversion_fixture import \
+    APIMicroversionFixture as IronicMicroversionFixture
+from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
+    BaremetalProvisionStates
+from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
+    BaremetalScenarioTest
 import six
 import tempest
 from tempest import config
@@ -24,13 +30,6 @@ from tempest.lib import exceptions as lib_exc
 from ironic_inspector.test.inspector_tempest_plugin import exceptions
 from ironic_inspector.test.inspector_tempest_plugin.services import \
     introspection_client
-from ironic_tempest_plugin.tests.api.admin.api_microversion_fixture import \
-    APIMicroversionFixture as IronicMicroversionFixture
-from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
-    BaremetalProvisionStates
-from ironic_tempest_plugin.tests.scenario.baremetal_manager import \
-    BaremetalScenarioTest
-
 
 CONF = config.CONF
 
