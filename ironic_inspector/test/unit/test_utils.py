@@ -12,17 +12,13 @@
 # limitations under the License.
 
 from keystonemiddleware import auth_token
+import mock
 from oslo_config import cfg
 
 from ironic_inspector import node_cache
 from ironic_inspector.test import base
 from ironic_inspector import utils
 from ironicclient.v1 import node
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 CONF = cfg.CONF
 

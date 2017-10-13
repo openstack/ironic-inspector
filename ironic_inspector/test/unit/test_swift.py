@@ -14,10 +14,7 @@
 
 # Mostly copied from ironic/tests/test_swift.py
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+import mock
 from swiftclient import client as swift_client
 from swiftclient import exceptions as swift_exception
 
