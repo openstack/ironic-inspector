@@ -11,9 +11,9 @@
 #    under the License.
 
 from ironic_tempest_plugin.tests.scenario import baremetal_manager
+from tempest.common import utils
 from tempest.config import CONF
 from tempest.lib import decorators
-from tempest import test  # noqa
 
 from ironic_inspector.test.inspector_tempest_plugin.tests import manager
 
@@ -58,7 +58,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
             interval=self.wait_provisioning_state_interval)
 
     @decorators.idempotent_id('03bf7990-bee0-4dd7-bf74-b97ad7b52a4b')
-    @test.services('compute', 'image', 'network', 'object_storage')
+    @utils.services('compute', 'image', 'network', 'object_storage')
     def test_baremetal_introspection(self):
         """This smoke test case follows this set of operations:
 
@@ -149,7 +149,7 @@ class InspectorSmokeTest(manager.InspectorScenarioTest):
 
     @decorators.idempotent_id('a702d1f1-88e4-42ce-88ef-cba2d9e3312e')
     @decorators.attr(type='smoke')
-    @test.services('object_storage')
+    @utils.services('object_storage')
     def test_baremetal_introspection(self):
         """This smoke test case follows this very basic set of operations:
 
