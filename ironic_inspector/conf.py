@@ -28,22 +28,30 @@ VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
 VALID_STORE_DATA_VALUES = ('none', 'swift')
 
 
-FIREWALL_OPTS = [
+IPTABLES_OPTS = [
     cfg.BoolOpt('manage_firewall',
                 default=True,
-                help=_('Whether to manage firewall rules for PXE port.')),
+                # NOTE(milan) this filter driver will be replaced by
+                # a dnsmasq filter driver
+                deprecated_for_removal=True,
+                deprecated_group='firewall',
+                help=_('Whether to manage firewall rules for PXE port. '
+                       'This configuration option was deprecated in favor of '
+                       'the ``driver`` option in the ``pxe_filter`` section. '
+                       'Please, use the ``noop`` filter driver to disable the '
+                       'firewall filtering or the ``iptables`` filter driver '
+                       'to enable it.')),
     cfg.StrOpt('dnsmasq_interface',
                default='br-ctlplane',
+               deprecated_group='firewall',
                help=_('Interface on which dnsmasq listens, the default is for '
                       'VM\'s.')),
-    cfg.IntOpt('firewall_update_period',
-               default=15,
-               help=_('Amount of time in seconds, after which repeat periodic '
-                      'update of firewall.')),
     cfg.StrOpt('firewall_chain',
                default='ironic-inspector',
+               deprecated_group='firewall',
                help=_('iptables chain name to use.')),
     cfg.ListOpt('ethoib_interfaces',
+                deprecated_group='firewall',
                 default=[],
                 help=_('List of Etherent Over InfiniBand interfaces '
                        'on the Inspector host which are used for physical '
@@ -190,17 +198,20 @@ SERVICE_OPTS = [
                help=_('Limit the number of elements an API list-call returns'))
 ]
 
+
 PXE_FILTER_OPTS = [
-    cfg.StrOpt('driver', default='noop',
-               help=_('PXE boot filter driver to use, such as iptables. '
-                      'This option has no effect yet.')),
+    cfg.StrOpt('driver', default='iptables',
+               help=_('PXE boot filter driver to use, such as iptables')),
     cfg.IntOpt('sync_period', default=15, min=0,
+               deprecated_name='firewall_update_period',
+               deprecated_group='firewall',
                help=_('Amount of time in seconds, after which repeat periodic '
-                      'update of the filter. This option has no effect yet.')),
+                      'update of the filter.')),
 ]
 
+
 cfg.CONF.register_opts(SERVICE_OPTS)
-cfg.CONF.register_opts(FIREWALL_OPTS, group='firewall')
+cfg.CONF.register_opts(IPTABLES_OPTS, group='iptables')
 cfg.CONF.register_opts(PROCESSING_OPTS, group='processing')
 cfg.CONF.register_opts(PXE_FILTER_OPTS, 'pxe_filter')
 
@@ -208,7 +219,7 @@ cfg.CONF.register_opts(PXE_FILTER_OPTS, 'pxe_filter')
 def list_opts():
     return [
         ('', SERVICE_OPTS),
-        ('firewall', FIREWALL_OPTS),
+        ('iptables', IPTABLES_OPTS),
         ('processing', PROCESSING_OPTS),
         ('pxe_filter', PXE_FILTER_OPTS),
     ]

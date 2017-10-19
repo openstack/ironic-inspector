@@ -53,8 +53,8 @@ os_auth_url = http://url
 os_username = user
 os_password = password
 os_tenant_name = tenant
-[firewall]
-manage_firewall = False
+[pxe_filter]
+driver = noop
 [DEFAULT]
 debug = True
 auth_strategy = noauth

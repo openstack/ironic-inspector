@@ -18,7 +18,7 @@ Usual hardware introspection flow is as follows:
 * On receiving node UUID **ironic-inspector**:
 
   * validates node power credentials, current power and provisioning states,
-  * allows firewall access to PXE boot service for the nodes,
+  * allows access to PXE boot service for the nodes,
   * issues reboot command for the nodes, so that they boot the ramdisk.
 
 * The ramdisk collects the required information and posts it back to

@@ -14,14 +14,15 @@
 import collections
 import time
 
+import fixtures
 from ironicclient import exceptions
 import mock
 from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector import firewall
 from ironic_inspector import introspect
 from ironic_inspector import node_cache
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
 
@@ -39,6 +40,10 @@ class BaseTest(test_base.NodeTest):
         self.node_info = mock.Mock(uuid=self.uuid, options={})
         self.node_info.ports.return_value = self.ports_dict
         self.node_info.node.return_value = self.node
+        driver_fixture = self.useFixture(fixtures.MockPatchObject(
+            pxe_filter, 'driver', autospec=True))
+        driver_mock = driver_fixture.mock.return_value
+        self.sync_filter_mock = driver_mock.sync
 
     def _prepare(self, client_mock):
         cli = client_mock.return_value
@@ -47,11 +52,10 @@ class BaseTest(test_base.NodeTest):
         return cli
 
 
-@mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'start_introspection', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestIntrospect(BaseTest):
-    def test_ok(self, client_mock, start_mock, filters_mock):
+    def test_ok(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         start_mock.return_value = self.node_info
 
@@ -66,7 +70,7 @@ class TestIntrospect(BaseTest):
         self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
                                                              self.macs)
-        filters_mock.assert_called_with(cli)
+        self.sync_filter_mock.assert_called_with(cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
@@ -75,7 +79,7 @@ class TestIntrospect(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
-    def test_loopback_bmc_address(self, client_mock, start_mock, filters_mock):
+    def test_loopback_bmc_address(self, client_mock, start_mock):
         self.node.driver_info['ipmi_address'] = '127.0.0.1'
         cli = self._prepare(client_mock)
         start_mock.return_value = self.node_info
@@ -91,7 +95,7 @@ class TestIntrospect(BaseTest):
         self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
                                                              self.macs)
-        filters_mock.assert_called_with(cli)
+        self.sync_filter_mock.assert_called_with(cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
@@ -100,7 +104,7 @@ class TestIntrospect(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
-    def test_ok_ilo_and_drac(self, client_mock, start_mock, filters_mock):
+    def test_ok_ilo_and_drac(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         start_mock.return_value = self.node_info
 
@@ -112,7 +116,7 @@ class TestIntrospect(BaseTest):
                                       bmc_address=self.bmc_address,
                                       ironic=cli)
 
-    def test_power_failure(self, client_mock, start_mock, filters_mock):
+    def test_power_failure(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         cli.node.set_boot_device.side_effect = exceptions.BadRequest()
         cli.node.set_power_state.side_effect = exceptions.BadRequest()
@@ -135,10 +139,10 @@ class TestIntrospect(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
-    def test_unexpected_error(self, client_mock, start_mock, filters_mock):
+    def test_unexpected_error(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         start_mock.return_value = self.node_info
-        filters_mock.side_effect = RuntimeError()
+        self.sync_filter_mock.side_effect = RuntimeError()
 
         introspect.introspect(self.node.uuid)
 
@@ -153,7 +157,7 @@ class TestIntrospect(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
-    def test_no_macs(self, client_mock, start_mock, filters_mock):
+    def test_no_macs(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         self.node_info.ports.return_value = []
         start_mock.return_value = self.node_info
@@ -166,14 +170,14 @@ class TestIntrospect(BaseTest):
                                            bmc_address=self.bmc_address,
                                            ironic=cli)
         self.assertFalse(self.node_info.add_attribute.called)
-        self.assertFalse(filters_mock.called)
+        self.assertFalse(self.sync_filter_mock.called)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
 
-    def test_no_lookup_attrs(self, client_mock, start_mock, filters_mock):
+    def test_no_lookup_attrs(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         self.node_info.ports.return_value = []
         start_mock.return_value = self.node_info
@@ -183,14 +187,13 @@ class TestIntrospect(BaseTest):
 
         self.node_info.ports.assert_called_once_with()
         self.node_info.finished.assert_called_once_with(error=mock.ANY)
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
     def test_no_lookup_attrs_with_node_not_found_hook(self, client_mock,
-                                                      start_mock,
-                                                      filters_mock):
+                                                      start_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
         cli = self._prepare(client_mock)
         self.node_info.ports.return_value = []
@@ -207,7 +210,7 @@ class TestIntrospect(BaseTest):
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
 
-    def test_failed_to_get_node(self, client_mock, start_mock, filters_mock):
+    def test_failed_to_get_node(self, client_mock, start_mock):
         cli = client_mock.return_value
         cli.node.get.side_effect = exceptions.NotFound()
         self.assertRaisesRegex(utils.Error,
@@ -220,13 +223,12 @@ class TestIntrospect(BaseTest):
                                introspect.introspect, self.uuid)
 
         self.assertEqual(0, self.node_info.ports.call_count)
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(start_mock.called)
         self.assertFalse(self.node_info.acquire_lock.called)
 
-    def test_failed_to_validate_node(self, client_mock, start_mock,
-                                     filters_mock):
+    def test_failed_to_validate_node(self, client_mock, start_mock):
         cli = client_mock.return_value
         cli.node.get.return_value = self.node
         cli.node.validate.return_value = mock.Mock(power={'result': False,
@@ -239,13 +241,12 @@ class TestIntrospect(BaseTest):
 
         cli.node.validate.assert_called_once_with(self.uuid)
         self.assertEqual(0, self.node_info.ports.call_count)
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(start_mock.called)
         self.assertFalse(self.node_info.acquire_lock.called)
 
-    def test_wrong_provision_state(self, client_mock, start_mock,
-                                   filters_mock):
+    def test_wrong_provision_state(self, client_mock, start_mock):
         self.node.provision_state = 'active'
         cli = client_mock.return_value
         cli.node.get.return_value = self.node
@@ -255,14 +256,13 @@ class TestIntrospect(BaseTest):
             introspect.introspect, self.uuid)
 
         self.assertEqual(0, self.node_info.ports.call_count)
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertFalse(start_mock.called)
         self.assertFalse(self.node_info.acquire_lock.called)
 
     @mock.patch.object(time, 'time')
-    def test_introspection_delay(self, time_mock, client_mock,
-                                 start_mock, filters_mock):
+    def test_introspection_delay(self, time_mock, client_mock, start_mock):
         time_mock.return_value = 42
         introspect._LAST_INTROSPECTION_TIME = 40
         CONF.set_override('introspection_delay', 10)
@@ -282,9 +282,8 @@ class TestIntrospect(BaseTest):
         self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
 
     @mock.patch.object(time, 'time')
-    def test_introspection_delay_not_needed(
-            self, time_mock, client_mock,
-            start_mock, filters_mock):
+    def test_introspection_delay_not_needed(self, time_mock, client_mock,
+                                            start_mock):
 
         time_mock.return_value = 100
         introspect._LAST_INTROSPECTION_TIME = 40
@@ -305,7 +304,6 @@ class TestIntrospect(BaseTest):
         self.assertEqual(100, introspect._LAST_INTROSPECTION_TIME)
 
 
-@mock.patch.object(firewall, 'update_filters', autospec=True)
 @mock.patch.object(node_cache, 'get_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
 class TestAbort(BaseTest):
@@ -314,7 +312,7 @@ class TestAbort(BaseTest):
         self.node_info.started_at = None
         self.node_info.finished_at = None
 
-    def test_ok(self, client_mock, get_mock, filters_mock):
+    def test_ok(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
         get_mock.return_value = self.node_info
         self.node_info.acquire_lock.return_value = True
@@ -326,12 +324,12 @@ class TestAbort(BaseTest):
         get_mock.assert_called_once_with(self.uuid, ironic=cli,
                                          locked=False)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
-        filters_mock.assert_called_once_with(cli)
+        self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.node_info.finished.assert_called_once_with(error='Canceled '
                                                         'by operator')
 
-    def test_node_not_found(self, client_mock, get_mock, filters_mock):
+    def test_node_not_found(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
         exc = utils.Error('Not found.', code=404)
         get_mock.side_effect = exc
@@ -339,11 +337,11 @@ class TestAbort(BaseTest):
         self.assertRaisesRegex(utils.Error, str(exc),
                                introspect.abort, self.uuid)
 
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, self.node_info.finished.call_count)
 
-    def test_node_locked(self, client_mock, get_mock, filters_mock):
+    def test_node_locked(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
         get_mock.return_value = self.node_info
         self.node_info.acquire_lock.return_value = False
@@ -352,12 +350,11 @@ class TestAbort(BaseTest):
         self.assertRaisesRegex(utils.Error, 'Node is locked, please, '
                                'retry later', introspect.abort, self.uuid)
 
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, self.node_info.finshed.call_count)
 
-    def test_introspection_already_finished(self, client_mock,
-                                            get_mock, filters_mock):
+    def test_introspection_already_finished(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
         get_mock.return_value = self.node_info
         self.node_info.acquire_lock.return_value = True
@@ -366,31 +363,29 @@ class TestAbort(BaseTest):
 
         introspect.abort(self.uuid)
 
-        self.assertEqual(0, filters_mock.call_count)
+        self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.node.set_power_state.call_count)
         self.assertEqual(0, self.node_info.finshed.call_count)
 
-    def test_firewall_update_exception(self, client_mock, get_mock,
-                                       filters_mock):
+    def test_firewall_update_exception(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
         get_mock.return_value = self.node_info
         self.node_info.acquire_lock.return_value = True
         self.node_info.started_at = time.time()
         self.node_info.finished_at = None
-        filters_mock.side_effect = Exception('Boom')
+        self.sync_filter_mock.side_effect = Exception('Boom')
 
         introspect.abort(self.uuid)
 
         get_mock.assert_called_once_with(self.uuid, ironic=cli,
                                          locked=False)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
-        filters_mock.assert_called_once_with(cli)
+        self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.node_info.finished.assert_called_once_with(error='Canceled '
                                                         'by operator')
 
-    def test_node_power_off_exception(self, client_mock, get_mock,
-                                      filters_mock):
+    def test_node_power_off_exception(self, client_mock, get_mock):
         cli = self._prepare(client_mock)
         get_mock.return_value = self.node_info
         self.node_info.acquire_lock.return_value = True
@@ -403,7 +398,7 @@ class TestAbort(BaseTest):
         get_mock.assert_called_once_with(self.uuid, ironic=cli,
                                          locked=False)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
-        filters_mock.assert_called_once_with(cli)
+        self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
         self.node_info.finished.assert_called_once_with(error='Canceled '
                                                         'by operator')

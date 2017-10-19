@@ -26,10 +26,10 @@ from oslo_utils import timeutils
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
-from ironic_inspector import firewall
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector import rules
 from ironic_inspector import utils
 
@@ -269,7 +269,7 @@ def _process_node(node_info, node, introspection_data):
     _store_data(node_info, introspection_data)
 
     ironic = ir_utils.get_client()
-    firewall.update_filters(ironic)
+    pxe_filter.driver().sync(ironic)
 
     node_info.invalidate_cache()
     rules.apply(node_info, introspection_data)

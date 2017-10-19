@@ -41,7 +41,7 @@ class TestDriverManager(test_base.BaseTest):
         driver_manager = pxe_filter._driver_manager()
         self.stevedore_driver_mock.assert_called_once_with(
             pxe_filter._STEVEDORE_DRIVER_NAMESPACE,
-            name='noop',
+            name='iptables',
             invoke_on_load=True
         )
         self.assertIsNotNone(driver_manager)
