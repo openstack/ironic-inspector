@@ -16,6 +16,7 @@ from keystonemiddleware import auth_token
 import mock
 from oslo_config import cfg
 
+from ironic_inspector.common import context
 from ironic_inspector import node_cache
 from ironic_inspector.test import base
 from ironic_inspector import utils
@@ -26,17 +27,16 @@ CONF = cfg.CONF
 class TestCheckAuth(base.BaseTest):
     def setUp(self):
         super(TestCheckAuth, self).setUp()
-        CONF.set_override('auth_strategy', 'keystone')
+        self.cfg.config(auth_strategy='keystone')
 
     @mock.patch.object(auth_token, 'AuthProtocol')
     def test_middleware(self, mock_auth):
-        CONF.set_override('admin_user', 'admin', 'keystone_authtoken')
-        CONF.set_override('admin_tenant_name', 'admin', 'keystone_authtoken')
-        CONF.set_override('admin_password', 'password', 'keystone_authtoken')
-        CONF.set_override('auth_uri', 'http://127.0.0.1:5000',
-                          'keystone_authtoken')
-        CONF.set_override('identity_uri', 'http://127.0.0.1:35357',
-                          'keystone_authtoken')
+        self.cfg.config(group='keystone_authtoken',
+                        admin_user='admin',
+                        admin_tenant_name='admin',
+                        admin_password='password',
+                        auth_uri='http://127.0.0.1:5000',
+                        identity_uri='http://127.0.0.1:35357')
 
         app = mock.Mock(wsgi_app=mock.sentinel.app)
         utils.add_auth_middleware(app)
@@ -53,24 +53,30 @@ class TestCheckAuth(base.BaseTest):
         self.assertEqual('http://127.0.0.1:5000', args1['auth_uri'])
         self.assertEqual('http://127.0.0.1:35357', args1['identity_uri'])
 
-    def test_ok(self):
-        request = mock.Mock(headers={'X-Identity-Status': 'Confirmed',
-                                     'X-Roles': 'admin,member'})
-        utils.check_auth(request)
+    def test_admin(self):
+        request = mock.Mock(headers={'X-Identity-Status': 'Confirmed'})
+        request.context = context.RequestContext(roles=['admin'])
+        utils.check_auth(request, rule="is_admin")
 
     def test_invalid(self):
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         self.assertRaises(utils.Error, utils.check_auth, request)
 
     def test_not_admin(self):
-        request = mock.Mock(headers={'X-Identity-Status': 'Confirmed',
-                                     'X-Roles': 'member'})
-        self.assertRaises(utils.Error, utils.check_auth, request)
+        request = mock.Mock(headers={'X-Identity-Status': 'Confirmed'})
+        request.context = context.RequestContext(roles=['member'])
+        self.assertRaises(utils.Error, utils.check_auth, request,
+                          rule="is_admin")
 
     def test_disabled(self):
-        CONF.set_override('auth_strategy', 'noauth')
+        self.cfg.config(auth_strategy='noauth')
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         utils.check_auth(request)
+
+    def test_public_api(self):
+        request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
+        request.context = context.RequestContext(is_public_api=True)
+        utils.check_auth(request, "public_api")
 
 
 class TestProcessingLogger(base.BaseTest):
