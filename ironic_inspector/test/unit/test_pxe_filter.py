@@ -64,6 +64,20 @@ class TestDriverManager(test_base.BaseTest):
         self.stevedore_driver_mock.assert_not_called()
         self.assertIs(pxe_filter._DRIVER_MANAGER, driver_manager)
 
+    def test_manage_firewall(self):
+        # FIXME(milan): to be removed after the transition period of
+        # deprecating the firewall option group
+        # NOTE(milan) the default filter driver is iptables
+        # this should revert it to noop
+        CONF.set_override('manage_firewall', False, 'iptables')
+        driver_manager = pxe_filter._driver_manager()
+        self.stevedore_driver_mock.assert_called_once_with(
+            pxe_filter._STEVEDORE_DRIVER_NAMESPACE,
+            name='noop',
+            invoke_on_load=True)
+        self.assertIsNotNone(driver_manager)
+        self.assertIs(pxe_filter._DRIVER_MANAGER, driver_manager)
+
 
 class TestDriverManagerLoading(test_base.BaseTest):
     def setUp(self):
