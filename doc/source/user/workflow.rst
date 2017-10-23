@@ -6,8 +6,9 @@ Workflow
 
 Usual hardware introspection flow is as follows:
 
-* Operator enrolls nodes into Ironic_ e.g. via ironic CLI command.
-  Power management credentials should be provided to Ironic at this step.
+* Operator enrolls nodes into Ironic_ e.g. via `openstack baremetal CLI`_
+  command. Power management credentials should be provided to Ironic at this
+  step.
 
 * Nodes are put in the correct state for introspection as described in
   :ref:`node states <node_states>`.
@@ -81,3 +82,4 @@ The diagram also shows events that trigger state transitions.
    :alt: ironic-inspector state machine diagram
 
 .. _Ironic: https://wiki.openstack.org/wiki/Ironic
+.. _openstack baremetal CLI: https://docs.openstack.org/python-ironicclient/latest/cli/osc_plugin_cli.html

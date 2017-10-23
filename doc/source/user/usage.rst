@@ -26,12 +26,12 @@ Node States
 * The nodes should be moved to ``MANAGEABLE`` provision state before
   introspection (requires *python-ironicclient* of version 0.5.0 or newer)::
 
-    ironic node-set-provision-state <UUID> manage
+    openstack baremetal node manage <node>
 
 * After successful introspection and before deploying nodes should be made
   available to Nova, by moving them to ``AVAILABLE`` state::
 
-    ironic node-set-provision-state <UUID> provide
+    openstack baremetal node provide <node>
 
   .. note::
     Due to how Nova interacts with Ironic driver, you should wait 1 minute
