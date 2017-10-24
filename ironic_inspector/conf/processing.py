@@ -18,7 +18,6 @@ from ironic_inspector.common.i18n import _
 
 VALID_ADD_PORTS_VALUES = ('all', 'active', 'pxe', 'disabled')
 VALID_KEEP_PORTS_VALUES = ('all', 'present', 'added')
-VALID_STORE_DATA_VALUES = ('none', 'swift')
 
 
 _OPTS = [
@@ -75,9 +74,10 @@ _OPTS = [
                       'aware of. This hook is ignored by default.')),
     cfg.StrOpt('store_data',
                default='none',
-               choices=VALID_STORE_DATA_VALUES,
-               help=_('Method for storing introspection data. If set to \'none'
-                      '\', introspection data will not be stored.')),
+               help=_('The storage backend for storing introspection data. '
+                      'Possible values are: \'none\', \'database\' and '
+                      '\'swift\'. If set to \'none\', introspection data will '
+                      'not be stored.')),
     cfg.StrOpt('store_data_location',
                help=_('Name of the key to store the location of stored data '
                       'in the extra column of the Ironic database.')),

@@ -142,6 +142,7 @@ _HOOKS_MGR = None
 _NOT_FOUND_HOOK_MGR = None
 _CONDITIONS_MGR = None
 _ACTIONS_MGR = None
+_INTROSPECTION_DATA_MGR = None
 
 
 def missing_entrypoints_callback(names):
@@ -229,3 +230,12 @@ def rule_actions_manager():
             'ironic_inspector.rules.actions',
             invoke_on_load=True)
     return _ACTIONS_MGR
+
+
+def introspection_data_manager():
+    global _INTROSPECTION_DATA_MGR
+    if _INTROSPECTION_DATA_MGR is None:
+        _INTROSPECTION_DATA_MGR = stevedore.ExtensionManager(
+            'ironic_inspector.introspection_data.store',
+            invoke_on_load=True)
+    return _INTROSPECTION_DATA_MGR
