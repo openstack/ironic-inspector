@@ -686,9 +686,12 @@ def add_node(uuid, state, **attributes):
     started_at = timeutils.utcnow()
     with db.ensure_transaction() as session:
         _delete_node(uuid)
-        db.Node(uuid=uuid, state=state, started_at=started_at).save(session)
+        version_id = uuidutils.generate_uuid()
+        db.Node(uuid=uuid, state=state, version_id=version_id,
+                started_at=started_at).save(session)
 
         node_info = NodeInfo(uuid=uuid, state=state, started_at=started_at,
+                             version_id=version_id,
                              ironic=attributes.pop('ironic', None))
         for (name, value) in attributes.items():
             if not value:
