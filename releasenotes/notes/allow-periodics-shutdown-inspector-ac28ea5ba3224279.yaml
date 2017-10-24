@@ -1,4 +1,5 @@
 ---
 other:
   - |
-    Allow a periodic task to shut down **ironic-inspector** upon a failure
+    Allows a periodic task to shut down an **ironic-inspector** process
+    upon a failure.
