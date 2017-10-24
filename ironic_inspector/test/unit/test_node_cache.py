@@ -65,6 +65,9 @@ class TestNodeCache(test_base.NodeTest):
         expected = {(node.uuid, node.started_at), (uuid2, None)}
         self.assertEqual(expected, res)
 
+        res = db.model_query(db.Node).get(self.uuid)
+        self.assertIsNotNone(res.version_id)
+
         res = (db.model_query(db.Attribute.name,
                               db.Attribute.value, db.Attribute.node_uuid).
                order_by(db.Attribute.name, db.Attribute.value).all())
