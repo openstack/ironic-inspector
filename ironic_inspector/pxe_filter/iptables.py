@@ -154,7 +154,8 @@ class IptablesFilter(pxe_filter.BaseFilter):
         try:
             subprocess.check_output(cmd, **kwargs)
         except subprocess.CalledProcessError as exc:
-            output = exc.output.replace('\n', '. ')
+            decoded_output = exc.output.decode("utf-8")
+            output = decoded_output.replace('\n', '. ')
             if ignore:
                 LOG.debug('Ignoring failed iptables %(args)s: %(output)s',
                           {'args': args, 'output': output})

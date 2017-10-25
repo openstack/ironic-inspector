@@ -7,6 +7,8 @@
         - ironic-inspector-tox-func
         - ironic-inspector-tox-func3
         - ironic-tempest-dsvm-ironic-inspector
+        - ironic-inspector-tempest-dsvm-python3:
+            voting: false
     gate:
       jobs:
         - ironic-inspector-grenade-dsvm

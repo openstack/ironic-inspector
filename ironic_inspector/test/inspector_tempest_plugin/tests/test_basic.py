@@ -21,7 +21,6 @@ from ironic_inspector.test.inspector_tempest_plugin.tests import manager
 class InspectorBasicTest(manager.InspectorScenarioTest):
 
     def verify_node_introspection_data(self, node):
-        self.assertEqual('yes', node['extra']['rule_success'])
         data = self.introspection_data(node['uuid'])
         self.assertEqual(data['cpu_arch'],
                          self.flavor['properties']['cpu_arch'])
@@ -58,7 +57,7 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
             interval=self.wait_provisioning_state_interval)
 
     @decorators.idempotent_id('03bf7990-bee0-4dd7-bf74-b97ad7b52a4b')
-    @utils.services('compute', 'image', 'network', 'object_storage')
+    @utils.services('compute', 'image', 'network')
     def test_baremetal_introspection(self):
         """This smoke test case follows this set of operations:
 
@@ -93,7 +92,9 @@ class InspectorBasicTest(manager.InspectorScenarioTest):
 
         for node_id in self.node_ids:
             node = self.node_show(node_id)
-            self.verify_node_introspection_data(node)
+            self.assertEqual('yes', node['extra']['rule_success'])
+            if CONF.service_available.swift:
+                self.verify_node_introspection_data(node)
             self.verify_node_flavor(node)
 
         for node_id in self.node_ids:
