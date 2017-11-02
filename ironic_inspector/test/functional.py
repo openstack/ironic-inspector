@@ -247,7 +247,7 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
@@ -286,7 +286,7 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         calls = [
             mock.call(node_uuid=self.uuid, address=self.macs[0],
@@ -689,7 +689,7 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_once_with(self.uuid, mock.ANY)
+        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
         self.assertCalledWithPatch(self.patch, self.cli.node.update)
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid, extra={}, address='11:22:33:44:55:66',

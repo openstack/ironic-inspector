@@ -40,28 +40,11 @@ class TestSchedulerHook(test_base.NodeTest):
         self.assertIsInstance(ext.obj, std_plugins.SchedulerHook)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_no_root_disk(self, mock_patch):
-        del self.inventory['disks']
-        del self.data['root_disk']
-
-        patch = [
-            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
-            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '0', 'op': 'add'}
-        ]
-
-        self.hook.before_update(self.data, self.node_info)
-        self.assertCalledWithPatch(patch, mock_patch)
-        self.assertEqual(0, self.data['local_gb'])
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_ok(self, mock_patch):
         patch = [
             {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
             {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
             {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '999', 'op': 'add'}
         ]
 
         self.hook.before_update(self.data, self.node_info)
@@ -76,20 +59,6 @@ class TestSchedulerHook(test_base.NodeTest):
         }
         patch = [
             {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '999', 'op': 'add'}
-        ]
-
-        self.hook.before_update(self.data, self.node_info)
-        self.assertCalledWithPatch(patch, mock_patch)
-
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
-    def test_root_disk_no_spacing(self, mock_patch):
-        CONF.set_override('disk_partitioning_spacing', False, 'processing')
-        patch = [
-            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
-            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
-            {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
-            {'path': '/properties/local_gb', 'value': '1000', 'op': 'add'}
         ]
 
         self.hook.before_update(self.data, self.node_info)
@@ -332,8 +301,19 @@ class TestRootDiskSelection(test_base.NodeTest):
 
         self.hook.before_update(self.data, self.node_info)
 
-        self.assertNotIn('local_gb', self.data)
+        self.assertEqual(0, self.data['local_gb'])
         self.assertNotIn('root_disk', self.data)
+        self.node_info.update_properties.assert_called_once_with(local_gb='0')
+
+    def test_no_hints_no_overwrite(self):
+        CONF.set_override('overwrite_existing', False, 'processing')
+        del self.data['root_disk']
+
+        self.hook.before_update(self.data, self.node_info)
+
+        self.assertEqual(0, self.data['local_gb'])
+        self.assertNotIn('root_disk', self.data)
+        self.assertFalse(self.node_info.update_properties.called)
 
     def test_no_inventory(self):
         self.node.properties['root_device'] = {'model': 'foo'}
@@ -347,6 +327,7 @@ class TestRootDiskSelection(test_base.NodeTest):
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
+        self.assertFalse(self.node_info.update_properties.called)
 
     def test_no_disks(self):
         self.node.properties['root_device'] = {'size': 10}
@@ -357,12 +338,27 @@ class TestRootDiskSelection(test_base.NodeTest):
                               self.hook.before_update,
                               self.data, self.node_info)
 
+        self.assertNotIn('local_gb', self.data)
+        self.assertFalse(self.node_info.update_properties.called)
+
     def test_one_matches(self):
         self.node.properties['root_device'] = {'size': 10}
 
         self.hook.before_update(self.data, self.node_info)
 
         self.assertEqual(self.matched, self.data['root_disk'])
+        self.assertEqual(9, self.data['local_gb'])
+        self.node_info.update_properties.assert_called_once_with(local_gb='9')
+
+    def test_local_gb_without_spacing(self):
+        CONF.set_override('disk_partitioning_spacing', False, 'processing')
+        self.node.properties['root_device'] = {'size': 10}
+
+        self.hook.before_update(self.data, self.node_info)
+
+        self.assertEqual(self.matched, self.data['root_disk'])
+        self.assertEqual(10, self.data['local_gb'])
+        self.node_info.update_properties.assert_called_once_with(local_gb='10')
 
     def test_all_match(self):
         self.node.properties['root_device'] = {'size': 10,
@@ -371,6 +367,8 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
 
         self.assertEqual(self.matched, self.data['root_disk'])
+        self.assertEqual(9, self.data['local_gb'])
+        self.node_info.update_properties.assert_called_once_with(local_gb='9')
 
     def test_one_fails(self):
         self.node.properties['root_device'] = {'size': 10,
@@ -384,11 +382,14 @@ class TestRootDiskSelection(test_base.NodeTest):
 
         self.assertNotIn('local_gb', self.data)
         self.assertNotIn('root_disk', self.data)
+        self.assertFalse(self.node_info.update_properties.called)
 
     def test_size_string(self):
         self.node.properties['root_device'] = {'size': '10'}
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.matched, self.data['root_disk'])
+        self.assertEqual(9, self.data['local_gb'])
+        self.node_info.update_properties.assert_called_once_with(local_gb='9')
 
     def test_size_invalid(self):
         for bad_size in ('foo', None, {}):
@@ -397,6 +398,9 @@ class TestRootDiskSelection(test_base.NodeTest):
                                    'No disks could be found',
                                    self.hook.before_update,
                                    self.data, self.node_info)
+
+        self.assertNotIn('local_gb', self.data)
+        self.assertFalse(self.node_info.update_properties.called)
 
 
 class TestRamdiskError(test_base.InventoryTest):
