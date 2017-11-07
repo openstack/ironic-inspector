@@ -38,7 +38,8 @@ class RootDiskSelectionHook(base.ProcessingHook):
     might not be updated.
     """
 
-    def before_update(self, introspection_data, node_info, **kwargs):
+    def _process_root_device_hints(self, introspection_data, node_info,
+                                   inventory):
         """Detect root disk from root device hints and IPA inventory."""
         hints = node_info.node().properties.get('root_device')
         if not hints:
@@ -46,8 +47,6 @@ class RootDiskSelectionHook(base.ProcessingHook):
                       node_info=node_info, data=introspection_data)
             return
 
-        inventory = utils.get_inventory(introspection_data,
-                                        node_info=node_info)
         try:
             device = il_utils.match_root_device_hints(inventory['disks'],
                                                       hints)
@@ -68,25 +67,42 @@ class RootDiskSelectionHook(base.ProcessingHook):
                   node_info=node_info, data=introspection_data)
         introspection_data['root_disk'] = device
 
+    def before_update(self, introspection_data, node_info, **kwargs):
+        """Process root disk information."""
+        inventory = utils.get_inventory(introspection_data,
+                                        node_info=node_info)
+        self._process_root_device_hints(introspection_data, node_info,
+                                        inventory)
+
+        root_disk = introspection_data.get('root_disk')
+        if root_disk:
+            local_gb = root_disk['size'] // units.Gi
+            if CONF.processing.disk_partitioning_spacing:
+                local_gb -= 1
+            LOG.info('Root disk %(disk)s, local_gb %(local_gb)s GiB',
+                     {'disk': root_disk, 'local_gb': local_gb},
+                     node_info=node_info, data=introspection_data)
+        else:
+            local_gb = 0
+            LOG.info('No root device found, assuming a diskless node',
+                     node_info=node_info, data=introspection_data)
+
+        introspection_data['local_gb'] = local_gb
+        if (CONF.processing.overwrite_existing or not
+                node_info.node().properties.get('local_gb')):
+            node_info.update_properties(local_gb=str(local_gb))
+
 
 class SchedulerHook(base.ProcessingHook):
     """Nova scheduler required properties."""
 
-    KEYS = ('cpus', 'cpu_arch', 'memory_mb', 'local_gb')
+    KEYS = ('cpus', 'cpu_arch', 'memory_mb')
 
     def before_update(self, introspection_data, node_info, **kwargs):
         """Update node with scheduler properties."""
         inventory = utils.get_inventory(introspection_data,
                                         node_info=node_info)
         errors = []
-
-        root_disk = introspection_data.get('root_disk')
-        if root_disk:
-            introspection_data['local_gb'] = root_disk['size'] // units.Gi
-            if CONF.processing.disk_partitioning_spacing:
-                introspection_data['local_gb'] -= 1
-        else:
-            introspection_data['local_gb'] = 0
 
         try:
             introspection_data['cpus'] = int(inventory['cpu']['count'])
@@ -110,7 +126,7 @@ class SchedulerHook(base.ProcessingHook):
                               node_info=node_info, data=introspection_data)
 
         LOG.info('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
-                 'memory %(memory_mb)s MiB, disk %(local_gb)s GiB',
+                 'memory %(memory_mb)s MiB',
                  {key: introspection_data.get(key) for key in self.KEYS},
                  node_info=node_info, data=introspection_data)
 
