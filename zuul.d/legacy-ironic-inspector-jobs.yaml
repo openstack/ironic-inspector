@@ -1,53 +1,61 @@
+# 'func' jobs
+- job:
+    name: ironic-inspector-tox-func-base
+    parent: legacy-base
+    required-projects:
+      - openstack/requirements
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^doc/.*$
+
 - job:
     name: ironic-inspector-tox-func
-    parent: legacy-base
+    parent: ironic-inspector-tox-func-base
     run: playbooks/legacy/ironic-inspector-tox-func/run.yaml
     post-run: playbooks/legacy/ironic-inspector-tox-func/post.yaml
     timeout: 2400
-    required-projects:
-      - openstack/requirements
 
 - job:
     name: ironic-inspector-tox-func3
-    parent: legacy-base
+    parent: ironic-inspector-tox-func-base
     run: playbooks/legacy/ironic-inspector-tox-func3/run.yaml
     post-run: playbooks/legacy/ironic-inspector-tox-func3/post.yaml
     timeout: 2400
+
+# DSVM jobs
+- job:
+    name: ironic-inspector-dsvm-base
+    parent: legacy-dsvm-base
     required-projects:
-      - openstack/requirements
+      - openstack/ironic
+      - openstack/ironic-inspector
+      - openstack/ironic-lib
+      - openstack/ironic-python-agent
+      - openstack/pyghmi
+      - openstack/python-ironic-inspector-client
+      - openstack/python-ironicclient
+      - openstack/virtualbmc
+    irrelevant-files:
+      - ^test-requirements.txt$
+      - ^.*\.rst$
+      - ^doc/.*$
+      - ^ironic_inspector/test/(?!.*tempest).*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tox.ini$
 
 - job:
     name: ironic-inspector-grenade-dsvm
-    parent: legacy-dsvm-base
+    parent: ironic-inspector-dsvm-base
     run: playbooks/legacy/ironic-inspector-grenade-dsvm/run.yaml
     post-run: playbooks/legacy/ironic-inspector-grenade-dsvm/post.yaml
     timeout: 10800
     required-projects:
       - openstack-dev/grenade
-      - openstack-infra/devstack-gate
-      - openstack/ironic
-      - openstack/ironic-inspector
-      - openstack/ironic-lib
-      - openstack/ironic-python-agent
-      - openstack/pyghmi
-      - openstack/python-ironic-inspector-client
-      - openstack/python-ironicclient
-      - openstack/virtualbmc
 
 - job:
     name: ironic-inspector-tempest-dsvm-discovery
-    parent: legacy-dsvm-base
+    parent: ironic-inspector-dsvm-base
     run: playbooks/legacy/ironic-inspector-tempest-dsvm-discovery/run.yaml
     post-run: playbooks/legacy/ironic-inspector-tempest-dsvm-discovery/post.yaml
     timeout: 10800
-    required-projects:
-      - openstack-infra/devstack-gate
-      - openstack/ironic
-      - openstack/ironic-inspector
-      - openstack/ironic-lib
-      - openstack/ironic-python-agent
-      - openstack/pyghmi
-      - openstack/python-ironic-inspector-client
-      - openstack/python-ironicclient
-      - openstack/tempest
-      - openstack/virtualbmc
