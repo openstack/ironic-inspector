@@ -209,11 +209,26 @@ PXE_FILTER_OPTS = [
                       'update of the filter.')),
 ]
 
+DNSMASQ_PXE_FILTER_OPTS = [
+    cfg.StrOpt('dhcp_hostsdir',
+               default='/var/lib/ironic-inspector/dhcp-hostsdir',
+               help=_('The MAC address cache directory, exposed to dnsmasq.'
+                      'This directory is expected to be in exclusive control '
+                      'of the driver.')),
+    cfg.StrOpt('dnsmasq_start_command', default='',
+               help=_('A (shell) command line to start the dnsmasq service '
+                      'upon filter initialization. Default: don\'t start.')),
+    cfg.StrOpt('dnsmasq_stop_command', default='',
+               help=_('A (shell) command line to stop the dnsmasq service '
+                      'upon inspector (error) exit. Default: don\'t stop.')),
+]
+
 
 cfg.CONF.register_opts(SERVICE_OPTS)
 cfg.CONF.register_opts(IPTABLES_OPTS, group='iptables')
 cfg.CONF.register_opts(PROCESSING_OPTS, group='processing')
 cfg.CONF.register_opts(PXE_FILTER_OPTS, 'pxe_filter')
+cfg.CONF.register_opts(DNSMASQ_PXE_FILTER_OPTS, group='dnsmasq_pxe_filter')
 
 
 def list_opts():
@@ -222,6 +237,7 @@ def list_opts():
         ('iptables', IPTABLES_OPTS),
         ('processing', PROCESSING_OPTS),
         ('pxe_filter', PXE_FILTER_OPTS),
+        ('dnsmasq_pxe_filter', DNSMASQ_PXE_FILTER_OPTS),
     ]
 
 
