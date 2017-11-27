@@ -75,7 +75,7 @@ fi
 # https://github.com/openstack-dev/devstack/blob/dec121114c3ea6f9e515a452700e5015d1e34704/lib/stack#L32
 stack_install_service inspector
 
-if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+if is_inspector_dhcp_required; then
     stack_install_service inspector_dhcp
 fi
 
@@ -86,15 +86,14 @@ upgrade_project ironic-inspector $RUN_DIR $BASE_DEVSTACK_BRANCH $TARGET_DEVSTACK
 
 
 start_inspector
-
-if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+if is_inspector_dhcp_required; then
     start_inspector_dhcp
 fi
 
 # Don't succeed unless the services come up
 ensure_services_started ironic-inspector
 
-if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+if is_inspector_dhcp_required; then
     ensure_services_started dnsmasq
 fi
 

@@ -97,6 +97,9 @@
                export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_CLEAN_UP_PERIOD=5"
           fi
 
+          # PXE Filter Driver
+          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_DHCP_FILTER=iptables"
+
           EOF
         chdir: '{{ ansible_user_dir }}/workspace'
       environment: '{{ zuul | zuul_legacy_vars }}'
