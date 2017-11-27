@@ -1,3 +1,8 @@
+#!/usr/bin/env bash
+
+# This package should be tested under python 3, when the job enables Python 3
+enable_python3_package ironic-inspector
+
 IRONIC_INSPECTOR_DEBUG=${IRONIC_INSPECTOR_DEBUG:-True}
 IRONIC_INSPECTOR_DIR=$DEST/ironic-inspector
 IRONIC_INSPECTOR_DATA_DIR=$DATA_DIR/ironic-inspector
@@ -180,7 +185,10 @@ function configure_inspector {
     inspector_iniset firewall dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection `database_connection_url ironic_inspector`
 
-    is_service_enabled swift && configure_inspector_swift
+    # FIXME(ankit) Remove this when swift supports python3
+    if [[ "$USE_PYTHON3" == "False" ]] && is_service_enabled swift; then
+        configure_inspector_swift
+    fi
 
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI

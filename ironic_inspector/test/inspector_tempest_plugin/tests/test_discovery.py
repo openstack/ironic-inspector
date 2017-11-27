@@ -143,7 +143,8 @@ class InspectorDiscoveryTest(manager.InspectorScenarioTest):
 
         inspected_node = self.node_show(self.node_info['name'])
         self.verify_node_flavor(inspected_node)
-        self.verify_node_introspection_data(inspected_node)
+        if CONF.service_available.swift:
+            self.verify_node_introspection_data(inspected_node)
         self.verify_node_driver_info(self.node_info, inspected_node)
         self.assertEqual(ProvisionStates.ENROLL,
                          inspected_node['provision_state'])
