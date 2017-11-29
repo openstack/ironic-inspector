@@ -63,6 +63,6 @@
 - job:
     name: ironic-inspector-tempest-dsvm-python3
     parent: ironic-inspector-dsvm-base
-    run: playbooks/legacy/ironic-inspector-tempest-dsvm-python3/run
-    post-run: playbooks/legacy/ironic-inspector-tempest-dsvm-python3/post
+    run: playbooks/legacy/ironic-inspector-tempest-dsvm-python3/run.yaml
+    post-run: playbooks/legacy/ironic-inspector-tempest-dsvm-python3/post.yaml
     timeout: 10800
