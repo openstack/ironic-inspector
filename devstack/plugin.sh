@@ -32,6 +32,13 @@ if [[ -n ${IRONIC_INSPECTOR_MANAGE_FIREWALL} ]] ; then
         IRONIC_INSPECTOR_DHCP_FILTER=noop
     fi
 fi
+
+# dnsmasq dhcp filter configuration
+# override the default hostsdir so devstack collects the MAC files (/etc)
+IRONIC_INSPECTOR_DHCP_HOSTSDIR=${IRONIC_INSPECTOR_DHCP_HOSTSDIR:-/etc/ironic-inspector/dhcp-hostsdir}
+IRONIC_INSPECTOR_DNSMASQ_STOP_COMMAND=${IRONIC_INSPECTOR_DNSMASQ_STOP_COMMAND:-systemctl stop devstack@ironic-inspector-dhcp}
+IRONIC_INSPECTOR_DNSMASQ_START_COMMAND=${IRONIC_INSPECTOR_DNSMASQ_START_COMMAND:-systemctl start devstack@ironic-inspector-dhcp}
+
 IRONIC_INSPECTOR_HOST=$HOST_IP
 IRONIC_INSPECTOR_PORT=5050
 IRONIC_INSPECTOR_URI="http://$IRONIC_INSPECTOR_HOST:$IRONIC_INSPECTOR_PORT"
@@ -70,7 +77,11 @@ function mkdir_chown_stack {
 }
 
 function inspector_iniset {
-    iniset "$IRONIC_INSPECTOR_CONF_FILE" $1 $2 $3
+    local section=$1
+    local option=$2
+    shift 2
+    # value in iniset is at $4; wrapping in quotes
+    iniset "$IRONIC_INSPECTOR_CONF_FILE" $section $option "$*"
 }
 
 ### Install-start-stop
@@ -187,6 +198,47 @@ function inspector_configure_auth_for {
     inspector_iniset $1 os_region $REGION_NAME
 }
 
+function is_dnsmasq_filter_required {
+    [[ "$IRONIC_INSPECTOR_DHCP_FILTER" == "dnsmasq" ]]
+}
+
+function configure_inspector_pxe_filter_dnsmasq {
+    mkdir_chown_stack $IRONIC_INSPECTOR_DHCP_HOSTSDIR
+    inspector_iniset pxe_filter driver dnsmasq
+    inspector_iniset dnsmasq_pxe_filter dhcp_hostsdir $IRONIC_INSPECTOR_DHCP_HOSTSDIR
+    inspector_iniset dnsmasq_pxe_filter dnsmasq_stop_command "$IRONIC_INSPECTOR_DNSMASQ_STOP_COMMAND"
+    inspector_iniset dnsmasq_pxe_filter dnsmasq_start_command "$IRONIC_INSPECTOR_DNSMASQ_START_COMMAND"
+}
+
+function configure_dnsmasq_dhcp_hostsdir {
+    sed -ie '/dhcp-hostsdir.*=/d' $IRONIC_INSPECTOR_DHCP_CONF_FILE
+    echo "dhcp-hostsdir=$IRONIC_INSPECTOR_DHCP_HOSTSDIR" >> $IRONIC_INSPECTOR_DHCP_CONF_FILE
+}
+
+function _dnsmasq_rootwrap_ctl_tail {
+    # cut off the command head and amend white-spaces with commas
+    shift
+    local bits=$*
+    echo ${bits//\ /, }
+}
+
+function configure_inspector_dnsmasq_rootwrap {
+    # turn the ctl commands into filter rules and dump the roorwrap file
+    local stop_cmd=( $IRONIC_INSPECTOR_DNSMASQ_STOP_COMMAND )
+    local start_cmd=( $IRONIC_INSPECTOR_DNSMASQ_START_COMMAND )
+
+    local stop_cmd_tail=$( _dnsmasq_rootwrap_ctl_tail ${stop_cmd[@]} )
+    local start_cmd_tail=$( _dnsmasq_rootwrap_ctl_tail ${start_cmd[@]} )
+
+    cat > "$IRONIC_INSPECTOR_CONF_DIR/rootwrap.d/ironic-inspector-dnsmasq.filters" <<EOF
+[Filters]
+# ironic_inspector/pxe_filter/dnsmasq.py
+${stop_cmd[0]}: CommandFilter, ${stop_cmd[0]}, root, ${stop_cmd_tail}
+${start_cmd[0]}: CommandFilter, ${start_cmd[0]}, root, ${start_cmd_tail}
+EOF
+
+}
+
 function configure_inspector {
     mkdir_chown_stack "$IRONIC_INSPECTOR_CONF_DIR"
     mkdir_chown_stack "$IRONIC_INSPECTOR_DATA_DIR"
@@ -243,6 +295,11 @@ function configure_inspector {
     get_or_create_endpoint "baremetal-introspection" "$REGION_NAME" \
         "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI" "$IRONIC_INSPECTOR_URI"
 
+    if is_dnsmasq_filter_required ; then
+        configure_inspector_dnsmasq_rootwrap
+        configure_inspector_pxe_filter_dnsmasq
+    fi
+
 }
 
 function configure_inspector_swift {
@@ -275,6 +332,10 @@ dhcp-range=$IRONIC_INSPECTOR_DHCP_RANGE
 dhcp-boot=pxelinux.0
 dhcp-sequential-ip
 EOF
+    fi
+
+    if is_dnsmasq_filter_required ; then
+        configure_dnsmasq_dhcp_hostsdir
     fi
 }
 
