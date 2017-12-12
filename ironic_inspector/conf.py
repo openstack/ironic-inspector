@@ -215,6 +215,13 @@ DNSMASQ_PXE_FILTER_OPTS = [
                help=_('The MAC address cache directory, exposed to dnsmasq.'
                       'This directory is expected to be in exclusive control '
                       'of the driver.')),
+    cfg.BoolOpt('purge_dhcp_hostsdir', default=True,
+                help=_('Purge the hostsdir upon driver initialization. '
+                       'Setting to false makes sense only for deployment of '
+                       'multiple (uncontainerized) inspector instances on a '
+                       'single node. In this case, the Operator is '
+                       'responsible for setting up a custom cleaning '
+                       'facility.')),
     cfg.StrOpt('dnsmasq_start_command', default='',
                help=_('A (shell) command line to start the dnsmasq service '
                       'upon filter initialization. Default: don\'t start.')),
