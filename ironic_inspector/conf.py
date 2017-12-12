@@ -217,9 +217,10 @@ DNSMASQ_PXE_FILTER_OPTS = [
                       'of the driver.')),
     cfg.BoolOpt('purge_dhcp_hostsdir', default=True,
                 help=_('Purge the hostsdir upon driver initialization. '
-                       'Setting to false makes sense only for deployment of '
-                       'multiple (uncontainerized) inspector instances on a '
-                       'single node. In this case, the Operator is '
+                       'Setting to false should only be performed when the '
+                       'deployment of inspector is such that there are '
+                       'multiple processes executing inside of the same host '
+                       'and namespace. In this case, the Operator is '
                        'responsible for setting up a custom cleaning '
                        'facility.')),
     cfg.StrOpt('dnsmasq_start_command', default='',
