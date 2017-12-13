@@ -28,6 +28,7 @@
       - openstack/ironic-inspector
       - openstack/ironic-lib
       - openstack/ironic-python-agent
+      - openstack/ironic-tempest-plugin
       - openstack/pyghmi
       - openstack/python-ironic-inspector-client
       - openstack/python-ironicclient
