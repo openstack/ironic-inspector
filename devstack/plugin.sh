@@ -16,7 +16,22 @@ IRONIC_INSPECTOR_DHCP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/dnsmasq.conf
 IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/rootwrap.conf
 IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
 IRONIC_INSPECTOR_AUTH_CACHE_DIR=${IRONIC_INSPECTOR_AUTH_CACHE_DIR:-/var/cache/ironic-inspector}
-IRONIC_INSPECTOR_MANAGE_FIREWALL=$(trueorfalse True IRONIC_INSPECTOR_MANAGE_FIREWALL)
+IRONIC_INSPECTOR_DHCP_FILTER=${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}
+if [[ -n ${IRONIC_INSPECTOR_MANAGE_FIREWALL} ]] ; then
+    echo "IRONIC_INSPECTOR_MANAGE_FIREWALL is deprecated." >&2
+    echo "Please, use IRONIC_INSPECTOR_DHCP_FILTER == noop/iptables/dnsmasq instead." >&2
+    if [[ "$IRONIC_INSPECTOR_DHCP_FILTER" != "iptables" ]] ; then
+        # both manage firewall and filter driver set together but driver isn't iptables
+        echo "Inconsistent configuration: IRONIC_INSPECTOR_MANAGE_FIREWALL used while" >&2
+        echo "IRONIC_INSPECTOR_DHCP_FILTER == $IRONIC_INSPECTOR_DHCP_FILTER" >&2
+        exit 1
+    fi
+    if [[ $(trueorfalse True IRONIC_INSPECTOR_MANAGE_FIREWALL) == "False" ]] ; then
+        echo "IRONIC_INSPECTOR_MANAGE_FIREWALL == False" >&2
+        echo "Setting IRONIC_INSPECTOR_DHCP_FILTER=noop" >&2
+        IRONIC_INSPECTOR_DHCP_FILTER=noop
+    fi
+fi
 IRONIC_INSPECTOR_HOST=$HOST_IP
 IRONIC_INSPECTOR_PORT=5050
 IRONIC_INSPECTOR_URI="http://$IRONIC_INSPECTOR_HOST:$IRONIC_INSPECTOR_PORT"
@@ -79,6 +94,11 @@ function install_inspector_client {
 
 function start_inspector {
     run_process ironic-inspector "$IRONIC_INSPECTOR_CMD"
+}
+
+function is_inspector_dhcp_required {
+    [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]] || \
+    [[ "${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}" != "noop" ]]
 }
 
 function start_inspector_dhcp {
@@ -181,8 +201,8 @@ function configure_inspector {
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT
     inspector_iniset DEFAULT listen_address 0.0.0.0  # do not change
 
-    inspector_iniset firewall manage_firewall $IRONIC_INSPECTOR_MANAGE_FIREWALL
-    inspector_iniset firewall dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
+    inspector_iniset pxe_filter driver $IRONIC_INSPECTOR_DHCP_FILTER
+    inspector_iniset iptables dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection `database_connection_url ironic_inspector`
 
     # FIXME(ankit) Remove this when swift supports python3
@@ -298,7 +318,7 @@ function cleanup_inspector {
     sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
     sudo rm -rf "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
 
-    # Try to clean up firewall rules
+    # Always try to clean up firewall rules, no matter filter driver used
     sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
         --dport 69 -j ACCEPT | true
     sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp \
@@ -324,7 +344,7 @@ function sync_inspector_database {
 
 if [[ "$1" == "stack" && "$2" == "install" ]]; then
     echo_summary "Installing ironic-inspector"
-    if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+    if is_inspector_dhcp_required; then
         install_inspector_dhcp
     fi
     install_inspector
@@ -332,7 +352,7 @@ if [[ "$1" == "stack" && "$2" == "install" ]]; then
 elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
     echo_summary "Configuring ironic-inspector"
     cleanup_inspector
-    if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+    if is_inspector_dhcp_required; then
         configure_inspector_dhcp
     fi
     configure_inspector
@@ -340,7 +360,7 @@ elif [[ "$1" == "stack" && "$2" == "post-config" ]]; then
 elif [[ "$1" == "stack" && "$2" == "extra" ]]; then
     echo_summary "Initializing ironic-inspector"
     prepare_environment
-    if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+    if is_inspector_dhcp_required; then
         start_inspector_dhcp
     fi
     start_inspector
@@ -356,7 +376,7 @@ fi
 
 if [[ "$1" == "unstack" ]]; then
     stop_inspector
-    if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+    if is_inspector_dhcp_required; then
         stop_inspector_dhcp
     fi
     cleanup_inspector

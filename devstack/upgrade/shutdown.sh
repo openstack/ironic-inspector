@@ -24,6 +24,6 @@ source $INSPECTOR_DEVSTACK_DIR/plugin.sh
 set -o xtrace
 
 stop_inspector
-if [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]]; then
+if is_inspector_dhcp_required; then
     stop_inspector_dhcp
 fi
