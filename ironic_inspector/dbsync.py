@@ -19,10 +19,9 @@ import sys
 from alembic import command as alembic_command
 from alembic import config as alembic_config
 from alembic import util as alembic_util
-import six
-
 from oslo_config import cfg
 from oslo_log import log
+import six
 
 from ironic_inspector import conf  # noqa
 

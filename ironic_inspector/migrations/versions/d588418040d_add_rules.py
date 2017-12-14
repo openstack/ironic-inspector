@@ -25,9 +25,8 @@ branch_labels = None
 depends_on = None
 
 from alembic import op
-import sqlalchemy as sa
-
 from oslo_db.sqlalchemy import types
+import sqlalchemy as sa
 
 
 def upgrade():

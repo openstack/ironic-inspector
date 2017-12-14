@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import mock
-
 from oslo_config import cfg
 
 from ironic_inspector import node_cache

@@ -10,9 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
-
 from ironic_tempest_plugin.tests.scenario import baremetal_manager
+import six
 from tempest import config
 from tempest.lib import decorators
 from tempest import test  # noqa
