@@ -85,7 +85,7 @@
           # Make IPXE configuration consistent between Mitaka and Master
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_IPXE_ENABLED=True"
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_RAMDISK_ELEMENT=ironic-agent"
-          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_DHCP_FILTER=iptables"
+          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_DHCP_FILTER=dnsmasq"
 
           EOF
         chdir: '{{ ansible_user_dir }}/workspace'
