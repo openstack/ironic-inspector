@@ -69,9 +69,6 @@
     - shell:
         cmd: |
           cat << 'EOF' >> ironic-extra-vars
-           # use tempest plugin
-           export DEVSTACK_LOCAL_CONFIG+=$'\n'"TEMPEST_PLUGINS+=' /opt/stack/new/ironic-tempest-plugin'"
-
           export IRONIC_INSPECTOR_AUTO_DISCOVERY=1
           if [ "$IRONIC_INSPECTOR_AUTO_DISCOVERY" == "1" ]; then
                # discovery test requires sudo for iptables and virsh
