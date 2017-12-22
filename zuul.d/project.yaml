@@ -2,57 +2,13 @@
     name: openstack/ironic-inspector
     check:
       jobs:
-        - ironic-inspector-tox-func:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-        - ironic-inspector-tox-func3:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-        - ironic-inspector-tempest-dsvm-discovery:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^ironic_inspector/test/(?!.*tempest).*$
-              - ^releasenotes/.*$
-              - ^setup.cfg$
-              - ^tox.ini$
-        - ironic-tempest-dsvm-ironic-inspector:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^ironic_inspector/test/(?!.*tempest).*$
-              - ^releasenotes/.*$
-              - ^setup.cfg$
-              - ^tox.ini$
+        - ironic-inspector-tempest-dsvm-discovery
+        - ironic-inspector-tox-func
+        - ironic-inspector-tox-func3
+        - ironic-tempest-dsvm-ironic-inspector
     gate:
       jobs:
-        - ironic-inspector-tox-func:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-        - ironic-inspector-tox-func3:
-            irrelevant-files:
-              - ^.*\.rst$
-              - ^doc/.*$
-        - ironic-inspector-tempest-dsvm-discovery:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^ironic_inspector/test/(?!.*tempest).*$
-              - ^releasenotes/.*$
-              - ^setup.cfg$
-              - ^tox.ini$
-        - ironic-tempest-dsvm-ironic-inspector:
-            irrelevant-files:
-              - ^(test-|)requirements.txt$
-              - ^.*\.rst$
-              - ^doc/.*$
-              - ^ironic_inspector/test/(?!.*tempest).*$
-              - ^releasenotes/.*$
-              - ^setup.cfg$
-              - ^tox.ini$
+        - ironic-inspector-tempest-dsvm-discovery
+        - ironic-inspector-tox-func
+        - ironic-inspector-tox-func3
+        - ironic-tempest-dsvm-ironic-inspector
