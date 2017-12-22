@@ -500,7 +500,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
                 session)
 
     def test_success(self):
-        self.node_info.finished()
+        self.node_info.finished(istate.Events.finish)
 
         session = db.get_writer_session()
         with session.begin():
@@ -514,7 +514,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
                              session=session).all())
 
     def test_error(self):
-        self.node_info.finished(error='boom')
+        self.node_info.finished(istate.Events.error, error='boom')
 
         self.assertEqual((datetime.datetime(1, 1, 1), 'boom'),
                          tuple(db.model_query(db.Node.finished_at,
@@ -524,7 +524,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
 
     def test_release_lock(self):
         self.node_info.acquire_lock()
-        self.node_info.finished()
+        self.node_info.finished(istate.Events.finish)
         self.assertFalse(self.node_info._locked)
 
 

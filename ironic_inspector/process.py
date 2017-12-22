@@ -205,7 +205,7 @@ def process(introspection_data):
         msg = _('The following failures happened during running '
                 'pre-processing hooks:\n%s') % '\n'.join(failures)
         if node_info is not None:
-            node_info.finished(error='\n'.join(failures))
+            node_info.finished(istate.Events.error, error='\n'.join(failures))
         _store_logs(introspection_data, node_info)
         raise utils.Error(msg, node_info=node_info, data=introspection_data)
 
@@ -228,13 +228,13 @@ def process(introspection_data):
         node = node_info.node()
     except ir_utils.NotFound as exc:
         with excutils.save_and_reraise_exception():
-            node_info.finished(error=str(exc))
+            node_info.finished(istate.Events.error, error=str(exc))
             _store_logs(introspection_data, node_info)
 
     try:
         result = _process_node(node_info, node, introspection_data)
     except utils.Error as exc:
-        node_info.finished(error=str(exc))
+        node_info.finished(istate.Events.error, error=str(exc))
         with excutils.save_and_reraise_exception():
             _store_logs(introspection_data, node_info)
     except Exception as exc:
@@ -242,7 +242,7 @@ def process(introspection_data):
         msg = _('Unexpected exception %(exc_class)s during processing: '
                 '%(error)s') % {'exc_class': exc.__class__.__name__,
                                 'error': exc}
-        node_info.finished(error=msg)
+        node_info.finished(istate.Events.error, error=msg)
         _store_logs(introspection_data, node_info)
         raise utils.Error(msg, node_info=node_info, data=introspection_data,
                           code=500)
@@ -282,7 +282,7 @@ def _process_node(node_info, node, introspection_data):
     return resp
 
 
-@node_cache.fsm_transition(istate.Events.finish)
+@node_cache.triggers_fsm_error_transition()
 def _finish(node_info, ironic, introspection_data, power_off=True):
     if power_off:
         LOG.debug('Forcing power off of node %s', node_info.uuid)
@@ -299,13 +299,12 @@ def _finish(node_info, ironic, introspection_data, power_off=True):
                          'its power management configuration: '
                          '%(exc)s') % {'node': node_info.uuid, 'exc':
                                        exc})
-                node_info.finished(error=msg)
                 raise utils.Error(msg, node_info=node_info,
                                   data=introspection_data)
         LOG.info('Node powered-off', node_info=node_info,
                  data=introspection_data)
 
-    node_info.finished()
+    node_info.finished(istate.Events.finish)
     LOG.info('Introspection finished successfully',
              node_info=node_info, data=introspection_data)
 
@@ -348,7 +347,7 @@ def _reapply(node_info):
         msg = (_('Unexpected exception %(exc_class)s while fetching '
                  'unprocessed introspection data from Swift: %(error)s') %
                {'exc_class': exc.__class__.__name__, 'error': exc})
-        node_info.finished(error=msg)
+        node_info.finished(istate.Events.error, error=msg)
         return
 
     try:
@@ -357,14 +356,12 @@ def _reapply(node_info):
         msg = _('Encountered an exception while getting the Ironic client: '
                 '%s') % exc
         LOG.error(msg, node_info=node_info, data=introspection_data)
-        node_info.fsm_event(istate.Events.error)
-        node_info.finished(error=msg)
+        node_info.finished(istate.Events.error, error=msg)
         return
 
     try:
         _reapply_with_data(node_info, introspection_data)
     except Exception as exc:
-        node_info.finished(error=str(exc))
         return
 
     _finish(node_info, ironic, introspection_data,
