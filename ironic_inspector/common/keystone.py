@@ -18,12 +18,18 @@ from oslo_config import cfg
 
 
 CONF = cfg.CONF
+DEFAULT_VALID_INTERFACES = ['internal', 'public']
 
 
-def register_auth_opts(group):
+# TODO(pas-ha) set default values in conf.opts.set_defaults()
+def register_auth_opts(group, service_type):
     loading.register_session_conf_options(CONF, group)
     loading.register_auth_conf_options(CONF, group)
     CONF.set_default('auth_type', default='password', group=group)
+    loading.register_adapter_conf_options(CONF, group)
+    CONF.set_default('valid_interfaces', DEFAULT_VALID_INTERFACES,
+                     group=group)
+    CONF.set_default('service_type', service_type, group=group)
 
 
 def get_session(group):
@@ -33,8 +39,13 @@ def get_session(group):
     return session
 
 
-def add_auth_options(options):
+def get_adapter(group, **adapter_kwargs):
+    return loading.load_adapter_from_conf_options(CONF, group,
+                                                  **adapter_kwargs)
 
+
+# TODO(pas-ha) set default values in conf.opts.set_defaults()
+def add_auth_options(options, service_type):
     def add_options(opts, opts_to_add):
         for new_opt in opts_to_add:
             for opt in opts:
@@ -52,5 +63,10 @@ def add_auth_options(options):
         plugin = loading.get_plugin_loader(name)
         add_options(opts, loading.get_auth_plugin_conf_options(plugin))
     add_options(opts, loading.get_session_conf_options())
+    adapter_opts = loading.get_adapter_conf_options(
+        include_deprecated=False)
+    cfg.set_defaults(adapter_opts, service_type=service_type,
+                     valid_interfaces=DEFAULT_VALID_INTERFACES)
+    add_options(opts, adapter_opts)
     opts.sort(key=lambda x: x.name)
     return opts

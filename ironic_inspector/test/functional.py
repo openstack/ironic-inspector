@@ -49,16 +49,14 @@ from ironic_inspector.test.unit import test_rules
 
 CONF = """
 [ironic]
-os_auth_url = http://url
-os_username = user
-os_password = password
-os_tenant_name = tenant
+auth_type=none
+endpoint_override=http://url
 [pxe_filter]
 driver = noop
 [DEFAULT]
 debug = True
-auth_strategy = noauth
 introspection_delay = 0
+auth_strategy=noauth
 [database]
 connection = sqlite:///%(db_file)s
 [processing]

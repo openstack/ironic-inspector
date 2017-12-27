@@ -26,6 +26,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
+@mock.patch('ironic_inspector.common.ironic.get_client', new=mock.Mock())
 class TestSchedulerHook(test_base.NodeTest):
     def setUp(self):
         super(TestSchedulerHook, self).setUp()

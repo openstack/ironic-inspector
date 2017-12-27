@@ -195,7 +195,7 @@ function inspector_configure_auth_for {
     inspector_iniset $1 user_domain_id default
     inspector_iniset $1 project_domain_id default
     inspector_iniset $1 cafile $SSL_BUNDLE_FILE
-    inspector_iniset $1 os_region $REGION_NAME
+    inspector_iniset $1 region_name $REGION_NAME
 }
 
 function is_dnsmasq_filter_required {

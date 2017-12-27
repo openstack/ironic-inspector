@@ -82,29 +82,42 @@ def get_ipmi_address(node):
 def get_client(token=None,
                api_version=DEFAULT_IRONIC_API_VERSION):  # pragma: no cover
     """Get Ironic client instance."""
+    global IRONIC_SESSION
+    if not IRONIC_SESSION:
+        IRONIC_SESSION = keystone.get_session('ironic')
+
+    args = {
+        'os_ironic_api_version': api_version,
+        'max_retries': CONF.ironic.max_retries,
+        'retry_interval': CONF.ironic.retry_interval}
+
+    adapter_opts = dict()
+
     # NOTE: To support standalone ironic without keystone
+    # TODO(pas-ha) remove handling of deprecated opts in Rocky
+    # TODO(pas-ha) rewrite when ironicclient natively supports 'none' auth
+    # via sessions https://review.openstack.org/#/c/359061/
     if CONF.ironic.auth_strategy == 'noauth':
-        args = {'token': 'noauth',
-                'endpoint': CONF.ironic.ironic_url}
+        CONF.set_override('auth_type', 'none', group='ironic')
     else:
-        global IRONIC_SESSION
-        if not IRONIC_SESSION:
-            IRONIC_SESSION = keystone.get_session('ironic')
+        # TODO(pas-ha) use service auth with incoming token
         if token is None:
-            args = {'session': IRONIC_SESSION,
-                    'region_name': CONF.ironic.os_region}
+            args['session'] = IRONIC_SESSION
         else:
-            ironic_url = IRONIC_SESSION.get_endpoint(
-                service_type=CONF.ironic.os_service_type,
-                endpoint_type=CONF.ironic.os_endpoint_type,
-                region_name=CONF.ironic.os_region
-            )
-            args = {'token': token,
-                    'endpoint': ironic_url}
-    args['os_ironic_api_version'] = api_version
-    args['max_retries'] = CONF.ironic.max_retries
-    args['retry_interval'] = CONF.ironic.retry_interval
-    return client.Client(1, **args)
+            args['token'] = token
+
+    # TODO(pas-ha): remove handling of deprecated options in Rocky
+    if CONF.ironic.os_region and not CONF.ironic.region_name:
+        adapter_opts['region_name'] = CONF.ironic.os_region
+    if (CONF.ironic.auth_type == 'none' and
+            not CONF.ironic.endpoint_override and
+            CONF.ironic.ironic_url):
+        adapter_opts['endpoint_override'] = CONF.ironic.ironic_url
+
+    adapter = keystone.get_adapter('ironic', session=IRONIC_SESSION,
+                                   **adapter_opts)
+    endpoint = adapter.get_endpoint()
+    return client.Client(1, endpoint, **args)
 
 
 def check_provision_state(node):
