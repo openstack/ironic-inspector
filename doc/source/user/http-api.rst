@@ -288,7 +288,7 @@ Response body: JSON dictionary with ``uuid`` key.
 
 .. _hardware inventory: https://docs.openstack.org/ironic-python-agent/latest/admin/how_it_works.html#hardware-inventory
 .. _Specifying the disk for deployment root device hints:
-   http://docs.openstack.org/project-install-guide/baremetal/draft/advanced.html#specifying-the-disk-for-deployment-root-device-hints
+   https://docs.openstack.org/ironic/latest/install/advanced.html#specifying-the-disk-for-deployment-root-device-hints
 
 Error Response
 ~~~~~~~~~~~~~~
