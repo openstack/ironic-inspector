@@ -25,7 +25,8 @@ from oslo_utils import uuidutils
 from oslotest import base as test_base
 
 from ironic_inspector.common import i18n
-from ironic_inspector import conf
+import ironic_inspector.conf
+from ironic_inspector.conf import opts as conf_opts
 from ironic_inspector import db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
@@ -33,7 +34,7 @@ from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.test.unit import policy_fixture
 from ironic_inspector import utils
 
-CONF = conf.cfg.CONF
+CONF = ironic_inspector.conf.CONF
 
 
 class BaseTest(test_base.BaseTestCase):
@@ -64,7 +65,7 @@ class BaseTest(test_base.BaseTestCase):
         self.cfg.set_default('connection', "sqlite:///", group='database')
         self.cfg.set_default('slave_connection', None, group='database')
         self.cfg.set_default('max_retries', 10, group='database')
-        conf.parse_args([], default_config_files=[])
+        conf_opts.parse_args([], default_config_files=[])
         self.policy = self.useFixture(policy_fixture.PolicyFixture())
 
     def assertPatchEqual(self, expected, actual):

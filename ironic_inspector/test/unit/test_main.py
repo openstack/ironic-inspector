@@ -16,11 +16,11 @@ import json
 import unittest
 
 import mock
-from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector import conf
+import ironic_inspector.conf
+from ironic_inspector.conf import opts as conf_opts
 from ironic_inspector import introspect
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
@@ -32,7 +32,7 @@ from ironic_inspector import rules
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
 
-CONF = cfg.CONF
+CONF = ironic_inspector.conf.CONF
 
 
 def _get_error(res):
@@ -431,7 +431,7 @@ class TestApiRules(BaseAPITest):
         create_mock.return_value = mock.Mock(spec=rules.IntrospectionRule,
                                              **{'as_dict.return_value': exp})
 
-        headers = {conf.VERSION_HEADER:
+        headers = {conf_opts.VERSION_HEADER:
                    main._format_version((1, 5))}
 
         res = self.app.post('/v1/rules', data=json.dumps(data),
@@ -510,9 +510,9 @@ class TestApiMisc(BaseAPITest):
 class TestApiVersions(BaseAPITest):
     def _check_version_present(self, res):
         self.assertEqual('%d.%d' % main.MINIMUM_API_VERSION,
-                         res.headers.get(conf.MIN_VERSION_HEADER))
+                         res.headers.get(conf_opts.MIN_VERSION_HEADER))
         self.assertEqual('%d.%d' % main.CURRENT_API_VERSION,
-                         res.headers.get(conf.MAX_VERSION_HEADER))
+                         res.headers.get(conf_opts.MAX_VERSION_HEADER))
 
     def test_root_endpoint(self):
         res = self.app.get("/")
@@ -578,14 +578,14 @@ class TestApiVersions(BaseAPITest):
             self.app.post('/v1/introspection/foobar'))
 
     def test_request_correct_version(self):
-        headers = {conf.VERSION_HEADER:
+        headers = {conf_opts.VERSION_HEADER:
                    main._format_version(main.CURRENT_API_VERSION)}
         self._check_version_present(self.app.get('/', headers=headers))
 
     def test_request_unsupported_version(self):
         bad_version = (main.CURRENT_API_VERSION[0],
                        main.CURRENT_API_VERSION[1] + 1)
-        headers = {conf.VERSION_HEADER:
+        headers = {conf_opts.VERSION_HEADER:
                    main._format_version(bad_version)}
         res = self.app.get('/', headers=headers)
         self._check_version_present(res)
