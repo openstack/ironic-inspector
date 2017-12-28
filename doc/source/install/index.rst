@@ -190,7 +190,7 @@ To build an **ironic-python-agent** ramdisk, do the following:
   ``ironic-agent.initramfs`` in the following instructions to set PXE or iPXE.
 
 Alternatively, you can download a `prebuilt TinyIPA image
-<http://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_ or use
+<https://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_ or use
 the `other builders
 <https://docs.openstack.org/ironic-python-agent/latest/install/index.html#image-builders>`_.
 
@@ -367,5 +367,5 @@ Running
     ironic-inspector --config-file /etc/ironic-inspector/inspector.conf
 
 A good starting point for writing your own *systemd* unit should be `one used
-in Fedora <http://pkgs.fedoraproject.org/cgit/openstack-ironic-discoverd.git/plain/openstack-ironic-discoverd.service>`_
+in Fedora <http://pkgs.fedoraproject.org/cgit/rpms/openstack-ironic-discoverd.git/>`_
 (note usage of old name).
