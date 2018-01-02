@@ -24,7 +24,7 @@ Basics
   for any significant bug fix.
 
 .. _OpenStack GitHub: https://github.com/openstack/ironic-inspector
-.. _Gerrit Workflow: http://docs.openstack.org/infra/manual/developers.html#development-workflow
+.. _Gerrit Workflow: https://docs.openstack.org/infra/manual/developers.html#development-workflow
 .. _launchpad: https://bugs.launchpad.net/ironic-inspector
 
 Development Environment
