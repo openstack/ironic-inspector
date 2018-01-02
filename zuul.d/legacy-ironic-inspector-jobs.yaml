@@ -17,6 +17,7 @@
       - ^.*\.rst$
       - ^doc/.*$
       - ^ironic_inspector/test/(?!.*tempest).*$
+      - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
       - ^setup.cfg$
       - ^tox.ini$
