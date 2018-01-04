@@ -366,6 +366,3 @@ Running
 
     ironic-inspector --config-file /etc/ironic-inspector/inspector.conf
 
-A good starting point for writing your own *systemd* unit should be `one used
-in Fedora <http://pkgs.fedoraproject.org/cgit/rpms/openstack-ironic-discoverd.git/>`_
-(note usage of old name).
