@@ -25,10 +25,9 @@ branch_labels = None
 depends_on = None
 
 from alembic import op
+from oslo_utils import uuidutils
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector as insp
-
-from oslo_utils import uuidutils
 
 ATTRIBUTES = 'attributes'
 NODES = 'nodes'

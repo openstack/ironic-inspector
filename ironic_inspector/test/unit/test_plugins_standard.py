@@ -12,10 +12,9 @@
 # limitations under the License.
 
 import mock
-import six
-
 from oslo_config import cfg
 from oslo_utils import units
+import six
 
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base

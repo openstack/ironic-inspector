@@ -11,10 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import eventlet  # noqa
+import eventlet
 eventlet.monkey_patch()
 
-import contextlib
+import contextlib  # noqa
 import copy
 import datetime
 import json

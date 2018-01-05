@@ -11,15 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import fixtures
-import mock
-import six
-import stevedore
-
 from automaton import exceptions as automaton_errors
 from eventlet import semaphore
+import fixtures
 from futurist import periodics
+import mock
 from oslo_config import cfg
+import six
+import stevedore
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.pxe_filter import base as pxe_filter
