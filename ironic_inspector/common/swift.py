@@ -26,34 +26,6 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-SWIFT_GROUP = 'swift'
-SWIFT_OPTS = [
-    cfg.IntOpt('max_retries',
-               default=2,
-               help=_('Maximum number of times to retry a Swift request, '
-                      'before failing.')),
-    cfg.IntOpt('delete_after',
-               default=0,
-               help=_('Number of seconds that the Swift object will last '
-                      'before being deleted. (set to 0 to never delete the '
-                      'object).')),
-    cfg.StrOpt('container',
-               default='ironic-inspector',
-               help=_('Default Swift container to use when creating '
-                      'objects.')),
-    cfg.StrOpt('os_service_type',
-               default='object-store',
-               help=_('Swift service type.')),
-    cfg.StrOpt('os_endpoint_type',
-               default='internalURL',
-               help=_('Swift endpoint type.')),
-    cfg.StrOpt('os_region',
-               help=_('Keystone region to get endpoint for.')),
-]
-
-CONF.register_opts(SWIFT_OPTS, group=SWIFT_GROUP)
-keystone.register_auth_opts(SWIFT_GROUP)
-
 OBJECT_NAME_PREFIX = 'inspector_data'
 SWIFT_SESSION = None
 
@@ -77,7 +49,7 @@ class SwiftAPI(object):
         """
         global SWIFT_SESSION
         if not SWIFT_SESSION:
-            SWIFT_SESSION = keystone.get_session(SWIFT_GROUP)
+            SWIFT_SESSION = keystone.get_session('swift')
 
         self.connection = swift_client.Connection(session=SWIFT_SESSION)
 
@@ -166,7 +138,3 @@ def get_introspection_data(uuid, suffix=None):
     if suffix is not None:
         swift_object_name = '%s-%s' % (swift_object_name, suffix)
     return swift_api.get_object(swift_object_name)
-
-
-def list_opts():
-    return keystone.add_auth_options(SWIFT_OPTS, SWIFT_GROUP)

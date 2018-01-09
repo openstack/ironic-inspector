@@ -16,7 +16,6 @@ import os
 import re
 
 import flask
-from oslo_config import cfg
 from oslo_utils import uuidutils
 import werkzeug
 
@@ -25,14 +24,15 @@ from ironic_inspector.common import context
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
-from ironic_inspector import conf  # noqa
+import ironic_inspector.conf
+from ironic_inspector.conf import opts as conf_opts
 from ironic_inspector import introspect
 from ironic_inspector import node_cache
 from ironic_inspector import process
 from ironic_inspector import rules
 from ironic_inspector import utils
 
-CONF = cfg.CONF
+CONF = ironic_inspector.conf.CONF
 
 
 app = flask.Flask(__name__)
@@ -45,7 +45,7 @@ _LOGGING_EXCLUDED_KEYS = ('logs',)
 
 
 def _get_version():
-    ver = flask.request.headers.get(conf.VERSION_HEADER,
+    ver = flask.request.headers.get(conf_opts.VERSION_HEADER,
                                     _DEFAULT_API_VERSION)
     try:
         requested = tuple(int(x) for x in ver.split('.'))
@@ -103,8 +103,8 @@ def check_api_version():
 
 @app.after_request
 def add_version_headers(res):
-    res.headers[conf.MIN_VERSION_HEADER] = '%s.%s' % MINIMUM_API_VERSION
-    res.headers[conf.MAX_VERSION_HEADER] = '%s.%s' % CURRENT_API_VERSION
+    res.headers[conf_opts.MIN_VERSION_HEADER] = '%s.%s' % MINIMUM_API_VERSION
+    res.headers[conf_opts.MAX_VERSION_HEADER] = '%s.%s' % CURRENT_API_VERSION
     return res
 
 

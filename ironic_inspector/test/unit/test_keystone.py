@@ -48,8 +48,7 @@ class KeystoneTest(base.BaseTest):
         self.assertEqual(auth1, sess.auth)
 
     def test_add_auth_options(self):
-        group, opts = keystone.add_auth_options([], TESTGROUP)[0]
-        self.assertEqual(TESTGROUP, group)
+        opts = keystone.add_auth_options([])
         # check that there is no duplicates
         names = {o.dest for o in opts}
         self.assertEqual(len(names), len(opts))

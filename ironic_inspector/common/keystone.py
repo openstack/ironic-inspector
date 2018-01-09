@@ -33,7 +33,7 @@ def get_session(group):
     return session
 
 
-def add_auth_options(options, group):
+def add_auth_options(options):
 
     def add_options(opts, opts_to_add):
         for new_opt in opts_to_add:
@@ -53,4 +53,4 @@ def add_auth_options(options, group):
         add_options(opts, loading.get_auth_plugin_conf_options(plugin))
     add_options(opts, loading.get_session_conf_options())
     opts.sort(key=lambda x: x.name)
-    return [(group, opts)]
+    return opts

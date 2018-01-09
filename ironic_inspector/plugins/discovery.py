@@ -21,21 +21,7 @@ from ironic_inspector import node_cache
 from ironic_inspector import utils
 
 
-DISCOVERY_OPTS = [
-    cfg.StrOpt('enroll_node_driver',
-               default='fake',
-               help=_('The name of the Ironic driver used by the enroll '
-                      'hook when creating a new node in Ironic.')),
-]
-
-
-def list_opts():
-    return [
-        ('discovery', DISCOVERY_OPTS)
-    ]
-
 CONF = cfg.CONF
-CONF.register_opts(DISCOVERY_OPTS, group='discovery')
 
 LOG = utils.getProcessingLogger(__name__)
 

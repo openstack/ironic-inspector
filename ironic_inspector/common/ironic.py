@@ -31,41 +31,6 @@ VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect failed'}
 # 1.19 is API version, which supports port.pxe_enabled
 DEFAULT_IRONIC_API_VERSION = '1.19'
 
-IRONIC_GROUP = 'ironic'
-
-IRONIC_OPTS = [
-    cfg.StrOpt('os_region',
-               help=_('Keystone region used to get Ironic endpoints.')),
-    cfg.StrOpt('auth_strategy',
-               default='keystone',
-               choices=('keystone', 'noauth'),
-               help=_('Method to use for authentication: noauth or '
-                      'keystone.')),
-    cfg.StrOpt('ironic_url',
-               default='http://localhost:6385/',
-               help=_('Ironic API URL, used to set Ironic API URL when '
-                      'auth_strategy option is noauth to work with standalone '
-                      'Ironic without keystone.')),
-    cfg.StrOpt('os_service_type',
-               default='baremetal',
-               help=_('Ironic service type.')),
-    cfg.StrOpt('os_endpoint_type',
-               default='internalURL',
-               help=_('Ironic endpoint type.')),
-    cfg.IntOpt('retry_interval',
-               default=2,
-               help=_('Interval between retries in case of conflict error '
-                      '(HTTP 409).')),
-    cfg.IntOpt('max_retries',
-               default=30,
-               help=_('Maximum number of retries in case of conflict error '
-                      '(HTTP 409).')),
-]
-
-
-CONF.register_opts(IRONIC_OPTS, group=IRONIC_GROUP)
-keystone.register_auth_opts(IRONIC_GROUP)
-
 IRONIC_SESSION = None
 
 
@@ -124,7 +89,7 @@ def get_client(token=None,
     else:
         global IRONIC_SESSION
         if not IRONIC_SESSION:
-            IRONIC_SESSION = keystone.get_session(IRONIC_GROUP)
+            IRONIC_SESSION = keystone.get_session('ironic')
         if token is None:
             args = {'session': IRONIC_SESSION,
                     'region_name': CONF.ironic.os_region}
@@ -182,7 +147,3 @@ def get_node(node_id, ironic=None, **kwargs):
     except ironic_exc.HttpError as exc:
         raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
                           {'node': node_id, 'exc': exc})
-
-
-def list_opts():
-    return keystone.add_auth_options(IRONIC_OPTS, IRONIC_GROUP)

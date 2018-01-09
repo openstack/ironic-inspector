@@ -10,19 +10,20 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from oslo_config import cfg
 from oslo_log import log
 
-from ironic_inspector import conf
+from ironic_inspector.conf import opts
 
 LOG = log.getLogger(__name__)
-CONF = conf.cfg.CONF
+CONF = cfg.CONF
 
 
 def prepare_service(args=None):
     args = [] if args is None else args
     log.register_options(CONF)
-    conf.set_config_defaults()
-    conf.parse_args(args)
+    opts.set_config_defaults()
+    opts.parse_args(args)
     log.setup(CONF, 'ironic_inspector')
 
     LOG.debug("Configuration:")
