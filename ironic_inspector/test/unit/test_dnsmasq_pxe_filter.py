@@ -106,7 +106,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
 
     def test_write(self):
         wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
-        self.assertIs(bool(self.mock_fd.write.return_value), wrote)
+        self.assertEqual(True, wrote)
         self.mock_open.assert_called_once_with(self.path, 'w', 1)
         self.mock_fcntl.assert_has_calls(
             [self.fcntl_lock_call, self.fcntl_unlock_call])
@@ -124,7 +124,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
             None, None]
         wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
 
-        self.assertIs(bool(self.mock_fd.write.return_value), wrote)
+        self.assertEqual(True, wrote)
         self.mock_open.assert_called_once_with(self.path, 'w', 1)
         self.mock_fcntl.assert_has_calls(
             [self.fcntl_lock_call, self.fcntl_unlock_call],
@@ -144,7 +144,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
         self.mock_fcntl.side_effect = [err, None]
 
         wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
-        self.assertEqual(0, wrote)
+        self.assertEqual(False, wrote)
         self.mock_open.assert_called_once_with(self.path, 'w', 1)
         self.mock_fcntl.assert_has_calls(
             [self.fcntl_lock_call, self.fcntl_unlock_call])

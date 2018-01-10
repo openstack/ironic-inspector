@@ -164,7 +164,12 @@ def _exclusive_write_or_pass(path, buf):
         while attempts:
             try:
                 fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return bool(f.write(buf))
+                f.write(buf)
+                # Go ahead and flush the data now instead of waiting until
+                # after the automatic flush with the file close after the
+                # file lock is released.
+                f.flush()
+                return True
             except IOError as e:
                 if e.errno == os.errno.EWOULDBLOCK:
                     LOG.debug('%s locked; will try again (later)', path)
@@ -177,7 +182,7 @@ def _exclusive_write_or_pass(path, buf):
     LOG.debug('Failed to write the exclusively-locked path: %(path)s for '
               '%(attempts)s times', {'attempts': _EXCLUSIVE_WRITE_ATTEMPTS,
                                      'path': path})
-    return 0
+    return False
 
 
 def _blacklist_mac(mac):
