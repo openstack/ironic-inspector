@@ -18,6 +18,7 @@ from ironic_inspector.common import keystone
 
 
 SWIFT_GROUP = 'swift'
+SERVICE_TYPE = 'object-store'
 
 
 _OPTS = [
@@ -36,19 +37,28 @@ _OPTS = [
                       'objects.')),
     cfg.StrOpt('os_service_type',
                default='object-store',
-               help=_('Swift service type.')),
+               help=_('Swift service type.'),
+               deprecated_for_removal=True,
+               deprecated_reason=_('Use [swift]/service_type option '
+                                   'to set specific service type')),
     cfg.StrOpt('os_endpoint_type',
                default='internalURL',
-               help=_('Swift endpoint type.')),
+               help=_('Swift endpoint type.'),
+               deprecated_for_removal=True,
+               deprecated_reason=_('Use [swift]/valid_interfaces option '
+                                   'to specify endpoint interfaces.')),
     cfg.StrOpt('os_region',
-               help=_('Keystone region to get endpoint for.')),
+               help=_('Keystone region to get endpoint for.'),
+               deprecated_for_removal=True,
+               deprecated_reason=_("Use [swift]/region_name option to "
+                                   "configure region."))
 ]
 
 
 def register_opts(conf):
     conf.register_opts(_OPTS, SWIFT_GROUP)
-    keystone.register_auth_opts(SWIFT_GROUP)
+    keystone.register_auth_opts(SWIFT_GROUP, SERVICE_TYPE)
 
 
 def list_opts():
-    return keystone.add_auth_options(_OPTS)
+    return keystone.add_auth_options(_OPTS, SERVICE_TYPE)

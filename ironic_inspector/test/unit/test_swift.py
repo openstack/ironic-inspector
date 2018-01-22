@@ -14,6 +14,8 @@
 
 # Mostly copied from ironic/tests/test_swift.py
 
+
+from keystoneauth1 import loading as kloading
 import mock
 from swiftclient import client as swift_client
 from swiftclient import exceptions as swift_exception
@@ -44,6 +46,7 @@ class BaseTest(test_base.NodeTest):
         }
 
 
+@mock.patch.object(keystone, 'get_adapter', autospec=True)
 @mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
 @mock.patch.object(swift_client, 'Connection', autospec=True)
@@ -58,14 +61,23 @@ class SwiftTestCase(BaseTest):
                         os_endpoint_type='internalURL',
                         os_region='somewhere',
                         max_retries=2)
+        # NOTE(aarefiev) register keystoneauth dynamic options
+        adapter_opts = kloading.get_adapter_conf_options(
+            include_deprecated=False)
+        self.cfg.register_opts(adapter_opts, 'swift')
         self.addCleanup(swift.reset_swift_session)
 
-    def test___init__(self, connection_mock, load_mock, opts_mock):
+    def test___init__(self, connection_mock, load_mock,
+                      opts_mock, adapter_mock):
+        fake_endpoint = "http://localhost:6000"
+        adapter_mock.return_value.get_endpoint.return_value = fake_endpoint
         swift.SwiftAPI()
         connection_mock.assert_called_once_with(
-            session=load_mock.return_value)
+            session=load_mock.return_value,
+            os_options={'object_storage_url': fake_endpoint})
 
-    def test_create_object(self, connection_mock, load_mock, opts_mock):
+    def test_create_object(self, connection_mock, load_mock,
+                           opts_mock, adapter_mock):
         swiftapi = swift.SwiftAPI()
         connection_obj_mock = connection_mock.return_value
 
@@ -79,8 +91,8 @@ class SwiftTestCase(BaseTest):
             'ironic-inspector', 'object', 'some-string-data', headers=None)
         self.assertEqual('object-uuid', object_uuid)
 
-    def test_create_object_create_container_fails(self, connection_mock,
-                                                  load_mock, opts_mock):
+    def test_create_object_create_container_fails(
+            self, connection_mock, load_mock, opts_mock, adapter_mock):
         swiftapi = swift.SwiftAPI()
         connection_obj_mock = connection_mock.return_value
         connection_obj_mock.put_container.side_effect = self.swift_exception
@@ -91,7 +103,7 @@ class SwiftTestCase(BaseTest):
         self.assertFalse(connection_obj_mock.put_object.called)
 
     def test_create_object_put_object_fails(self, connection_mock, load_mock,
-                                            opts_mock):
+                                            opts_mock, adapter_mock):
         swiftapi = swift.SwiftAPI()
         connection_obj_mock = connection_mock.return_value
         connection_obj_mock.put_object.side_effect = self.swift_exception
@@ -102,7 +114,8 @@ class SwiftTestCase(BaseTest):
         connection_obj_mock.put_object.assert_called_once_with(
             'ironic-inspector', 'object', 'some-string-data', headers=None)
 
-    def test_get_object(self, connection_mock, load_mock, opts_mock):
+    def test_get_object(self, connection_mock, load_mock,
+                        opts_mock, adapter_mock):
         swiftapi = swift.SwiftAPI()
         connection_obj_mock = connection_mock.return_value
 
@@ -115,7 +128,8 @@ class SwiftTestCase(BaseTest):
             'ironic-inspector', 'object')
         self.assertEqual(expected_obj, swift_obj)
 
-    def test_get_object_fails(self, connection_mock, load_mock, opts_mock):
+    def test_get_object_fails(self, connection_mock, load_mock,
+                              opts_mock, adapter_mock):
         swiftapi = swift.SwiftAPI()
         connection_obj_mock = connection_mock.return_value
         connection_obj_mock.get_object.side_effect = self.swift_exception

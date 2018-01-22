@@ -29,16 +29,18 @@ class KeystoneTest(base.BaseTest):
         self.cfg.conf.register_group(cfg.OptGroup(TESTGROUP))
 
     def test_register_auth_opts(self):
-        keystone.register_auth_opts(TESTGROUP)
+        keystone.register_auth_opts(TESTGROUP, 'fake-service')
         auth_opts = ['auth_type', 'auth_section']
         sess_opts = ['certfile', 'keyfile', 'insecure', 'timeout', 'cafile']
         for o in auth_opts + sess_opts:
             self.assertIn(o, self.cfg.conf[TESTGROUP])
         self.assertEqual('password', self.cfg.conf[TESTGROUP]['auth_type'])
+        self.assertEqual('fake-service',
+                         self.cfg.conf[TESTGROUP]['service_type'])
 
     @mock.patch.object(kaloading, 'load_auth_from_conf_options', autospec=True)
     def test_get_session(self, auth_mock):
-        keystone.register_auth_opts(TESTGROUP)
+        keystone.register_auth_opts(TESTGROUP, 'fake-service')
         self.cfg.config(group=TESTGROUP,
                         cafile='/path/to/ca/file')
         auth1 = mock.Mock()
@@ -48,7 +50,7 @@ class KeystoneTest(base.BaseTest):
         self.assertEqual(auth1, sess.auth)
 
     def test_add_auth_options(self):
-        opts = keystone.add_auth_options([])
+        opts = keystone.add_auth_options([], 'fake-service')
         # check that there is no duplicates
         names = {o.dest for o in opts}
         self.assertEqual(len(names), len(opts))

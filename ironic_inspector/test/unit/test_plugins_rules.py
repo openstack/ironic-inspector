@@ -166,6 +166,7 @@ class TestSetAttributeAction(test_base.NodeTest):
                                              'value': 42}])
 
 
+@mock.patch('ironic_inspector.common.ironic.get_client', new=mock.Mock())
 class TestSetCapabilityAction(test_base.NodeTest):
     act = rules_plugins.SetCapabilityAction()
     params = {'name': 'cap1', 'value': 'val'}
@@ -191,6 +192,7 @@ class TestSetCapabilityAction(test_base.NodeTest):
         self.assertEqual({'cap1': 'val', 'x': 'y', 'answer': '42'}, new_caps)
 
 
+@mock.patch('ironic_inspector.common.ironic.get_client', new=mock.Mock())
 class TestExtendAttributeAction(test_base.NodeTest):
     act = rules_plugins.ExtendAttributeAction()
     params = {'path': '/extra/value', 'value': 42}

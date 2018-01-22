@@ -27,6 +27,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
+@mock.patch.object(keystone, 'get_adapter')
 @mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
 @mock.patch.object(client, 'Client')
@@ -39,35 +40,34 @@ class TestGetClient(base.BaseTest):
         self.addCleanup(ir_utils.reset_ironic_session)
 
     def test_get_client_with_auth_token(self, mock_client, mock_load,
-                                        mock_opts):
+                                        mock_opts, mock_adapter):
         fake_token = 'token'
         fake_ironic_url = 'http://127.0.0.1:6385'
         mock_sess = mock.Mock()
-        mock_sess.get_endpoint.return_value = fake_ironic_url
+        mock_adapter.return_value.get_endpoint.return_value = fake_ironic_url
         mock_load.return_value = mock_sess
         ir_utils.get_client(fake_token)
-        mock_sess.get_endpoint.assert_called_once_with(
-            endpoint_type=CONF.ironic.os_endpoint_type,
-            service_type=CONF.ironic.os_service_type,
-            region_name=CONF.ironic.os_region)
+        mock_adapter.assert_called_once_with(
+            'ironic', region_name='somewhere', session=mock_sess)
+        mock_adapter.return_value.get_endpoint.assert_called_once_with()
         args = {'token': fake_token,
-                'endpoint': fake_ironic_url,
                 'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, **args)
+        mock_client.assert_called_once_with(1, fake_ironic_url, **args)
 
     def test_get_client_without_auth_token(self, mock_client, mock_load,
-                                           mock_opts):
+                                           mock_opts, mock_adapter):
+        fake_ironic_url = 'http://127.0.0.1:6385'
+        mock_adapter.return_value.get_endpoint.return_value = fake_ironic_url
         mock_sess = mock.Mock()
         mock_load.return_value = mock_sess
         ir_utils.get_client(None)
         args = {'session': mock_sess,
-                'region_name': 'somewhere',
                 'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, **args)
+        mock_client.assert_called_once_with(1, fake_ironic_url, **args)
 
 
 class TestGetIpmiAddress(base.BaseTest):

@@ -51,7 +51,21 @@ class SwiftAPI(object):
         if not SWIFT_SESSION:
             SWIFT_SESSION = keystone.get_session('swift')
 
-        self.connection = swift_client.Connection(session=SWIFT_SESSION)
+        adapter_opts = dict()
+        # TODO(pas-ha): remove handling deprecated options in Rocky
+        if CONF.swift.os_region and not CONF.swift.region_name:
+            adapter_opts['region_name'] = CONF.swift.os_region
+
+        adapter = keystone.get_adapter('swift', session=SWIFT_SESSION,
+                                       **adapter_opts)
+
+        # TODO(pas-ha) reverse-construct SSL-related session options here
+        params = {
+            'os_options': {
+                'object_storage_url': adapter.get_endpoint()}}
+
+        self.connection = swift_client.Connection(session=SWIFT_SESSION,
+                                                  **params)
 
     def create_object(self, object, data, container=CONF.swift.container,
                       headers=None):
