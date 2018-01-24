@@ -155,8 +155,7 @@ class LLDPParser(object):
         # individual fields can be accessed
         try:
             struct = tlv_parser.parse(data)
-        except (core.RangeError, core.FieldError, core.MappingError,
-                netaddr.AddrFormatError) as e:
+        except (core.ConstructError, netaddr.AddrFormatError) as e:
             LOG.warning("TLV parse error: %s", e,
                         node_info=self.node_info)
             return False
