@@ -9,6 +9,7 @@
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
     gate:
+      queue: ironic
       jobs:
         - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest-dsvm-discovery
