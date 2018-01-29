@@ -1,5 +1,4 @@
 - project:
-    name: openstack/ironic-inspector
     check:
       jobs:
         - ironic-inspector-grenade-dsvm
