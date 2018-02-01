@@ -67,6 +67,13 @@ GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
 GITREPO["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_REPO:-${GIT_BASE}/openstack/python-ironic-inspector-client.git}
 GITBRANCH["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_BRANCH:-master}
 
+# This is defined in ironic's devstack plugin. Redefine it just in case, and
+# insert "inspector" if it's missing.
+IRONIC_ENABLED_INSPECT_INTERFACES=${IRONIC_ENABLED_INSPECT_INTERFACES:-"inspector,no-inspect"}
+if [[ "$IRONIC_ENABLED_INSPECT_INTERFACES" != *inspector* ]]; then
+    IRONIC_ENABLED_INSPECT_INTERFACES="inspector,$IRONIC_ENABLED_INSPECT_INTERFACES"
+fi
+
 ### Utilities
 
 function mkdir_chown_stack {
