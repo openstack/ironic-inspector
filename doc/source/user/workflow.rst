@@ -37,7 +37,8 @@ Usual hardware introspection flow is as follows:
     NIC's found on the node. **ironic-inspector** is also capable of
     deleting ports that should not be present. There are two important
     configuration options that affect this behavior: ``add_ports`` and
-    ``keep_ports`` (please refer to ``example.conf`` for detailed explanation).
+    ``keep_ports`` (please refer to :doc:`the sample configuration file
+    </configuration/sample-config>` for a detailed explanation).
 
     Default values as of **ironic-inspector** 1.1.0 are ``add_ports=pxe``,
     ``keep_ports=all``, which means that only one port will be added, which is
