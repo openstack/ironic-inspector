@@ -17,4 +17,4 @@ fixes:
     Should the ``iptables`` PXE filter encounter an unexpected exception in the
     periodic ``sync`` call, the exception will be logged and the filter driver
     will be reset in order to make subsequent ``sync`` calls fail (and
-    propagate the failure, exiting the **ironc-inspector** process eventually).
+    propagate the failure, exiting the **ironic-inspector** process eventually).
