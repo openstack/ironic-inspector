@@ -11,12 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 import os
 import re
 
 import flask
 from oslo_utils import uuidutils
+import six
 import werkzeug
 
 from ironic_inspector import api_tools
@@ -70,7 +70,7 @@ def error_response(exc, code=500):
 
 
 def convert_exceptions(func):
-    @functools.wraps(func)
+    @six.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
@@ -168,7 +168,7 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
     def outer(func):
         @app.route(path, **flask_kwargs)
         @convert_exceptions
-        @functools.wraps(func)
+        @six.wraps(func)
         def wrapper(*args, **kwargs):
             flask.request.context = context.RequestContext.from_environ(
                 flask.request.environ,

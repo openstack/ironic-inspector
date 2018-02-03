@@ -14,7 +14,6 @@
 """Base code for PXE boot filtering."""
 
 import contextlib
-import functools
 
 from automaton import exceptions as automaton_errors
 from automaton import machines
@@ -23,6 +22,7 @@ from futurist import periodics
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log
+import six
 import stevedore
 
 from ironic_inspector.common.i18n import _
@@ -74,7 +74,7 @@ State_space = [
 def locked_driver_event(event):
     """Call driver method having processed the fsm event."""
     def outer(method):
-        @functools.wraps(method)
+        @six.wraps(method)
         def inner(self, *args, **kwargs):
             with self.lock, self.fsm_reset_on_error() as fsm:
                 fsm.process_event(event)
