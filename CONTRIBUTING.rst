@@ -78,7 +78,8 @@ Run the service with::
     .tox/py27/bin/ironic-inspector --config-file example.conf
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
-environment.
+environment. See the `install guide <../install#sample-configuration-files>`_
+for information on generating or downloading an example configuration file.
 
 You can develop and test **ironic-inspector** using DevStack - see
 `Deploying Ironic Inspector with DevStack`_ for the current status.

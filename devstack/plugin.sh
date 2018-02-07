@@ -252,7 +252,9 @@ function configure_inspector {
 
     create_service_user "$IRONIC_INSPECTOR_ADMIN_USER" "admin"
 
-    cp "$IRONIC_INSPECTOR_DIR/example.conf" "$IRONIC_INSPECTOR_CONF_FILE"
+    # start with a fresh config file
+    rm -f "$IRONIC_INSPECTOR_CONF_FILE"
+
     inspector_iniset DEFAULT debug $IRONIC_INSPECTOR_DEBUG
     inspector_configure_auth_for ironic
     configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api

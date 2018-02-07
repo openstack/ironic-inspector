@@ -55,10 +55,29 @@ Ocata+         5.0 - 5.X    5.0 - 5.X
     ``3.X`` means there are no specific plans to deprecate support for this
     ironic version. This does not imply that it will be supported forever.
 
+Sample Configuration Files
+--------------------------
+
+To generate a sample configuration file, run the following command from the
+top level of the code tree::
+
+    tox -egenconfig
+
+For a pre-generated sample configuration file, see
+:doc:`/configuration/sample-config`.
+
+To generate a sample policy file, run the following command from the
+top level of the code tree::
+
+    tox -egenpolicy
+
+For a pre-generated sample configuration file, see
+:doc:`/configuration/sample-policy`.
+
 Configuration
 -------------
 
-Copy ``example.conf`` to some permanent place
+Copy the sample configuration files to some permanent place
 (e.g. ``/etc/ironic-inspector/inspector.conf``).
 Fill in these minimum configuration values:
 
@@ -79,9 +98,8 @@ Fill in these minimum configuration values:
 * if you wish to use the ``dnsmasq`` PXE/DHCP filter driver rather than the
   default ``iptables`` driver, see the :ref:`dnsmasq_pxe_filter` description.
 
-See comments inside `example.conf
-<https://github.com/openstack/ironic-inspector/blob/master/example.conf>`_
-for other possible configuration options.
+See comments inside :doc:`the sample configuration
+</configuration/sample-config>` for other possible configuration options.
 
 .. note::
     Configuration file contains a password and thus should be owned by ``root``
