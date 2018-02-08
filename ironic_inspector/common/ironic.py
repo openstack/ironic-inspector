@@ -83,6 +83,14 @@ def get_client(token=None,
                api_version=DEFAULT_IRONIC_API_VERSION):  # pragma: no cover
     """Get Ironic client instance."""
     global IRONIC_SESSION
+
+    # NOTE: To support standalone ironic without keystone
+    # TODO(pas-ha) remove handling of deprecated opts in Rocky
+    # TODO(pas-ha) rewrite when ironicclient natively supports 'none' auth
+    # via sessions https://review.openstack.org/#/c/359061/
+    if CONF.ironic.auth_strategy == 'noauth':
+        CONF.set_override('auth_type', 'none', group='ironic')
+
     if not IRONIC_SESSION:
         IRONIC_SESSION = keystone.get_session('ironic')
 
@@ -93,14 +101,8 @@ def get_client(token=None,
 
     adapter_opts = dict()
 
-    # NOTE: To support standalone ironic without keystone
-    # TODO(pas-ha) remove handling of deprecated opts in Rocky
-    # TODO(pas-ha) rewrite when ironicclient natively supports 'none' auth
-    # via sessions https://review.openstack.org/#/c/359061/
-    if CONF.ironic.auth_strategy == 'noauth':
-        CONF.set_override('auth_type', 'none', group='ironic')
-    else:
-        # TODO(pas-ha) use service auth with incoming token
+    # TODO(pas-ha) use service auth with incoming token
+    if CONF.ironic.auth_type != 'none':
         if token is None:
             args['session'] = IRONIC_SESSION
         else:

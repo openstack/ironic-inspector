@@ -27,18 +27,7 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-@mock.patch.object(keystone, 'get_adapter')
-@mock.patch.object(keystone, 'register_auth_opts')
-@mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'Client')
-class TestGetClient(base.BaseTest):
-    def setUp(self):
-        super(TestGetClient, self).setUp()
-        ir_utils.reset_ironic_session()
-        self.cfg.config(auth_strategy='keystone')
-        self.cfg.config(os_region='somewhere', group='ironic')
-        self.addCleanup(ir_utils.reset_ironic_session)
-
+class TestGetClientBase(object):
     def test_get_client_with_auth_token(self, mock_client, mock_load,
                                         mock_opts, mock_adapter):
         fake_token = 'token'
@@ -68,6 +57,32 @@ class TestGetClient(base.BaseTest):
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
         mock_client.assert_called_once_with(1, fake_ironic_url, **args)
+
+
+@mock.patch.object(keystone, 'get_adapter')
+@mock.patch.object(keystone, 'register_auth_opts')
+@mock.patch.object(keystone, 'get_session')
+@mock.patch.object(client, 'Client')
+class TestGetClientAuth(TestGetClientBase, base.BaseTest):
+    def setUp(self):
+        super(TestGetClientAuth, self).setUp()
+        ir_utils.reset_ironic_session()
+        self.cfg.config(auth_strategy='keystone')
+        self.cfg.config(os_region='somewhere', group='ironic')
+        self.addCleanup(ir_utils.reset_ironic_session)
+
+
+@mock.patch.object(keystone, 'get_adapter')
+@mock.patch.object(keystone, 'register_auth_opts')
+@mock.patch.object(keystone, 'get_session')
+@mock.patch.object(client, 'Client')
+class TestGetClientNoAuth(TestGetClientBase, base.BaseTest):
+    def setUp(self):
+        super(TestGetClientNoAuth, self).setUp()
+        ir_utils.reset_ironic_session()
+        self.cfg.config(auth_strategy='noauth')
+        self.cfg.config(os_region='somewhere', group='ironic')
+        self.addCleanup(ir_utils.reset_ironic_session)
 
 
 class TestGetIpmiAddress(base.BaseTest):
