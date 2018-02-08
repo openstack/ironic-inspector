@@ -18,6 +18,7 @@ import binascii
 from construct import core
 import netaddr
 from oslo_config import cfg
+from oslo_utils import netutils
 
 from ironic_inspector.common import lldp_parsers
 from ironic_inspector.common import lldp_tlvs as tlv
@@ -87,7 +88,8 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                     'path': '/local_link_connection/%s' % item,
                     'value': value}
 
-    def _get_lldp_processed_patch(self, name, item, lldp_proc_data, port):
+    def _get_lldp_processed_patch(self, name, item, lldp_proc_data, port,
+                                  node_info):
 
         if 'lldp_processed' not in lldp_proc_data:
             return
@@ -95,6 +97,14 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
         value = lldp_proc_data['lldp_processed'].get(name)
 
         if value:
+
+            # Only accept mac address for chassis ID
+            if (item == SWITCH_ID_ITEM_NAME and
+                    not netutils.is_valid_mac(value)):
+                LOG.info("Skipping switch_id since it's not a MAC: %s", value,
+                         node_info=node_info)
+                return
+
             if (not CONF.processing.overwrite_existing and
                     item in port.local_link_connection):
                 return
@@ -134,7 +144,8 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
 
             for name, item in LLDP_PROC_DATA_MAPPING.items():
                 patch = self._get_lldp_processed_patch(name, item,
-                                                       proc_data, port)
+                                                       proc_data, port,
+                                                       node_info)
                 if patch is not None:
                     patches.append(patch)
 
