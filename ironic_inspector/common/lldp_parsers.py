@@ -99,7 +99,7 @@ class LLDPParser(object):
         self.nv_dict.setdefault(name, []).append(value)
 
     def add_single_value(self, struct, name, data):
-        """Add a single name/value pair the the nv dict"""
+        """Add a single name/value pair to the nv dict"""
         self.set_value(name, struct.value)
 
     def parse_tlv(self, tlv_type, data):
