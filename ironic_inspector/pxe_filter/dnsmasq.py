@@ -66,7 +66,8 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         timestamp_start = timeutils.utcnow()
         active_macs = node_cache.active_macs()
         ironic_macs = set(port.address for port in
-                          ironic.port.list(limit=0, fields=['address']))
+                          ir_utils.call_with_retries(ironic.port.list, limit=0,
+                                                     fields=['address']))
         blacklist_macs = _get_blacklist()
         # NOTE(milan) whitelist MACs of ports not kept in ironic anymore
         # also whitelist active MACs that are still blacklisted in the
