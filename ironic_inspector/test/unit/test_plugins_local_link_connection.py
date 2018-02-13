@@ -193,3 +193,21 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
         ]
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    def test_processed_chassis_id_not_mac(self, mock_patch):
+        self.data['all_interfaces'] = {
+            'em1': {"ip": self.ips[0], "mac": self.macs[0],
+                    "lldp_processed": {
+                        "switch_chassis_id": "192.0.2.1",
+                        "switch_port_id": "Ethernet2/66"}
+                    }
+        }
+
+        # skip chassis_id since its not a mac
+        patches = [
+            {'path': '/local_link_connection/port_id',
+             'value': 'Ethernet2/66', 'op': 'add'},
+        ]
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patches, mock_patch)
