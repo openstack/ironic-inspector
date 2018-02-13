@@ -19,6 +19,7 @@ from eventlet.green import subprocess
 from oslo_config import cfg
 from oslo_log import log
 
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 from ironic_inspector.pxe_filter import base as pxe_filter
 
@@ -225,9 +226,9 @@ def _ib_mac_to_rmac_mapping(ports):
 
 
 def _get_blacklist(ironic):
-    ports = [
-        port.address for port in ironic.port.list(
-            limit=0, fields=['address', 'extra'])
-        if port.address not in node_cache.active_macs()]
+    ports = [port.address for port in
+             ir_utils.call_with_retries(ironic.port.list, limit=0,
+                                        fields=['address', 'extra'])
+             if port.address not in node_cache.active_macs()]
     _ib_mac_to_rmac_mapping(ports)
     return ports

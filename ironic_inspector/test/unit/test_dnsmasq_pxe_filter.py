@@ -15,6 +15,7 @@ import datetime
 import os
 
 import fixtures
+from ironicclient import exc as ironic_exc
 import mock
 from oslo_config import cfg
 import six
@@ -291,6 +292,29 @@ class TestSync(DnsmasqTestBase):
                                                   any_order=True)
         self.mock_ironic.port.list.assert_called_once_with(limit=0,
                                                            fields=['address'])
+        self.mock_active_macs.assert_called_once_with()
+        self.mock__get_blacklist.assert_called_once_with()
+        self.mock_log.debug.assert_has_calls([
+            mock.call('Syncing the driver'),
+            mock.call('The dnsmasq PXE filter was synchronized (took %s)',
+                      self.timestamp_end - self.timestamp_start)
+        ])
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test__sync_with_port_list_retries(self):
+        self.mock_ironic.port.list.side_effect = [
+            ironic_exc.ConnectionRefused('boom'),
+            [mock.Mock(address=address) for address in self.ironic_macs]
+        ]
+        self.driver._sync(self.mock_ironic)
+
+        self.mock__whitelist_mac.assert_has_calls([mock.call('active_mac'),
+                                                   mock.call('gone_mac')],
+                                                  any_order=True)
+        self.mock__blacklist_mac.assert_has_calls([mock.call('new_mac')],
+                                                  any_order=True)
+        self.mock_ironic.port.list.assert_called_with(limit=0,
+                                                      fields=['address'])
         self.mock_active_macs.assert_called_once_with()
         self.mock__get_blacklist.assert_called_once_with()
         self.mock_log.debug.assert_has_calls([

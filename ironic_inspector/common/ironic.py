@@ -17,6 +17,7 @@ from ironicclient import client
 from ironicclient import exceptions as ironic_exc
 import netaddr
 from oslo_config import cfg
+import retrying
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import keystone
@@ -162,3 +163,16 @@ def get_node(node_id, ironic=None, **kwargs):
     except ironic_exc.HttpError as exc:
         raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
                           {'node': node_id, 'exc': exc})
+
+
+@retrying.retry(
+    retry_on_exception=lambda exc: isinstance(exc, ironic_exc.ClientException),
+    stop_max_attempt_number=5, wait_fixed=1000)
+def call_with_retries(func, *args, **kwargs):
+    """Call an ironic client function retrying all errors.
+
+    If an ironic client exception is raised, try calling the func again,
+    at most 5 times, waiting 1 sec between each call. If on the 5th attempt
+    the func raises again, the exception is propagated to the caller.
+    """
+    return func(*args, **kwargs)
