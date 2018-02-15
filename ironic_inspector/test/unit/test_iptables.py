@@ -14,6 +14,7 @@
 # under the License.
 
 import fixtures
+from ironicclient import exc as ironic_exc
 import mock
 from oslo_config import cfg
 
@@ -352,5 +353,23 @@ class TestGetBlacklist(test_base.BaseTest):
         # foo is an active address so we expect the blacklist contains only bar
         self.assertEqual(['bar'], ports)
         self.mock_ironic.port.list.assert_called_once_with(
+            limit=0, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(ports)
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test_retry_on_port_list_failure(self):
+        self.mock_ironic.port.list.side_effect = [
+            ironic_exc.ConnectionRefused('boom'),
+            [
+                mock.Mock(address='foo'),
+                mock.Mock(address='bar'),
+            ]
+        ]
+        self.mock_active_macs.return_value = {'foo'}
+
+        ports = iptables._get_blacklist(self.mock_ironic)
+        # foo is an active address so we expect the blacklist contains only bar
+        self.assertEqual(['bar'], ports)
+        self.mock_ironic.port.list.assert_called_with(
             limit=0, fields=['address', 'extra'])
         self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(ports)

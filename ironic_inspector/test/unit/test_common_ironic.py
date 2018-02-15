@@ -15,6 +15,7 @@ import socket
 import unittest
 
 from ironicclient import client
+from ironicclient import exc as ironic_exc
 import mock
 from oslo_config import cfg
 
@@ -144,3 +145,41 @@ class TestCapabilities(unittest.TestCase):
         output = ir_utils.dict_to_capabilities(capabilities_dict)
         self.assertIn('cat:meow', output)
         self.assertIn('dog:wuff', output)
+
+
+class TestCallWithRetries(unittest.TestCase):
+    def setUp(self):
+        super(TestCallWithRetries, self).setUp()
+        self.call = mock.Mock(spec=[])
+
+    def test_no_retries_on_success(self):
+        result = ir_utils.call_with_retries(self.call, 'meow', answer=42)
+        self.assertEqual(result, self.call.return_value)
+        self.call.assert_called_once_with('meow', answer=42)
+
+    def test_no_retries_on_python_error(self):
+        self.call.side_effect = RuntimeError('boom')
+        self.assertRaisesRegexp(RuntimeError, 'boom',
+                                ir_utils.call_with_retries,
+                                self.call, 'meow', answer=42)
+        self.call.assert_called_once_with('meow', answer=42)
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test_retries_on_ironicclient_error(self):
+        self.call.side_effect = [
+            ironic_exc.ClientException('boom')
+        ] * 3 + [mock.sentinel.result]
+
+        result = ir_utils.call_with_retries(self.call, 'meow', answer=42)
+        self.assertEqual(result, mock.sentinel.result)
+        self.call.assert_called_with('meow', answer=42)
+        self.assertEqual(4, self.call.call_count)
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test_retries_on_ironicclient_error_with_failure(self):
+        self.call.side_effect = ironic_exc.ClientException('boom')
+        self.assertRaisesRegexp(ironic_exc.ClientException, 'boom',
+                                ir_utils.call_with_retries,
+                                self.call, 'meow', answer=42)
+        self.call.assert_called_with('meow', answer=42)
+        self.assertEqual(5, self.call.call_count)
