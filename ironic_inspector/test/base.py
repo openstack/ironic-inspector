@@ -170,7 +170,7 @@ class NodeTest(InventoryTest):
         super(NodeTest, self).setUp()
         self.uuid = uuidutils.generate_uuid()
         fake_node = {
-            'driver': 'pxe_ipmitool',
+            'driver': 'ipmi',
             'driver_info': {'ipmi_address': self.bmc_address},
             'properties': {'cpu_arch': 'i386', 'local_gb': 40},
             'uuid': self.uuid,
