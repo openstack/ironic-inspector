@@ -233,13 +233,13 @@ the processing :ref:`plugins <introspection_plugins>`, and after that it runs
 introspection rules, which would allow for more customisable node
 configuration, see :ref:`rules <introspection_rules>`.
 
-A rule to set a node's Ironic driver to the ``agent_ipmitool`` driver and
-populate the required driver_info for that driver would look like::
+A rule to set a node's Ironic driver to ``ipmi`` and populate the required
+``driver_info`` for that driver would look like::
 
     [{
         "description": "Set IPMI driver_info if no credentials",
         "actions": [
-            {"action": "set-attribute", "path": "driver", "value": "agent_ipmitool"},
+            {"action": "set-attribute", "path": "driver", "value": "ipmi"},
             {"action": "set-attribute", "path": "driver_info/ipmi_username",
              "value": "username"},
             {"action": "set-attribute", "path": "driver_info/ipmi_password",
@@ -269,9 +269,9 @@ possible to distinguish between manually enrolled nodes and auto-discovered
 nodes in the introspection rules using the rule condition ``eq``::
 
     {
-        "description": "Enroll auto-discovered nodes with fake driver",
+        "description": "Enroll auto-discovered nodes with ipmi hardware type",
         "actions": [
-            {"action": "set-attribute", "path": "driver", "value": "fake"}
+            {"action": "set-attribute", "path": "driver", "value": "ipmi"}
         ],
         "conditions": [
             {"op": "eq", "field": "data://auto_discovered", "value": true}
