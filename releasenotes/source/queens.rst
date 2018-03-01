@@ -1,5 +1,5 @@
 ============================================
- Queens Series (6.1.0 - 7.1.x) Release Notes
+ Queens Series (6.1.0 - 7.2.x) Release Notes
 ============================================
 
 .. release-notes::
