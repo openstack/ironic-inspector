@@ -339,13 +339,18 @@ class TestStoreLogs(BaseProcessTest):
         process.process(self.data)
         self._check_contents()
 
+    @mock.patch.object(os, 'makedirs', autospec=True)
     @mock.patch.object(process.LOG, 'exception', autospec=True)
-    def test_failure_to_write(self, log_mock, hook_mock):
+    def test_failure_to_write(self, log_mock, makedirs_mock, hook_mock):
+        tempdir = tempfile.mkdtemp()
+        logs_dir = os.path.join(tempdir, 'I/never/exist')
         CONF.set_override('always_store_ramdisk_logs', True, 'processing')
-        CONF.set_override('ramdisk_logs_dir', '/I/cannot/write/here',
-                          'processing')
+        CONF.set_override('ramdisk_logs_dir', logs_dir, 'processing')
+        makedirs_mock.side_effect = OSError()
         process.process(self.data)
+        os.rmdir(tempdir)
         self.assertEqual([], os.listdir(self.tempdir))
+        self.assertTrue(makedirs_mock.called)
         self.assertTrue(log_mock.called)
 
     def test_directory_is_created(self, hook_mock):
