@@ -11,7 +11,7 @@ Introduction
 This is an auxiliary service for discovering hardware properties for a
 node managed by `Ironic`_. Hardware introspection or hardware
 properties discovery is a process of getting hardware parameters required for
-scheduling from a bare metal node, given it's power management credentials
+scheduling from a bare metal node, given its power management credentials
 (e.g. IPMI address, user name and password).
 
 * Free software: Apache license
