@@ -48,7 +48,8 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
 
         discovery.enroll_node_not_found_hook(introspection_data)
 
-        mock_create_node.assert_called_once_with('fake', ironic=self.ironic,
+        mock_create_node.assert_called_once_with('fake-hardware',
+                                                 ironic=self.ironic,
                                                  driver_info={})
         mock_check_existing.assert_called_once_with(
             introspection_data, {}, self.ironic)
@@ -66,7 +67,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
         discovery.enroll_node_not_found_hook(introspection_data)
 
         mock_create_node.assert_called_once_with(
-            'fake', ironic=self.ironic,
+            'fake-hardware', ironic=self.ironic,
             driver_info={'ipmi_address': '1.2.3.4'})
         mock_check_existing.assert_called_once_with(
             expected_data, {'ipmi_address': '1.2.3.4'}, self.ironic)

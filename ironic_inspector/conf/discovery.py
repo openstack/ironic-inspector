@@ -18,7 +18,7 @@ from ironic_inspector.common.i18n import _
 
 _OPTS = [
     cfg.StrOpt('enroll_node_driver',
-               default='fake',
+               default='fake-hardware',
                help=_('The name of the Ironic driver used by the enroll '
                       'hook when creating a new node in Ironic.')),
 ]
