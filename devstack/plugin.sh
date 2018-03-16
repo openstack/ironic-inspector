@@ -69,7 +69,7 @@ GITBRANCH["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_BRANCH:-ma
 
 # This is defined in ironic's devstack plugin. Redefine it just in case, and
 # insert "inspector" if it's missing.
-IRONIC_ENABLED_INSPECT_INTERFACES=${IRONIC_ENABLED_INSPECT_INTERFACES:-"inspector,no-inspect"}
+IRONIC_ENABLED_INSPECT_INTERFACES=${IRONIC_ENABLED_INSPECT_INTERFACES:-"inspector,no-inspect,fake"}
 if [[ "$IRONIC_ENABLED_INSPECT_INTERFACES" != *inspector* ]]; then
     IRONIC_ENABLED_INSPECT_INTERFACES="inspector,$IRONIC_ENABLED_INSPECT_INTERFACES"
 fi
