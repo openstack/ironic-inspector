@@ -263,6 +263,16 @@ class TestIntrospect(BaseTest):
         self.assertFalse(start_mock.called)
         self.assertFalse(self.node_info.acquire_lock.called)
 
+    def test_inspect_wait_state_allowed(self, client_mock, start_mock):
+        self.node.provision_state = 'inspect wait'
+        cli = client_mock.return_value
+        cli.node.get.return_value = self.node
+        cli.node.validate.return_value = mock.Mock(power={'result': True})
+
+        introspect.introspect(self.uuid)
+
+        self.assertTrue(start_mock.called)
+
     @mock.patch.object(time, 'time')
     def test_introspection_delay(self, time_mock, client_mock, start_mock):
         time_mock.return_value = 42

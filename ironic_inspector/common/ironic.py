@@ -26,8 +26,9 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 LOG = utils.getProcessingLogger(__name__)
 
-# See http://specs.openstack.org/openstack/ironic-specs/specs/kilo/new-ironic-state-machine.html  # noqa
-VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect failed'}
+# See https://docs.openstack.org/ironic/latest/contributor/states.html  # noqa
+VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect wait',
+                'inspect failed'}
 
 # 1.19 is API version, which supports port.pxe_enabled
 DEFAULT_IRONIC_API_VERSION = '1.19'
