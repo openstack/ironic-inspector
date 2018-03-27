@@ -182,12 +182,6 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
 class TestMACHandlers(test_base.BaseTest):
     def setUp(self):
         super(TestMACHandlers, self).setUp()
-        self.mock_listdir = self.useFixture(
-            fixtures.MockPatchObject(os, 'listdir')).mock
-        self.mock_stat = self.useFixture(
-            fixtures.MockPatchObject(os, 'stat')).mock
-        self.mock_remove = self.useFixture(
-            fixtures.MockPatchObject(os, 'remove')).mock
         self.mac = 'ff:ff:ff:ff:ff:ff'
         self.dhcp_hostsdir = '/far'
         CONF.set_override('dhcp_hostsdir', self.dhcp_hostsdir,
@@ -197,6 +191,12 @@ class TestMACHandlers(test_base.BaseTest):
         self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir, self.mac)
         self.mock__exclusive_write_or_pass = self.useFixture(
             fixtures.MockPatchObject(dnsmasq, '_exclusive_write_or_pass')).mock
+        self.mock_stat = self.useFixture(
+            fixtures.MockPatchObject(os, 'stat')).mock
+        self.mock_listdir = self.useFixture(
+            fixtures.MockPatchObject(os, 'listdir')).mock
+        self.mock_remove = self.useFixture(
+            fixtures.MockPatchObject(os, 'remove')).mock
 
     def test__whitelist_mac(self):
         dnsmasq._whitelist_mac(self.mac)
@@ -243,6 +243,8 @@ class TestMACHandlers(test_base.BaseTest):
 
     def test_disabled__purge_dhcp_hostsdir(self):
         CONF.set_override('purge_dhcp_hostsdir', False, 'dnsmasq_pxe_filter')
+        # NOTE(dtantsur): set_override uses os.path internally
+        self.mock_join.reset_mock()
 
         dnsmasq._purge_dhcp_hostsdir()
         self.mock_listdir.assert_not_called()
