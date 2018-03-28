@@ -20,12 +20,12 @@ Basics
   ``VERSION`` is the current stable series. E.g. at the moment of writing the
   stable branch is ``stable/1.0``.
 
-* Please file a launchpad_ blueprint for any significant code change and a bug
-  for any significant bug fix.
+* Please file an RFE in StoryBoard_ for any significant code change and a
+  regular story for any significant bug fix.
 
 .. _OpenStack GitHub: https://github.com/openstack/ironic-inspector
 .. _Gerrit Workflow: https://docs.openstack.org/infra/manual/developers.html#development-workflow
-.. _launchpad: https://bugs.launchpad.net/ironic-inspector
+.. _StoryBoard: https://storyboard.openstack.org/#!/project/944
 
 Development Environment
 ~~~~~~~~~~~~~~~~~~~~~~~
