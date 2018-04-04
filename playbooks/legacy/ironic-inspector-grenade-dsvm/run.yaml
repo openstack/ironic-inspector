@@ -171,6 +171,10 @@
             export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_BOOT_MODE=uefi"
           fi
 
+          # NOTE(mgoddard): We cannot test node traits when upgrading from
+          # pike, as node traits support was added in queens.
+          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_DEFAULT_TRAITS=\"\""
+
           export DEVSTACK_PROJECT_FROM_GIT=""
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_COUNT=7"
 
