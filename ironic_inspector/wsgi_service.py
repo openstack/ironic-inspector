@@ -10,6 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import signal
 import ssl
 import sys
 import traceback as traceback_mod
@@ -41,6 +42,7 @@ class WSGIService(object):
         self.app = app.app
         self._periodics_worker = None
         self._shutting_down = semaphore.Semaphore()
+        signal.signal(signal.SIGHUP, self._handle_sighup)
 
     def _init_middleware(self):
         """Initialize WSGI middleware.
@@ -188,6 +190,13 @@ class WSGIService(object):
             self.shutdown(error=str(e))
         else:
             self.shutdown()
+
+    def _handle_sighup_bg(self, *args):
+        """Reload config on SIGHUP."""
+        CONF.mutate_config_files()
+
+    def _handle_sighup(self, *args):
+        eventlet.spawn(self._handle_sighup_bg, *args)
 
 
 def periodic_clean_up():  # pragma: no cover
