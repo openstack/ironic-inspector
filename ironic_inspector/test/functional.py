@@ -136,6 +136,13 @@ class Base(base.NodeTest):
         conf_file = get_test_conf_file()
         self.cfg.set_config_files([conf_file])
 
+        # FIXME(milan) FakeListener.poll calls time.sleep() which leads to
+        # busy polling with no sleep at all, effectively blocking the whole
+        # process by consuming all CPU cycles in a single thread. MonkeyPatch
+        # with eventlet.sleep seems to help this.
+        self.useFixture(fixtures.MonkeyPatch(
+            'oslo_messaging._drivers.impl_fake.time.sleep', eventlet.sleep))
+
     def tearDown(self):
         super(Base, self).tearDown()
         node_cache._delete_node(self.uuid)

@@ -20,6 +20,7 @@ import fixtures
 import mock
 from oslo_config import cfg
 
+from ironic_inspector.common import rpc
 from ironic_inspector.test import base as test_base
 from ironic_inspector import wsgi_service
 
@@ -40,6 +41,8 @@ class BaseWSGITest(test_base.BaseTest):
         self.mock_log = self.useFixture(fixtures.MockPatchObject(
             wsgi_service, 'LOG')).mock
         self.service = wsgi_service.WSGIService()
+        self.mock_rpc_server = self.useFixture(fixtures.MockPatchObject(
+            rpc, 'get_server')).mock
 
 
 class TestWSGIServiceInitMiddleware(BaseWSGITest):
@@ -199,6 +202,8 @@ class TestWSGIServiceRun(BaseWSGITest):
         self.mock__create_ssl_context.assert_called_once_with()
         self.mock__init_middleware.assert_called_once_with()
         self.mock__init_host.assert_called_once_with()
+        self.mock_rpc_server.assert_called_once_with()
+        self.service.rpc_server.start.assert_called_once_with()
         self.app.run.assert_called_once_with(
             host=CONF.listen_address, port=CONF.listen_port,
             ssl_context=self.mock__create_ssl_context.return_value)
@@ -247,6 +252,7 @@ class TestWSGIServiceShutdown(BaseWSGITest):
             self.service, '_periodics_worker')).mock
         self.mock_exit = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.sys, 'exit')).mock
+        self.service.rpc_server = self.mock_rpc_server
 
     def test_shutdown(self):
         class MyError(Exception):
