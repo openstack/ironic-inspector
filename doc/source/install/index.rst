@@ -129,7 +129,7 @@ Here is an example *inspector.conf* (adapted from a gate run)::
     auth_type = password
 
     [keystone_authtoken]
-    auth_uri = http://127.0.0.1/identity
+    www_authenticate_uri = http://127.0.0.1/identity
     project_name = service
     password = <PASSWORD>
     username = ironic-inspector

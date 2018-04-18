@@ -35,7 +35,7 @@ class TestCheckAuth(base.BaseTest):
                         admin_user='admin',
                         admin_tenant_name='admin',
                         admin_password='password',
-                        auth_uri='http://127.0.0.1:5000',
+                        www_authenticate_uri='http://127.0.0.1:5000',
                         identity_uri='http://127.0.0.1:35357')
 
         app = mock.Mock(wsgi_app=mock.sentinel.app)
@@ -50,7 +50,8 @@ class TestCheckAuth(base.BaseTest):
         self.assertEqual('admin', args1['admin_tenant_name'])
         self.assertEqual('password', args1['admin_password'])
         self.assertTrue(args1['delay_auth_decision'])
-        self.assertEqual('http://127.0.0.1:5000', args1['auth_uri'])
+        self.assertEqual('http://127.0.0.1:5000',
+                         args1['www_authenticate_uri'])
         self.assertEqual('http://127.0.0.1:35357', args1['identity_uri'])
 
     def test_admin(self):
