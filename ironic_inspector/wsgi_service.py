@@ -10,6 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import signal
 import ssl
 import sys
 import traceback as traceback_mod
@@ -41,6 +42,7 @@ class WSGIService(object):
         self.app = app.app
         self._periodics_worker = None
         self._shutting_down = semaphore.Semaphore()
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
 
     def _init_middleware(self):
         """Initialize WSGI middleware.
@@ -188,6 +190,12 @@ class WSGIService(object):
             self.shutdown(error=str(e))
         else:
             self.shutdown()
+
+    def _handle_sigterm(self, *args):
+        # This is a workaround to ensure that shutdown() is done when recieving
+        # SIGTERM. Raising KeyboardIntrerrupt which won't be caught by any
+        # 'except Exception' clauses.
+        raise KeyboardInterrupt
 
 
 def periodic_clean_up():  # pragma: no cover
