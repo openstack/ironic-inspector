@@ -17,10 +17,10 @@ scheduling from a bare metal node, given its power management credentials
 * Free software: Apache license
 * Source: https://git.openstack.org/cgit/openstack/ironic-inspector
 * Bugs: https://storyboard.openstack.org/#!/project/944
-* Downloads: https://pypi.python.org/pypi/ironic-inspector
+* Downloads: https://tarballs.openstack.org/ironic-inspector/
 * Documentation: https://docs.openstack.org/ironic-inspector/latest/
 * Python client library and CLI tool: `python-ironic-inspector-client
-  <https://pypi.python.org/pypi/python-ironic-inspector-client>`_
+  <https://pypi.org/project/python-ironic-inspector-client>`_
   (`documentation
   <https://docs.openstack.org/python-ironic-inspector-client/latest/>`_).
 
