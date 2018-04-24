@@ -20,7 +20,7 @@ manifests, while `bifrost <https://docs.openstack.org/bifrost/latest/>`_
 provides an Ansible-based standalone installer. Refer to Configuration_
 if you plan on installing **ironic-inspector** manually.
 
-.. _PyPI: https://pypi.python.org/pypi/ironic-inspector
+.. _PyPI: https://pypi.org/project/ironic-inspector
 
 .. note::
     Please beware of :ref:`possible DNS issues <ubuntu-dns>` when installing
