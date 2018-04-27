@@ -59,25 +59,8 @@
     - shell:
         cmd: |
           cat << 'EOF' >> ironic-extra-vars
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA=True"
-          # Standardize VM size for each supported ramdisk
-          case "tinyipa" in
-              'tinyipa')
-                  export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_SPECS_RAM=384"
-                  export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_RAMDISK_TYPE=tinyipa"
-                  ;;
-              'tinyipa256')
-                  export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_SPECS_RAM=256"
-                  export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_RAMDISK_TYPE=tinyipa"
-                  ;;
-              'coreos')
-                  export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_SPECS_RAM=1280"
-                  export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_RAMDISK_TYPE=coreos"
-                  ;;
-          # if using a ramdisk without a known good value, use the devstack
-          # default by not exporting any value for IRONIC_VM_SPECS_RAM
-          esac
-
+            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_SPECS_RAM=384"
+            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_RAMDISK_TYPE=tinyipa"
           EOF
         chdir: '{{ ansible_user_dir }}/workspace'
       environment: '{{ zuul | zuul_legacy_vars }}'
@@ -101,20 +84,6 @@
 
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_plugin ironic-inspector git://git.openstack.org/openstack/ironic-inspector"
 
-          export IRONIC_INSPECTOR_AUTO_DISCOVERY={inspector-auto-discovery}
-          if [ "$IRONIC_INSPECTOR_AUTO_DISCOVERY" == "1" ]; then
-               # discovery test requires sudo for iptables and virsh
-               export DEVSTACK_GATE_REMOVE_STACK_SUDO=0
-               # enable enroll hook
-               export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=enroll"
-               # we are deleting node from ironic for simulate node discovery,
-               # so inspector has to sync cache asap
-               export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_CLEAN_UP_PERIOD=5"
-          fi
-
-          # Make IPXE configuration consistent between Mitaka and Master
-          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_IPXE_ENABLED=True"
-          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_RAMDISK_ELEMENT=ironic-agent"
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_DHCP_FILTER=iptables"
 
           EOF
@@ -138,8 +107,7 @@
           export DEVSTACK_GATE_NEUTRON=1
           export DEVSTACK_GATE_VIRT_DRIVER=ironic
           export DEVSTACK_GATE_CONFIGDRIVE=1
-          # TODO(dtantsur): change to ipmi in Rocky
-          export DEVSTACK_GATE_IRONIC_DRIVER=pxe_ipmitool
+          export DEVSTACK_GATE_IRONIC_DRIVER=ipmi
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_DEFAULT_DEPLOY_INTERFACE=iscsi"
 
           export BRANCH_OVERRIDE="{{ zuul.override_checkout | default('default') }}"
@@ -151,28 +119,12 @@
               export DEVSTACK_GATE_TLSPROXY=1
           fi
 
-          if [ "partition" == "wholedisk" ] ; then
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_TEMPEST_WHOLE_DISK_IMAGE=True"
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_EPHEMERAL_DISK=0"
-          else
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_TEMPEST_WHOLE_DISK_IMAGE=False"
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_EPHEMERAL_DISK=1"
-          fi
+          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_TEMPEST_WHOLE_DISK_IMAGE=False"
+          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_EPHEMERAL_DISK=1"
 
-          if [ -n "" ] ; then
-            export DEVSTACK_GATE_IRONIC_BUILD_RAMDISK=1
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_BUILD_RAMDISK=True"
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"USE_SUBNETPOOL=False"
-          else
-            export DEVSTACK_GATE_IRONIC_BUILD_RAMDISK=0
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_BUILD_RAMDISK=False"
-          fi
+          export DEVSTACK_GATE_IRONIC_BUILD_RAMDISK=0
+          export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_INSPECTOR_BUILD_RAMDISK=False"
 
-          if [ "bios" == "uefi" ] ; then
-            export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_BOOT_MODE=uefi"
-          fi
-
-          export DEVSTACK_PROJECT_FROM_GIT=""
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_VM_COUNT=7"
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"IRONIC_AUTOMATED_CLEAN_ENABLED=False"
 
