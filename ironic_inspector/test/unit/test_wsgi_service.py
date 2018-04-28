@@ -422,3 +422,20 @@ class TestCreateSSLContext(test_base.BaseTest):
         self.assertEqual(mock_context, con)
         mock_context.load_cert_chain.assert_called_once_with(cert_path,
                                                              key_path)
+
+
+class TestWSGIServiceOnSigHup(BaseWSGITest):
+    def setUp(self):
+        super(TestWSGIServiceOnSigHup, self).setUp()
+        self.mock_spawn = self.useFixture(fixtures.MockPatchObject(
+            wsgi_service.eventlet, 'spawn')).mock
+        self.mock_mutate_conf = self.useFixture(fixtures.MockPatchObject(
+            wsgi_service.CONF, 'mutate_config_files')).mock
+
+    def test_on_sighup(self):
+        self.service._handle_sighup()
+        self.mock_spawn.assert_called_once_with(self.service._handle_sighup_bg)
+
+    def test_on_sighup_bg(self):
+        self.service._handle_sighup_bg()
+        self.mock_mutate_conf.assert_called_once_with()
