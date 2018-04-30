@@ -441,6 +441,7 @@ elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
         iniset $TEMPEST_CONFIG service_available ironic_inspector True
         if [ -n "$IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK" ]; then
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_feature True
+            iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_default_driver fake-hardware
         fi
     fi
 fi
