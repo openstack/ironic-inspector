@@ -34,6 +34,21 @@ class DnsmasqTestBase(test_base.BaseTest):
         self.driver = dnsmasq.DnsmasqFilter()
 
 
+class TestShouldEnableUnknownHosts(DnsmasqTestBase):
+    def setUp(self):
+        super(TestShouldEnableUnknownHosts, self).setUp()
+        self.mock_introspection_active = self.useFixture(
+            fixtures.MockPatchObject(node_cache, 'introspection_active')).mock
+
+    def test_introspection_active(self):
+        self.mock_introspection_active.return_value = True
+        self.assertIs(True, dnsmasq._should_enable_unknown_hosts())
+
+    def test_introspection_not_active(self):
+        self.mock_introspection_active.return_value = False
+        self.assertIs(False, dnsmasq._should_enable_unknown_hosts())
+
+
 class TestDnsmasqDriverAPI(DnsmasqTestBase):
     def setUp(self):
         super(TestDnsmasqDriverAPI, self).setUp()
@@ -197,6 +212,40 @@ class TestMACHandlers(test_base.BaseTest):
             fixtures.MockPatchObject(os, 'listdir')).mock
         self.mock_remove = self.useFixture(
             fixtures.MockPatchObject(os, 'remove')).mock
+        self.mock_log = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq, 'LOG')).mock
+        self.mock_introspection_active = self.useFixture(
+            fixtures.MockPatchObject(node_cache, 'introspection_active')).mock
+
+    def test__whitelist_unknown_hosts(self):
+        self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir,
+                                                 dnsmasq._UNKNOWN_HOSTS_FILE)
+        self.mock_introspection_active.return_value = True
+        dnsmasq._configure_unknown_hosts()
+
+        self.mock_join.assert_called_once_with(self.dhcp_hostsdir,
+                                               dnsmasq._UNKNOWN_HOSTS_FILE)
+        self.mock__exclusive_write_or_pass.assert_called_once_with(
+            self.mock_join.return_value,
+            '%s' % dnsmasq._WHITELIST_UNKNOWN_HOSTS)
+        self.mock_log.debug.assert_called_once_with(
+            'A %s record for all unknown hosts using wildcard mac '
+            'created', 'whitelist')
+
+    def test__blacklist_unknown_hosts(self):
+        self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir,
+                                                 dnsmasq._UNKNOWN_HOSTS_FILE)
+        self.mock_introspection_active.return_value = False
+        dnsmasq._configure_unknown_hosts()
+
+        self.mock_join.assert_called_once_with(self.dhcp_hostsdir,
+                                               dnsmasq._UNKNOWN_HOSTS_FILE)
+        self.mock__exclusive_write_or_pass.assert_called_once_with(
+            self.mock_join.return_value,
+            '%s' % dnsmasq._BLACKLIST_UNKNOWN_HOSTS)
+        self.mock_log.debug.assert_called_once_with(
+            'A %s record for all unknown hosts using wildcard mac '
+            'created', 'blacklist')
 
     def test__whitelist_mac(self):
         dnsmasq._whitelist_mac(self.mac)
@@ -261,6 +310,9 @@ class TestSync(DnsmasqTestBase):
             fixtures.MockPatchObject(dnsmasq, '_whitelist_mac')).mock
         self.mock__blacklist_mac = self.useFixture(
             fixtures.MockPatchObject(dnsmasq, '_blacklist_mac')).mock
+        self.mock__configure_unknown_hosts = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq, '_configure_unknown_hosts')).mock
+
         self.mock_ironic = mock.Mock()
         self.mock_utcnow = self.useFixture(
             fixtures.MockPatchObject(dnsmasq.timeutils, 'utcnow')).mock
@@ -283,6 +335,22 @@ class TestSync(DnsmasqTestBase):
         self.mock_ironic.port.list.return_value = [
             mock.Mock(address=address) for address in self.ironic_macs]
         self.mock_active_macs.return_value = self.active_macs
+        self.mock_should_enable_unknown_hosts = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq,
+                                     '_should_enable_unknown_hosts')).mock
+        self.mock_should_enable_unknown_hosts.return_value = True
+
+    def test__sync_enable_unknown_hosts(self):
+        self.mock_should_enable_unknown_hosts.return_value = True
+
+        self.driver._sync(self.mock_ironic)
+        self.mock__configure_unknown_hosts.assert_called_once_with()
+
+    def test__sync_not_enable_unknown_hosts(self):
+        self.mock_should_enable_unknown_hosts.return_value = False
+
+        self.driver._sync(self.mock_ironic)
+        self.mock__configure_unknown_hosts.assert_called_once_with()
 
     def test__sync(self):
         self.driver._sync(self.mock_ironic)
@@ -296,6 +364,7 @@ class TestSync(DnsmasqTestBase):
                                                            fields=['address'])
         self.mock_active_macs.assert_called_once_with()
         self.mock__get_blacklist.assert_called_once_with()
+        self.mock__configure_unknown_hosts.assert_called_once_with()
         self.mock_log.debug.assert_has_calls([
             mock.call('Syncing the driver'),
             mock.call('The dnsmasq PXE filter was synchronized (took %s)',
