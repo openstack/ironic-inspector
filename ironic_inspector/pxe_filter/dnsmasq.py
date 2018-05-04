@@ -41,6 +41,19 @@ _EXCLUSIVE_WRITE_ATTEMPTS_DELAY = 0.01
 
 _ROOTWRAP_COMMAND = 'sudo ironic-inspector-rootwrap {rootwrap_config!s}'
 _MACBL_LEN = len('ff:ff:ff:ff:ff:ff,ignore\n')
+_UNKNOWN_HOSTS_FILE = 'unknown_hosts_filter'
+_BLACKLIST_UNKNOWN_HOSTS = '*:*:*:*:*:*,ignore\n'
+_WHITELIST_UNKNOWN_HOSTS = '*:*:*:*:*:*\n'
+
+
+def _should_enable_unknown_hosts():
+    """Check whether we should enable DHCP for unknown hosts
+
+    We blacklist unknown hosts unless one or more nodes are on introspection
+    and node_not_found_hook is not set.
+    """
+    return (node_cache.introspection_active() or
+            CONF.processing.node_not_found_hook is not None)
 
 
 class DnsmasqFilter(pxe_filter.BaseFilter):
@@ -78,6 +91,9 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         # blacklist new ports that aren't being inspected
         for mac in ironic_macs - (blacklist_macs | active_macs):
             _blacklist_mac(mac)
+
+        _configure_unknown_hosts()
+
         timestamp_end = timeutils.utcnow()
         LOG.debug('The dnsmasq PXE filter was synchronized (took %s)',
                   timestamp_end - timestamp_start)
@@ -184,6 +200,39 @@ def _exclusive_write_or_pass(path, buf):
               '%(attempts)s times', {'attempts': _EXCLUSIVE_WRITE_ATTEMPTS,
                                      'path': path})
     return False
+
+
+def _configure_unknown_hosts():
+    """Manages a dhcp_hostsdir ignore/not-ignore record for unknown macs.
+
+    :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
+             IOError in case the dhcp host unknown file isn't writable.
+    :returns: None.
+    """
+    path = os.path.join(CONF.dnsmasq_pxe_filter.dhcp_hostsdir,
+                        _UNKNOWN_HOSTS_FILE)
+
+    if _should_enable_unknown_hosts():
+        wildcard_filter = _WHITELIST_UNKNOWN_HOSTS
+        log_wildcard_filter = 'whitelist'
+    else:
+        wildcard_filter = _BLACKLIST_UNKNOWN_HOSTS
+        log_wildcard_filter = 'blacklist'
+
+    # Don't update if unknown hosts are already black/white-listed
+    try:
+        if os.stat(path).st_size == len(wildcard_filter):
+            return
+    except OSError as e:
+        if e.errno != os.errno.ENOENT:
+            raise
+
+    if _exclusive_write_or_pass(path, '%s' % wildcard_filter):
+        LOG.debug('A %s record for all unknown hosts using wildcard mac '
+                  'created', log_wildcard_filter)
+    else:
+        LOG.warning('Failed to %s unknown hosts using wildcard mac; '
+                    'retrying next periodic sync time', log_wildcard_filter)
 
 
 def _blacklist_mac(mac):
