@@ -42,11 +42,11 @@ class TestShouldEnableUnknownHosts(DnsmasqTestBase):
 
     def test_introspection_active(self):
         self.mock_introspection_active.return_value = True
-        self.assertIs(True, dnsmasq._should_enable_unknown_hosts())
+        self.assertTrue(dnsmasq._should_enable_unknown_hosts())
 
     def test_introspection_not_active(self):
         self.mock_introspection_active.return_value = False
-        self.assertIs(False, dnsmasq._should_enable_unknown_hosts())
+        self.assertFalse(dnsmasq._should_enable_unknown_hosts())
 
 
 class TestDnsmasqDriverAPI(DnsmasqTestBase):

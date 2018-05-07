@@ -205,8 +205,6 @@ def _exclusive_write_or_pass(path, buf):
 def _configure_unknown_hosts():
     """Manages a dhcp_hostsdir ignore/not-ignore record for unknown macs.
 
-    :param allow: If True unknown hosts are whitelisted. If False unknown hosts
-                  are blacklisted.
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
              IOError in case the dhcp host unknown file isn't writable.
     :returns: None.
