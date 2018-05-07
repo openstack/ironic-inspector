@@ -41,6 +41,7 @@ _EXCLUSIVE_WRITE_ATTEMPTS_DELAY = 0.01
 
 _ROOTWRAP_COMMAND = 'sudo ironic-inspector-rootwrap {rootwrap_config!s}'
 _MACBL_LEN = len('ff:ff:ff:ff:ff:ff,ignore\n')
+_MACWL_LEN = len('ff:ff:ff:ff:ff:ff\n')
 _UNKNOWN_HOSTS_FILE = 'unknown_hosts_filter'
 _BLACKLIST_UNKNOWN_HOSTS = '*:*:*:*:*:*,ignore\n'
 _WHITELIST_UNKNOWN_HOSTS = '*:*:*:*:*:*\n'
@@ -77,22 +78,33 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         """
         LOG.debug('Syncing the driver')
         timestamp_start = timeutils.utcnow()
+
+        # active_macs are the MACs for which introspection is active
         active_macs = node_cache.active_macs()
+        # ironic_macs are all the MACs know to ironic (all ironic ports)
         ironic_macs = set(port.address for port in
                           ir_utils.call_with_retries(ironic.port.list, limit=0,
                                                      fields=['address']))
-        blacklist_macs = _get_blacklist()
-        # NOTE(milan) whitelist MACs of ports not kept in ironic anymore
-        # also whitelist active MACs that are still blacklisted in the
-        # dnsmasq configuration but have just been asked to be introspected
-        for mac in ((blacklist_macs - ironic_macs) |
-                    (blacklist_macs & active_macs)):
+        blacklist, whitelist = _get_black_white_lists()
+        # removedlist are the MACs that are in either blacklist or whitelist,
+        # but not kept in ironic (ironic_macs) any more
+        removedlist = blacklist.union(whitelist).difference(ironic_macs)
+
+        # Whitelist active MACs that are not already whitelisted
+        for mac in active_macs.difference(whitelist):
             _whitelist_mac(mac)
-        # blacklist new ports that aren't being inspected
-        for mac in ironic_macs - (blacklist_macs | active_macs):
+        # Blacklist any ironic MACs that is not active for introspection unless
+        # it is already blacklisted
+        for mac in ironic_macs.difference(blacklist.union(active_macs)):
             _blacklist_mac(mac)
 
+        # Whitelist or Blacklist unknown hosts and MACs not kept in ironic
+        # NOTE(hjensas): Treat unknown hosts and MACs not kept in ironic the
+        # same. Neither should boot the inspection image unless introspection
+        # is active. Deleted MACs must be whitelisted when introspection is
+        # active in case the host is re-enrolled.
         _configure_unknown_hosts()
+        _configure_removedlist(removedlist)
 
         timestamp_end = timeutils.utcnow()
         LOG.debug('The dnsmasq PXE filter was synchronized (took %s)',
@@ -150,7 +162,7 @@ def _purge_dhcp_hostsdir():
         LOG.debug('Removed %s', path)
 
 
-def _get_blacklist():
+def _get_black_white_lists():
     """Get addresses currently blacklisted in dnsmasq.
 
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid.
@@ -158,9 +170,15 @@ def _get_blacklist():
     """
     hostsdir = CONF.dnsmasq_pxe_filter.dhcp_hostsdir
     # whitelisted MACs lack the ,ignore directive
-    return set(address for address in os.listdir(hostsdir)
-               if os.stat(os.path.join(hostsdir, address)).st_size ==
-               _MACBL_LEN)
+    blacklist = set()
+    whitelist = set()
+    for mac in os.listdir(hostsdir):
+        if os.stat(os.path.join(hostsdir, mac)).st_size == _MACBL_LEN:
+            blacklist.add(mac)
+        if os.stat(os.path.join(hostsdir, mac)).st_size == _MACWL_LEN:
+            whitelist.add(mac)
+
+    return blacklist, whitelist
 
 
 def _exclusive_write_or_pass(path, buf):
@@ -200,6 +218,25 @@ def _exclusive_write_or_pass(path, buf):
               '%(attempts)s times', {'attempts': _EXCLUSIVE_WRITE_ATTEMPTS,
                                      'path': path})
     return False
+
+
+def _configure_removedlist(macs):
+    """Manages a dhcp_hostsdir ignore/not-ignore record for removed macs
+
+    :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
+    :returns: None.
+    """
+
+    hostsdir = CONF.dnsmasq_pxe_filter.dhcp_hostsdir
+
+    if _should_enable_unknown_hosts():
+        for mac in macs:
+            if os.stat(os.path.join(hostsdir, mac)).st_size != _MACWL_LEN:
+                _whitelist_mac(mac)
+    else:
+        for mac in macs:
+            if os.stat(os.path.join(hostsdir, mac)).st_size != _MACBL_LEN:
+                _blacklist_mac(mac)
 
 
 def _configure_unknown_hosts():
