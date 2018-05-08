@@ -18,16 +18,17 @@ Create Date: 2017-01-13 11:27:00.053286
 
 """
 
+from alembic import op
+from oslo_utils import uuidutils
+import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector as insp
+
+
 # revision identifiers, used by Alembic.
 revision = '882b2d84cb1b'
 down_revision = 'd00d6e3f38c4'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-from oslo_utils import uuidutils
-import sqlalchemy as sa
-from sqlalchemy.engine.reflection import Inspector as insp
 
 ATTRIBUTES = 'attributes'
 NODES = 'nodes'

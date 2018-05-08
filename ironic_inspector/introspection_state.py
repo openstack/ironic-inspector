@@ -85,6 +85,7 @@ class Events(object):
         return [cls.process, cls.reapply, cls.timeout, cls.wait, cls.abort,
                 cls.error, cls.finish]
 
+
 # Error transition is allowed in any state.
 State_space = [
     {

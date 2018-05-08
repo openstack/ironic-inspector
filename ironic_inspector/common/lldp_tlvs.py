@@ -275,6 +275,7 @@ def get_autoneg_cap(pmd):
 
     return sorted(caps_set)
 
+
 Dot3_MACPhy_Config_Status = core.Struct(
     'autoneg' / core.BitStruct(
         core.Padding(6),

@@ -18,17 +18,17 @@ Create Date: 2017-12-11 15:40:13.905554
 
 """
 
-# revision identifiers, used by Alembic.
-revision = '18440d0834af'
-down_revision = '882b2d84cb1b'
-branch_labels = None
-depends_on = None
-
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import sql
 
 from ironic_inspector import introspection_state as istate
+
+# revision identifiers, used by Alembic.
+revision = '18440d0834af'
+down_revision = '882b2d84cb1b'
+branch_labels = None
+depends_on = None
 
 
 old_state = sa.Enum(*(set(istate.States.all()) - {istate.States.aborting}),

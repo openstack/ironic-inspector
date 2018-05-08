@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import eventlet
-eventlet.monkey_patch()
 
 import contextlib  # noqa
 import copy
@@ -46,6 +45,7 @@ from ironic_inspector import rules
 from ironic_inspector.test import base
 from ironic_inspector.test.unit import test_rules
 
+eventlet.monkey_patch()
 
 CONF = """
 [ironic]
