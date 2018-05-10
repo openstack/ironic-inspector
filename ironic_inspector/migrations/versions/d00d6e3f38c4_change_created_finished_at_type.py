@@ -18,16 +18,17 @@ Create Date: 2016-12-15 17:18:10.728695
 
 """
 
+import datetime
+
+from alembic import op
+import sqlalchemy as sa
+
+
 # revision identifiers, used by Alembic.
 revision = 'd00d6e3f38c4'
 down_revision = 'd2e48801c8ef'
 branch_labels = None
 depends_on = None
-
-import datetime
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():

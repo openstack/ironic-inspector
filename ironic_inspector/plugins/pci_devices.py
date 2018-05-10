@@ -37,6 +37,7 @@ def list_opts():
         ('pci_devices', PCI_DEVICES_OPTS)
     ]
 
+
 CONF = cfg.CONF
 CONF.register_opts(PCI_DEVICES_OPTS, group='pci_devices')
 

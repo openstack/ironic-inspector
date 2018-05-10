@@ -18,17 +18,18 @@ Create Date: 2016-07-29 10:10:32.351661
 
 """
 
-# revision identifiers, used by Alembic.
-revision = 'd2e48801c8ef'
-down_revision = 'e169a4a81d88'
-branch_labels = None
-depends_on = None
-
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import sql
 
 from ironic_inspector import introspection_state as istate
+
+
+# revision identifiers, used by Alembic.
+revision = 'd2e48801c8ef'
+down_revision = 'e169a4a81d88'
+branch_labels = None
+depends_on = None
 
 Node = sql.table('nodes',
                  sql.column('error', sa.String),

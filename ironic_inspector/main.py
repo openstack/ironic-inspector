@@ -203,7 +203,7 @@ def api_root():
 @api('/<version>', rule='introspection:version', is_public_api=True,
      methods=['GET'])
 def version_root(version):
-    pat = re.compile("^\/%s\/[^\/]*?$" % version)
+    pat = re.compile(r'^\/%s\/[^\/]*?$' % version)
 
     resources = []
     for url in app.url_map.iter_rules():
