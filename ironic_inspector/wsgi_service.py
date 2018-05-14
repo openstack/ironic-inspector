@@ -43,6 +43,7 @@ class WSGIService(object):
         self._periodics_worker = None
         self._shutting_down = semaphore.Semaphore()
         signal.signal(signal.SIGHUP, self._handle_sighup)
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
 
     def _init_middleware(self):
         """Initialize WSGI middleware.
@@ -197,6 +198,12 @@ class WSGIService(object):
 
     def _handle_sighup(self, *args):
         eventlet.spawn(self._handle_sighup_bg, *args)
+
+    def _handle_sigterm(self, *args):
+        # This is a workaround to ensure that shutdown() is done when recieving
+        # SIGTERM. Raising KeyboardIntrerrupt which won't be caught by any
+        # 'except Exception' clauses.
+        raise KeyboardInterrupt
 
 
 def periodic_clean_up():  # pragma: no cover
