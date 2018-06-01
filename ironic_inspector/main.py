@@ -23,10 +23,10 @@ from ironic_inspector import api_tools
 from ironic_inspector.common import context
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import rpc
 from ironic_inspector.common import swift
 import ironic_inspector.conf
 from ironic_inspector.conf import opts as conf_opts
-from ironic_inspector import introspect
 from ironic_inspector import node_cache
 from ironic_inspector import process
 from ironic_inspector import rules
@@ -239,8 +239,9 @@ def api_continue():
      methods=['GET', 'POST'])
 def api_introspection(node_id):
     if flask.request.method == 'POST':
-        introspect.introspect(node_id,
-                              token=flask.request.headers.get('X-Auth-Token'))
+        client = rpc.get_client()
+        client.call({}, 'do_introspection', node_id=node_id,
+                    token=flask.request.headers.get('X-Auth-Token'))
         return '', 202
     else:
         node_info = node_cache.get_node(node_id)
@@ -263,7 +264,9 @@ def api_introspection_statuses():
 @api('/v1/introspection/<node_id>/abort', rule="introspection:abort",
      methods=['POST'])
 def api_introspection_abort(node_id):
-    introspect.abort(node_id, token=flask.request.headers.get('X-Auth-Token'))
+    client = rpc.get_client()
+    client.call({}, 'do_abort', node_id=node_id,
+                token=flask.request.headers.get('X-Auth-Token'))
     return '', 202
 
 
@@ -291,7 +294,8 @@ def api_introspection_reapply(node_id):
                                 'supported yet'), code=400)
 
     if CONF.processing.store_data == 'swift':
-        process.reapply(node_id)
+        client = rpc.get_client()
+        client.call({}, 'do_reapply', node_id=node_id)
         return '', 202
     else:
         return error_response(_('Inspector is not configured to store'

@@ -23,6 +23,7 @@ from oslo_log import log
 from oslo_utils import reflection
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import rpc
 from ironic_inspector import db
 from ironic_inspector import main as app
 from ironic_inspector import node_cache
@@ -151,6 +152,8 @@ class WSGIService(object):
 
         LOG.debug('Shutting down')
 
+        self.rpc_server.stop()
+
         if self._periodics_worker is not None:
             try:
                 self._periodics_worker.stop()
@@ -184,6 +187,9 @@ class WSGIService(object):
         self._init_middleware()
 
         self._init_host()
+
+        self.rpc_server = rpc.get_server()
+        self.rpc_server.start()
 
         try:
             self.app.run(**app_kwargs)

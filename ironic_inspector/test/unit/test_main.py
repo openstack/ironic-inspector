@@ -15,13 +15,15 @@ import datetime
 import json
 import unittest
 
+import fixtures
 import mock
+import oslo_messaging as messaging
 from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import rpc
 import ironic_inspector.conf
 from ironic_inspector.conf import opts as conf_opts
-from ironic_inspector import introspect
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
 from ironic_inspector import node_cache
@@ -49,36 +51,44 @@ class BaseAPITest(test_base.BaseTest):
 
 
 class TestApiIntrospect(BaseAPITest):
-    @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_introspect_no_authentication(self, introspect_mock):
-        CONF.set_override('auth_strategy', 'noauth')
-        res = self.app.post('/v1/introspection/%s' % self.uuid)
-        self.assertEqual(202, res.status_code)
-        introspect_mock.assert_called_once_with(self.uuid,
-                                                token=None)
+    def setUp(self):
+        super(TestApiIntrospect, self).setUp()
+        self.rpc_get_client_mock = self.useFixture(
+            fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
+        self.client_mock = mock.MagicMock(spec=messaging.RPCClient)
+        self.rpc_get_client_mock.return_value = self.client_mock
 
-    @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_intospect_failed(self, introspect_mock):
-        introspect_mock.side_effect = utils.Error("boom")
+    def test_introspect_no_authentication(self):
+        CONF.set_override('auth_strategy', 'noauth')
+
         res = self.app.post('/v1/introspection/%s' % self.uuid)
+
+        self.assertEqual(202, res.status_code)
+        self.client_mock.call.assert_called_once_with({}, 'do_introspection',
+                                                      node_id=self.uuid,
+                                                      token=None)
+
+    def test_intospect_failed(self):
+        self.client_mock.call.side_effect = utils.Error("boom")
+
+        res = self.app.post('/v1/introspection/%s' % self.uuid)
+
         self.assertEqual(400, res.status_code)
         self.assertEqual(
             'boom',
             json.loads(res.data.decode('utf-8'))['error']['message'])
-        introspect_mock.assert_called_once_with(
-            self.uuid,
-            token=None)
+        self.client_mock.call.assert_called_once_with({}, 'do_introspection',
+                                                      node_id=self.uuid,
+                                                      token=None)
 
     @mock.patch.object(utils, 'check_auth', autospec=True)
-    @mock.patch.object(introspect, 'introspect', autospec=True)
-    def test_introspect_failed_authentication(self, introspect_mock,
-                                              auth_mock):
+    def test_introspect_failed_authentication(self, auth_mock):
         CONF.set_override('auth_strategy', 'keystone')
         auth_mock.side_effect = utils.Error('Boom', code=403)
         res = self.app.post('/v1/introspection/%s' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
-        self.assertFalse(introspect_mock.called)
+        self.assertFalse(self.client_mock.call.called)
 
 
 @mock.patch.object(process, 'process', autospec=True)
@@ -107,45 +117,57 @@ class TestApiContinue(BaseAPITest):
         self.assertFalse(process_mock.called)
 
 
-@mock.patch.object(introspect, 'abort', autospec=True)
 class TestApiAbort(BaseAPITest):
-    def test_ok(self, abort_mock):
-        abort_mock.return_value = '', 202
+    def setUp(self):
+        super(TestApiAbort, self).setUp()
+        self.rpc_get_client_mock = self.useFixture(
+            fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
+        self.client_mock = mock.MagicMock(spec=messaging.RPCClient)
+        self.rpc_get_client_mock.return_value = self.client_mock
+
+    def test_ok(self):
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid,
                             headers={'X-Auth-Token': 'token'})
 
-        abort_mock.assert_called_once_with(self.uuid, token='token')
+        self.client_mock.call.assert_called_once_with({}, 'do_abort',
+                                                      node_id=self.uuid,
+                                                      token='token')
         self.assertEqual(202, res.status_code)
         self.assertEqual(b'', res.data)
 
-    def test_no_authentication(self, abort_mock):
-        abort_mock.return_value = b'', 202
+    def test_no_authentication(self):
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
 
-        abort_mock.assert_called_once_with(self.uuid, token=None)
+        self.client_mock.call.assert_called_once_with({}, 'do_abort',
+                                                      node_id=self.uuid,
+                                                      token=None)
         self.assertEqual(202, res.status_code)
         self.assertEqual(b'', res.data)
 
-    def test_node_not_found(self, abort_mock):
+    def test_node_not_found(self):
         exc = utils.Error("Not Found.", code=404)
-        abort_mock.side_effect = exc
+        self.client_mock.call.side_effect = exc
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
 
-        abort_mock.assert_called_once_with(self.uuid, token=None)
+        self.client_mock.call.assert_called_once_with({}, 'do_abort',
+                                                      node_id=self.uuid,
+                                                      token=None)
         self.assertEqual(404, res.status_code)
         data = json.loads(str(res.data.decode()))
         self.assertEqual(str(exc), data['error']['message'])
 
-    def test_abort_failed(self, abort_mock):
+    def test_abort_failed(self):
         exc = utils.Error("Locked.", code=409)
-        abort_mock.side_effect = exc
+        self.client_mock.call.side_effect = exc
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid)
 
-        abort_mock.assert_called_once_with(self.uuid, token=None)
+        self.client_mock.call.assert_called_once_with({}, 'do_abort',
+                                                      node_id=self.uuid,
+                                                      token=None)
         self.assertEqual(409, res.status_code)
         data = json.loads(res.data.decode())
         self.assertEqual(str(exc), data['error']['message'])
@@ -297,29 +319,33 @@ class TestApiGetData(BaseAPITest):
         get_mock.assert_called_once_with('name1', fields=['uuid'])
 
 
-@mock.patch.object(process, 'reapply', autospec=True)
 class TestApiReapply(BaseAPITest):
 
     def setUp(self):
         super(TestApiReapply, self).setUp()
+        self.rpc_get_client_mock = self.useFixture(
+            fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
+        self.client_mock = mock.MagicMock(spec=messaging.RPCClient)
+        self.rpc_get_client_mock.return_value = self.client_mock
         CONF.set_override('store_data', 'swift', 'processing')
 
-    def test_ok(self, reapply_mock):
+    def test_ok(self):
 
         self.app.post('/v1/introspection/%s/data/unprocessed' %
                       self.uuid)
-        reapply_mock.assert_called_once_with(self.uuid)
+        self.client_mock.call.assert_called_once_with({}, 'do_reapply',
+                                                      node_id=self.uuid)
 
-    def test_user_data(self, reapply_mock):
+    def test_user_data(self):
         res = self.app.post('/v1/introspection/%s/data/unprocessed' %
                             self.uuid, data='some data')
         self.assertEqual(400, res.status_code)
         message = json.loads(res.data.decode())['error']['message']
         self.assertEqual('User data processing is not supported yet',
                          message)
-        self.assertFalse(reapply_mock.called)
+        self.assertFalse(self.client_mock.call.called)
 
-    def test_swift_disabled(self, reapply_mock):
+    def test_swift_disabled(self):
         CONF.set_override('store_data', 'none', 'processing')
 
         res = self.app.post('/v1/introspection/%s/data/unprocessed' %
@@ -330,35 +356,11 @@ class TestApiReapply(BaseAPITest):
                          'data. Set the [processing] store_data '
                          'configuration option to change this.',
                          message)
-        self.assertFalse(reapply_mock.called)
+        self.assertFalse(self.client_mock.call.called)
 
-    def test_node_locked(self, reapply_mock):
-        exc = utils.Error('Locked.', code=409)
-        reapply_mock.side_effect = exc
-
-        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
-                            self.uuid)
-
-        self.assertEqual(409, res.status_code)
-        message = json.loads(res.data.decode())['error']['message']
-        self.assertEqual(str(exc), message)
-        reapply_mock.assert_called_once_with(self.uuid)
-
-    def test_node_not_found(self, reapply_mock):
-        exc = utils.Error('Not found.', code=404)
-        reapply_mock.side_effect = exc
-
-        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
-                            self.uuid)
-
-        self.assertEqual(404, res.status_code)
-        message = json.loads(res.data.decode())['error']['message']
-        self.assertEqual(str(exc), message)
-        reapply_mock.assert_called_once_with(self.uuid)
-
-    def test_generic_error(self, reapply_mock):
+    def test_generic_error(self):
         exc = utils.Error('Oops', code=400)
-        reapply_mock.side_effect = exc
+        self.client_mock.call.side_effect = exc
 
         res = self.app.post('/v1/introspection/%s/data/unprocessed' %
                             self.uuid)
@@ -366,7 +368,8 @@ class TestApiReapply(BaseAPITest):
         self.assertEqual(400, res.status_code)
         message = json.loads(res.data.decode())['error']['message']
         self.assertEqual(str(exc), message)
-        reapply_mock.assert_called_once_with(self.uuid)
+        self.client_mock.call.assert_called_once_with({}, 'do_reapply',
+                                                      node_id=self.uuid)
 
 
 class TestApiRules(BaseAPITest):
@@ -566,8 +569,11 @@ class TestApiVersions(BaseAPITest):
         # API version on unknown pages
         self._check_version_present(self.app.get('/v1/foobar'))
 
+    @mock.patch.object(rpc, 'get_client', autospec=True)
     @mock.patch.object(node_cache, 'get_node', autospec=True)
-    def test_usual_requests(self, get_mock):
+    def test_usual_requests(self, get_mock, rpc_mock):
+        client_mock = mock.MagicMock(spec=messaging.RPCClient)
+        rpc_mock.return_value = client_mock
         get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
                                                     started_at=42.0)
         # Successful
