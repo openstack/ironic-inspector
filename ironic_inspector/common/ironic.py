@@ -30,8 +30,12 @@ LOG = utils.getProcessingLogger(__name__)
 VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect wait',
                 'inspect failed'}
 
-# 1.19 is API version, which supports port.pxe_enabled
-DEFAULT_IRONIC_API_VERSION = '1.19'
+# 1.38 is the latest API version in the Queens release series, 10.1.0.
+# NOTE(mgoddard): This should be updated with each release to ensure that
+# inspector is able to use the latest ironic API. In particular, this version
+# is used when processing introspection rules, and is the default version used
+# by processing plugins.
+DEFAULT_IRONIC_API_VERSION = '1.38'
 
 IRONIC_SESSION = None
 
