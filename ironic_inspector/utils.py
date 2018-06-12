@@ -23,7 +23,6 @@ from oslo_middleware import cors as cors_middleware
 import pytz
 
 from ironic_inspector.common.i18n import _
-from ironic_inspector import conf  # noqa
 from ironic_inspector import policy
 
 CONF = cfg.CONF
