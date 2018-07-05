@@ -268,8 +268,8 @@ Writing a Plugin
     ``**`` argument is needed so that we can add optional arguments without
     breaking out-of-tree plugins. Please make sure to include and ignore it.
 
-.. _ironic_inspector.plugins.base: https://docs.openstack.org/ironic-inspector/latest/api/ironic_inspector.plugins.base.html
-.. _Introspection Rules: https://docs.openstack.org/ironic-inspector/latest/usage.html#introspection-rules
+.. _ironic_inspector.plugins.base: https://docs.openstack.org/ironic-inspector/latest/contributor/api/ironic_inspector.plugins.base.html
+.. _Introspection Rules: https://docs.openstack.org/ironic-inspector/latest/user/usage.html#introspection-rules
 
 Making changes to the database
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -315,7 +315,7 @@ the database::
     ironic-inspector-dbsync revision -m "A short description"
 
 .. _Create a Migration Script: http://alembic.zzzcomputing.com/en/latest/tutorial.html#create-a-migration-script
-.. _ironic_inspector.db: https://docs.openstack.org/ironic-inspector/latest/api/ironic_inspector.db.html
+.. _ironic_inspector.db: https://docs.openstack.org/ironic-inspector/latest/contributor/api/ironic_inspector.db.html
 .. _What does Autogenerate Detect (and what does it not detect?): http://alembic.zzzcomputing.com/en/latest/autogenerate.html#what-does-autogenerate-detect-and-what-does-it-not-detect
 
 Implementing PXE Filter Drivers
