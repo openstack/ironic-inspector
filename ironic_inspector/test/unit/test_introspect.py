@@ -122,7 +122,6 @@ class TestIntrospect(BaseTest):
 
     def test_power_failure(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
-        cli.node.set_boot_device.side_effect = exceptions.BadRequest()
         cli.node.set_power_state.side_effect = exceptions.BadRequest()
         start_mock.return_value = self.node_info
 
@@ -158,6 +157,28 @@ class TestIntrospect(BaseTest):
                                            manage_boot=True,
                                            ironic=cli)
         self.assertFalse(cli.node.set_boot_device.called)
+        start_mock.return_value.finished.assert_called_once_with(
+            introspect.istate.Events.error, error=mock.ANY)
+        self.node_info.acquire_lock.assert_called_once_with()
+        self.node_info.release_lock.assert_called_once_with()
+
+    def test_set_boot_device_failure(self, client_mock, start_mock):
+        cli = self._prepare(client_mock)
+        cli.node.set_boot_device.side_effect = exceptions.BadRequest()
+        start_mock.return_value = self.node_info
+
+        introspect.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+
+        start_mock.assert_called_once_with(self.uuid,
+                                           bmc_address=self.bmc_address,
+                                           manage_boot=True,
+                                           ironic=cli)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_not_called()
         start_mock.return_value.finished.assert_called_once_with(
             introspect.istate.Events.error, error=mock.ANY)
         self.node_info.acquire_lock.assert_called_once_with()
