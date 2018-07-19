@@ -331,6 +331,8 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                              value=v, node_uuid=self.uuid).save(session)
             db.Option(uuid=self.uuid, name='foo', value='bar').save(
                 session)
+            db.IntrospectionData(uuid=self.uuid, processed=False,
+                                 data={'fake': 'data'}).save(session)
 
     def test_no_timeout(self):
         CONF.set_override('timeout', 0)
@@ -358,6 +360,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual(len(self.macs),
                          db.model_query(db.Attribute).count())
         self.assertEqual(1, db.model_query(db.Option).count())
+        self.assertEqual(1, db.model_query(db.IntrospectionData).count())
         self.assertFalse(get_lock_mock.called)
 
     @mock.patch.object(node_cache, '_get_lock', autospec=True)
@@ -1256,3 +1259,29 @@ class TestStartIntrospection(test_base.NodeTest):
                               node_cache.start_introspection,
                               self.node_info.uuid)
         self.assertFalse(add_node_mock.called)
+
+
+class TestIntrospectionDataDbStore(test_base.NodeTest):
+    def setUp(self):
+        super(TestIntrospectionDataDbStore, self).setUp()
+        node_cache.add_node(self.node.uuid,
+                            istate.States.processing,
+                            bmc_address='1.2.3.4')
+
+    def _test_store_and_get(self, processed=False):
+        node_cache.store_introspection_data(self.node.uuid,
+                                            copy.deepcopy(self.data),
+                                            processed=processed)
+        stored_data = node_cache.get_introspection_data(self.node.uuid,
+                                                        processed=processed)
+        self.assertEqual(stored_data, self.data)
+
+    def test_store_and_get_unprocessed(self):
+        self._test_store_and_get(processed=False)
+
+    def test_store_and_get_processed(self):
+        self._test_store_and_get(processed=True)
+
+    def test_get_no_data_available(self):
+        self.assertRaises(utils.IntrospectionDataNotFound,
+                          node_cache.get_introspection_data, self.node.uuid)

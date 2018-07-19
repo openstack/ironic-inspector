@@ -755,7 +755,7 @@ def _delete_node(uuid, session=None):
     with db.ensure_transaction(session) as session:
         db.model_query(db.Attribute, session=session).filter_by(
             node_uuid=uuid).delete()
-        for model in (db.Option, db.Node):
+        for model in (db.Option, db.IntrospectionData, db.Node):
             db.model_query(model,
                            session=session).filter_by(uuid=uuid).delete()
 
@@ -979,3 +979,44 @@ def get_node_list(ironic=None, marker=None, limit=None):
                                    ('started_at', 'uuid'),
                                    marker=marker, sort_dir='desc')
     return [NodeInfo.from_row(row, ironic=ironic) for row in rows]
+
+
+def store_introspection_data(node_id, introspection_data, processed=True):
+    """Store introspection data for this node.
+
+    :param node_id: node UUID.
+    :param introspection_data: A dictionary of introspection data
+    :param processed: Specify the type of introspected data, set to False
+                      indicates the data is unprocessed.
+    """
+    with db.ensure_transaction() as session:
+        record = db.model_query(db.IntrospectionData,
+                                session=session).filter_by(
+            uuid=node_id, processed=processed).first()
+        if record is None:
+            row = db.IntrospectionData()
+            row.update({'uuid': node_id, 'processed': processed,
+                        'data': introspection_data})
+            session.add(row)
+        else:
+            record.update({'data': introspection_data})
+        session.flush()
+
+
+def get_introspection_data(node_id, processed=True):
+    """Get introspection data for this node.
+
+    :param node_id: node UUID.
+    :param processed: Specify the type of introspected data, set to False
+                      indicates retrieving the unprocessed data.
+    :return: A dictionary representation of intropsected data
+    """
+    try:
+        ref = db.model_query(db.IntrospectionData).filter_by(
+            uuid=node_id, processed=processed).one()
+        return ref['data']
+    except orm_errors.NoResultFound:
+        msg = _('Introspection data not found for node %(node)s, '
+                'processed=%(processed)s') % {'node': node_id,
+                                              'processed': processed}
+        raise utils.IntrospectionDataNotFound(msg)
