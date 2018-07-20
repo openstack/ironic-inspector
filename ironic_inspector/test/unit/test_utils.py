@@ -61,6 +61,7 @@ class TestCheckAuth(base.BaseTest):
 
     def test_invalid(self):
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
+        request.context = context.RequestContext()
         self.assertRaises(utils.Error, utils.check_auth, request)
 
     def test_not_admin(self):
