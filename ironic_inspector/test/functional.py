@@ -57,6 +57,7 @@ driver = noop
 debug = True
 introspection_delay = 0
 auth_strategy=noauth
+transport_url=fake://
 [database]
 connection = sqlite:///%(db_file)s
 [processing]

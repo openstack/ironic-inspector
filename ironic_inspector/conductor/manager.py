@@ -11,11 +11,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import oslo_messaging as messaging
+import sys
+import traceback as traceback_mod
 
+import eventlet
+from eventlet import semaphore
+from futurist import periodics
+from oslo_config import cfg
+from oslo_log import log
+import oslo_messaging as messaging
+from oslo_utils import reflection
+
+from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import db
 from ironic_inspector import introspect
+from ironic_inspector import node_cache
+from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import process
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector import utils
+
+LOG = log.getLogger(__name__)
+CONF = cfg.CONF
+MANAGER_TOPIC = 'ironic-inspector-conductor'
 
 
 class ConductorManager(object):
@@ -23,6 +41,79 @@ class ConductorManager(object):
     RPC_API_VERSION = '1.1'
 
     target = messaging.Target(version=RPC_API_VERSION)
+
+    def __init__(self):
+        self._periodics_worker = None
+        self._shutting_down = semaphore.Semaphore()
+
+    def init_host(self):
+        """Initialize Worker host
+
+        Init db connection, load and validate processing
+        hooks, runs periodic tasks.
+
+        :returns None
+        """
+        if CONF.processing.store_data == 'none':
+            LOG.warning('Introspection data will not be stored. Change '
+                        '"[processing] store_data" option if this is not '
+                        'the desired behavior')
+        elif CONF.processing.store_data == 'swift':
+            LOG.info('Introspection data will be stored in Swift in the '
+                     'container %s', CONF.swift.container)
+
+        db.init()
+
+        try:
+            hooks = plugins_base.validate_processing_hooks()
+        except Exception as exc:
+            LOG.critical(str(exc))
+            sys.exit(1)
+        LOG.info('Enabled processing hooks: %s', [h.name for h in hooks])
+
+        driver = pxe_filter.driver()
+        driver.init_filter()
+
+        periodic_clean_up_ = periodics.periodic(
+            spacing=CONF.clean_up_period
+        )(periodic_clean_up)
+
+        self._periodics_worker = periodics.PeriodicWorker(
+            callables=[(driver.get_periodic_sync_task(), None, None),
+                       (periodic_clean_up_, None, None)],
+            executor_factory=periodics.ExistingExecutor(utils.executor()),
+            on_failure=self._periodics_watchdog)
+        utils.executor().submit(self._periodics_worker.start)
+
+    def del_host(self):
+
+        if not self._shutting_down.acquire(blocking=False):
+            LOG.warning('Attempted to shut down while already shutting down')
+            return
+
+        pxe_filter.driver().tear_down_filter()
+        if self._periodics_worker is not None:
+            try:
+                self._periodics_worker.stop()
+                self._periodics_worker.wait()
+            except Exception as e:
+                LOG.exception('Service error occurred when stopping '
+                              'periodic workers. Error: %s', e)
+            self._periodics_worker = None
+
+        if utils.executor().alive:
+            utils.executor().shutdown(wait=True)
+
+        self._shutting_down.release()
+        LOG.info('Shut down successfully')
+
+    def _periodics_watchdog(self, callable_, activity, spacing, exc_info,
+                            traceback=None):
+        LOG.exception("The periodic %(callable)s failed with: %(exception)s", {
+            'exception': ''.join(traceback_mod.format_exception(*exc_info)),
+            'callable': reflection.get_callable_name(callable_)})
+        # NOTE(milan): spawn new thread otherwise waiting would block
+        eventlet.spawn(self.del_host)
 
     @messaging.expected_exceptions(utils.Error)
     def do_introspection(self, context, node_id, token=None,
@@ -36,3 +127,20 @@ class ConductorManager(object):
     @messaging.expected_exceptions(utils.Error)
     def do_reapply(self, context, node_id, token=None):
         process.reapply(node_id)
+
+
+def periodic_clean_up():  # pragma: no cover
+    try:
+        if node_cache.clean_up():
+            pxe_filter.driver().sync(ir_utils.get_client())
+        sync_with_ironic()
+    except Exception:
+        LOG.exception('Periodic clean up of node cache failed')
+
+
+def sync_with_ironic():
+    ironic = ir_utils.get_client()
+    # TODO(yuikotakada): pagination
+    ironic_nodes = ironic.node.list(limit=0)
+    ironic_node_uuids = {node.uuid for node in ironic_nodes}
+    node_cache.delete_nodes_not_in_list(ironic_node_uuids)

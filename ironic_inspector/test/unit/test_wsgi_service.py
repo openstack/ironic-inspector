@@ -20,10 +20,8 @@ import fixtures
 import mock
 from oslo_config import cfg
 
-from ironic_inspector.common import rpc
 from ironic_inspector.test import base as test_base
 from ironic_inspector import wsgi_service
-
 
 CONF = cfg.CONF
 
@@ -34,15 +32,9 @@ class BaseWSGITest(test_base.BaseTest):
         super(BaseWSGITest, self).setUp()
         self.app = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.app, 'app', autospec=True)).mock
-        self.mock__shutting_down = (self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.semaphore, 'Semaphore', autospec=True))
-            .mock.return_value)
-        self.mock__shutting_down.acquire.return_value = True
         self.mock_log = self.useFixture(fixtures.MockPatchObject(
             wsgi_service, 'LOG')).mock
         self.service = wsgi_service.WSGIService()
-        self.mock_rpc_server = self.useFixture(fixtures.MockPatchObject(
-            rpc, 'get_server')).mock
 
 
 class TestWSGIServiceInitMiddleware(BaseWSGITest):
@@ -73,118 +65,10 @@ class TestWSGIServiceInitMiddleware(BaseWSGITest):
             'Starting unauthenticated, please check configuration')
         self.mock_add_cors_middleware.assert_called_once_with(self.app)
 
-    def test_init_middleware_no_store(self):
-        CONF.set_override('store_data', 'none', 'processing')
-        self.service._init_middleware()
-
-        self.mock_add_auth_middleware.assert_called_once_with(self.app)
-        self.mock_log.warning.assert_called_once_with(
-            'Introspection data will not be stored. Change "[processing] '
-            'store_data" option if this is not the desired behavior')
-        self.mock_add_cors_middleware.assert_called_once_with(self.app)
-
-
-class TestWSGIServiceInitHost(BaseWSGITest):
-    def setUp(self):
-        super(TestWSGIServiceInitHost, self).setUp()
-        self.mock_db_init = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.db, 'init')).mock
-        self.mock_validate_processing_hooks = self.useFixture(
-            fixtures.MockPatchObject(wsgi_service.plugins_base,
-                                     'validate_processing_hooks')).mock
-        self.mock_filter = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.pxe_filter, 'driver')).mock.return_value
-        self.mock_periodic = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.periodics, 'periodic')).mock
-        self.mock_PeriodicWorker = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.periodics, 'PeriodicWorker')).mock
-        self.mock_executor = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.utils, 'executor')).mock
-        self.mock_ExistingExecutor = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.periodics, 'ExistingExecutor')).mock
-        self.mock_exit = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.sys, 'exit')).mock
-
-    def assert_periodics(self):
-        outer_cleanup_decorator_call = mock.call(
-            spacing=CONF.clean_up_period)
-        self.mock_periodic.assert_has_calls([
-            outer_cleanup_decorator_call,
-            mock.call()(wsgi_service.periodic_clean_up)])
-
-        inner_decorator = self.mock_periodic.return_value
-        inner_cleanup_decorator_call = mock.call(
-            wsgi_service.periodic_clean_up)
-        inner_decorator.assert_has_calls([inner_cleanup_decorator_call])
-
-        self.mock_ExistingExecutor.assert_called_once_with(
-            self.mock_executor.return_value)
-
-        periodic_worker = self.mock_PeriodicWorker.return_value
-
-        periodic_sync = self.mock_filter.get_periodic_sync_task.return_value
-        callables = [(periodic_sync, None, None),
-                     (inner_decorator.return_value, None, None)]
-        self.mock_PeriodicWorker.assert_called_once_with(
-            callables=callables,
-            executor_factory=self.mock_ExistingExecutor.return_value,
-            on_failure=self.service._periodics_watchdog)
-        self.assertIs(periodic_worker, self.service._periodics_worker)
-
-        self.mock_executor.return_value.submit.assert_called_once_with(
-            self.service._periodics_worker.start)
-
-    def test_init_host(self):
-        self.service._init_host()
-
-        self.mock_db_init.asset_called_once_with()
-        self.mock_validate_processing_hooks.assert_called_once_with()
-        self.mock_filter.init_filter.assert_called_once_with()
-        self.assert_periodics()
-
-    def test_init_host_validate_processing_hooks_exception(self):
-        class MyError(Exception):
-            pass
-
-        error = MyError('Oops!')
-        self.mock_validate_processing_hooks.side_effect = error
-
-        # NOTE(milan): have to stop executing the test case at this point to
-        # simulate a real sys.exit() call
-        self.mock_exit.side_effect = SystemExit('Stop!')
-        self.assertRaisesRegex(SystemExit, 'Stop!', self.service._init_host)
-
-        self.mock_db_init.assert_called_once_with()
-        self.mock_log.critical.assert_called_once_with(str(error))
-        self.mock_exit.assert_called_once_with(1)
-        self.mock_filter.init_filter.assert_not_called()
-
-
-class TestWSGIServicePeriodicWatchDog(BaseWSGITest):
-    def setUp(self):
-        super(TestWSGIServicePeriodicWatchDog, self).setUp()
-        self.mock_get_callable_name = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.reflection, 'get_callable_name')).mock
-        self.mock_spawn = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.eventlet, 'spawn')).mock
-
-    def test__periodics_watchdog(self):
-        error = RuntimeError('Oops!')
-
-        self.service._periodics_watchdog(
-            callable_=None, activity=None, spacing=None,
-            exc_info=(None, error, None), traceback=None)
-
-        self.mock_get_callable_name.assert_called_once_with(None)
-        self.mock_spawn.assert_called_once_with(self.service.shutdown,
-                                                error=str(error))
-
 
 class TestWSGIServiceRun(BaseWSGITest):
     def setUp(self):
         super(TestWSGIServiceRun, self).setUp()
-        self.mock__init_host = self.useFixture(fixtures.MockPatchObject(
-            self.service, '_init_host')).mock
         self.mock__init_middleware = self.useFixture(fixtures.MockPatchObject(
             self.service, '_init_middleware')).mock
         self.mock__create_ssl_context = self.useFixture(
@@ -201,9 +85,6 @@ class TestWSGIServiceRun(BaseWSGITest):
 
         self.mock__create_ssl_context.assert_called_once_with()
         self.mock__init_middleware.assert_called_once_with()
-        self.mock__init_host.assert_called_once_with()
-        self.mock_rpc_server.assert_called_once_with()
-        self.service.rpc_server.start.assert_called_once_with()
         self.app.run.assert_called_once_with(
             host=CONF.listen_address, port=CONF.listen_port,
             ssl_context=self.mock__create_ssl_context.return_value)
@@ -215,7 +96,6 @@ class TestWSGIServiceRun(BaseWSGITest):
         self.service.run()
         self.mock__create_ssl_context.assert_called_once_with()
         self.mock__init_middleware.assert_called_once_with()
-        self.mock__init_host.assert_called_once_with()
         self.app.run.assert_called_once_with(
             host=CONF.listen_address, port=CONF.listen_port)
         self.mock_shutdown.assert_called_once_with()
@@ -230,7 +110,6 @@ class TestWSGIServiceRun(BaseWSGITest):
 
         self.mock__create_ssl_context.assert_called_once_with()
         self.mock__init_middleware.assert_called_once_with()
-        self.mock__init_host.assert_called_once_with()
         self.app.run.assert_called_once_with(
             host=CONF.listen_address, port=CONF.listen_port,
             ssl_context=self.mock__create_ssl_context.return_value)
@@ -240,107 +119,20 @@ class TestWSGIServiceRun(BaseWSGITest):
 class TestWSGIServiceShutdown(BaseWSGITest):
     def setUp(self):
         super(TestWSGIServiceShutdown, self).setUp()
-        self.mock_filter = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.pxe_filter, 'driver')).mock.return_value
-        self.mock_executor = mock.Mock()
-        self.mock_executor.alive = True
-        self.mock_get_executor = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.utils, 'executor')).mock
-        self.mock_get_executor.return_value = self.mock_executor
         self.service = wsgi_service.WSGIService()
-        self.mock__periodic_worker = self.useFixture(fixtures.MockPatchObject(
-            self.service, '_periodics_worker')).mock
+        self.mock_rpc_service = mock.MagicMock()
+        self.service.rpc_service = self.mock_rpc_service
         self.mock_exit = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.sys, 'exit')).mock
-        self.service.rpc_server = self.mock_rpc_server
 
     def test_shutdown(self):
         class MyError(Exception):
             pass
-
         error = MyError('Oops!')
 
         self.service.shutdown(error=error)
-
-        self.mock__shutting_down.acquire.assert_called_once_with(
-            blocking=False)
-        self.mock__periodic_worker.stop.assert_called_once_with()
-        self.mock__periodic_worker.wait.assert_called_once_with()
-        self.assertIsNone(self.service._periodics_worker)
-        self.mock_executor.shutdown.assert_called_once_with(wait=True)
-        self.mock_filter.tear_down_filter.assert_called_once_with()
-        self.mock__shutting_down.release.assert_called_once_with()
+        self.mock_rpc_service.stop.assert_called_once_with()
         self.mock_exit.assert_called_once_with(error)
-
-    def test_shutdown_race(self):
-        self.mock__shutting_down.acquire.return_value = False
-
-        self.service.shutdown()
-
-        self.mock__shutting_down.acquire.assert_called_once_with(
-            blocking=False)
-        self.mock_log.warning.assert_called_once_with(
-            'Attempted to shut down while already shutting down')
-        self.mock__periodic_worker.stop.assert_not_called()
-        self.mock__periodic_worker.wait.assert_not_called()
-        self.assertIs(self.mock__periodic_worker,
-                      self.service._periodics_worker)
-        self.mock_executor.shutdown.assert_not_called()
-        self.mock_filter.tear_down_filter.assert_not_called()
-        self.mock__shutting_down.release.assert_not_called()
-        self.mock_exit.assert_not_called()
-
-    def test_shutdown_worker_exception(self):
-        class MyError(Exception):
-            pass
-
-        error = MyError('Oops!')
-        self.mock__periodic_worker.wait.side_effect = error
-
-        self.service.shutdown()
-
-        self.mock__shutting_down.acquire.assert_called_once_with(
-            blocking=False)
-        self.mock__periodic_worker.stop.assert_called_once_with()
-        self.mock__periodic_worker.wait.assert_called_once_with()
-        self.mock_log.exception.assert_called_once_with(
-            'Service error occurred when stopping periodic workers. Error: %s',
-            error)
-        self.assertIsNone(self.service._periodics_worker)
-        self.mock_executor.shutdown.assert_called_once_with(wait=True)
-        self.mock_filter.tear_down_filter.assert_called_once_with()
-        self.mock__shutting_down.release.assert_called_once_with()
-        self.mock_exit.assert_called_once_with(None)
-
-    def test_shutdown_no_worker(self):
-        self.service._periodics_worker = None
-
-        self.service.shutdown()
-
-        self.mock__shutting_down.acquire.assert_called_once_with(
-            blocking=False)
-        self.mock__periodic_worker.stop.assert_not_called()
-        self.mock__periodic_worker.wait.assert_not_called()
-        self.assertIsNone(self.service._periodics_worker)
-        self.mock_executor.shutdown.assert_called_once_with(wait=True)
-        self.mock_filter.tear_down_filter.assert_called_once_with()
-        self.mock__shutting_down.release.assert_called_once_with()
-        self.mock_exit.assert_called_once_with(None)
-
-    def test_shutdown_stopped_executor(self):
-        self.mock_executor.alive = False
-
-        self.service.shutdown()
-
-        self.mock__shutting_down.acquire.assert_called_once_with(
-            blocking=False)
-        self.mock__periodic_worker.stop.assert_called_once_with()
-        self.mock__periodic_worker.wait.assert_called_once_with()
-        self.assertIsNone(self.service._periodics_worker)
-        self.mock_executor.shutdown.assert_not_called()
-        self.mock_filter.tear_down_filter.assert_called_once_with()
-        self.mock__shutting_down.release.assert_called_once_with()
-        self.mock_exit.assert_called_once_with(None)
 
 
 class TestCreateSSLContext(test_base.BaseTest):
