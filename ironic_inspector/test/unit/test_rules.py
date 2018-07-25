@@ -421,12 +421,83 @@ class TestApplyActions(BaseTest):
 
         self.assertEqual(1, self.act_mock.apply.call_count)
 
+    def test_apply_data_format_value_dict(self, mock_ext_mgr):
+        self.data.update({'val_outer': {'val_inner': 17},
+                          'key_outer': {'key_inner': 'baz'}})
+
+        self.rule = rules.create(actions_json=[
+            {'action': 'set-attribute',
+             'path': '/driver_info/foo',
+             'value': {'{data[key_outer][key_inner]}':
+                       '{data[val_outer][val_inner]}'}}],
+            conditions_json=self.conditions_json
+        )
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+
+        self.rule.apply_actions(self.node_info, data=self.data)
+
+        self.act_mock.apply.assert_called_once_with(self.node_info, {
+            # String-formatted values will be coerced to be strings.
+            'value': {'baz': '17'},
+            'path': '/driver_info/foo'
+        })
+
+    def test_apply_data_format_value_list(self, mock_ext_mgr):
+        self.data.update({'outer': {'inner': 'baz'}})
+
+        self.rule = rules.create(actions_json=[
+            {'action': 'set-attribute',
+             'path': '/driver_info/foo',
+             'value': ['basic', ['{data[outer][inner]}']]}],
+            conditions_json=self.conditions_json
+        )
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+
+        self.rule.apply_actions(self.node_info, data=self.data)
+
+        self.act_mock.apply.assert_called_once_with(self.node_info, {
+            'value': ['basic', ['baz']],
+            'path': '/driver_info/foo'
+        })
+
+    def test_apply_data_format_value_primitives(self, mock_ext_mgr):
+        self.data.update({'outer': {'inner': False}})
+
+        self.rule = rules.create(actions_json=[
+            {'action': 'set-attribute',
+             'path': '/driver_info/foo',
+             'value': {42: {True: [3.14, 'foo', '{data[outer][inner]}']}}}],
+            conditions_json=self.conditions_json
+        )
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+
+        self.rule.apply_actions(self.node_info, data=self.data)
+
+        self.act_mock.apply.assert_called_once_with(self.node_info, {
+            # String-formatted values will be coerced to be strings.
+            'value': {42: {True: [3.14, 'foo', 'False']}},
+            'path': '/driver_info/foo'
+        })
+
     def test_apply_data_format_value_fail(self, mock_ext_mgr):
         self.rule = rules.create(
             actions_json=[
                 {'action': 'set-attribute',
                  'path': '/driver_info/ipmi_address',
                  'value': '{data[inventory][bmc_address]}'}],
+            conditions_json=self.conditions_json
+        )
+        mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock
+
+        self.assertRaises(utils.Error, self.rule.apply_actions,
+                          self.node_info, data=self.data)
+
+    def test_apply_data_format_value_nested_fail(self, mock_ext_mgr):
+        self.data.update({'outer': {'inner': 'baz'}})
+        self.rule = rules.create(actions_json=[
+            {'action': 'set-attribute',
+             'path': '/driver_info/foo',
+             'value': ['basic', ['{data[outer][nonexistent]}']]}],
             conditions_json=self.conditions_json
         )
         mock_ext_mgr.return_value.__getitem__.return_value = self.ext_mock

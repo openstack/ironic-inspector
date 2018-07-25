@@ -196,19 +196,13 @@ class IntrospectionRule(object):
             ext = ext_mgr[act.action].obj
 
             for formatted_param in ext.FORMATTED_PARAMS:
-                value = act.params.get(formatted_param)
-                if not value or not isinstance(value, six.string_types):
-                    continue
-
-                # NOTE(aarefiev): verify provided value with introspection
-                # data format specifications.
-                # TODO(aarefiev): simple verify on import rule time.
                 try:
-                    act.params[formatted_param] = value.format(data=data)
-                except KeyError as e:
-                    raise utils.Error(_('Invalid formatting variable key '
-                                        'provided: %s') % e,
-                                      node_info=node_info, data=data)
+                    initial = act.params[formatted_param]
+                except KeyError:
+                    # Ignore parameter that wasn't given.
+                    continue
+                else:
+                    act.params[formatted_param] = _format_value(initial, data)
 
             LOG.debug('Running action `%(action)s %(params)s`',
                       {'action': act.action, 'params': act.params},
@@ -217,6 +211,38 @@ class IntrospectionRule(object):
 
         LOG.debug('Successfully applied actions',
                   node_info=node_info, data=data)
+
+
+def _format_value(value, data):
+    """Apply parameter formatting to a value.
+
+    Format strings with the values from `data`. If `value` is a dict or
+    list, any string members (and any nested string members) will also be
+    formatted recursively. This includes both keys and values for dicts.
+
+    :param value: The string to format, or container whose members to
+                  format.
+    :param data: Introspection data.
+    :returns: `value`, formatted with the parameters from `data`.
+    """
+    if isinstance(value, six.string_types):
+        # NOTE(aarefiev): verify provided value with introspection
+        # data format specifications.
+        # TODO(aarefiev): simple verify on import rule time.
+        try:
+            return value.format(data=data)
+        except KeyError as e:
+            raise utils.Error(_('Invalid formatting variable key '
+                                'provided in value %(val)s: %(e)s'),
+                              {'val': value, 'e': e}, data=data)
+    elif isinstance(value, dict):
+        return {_format_value(k, data): _format_value(v, data)
+                for k, v in six.iteritems(value)}
+    elif isinstance(value, list):
+        return [_format_value(v, data) for v in value]
+    else:
+        # Assume this is a 'primitive' value.
+        return value
 
 
 def _parse_path(path):
