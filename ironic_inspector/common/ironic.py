@@ -112,42 +112,26 @@ def get_client(token=None,
     """Get Ironic client instance."""
     global IRONIC_SESSION
 
-    # NOTE: To support standalone ironic without keystone
-    # TODO(pas-ha) remove handling of deprecated opts in Rocky
-    # TODO(pas-ha) rewrite when ironicclient natively supports 'none' auth
-    # via sessions https://review.openstack.org/#/c/359061/
-    if CONF.ironic.auth_strategy == 'noauth':
-        CONF.set_override('auth_type', 'none', group='ironic')
-
     if not IRONIC_SESSION:
         IRONIC_SESSION = keystone.get_session('ironic')
 
     args = {
+        'session': IRONIC_SESSION,
         'os_ironic_api_version': api_version,
         'max_retries': CONF.ironic.max_retries,
-        'retry_interval': CONF.ironic.retry_interval}
+        'retry_interval': CONF.ironic.retry_interval
+    }
 
-    adapter_opts = dict()
+    if token is not None:
+        args['token'] = token
 
-    # TODO(pas-ha) use service auth with incoming token
-    if CONF.ironic.auth_type != 'none':
-        if token is None:
-            args['session'] = IRONIC_SESSION
-        else:
-            args['token'] = token
-
-    # TODO(pas-ha): remove handling of deprecated options in Rocky
-    if CONF.ironic.os_region and not CONF.ironic.region_name:
-        adapter_opts['region_name'] = CONF.ironic.os_region
-    if (CONF.ironic.auth_type == 'none' and
-            not CONF.ironic.endpoint_override and
-            CONF.ironic.ironic_url):
-        adapter_opts['endpoint_override'] = CONF.ironic.ironic_url
-
-    adapter = keystone.get_adapter('ironic', session=IRONIC_SESSION,
-                                   **adapter_opts)
-    endpoint = adapter.get_endpoint()
-    return client.Client(1, endpoint, **args)
+    endpoint = keystone.get_adapter('ironic',
+                                    session=IRONIC_SESSION).get_endpoint()
+    if not endpoint:
+        raise utils.Error(
+            _('Cannot find the bare metal endpoint either in Keystone or '
+              'in the configuration'), code=500)
+    return client.get_client(1, endpoint=endpoint, **args)
 
 
 def check_provision_state(node):

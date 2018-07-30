@@ -32,24 +32,19 @@ class TestGetClientBase(object):
     def test_get_client_with_auth_token(self, mock_client, mock_load,
                                         mock_opts, mock_adapter):
         fake_token = 'token'
-        fake_ironic_url = 'http://127.0.0.1:6385'
         mock_sess = mock.Mock()
-        mock_adapter.return_value.get_endpoint.return_value = fake_ironic_url
         mock_load.return_value = mock_sess
         ir_utils.get_client(fake_token)
-        mock_adapter.assert_called_once_with(
-            'ironic', region_name='somewhere', session=mock_sess)
-        mock_adapter.return_value.get_endpoint.assert_called_once_with()
         args = {'token': fake_token,
+                'session': mock_sess,
                 'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, fake_ironic_url, **args)
+        endpoint = mock_adapter.return_value.get_endpoint.return_value
+        mock_client.assert_called_once_with(1, endpoint=endpoint, **args)
 
     def test_get_client_without_auth_token(self, mock_client, mock_load,
                                            mock_opts, mock_adapter):
-        fake_ironic_url = 'http://127.0.0.1:6385'
-        mock_adapter.return_value.get_endpoint.return_value = fake_ironic_url
         mock_sess = mock.Mock()
         mock_load.return_value = mock_sess
         ir_utils.get_client(None)
@@ -57,32 +52,31 @@ class TestGetClientBase(object):
                 'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, fake_ironic_url, **args)
+        endpoint = mock_adapter.return_value.get_endpoint.return_value
+        mock_client.assert_called_once_with(1, endpoint=endpoint, **args)
 
 
 @mock.patch.object(keystone, 'get_adapter')
 @mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'Client')
+@mock.patch.object(client, 'get_client', autospec=True)
 class TestGetClientAuth(TestGetClientBase, base.BaseTest):
     def setUp(self):
         super(TestGetClientAuth, self).setUp()
         ir_utils.reset_ironic_session()
         self.cfg.config(auth_strategy='keystone')
-        self.cfg.config(os_region='somewhere', group='ironic')
         self.addCleanup(ir_utils.reset_ironic_session)
 
 
 @mock.patch.object(keystone, 'get_adapter')
 @mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'Client')
+@mock.patch.object(client, 'get_client', autospec=True)
 class TestGetClientNoAuth(TestGetClientBase, base.BaseTest):
     def setUp(self):
         super(TestGetClientNoAuth, self).setUp()
         ir_utils.reset_ironic_session()
         self.cfg.config(auth_strategy='noauth')
-        self.cfg.config(os_region='somewhere', group='ironic')
         self.addCleanup(ir_utils.reset_ironic_session)
 
 
