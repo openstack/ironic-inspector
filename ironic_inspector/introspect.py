@@ -106,15 +106,15 @@ def _background_introspect_locked(node_info, ironic):
             ironic.node.set_boot_device(node_info.uuid, 'pxe',
                                         persistent=False)
         except Exception as exc:
-            LOG.warning('Failed to set boot device to PXE: %s',
-                        exc, node_info=node_info)
+            raise utils.Error(_('Failed to set boot device to PXE: %s') % exc,
+                              node_info=node_info)
 
         try:
             ironic.node.set_power_state(node_info.uuid, 'reboot')
         except Exception as exc:
             raise utils.Error(_('Failed to power on the node, check it\'s '
-                                'power management configuration: %s'),
-                              exc, node_info=node_info)
+                                'power management configuration: %s') % exc,
+                              node_info=node_info)
         LOG.info('Introspection started successfully',
                  node_info=node_info)
     else:
