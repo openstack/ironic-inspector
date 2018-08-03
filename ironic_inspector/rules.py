@@ -240,41 +240,17 @@ def _parse_path(path):
     return scheme, path
 
 
-def create(conditions_json, actions_json, uuid=None,
-           description=None):
-    """Create a new rule in database.
+def _validate_conditions(conditions_json):
+    """Validates conditions from jsonschema.
 
-    :param conditions_json: list of dicts with the following keys:
-                            * op - operator
-                            * field - JSON path to field to compare
-                            Other keys are stored as is.
-    :param actions_json: list of dicts with the following keys:
-                         * action - action type
-                         Other keys are stored as is.
-    :param uuid: rule UUID, will be generated if empty
-    :param description: human-readable rule description
-    :returns: new IntrospectionRule object
-    :raises: utils.Error on failure
+    :returns: a list of conditions.
     """
-    uuid = uuid or uuidutils.generate_uuid()
-    LOG.debug('Creating rule %(uuid)s with description "%(descr)s", '
-              'conditions %(conditions)s and actions %(actions)s',
-              {'uuid': uuid, 'descr': description,
-               'conditions': conditions_json, 'actions': actions_json})
-
     try:
         jsonschema.validate(conditions_json, conditions_schema())
     except jsonschema.ValidationError as exc:
         raise utils.Error(_('Validation failed for conditions: %s') % exc)
 
-    try:
-        jsonschema.validate(actions_json, actions_schema())
-    except jsonschema.ValidationError as exc:
-        raise utils.Error(_('Validation failed for actions: %s') % exc)
-
     cond_mgr = plugins_base.rule_conditions_manager()
-    act_mgr = plugins_base.rule_actions_manager()
-
     conditions = []
     reserved_params = {'op', 'field', 'multiple', 'invert'}
     for cond_json in conditions_json:
@@ -307,7 +283,20 @@ def create(conditions_json, actions_json, uuid=None,
                            cond_json.get('multiple', 'any'),
                            cond_json.get('invert', False),
                            params))
+    return conditions
 
+
+def _validate_actions(actions_json):
+    """Validates actions from jsonschema.
+
+    :returns: a list of actions.
+    """
+    try:
+        jsonschema.validate(actions_json, actions_schema())
+    except jsonschema.ValidationError as exc:
+        raise utils.Error(_('Validation failed for actions: %s') % exc)
+
+    act_mgr = plugins_base.rule_actions_manager()
     actions = []
     for action_json in actions_json:
         plugin = act_mgr[action_json['action']].obj
@@ -320,6 +309,33 @@ def create(conditions_json, actions_json, uuid=None,
                               {'act': action_json['action'], 'error': exc})
 
         actions.append((action_json['action'], params))
+    return actions
+
+
+def create(conditions_json, actions_json, uuid=None,
+           description=None):
+    """Create a new rule in database.
+
+    :param conditions_json: list of dicts with the following keys:
+                            * op - operator
+                            * field - JSON path to field to compare
+                            Other keys are stored as is.
+    :param actions_json: list of dicts with the following keys:
+                         * action - action type
+                         Other keys are stored as is.
+    :param uuid: rule UUID, will be generated if empty
+    :param description: human-readable rule description
+    :returns: new IntrospectionRule object
+    :raises: utils.Error on failure
+    """
+    uuid = uuid or uuidutils.generate_uuid()
+    LOG.debug('Creating rule %(uuid)s with description "%(descr)s", '
+              'conditions %(conditions)s and actions %(actions)s',
+              {'uuid': uuid, 'descr': description,
+               'conditions': conditions_json, 'actions': actions_json})
+
+    conditions = _validate_conditions(conditions_json)
+    actions = _validate_actions(actions_json)
 
     try:
         with db.ensure_transaction() as session:
