@@ -124,11 +124,19 @@ Default available actions include:
   set to ``True``, nothing will be added if given value is already in a list.
 
 Starting from Mitaka release, ``value`` field in actions supports fetching data
-from introspection, it's using `python string formatting notation
-<https://docs.python.org/2/library/string.html#formatspec>`_ ::
+from introspection, using `python string formatting notation
+<https://docs.python.org/2/library/string.html#formatspec>`_::
 
     {"action": "set-attribute", "path": "/driver_info/ipmi_address",
      "value": "{data[inventory][bmc_address]}"}
+
+Note that any value referenced in this way will be converted to a string.
+
+If ``value`` is a dict or list, strings nested at any level within the
+structure will be formatted as well::
+
+    {"action": "set-attribute", "path": "/properties/root_device",
+     "value": {"serial": "{data[root_device][serial]}"}}
 
 Plugins
 ~~~~~~~
