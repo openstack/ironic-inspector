@@ -237,6 +237,7 @@ class TestNodeCacheFind(test_base.NodeTest):
 
     def test_bmc(self):
         res = node_cache.find_node(bmc_address='1.2.3.4')
+        self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(
             datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
@@ -251,8 +252,10 @@ class TestNodeCacheFind(test_base.NodeTest):
                             bmc_address='1.2.3.4',
                             mac=self.macs2)
         res = node_cache.find_node(bmc_address='1.2.3.4', mac=self.macs)
+        self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         res = node_cache.find_node(bmc_address='1.2.3.4', mac=self.macs2)
+        self.addCleanup(res.release_lock)
         self.assertEqual(uuid2, res.uuid)
 
     def test_same_bmc_raises(self):
@@ -265,6 +268,7 @@ class TestNodeCacheFind(test_base.NodeTest):
 
     def test_macs(self):
         res = node_cache.find_node(mac=['11:22:33:33:33:33', self.macs[1]])
+        self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(
             datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
@@ -287,6 +291,7 @@ class TestNodeCacheFind(test_base.NodeTest):
     def test_both(self):
         res = node_cache.find_node(bmc_address='1.2.3.4',
                                    mac=self.macs)
+        self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(
             datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
@@ -459,7 +464,7 @@ class TestNodeCacheGetNode(test_base.NodeTest):
                     state=istate.States.starting,
                     started_at=started_at).save(session)
         info = node_cache.get_node(self.uuid, locked=True)
-
+        self.addCleanup(info.release_lock)
         self.assertEqual(self.uuid, info.uuid)
         self.assertEqual(started_at, info.started_at)
         self.assertIsNone(info.finished_at)
@@ -852,6 +857,7 @@ class TestNodeCacheGetByPath(test_base.NodeTest):
 class TestLock(test_base.NodeTest):
     def test_acquire(self, get_lock_mock):
         node_info = node_cache.NodeInfo(self.uuid)
+        self.addCleanup(node_info.release_lock)
         self.assertFalse(node_info._locked)
         get_lock_mock.assert_called_once_with(self.uuid)
         self.assertFalse(get_lock_mock.return_value.acquire.called)
@@ -875,6 +881,7 @@ class TestLock(test_base.NodeTest):
 
     def test_acquire_non_blocking(self, get_lock_mock):
         node_info = node_cache.NodeInfo(self.uuid)
+        self.addCleanup(node_info.release_lock)
         self.assertFalse(node_info._locked)
         get_lock_mock.return_value.acquire.side_effect = iter([False, True])
 
