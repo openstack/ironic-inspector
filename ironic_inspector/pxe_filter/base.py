@@ -218,10 +218,6 @@ def _driver_manager():
     global _DRIVER_MANAGER
 
     name = CONF.pxe_filter.driver
-    # FIXME(milan): to be removed after the transition period of deprecating
-    # the firewall option group
-    if name == 'iptables' and not CONF.iptables.manage_firewall:
-        name = 'noop'
 
     if _DRIVER_MANAGER is None:
         _DRIVER_MANAGER = stevedore.driver.DriverManager(
