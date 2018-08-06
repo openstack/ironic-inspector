@@ -396,3 +396,6 @@ Version History
 * **1.12** this version indicates that support for setting IPMI credentials
   was completely removed from API (all versions).
 * **1.13** adds ``manage_boot`` parameter for the introspection API.
+* **1.14** allows formatting to be applied to strings nested in dicts and lists
+  in the actions of introspection rules.
+
