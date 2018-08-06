@@ -74,6 +74,11 @@ class BaseProcessTest(BaseTest):
         self.cli.node.get.return_value = self.node
         self.process_mock = self.process_fixture.mock
         self.process_mock.return_value = self.fake_result_json
+        self.addCleanup(self._cleanup_lock, self.node_info)
+
+    def _cleanup_lock(self, node_info):
+        if node_info._locked:
+            node_info.release_lock()
 
 
 class TestProcess(BaseProcessTest):
