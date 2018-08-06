@@ -18,10 +18,10 @@ from ironic_inspector.common.i18n import _
 
 _OPTS = [
     cfg.StrOpt('driver', default='iptables',
-               help=_('PXE boot filter driver to use, such as iptables')),
+               help=_('PXE boot filter driver to use, possible filters are: '
+                      '"iptables", "dnsmasq" and "noop". Set "noop " to '
+                      'disable the firewall filtering.')),
     cfg.IntOpt('sync_period', default=15, min=0,
-               deprecated_name='firewall_update_period',
-               deprecated_group='firewall',
                help=_('Amount of time in seconds, after which repeat periodic '
                       'update of the filter.')),
 ]

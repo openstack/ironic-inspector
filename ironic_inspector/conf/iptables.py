@@ -17,29 +17,14 @@ from ironic_inspector.common.i18n import _
 
 
 _OPTS = [
-    cfg.BoolOpt('manage_firewall',
-                default=True,
-                # NOTE(milan) this filter driver will be replaced by
-                # a dnsmasq filter driver
-                deprecated_for_removal=True,
-                deprecated_group='firewall',
-                help=_('Whether to manage firewall rules for PXE port. '
-                       'This configuration option was deprecated in favor of '
-                       'the ``driver`` option in the ``pxe_filter`` section. '
-                       'Please, use the ``noop`` filter driver to disable the '
-                       'firewall filtering or the ``iptables`` filter driver '
-                       'to enable it.')),
     cfg.StrOpt('dnsmasq_interface',
                default='br-ctlplane',
-               deprecated_group='firewall',
                help=_('Interface on which dnsmasq listens, the default is for '
                       'VM\'s.')),
     cfg.StrOpt('firewall_chain',
                default='ironic-inspector',
-               deprecated_group='firewall',
                help=_('iptables chain name to use.')),
     cfg.ListOpt('ethoib_interfaces',
-                deprecated_group='firewall',
                 default=[],
                 help=_('List of Etherent Over InfiniBand interfaces '
                        'on the Inspector host which are used for physical '
