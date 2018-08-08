@@ -874,19 +874,10 @@ def find_node(**attributes):
 def clean_up():
     """Clean up the cache.
 
-    * Finish introspection for timed out nodes.
-    * Drop outdated node status information.
+    Finish introspection for timed out nodes.
 
     :return: list of timed out node UUID's
     """
-    if CONF.node_status_keep_time > 0:
-        status_keep_threshold = (timeutils.utcnow() - datetime.timedelta(
-                                 seconds=CONF.node_status_keep_time))
-        with db.ensure_transaction() as session:
-            db.model_query(db.Node, session=session).filter(
-                db.Node.finished_at.isnot(None),
-                db.Node.finished_at < status_keep_threshold).delete()
-
     timeout = CONF.timeout
     if timeout <= 0:
         return []
