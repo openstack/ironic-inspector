@@ -84,7 +84,6 @@ ply==3.11
 prettytable==0.7.2
 pycadf==2.7.0
 pycodestyle==2.3.1
-pydot3==1.0.8
 pyflakes==0.8.1
 Pygments==2.2.0
 pyinotify==0.9.6
