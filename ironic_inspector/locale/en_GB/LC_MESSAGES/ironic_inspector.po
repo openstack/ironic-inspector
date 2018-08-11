@@ -4,11 +4,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ironic-inspector VERSION\n"
 "Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
-"POT-Creation-Date: 2018-02-21 23:18+0000\n"
+"POT-Creation-Date: 2018-08-10 18:06+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2018-02-01 09:56+0000\n"
+"PO-Revision-Date: 2018-08-09 08:49+0000\n"
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en_GB\n"
@@ -150,6 +150,10 @@ msgid "Failed to resolve the hostname (%(value)s) for node %(uuid)s"
 msgstr "Failed to resolve the hostname (%(value)s) for node %(uuid)s"
 
 #, python-format
+msgid "Failed to set boot device to PXE: %s"
+msgstr "Failed to set boot device to PXE: %s"
+
+#, python-format
 msgid "Failed validation of power interface, reason: %s"
 msgstr "Failed validation of power interface, reason: %s"
 
@@ -206,6 +210,10 @@ msgid "Invalid UUID value"
 msgstr "Invalid UUID value"
 
 #, python-format
+msgid "Invalid boolean value for manage_boot: %s"
+msgstr "Invalid boolean value for manage_boot: %s"
+
+#, python-format
 msgid "Invalid data: expected a JSON object, got %s"
 msgstr "Invalid data: expected a JSON object, got %s"
 
@@ -214,8 +222,8 @@ msgid "Invalid event: %s"
 msgstr "Invalid event: %s"
 
 #, python-format
-msgid "Invalid formatting variable key provided: %s"
-msgstr "Invalid formatting variable key provided: %s"
+msgid "Invalid formatting variable key provided in value %(val)s: %(e)s"
+msgstr "Invalid formatting variable key provided in value %(val)s: %(e)s"
 
 #, python-format
 msgid "Invalid hardware inventory: %s key is missing or empty"
@@ -293,6 +301,13 @@ msgstr "Look up error: %s"
 
 msgid "Malformed API version: expected string in form of X.Y"
 msgstr "Malformed API version: expected string in form of X.Y"
+
+msgid ""
+"Managed boot is requested, but this installation cannot manage boot "
+"((can_manage_boot set to False)"
+msgstr ""
+"Managed boot is requested, but this installation cannot manage boot "
+"((can_manage_boot set to False)"
 
 msgid ""
 "Mapping between a CPU flag and a capability to set if this flag is present."
@@ -398,8 +413,12 @@ msgstr ""
 "Number of seconds that the Swift object will last before being deleted. (set "
 "to 0 to never delete the object)."
 
-msgid "PXE boot filter driver to use, such as iptables"
-msgstr "PXE boot filter driver to use, such as iptables"
+msgid ""
+"PXE boot filter driver to use, possible filters are: \"iptables\", \"dnsmasq"
+"\" and \"noop\". Set \"noop \" to disable the firewall filtering."
+msgstr ""
+"PXE boot filter driver to use, possible filters are: \"iptables\", \"dnsmasq"
+"\" and \"noop\". Set \"noop \" to disable the firewall filtering."
 
 msgid "Path to SSL certificate"
 msgstr "Path to SSL certificate"
@@ -611,24 +630,22 @@ msgid "Version not found."
 msgstr "Version not found."
 
 msgid ""
-"Whether to leave 1 GiB of disk size untouched for partitioning. Only has "
-"effect when used with the IPA as a ramdisk, for older ramdisk local_gb is "
-"calculated on the ramdisk side."
+"Whether the current installation of ironic-inspector can manage PXE booting "
+"of nodes. If set to False, the API will reject introspection requests with "
+"manage_boot missing or set to True."
 msgstr ""
-"Whether to leave 1 GiB of disk size untouched for partitioning. Only has "
-"effect when used with the IPA as a ramdisk, for older ramdisk local_gb is "
-"calculated on the ramdisk side."
+"Whether the current installation of Ironic-Inspector can manage PXE booting "
+"of nodes. If set to False, the API will reject introspection requests with "
+"manage_boot missing or set to True."
 
 msgid ""
-"Whether to manage firewall rules for PXE port. This configuration option was "
-"deprecated in favor of the ``driver`` option in the ``pxe_filter`` section. "
-"Please, use the ``noop`` filter driver to disable the firewall filtering or "
-"the ``iptables`` filter driver to enable it."
+"Whether to leave 1 GiB of disk size untouched for partitioning. Only has "
+"effect when used with the IPA as a ramdisk, for older ramdisk local_gb is "
+"calculated on the ramdisk side."
 msgstr ""
-"Whether to manage firewall rules for PXE port. This configuration option was "
-"deprecated in favour of the ``driver`` option in the ``pxe_filter`` section. "
-"Please, use the ``noop`` filter driver to disable the firewall filtering or "
-"the ``iptables`` filter driver to enable it."
+"Whether to leave 1 GiB of disk size untouched for partitioning. Only has "
+"effect when used with the IPA as a ramdisk, for older ramdisk local_gb is "
+"calculated on the ramdisk side."
 
 msgid ""
 "Whether to overwrite existing values in node database. Disable this option "
