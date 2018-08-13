@@ -33,13 +33,6 @@ _OPTS = [
                default=3600,
                help=_('Timeout after which introspection is considered '
                       'failed, set to 0 to disable.')),
-    cfg.IntOpt('node_status_keep_time',
-               default=0,
-               help=_('For how much time (in seconds) to keep status '
-                      'information about nodes after introspection was '
-                      'finished for them. Set to 0 (the default) '
-                      'to disable the timeout.'),
-               deprecated_for_removal=True),
     cfg.IntOpt('clean_up_period',
                default=60,
                help=_('Amount of time in seconds, after which repeat clean up '
