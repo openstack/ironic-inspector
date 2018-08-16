@@ -1,13 +1,22 @@
 - project:
+    templates:
+      - openstack-python-jobs
+      - openstack-python35-jobs
+      - publish-openstack-sphinx-docs
+      - check-requirements
+      - release-notes-jobs
     check:
       jobs:
         - ironic-inspector-tempest-dsvm-discovery
         - openstack-tox-functional
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
+        - openstack-tox-cover
     gate:
+      queue: ironic
       jobs:
         - ironic-inspector-tempest-dsvm-discovery
         - openstack-tox-functional
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
+        - openstack-tox-cover
