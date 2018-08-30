@@ -11,6 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+try:
+    import errno
+except ImportError:
+    import os.errno as errno
 import datetime
 import os
 
@@ -131,7 +135,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
 
     def test_write_would_block(self):
         err = IOError('Oops!')
-        err.errno = os.errno.EWOULDBLOCK
+        err.errno = errno.EWOULDBLOCK
         # lock/unlock paired calls
         self.mock_fcntl.side_effect = [
             # first try
@@ -156,7 +160,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
             'ironic_inspector.pxe_filter.dnsmasq._EXCLUSIVE_WRITE_ATTEMPTS',
             1))
         err = IOError('Oops!')
-        err.errno = os.errno.EWOULDBLOCK
+        err.errno = errno.EWOULDBLOCK
         self.mock_fcntl.side_effect = [err, None]
 
         wrote = dnsmasq._exclusive_write_or_pass(self.path, self.buf)
@@ -180,7 +184,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
     def test_write_custom_ioerror(self):
 
         err = IOError('Oops!')
-        err.errno = os.errno.EBADF
+        err.errno = errno.EBADF
         self.mock_fcntl.side_effect = [err, None]
 
         self.assertRaisesRegex(

@@ -20,6 +20,10 @@
 #     http://www.thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html
 
 
+try:
+    import errno
+except ImportError:
+    import os.errno as errno
 import fcntl
 import os
 import time
@@ -206,7 +210,7 @@ def _exclusive_write_or_pass(path, buf):
                 f.flush()
                 return True
             except IOError as e:
-                if e.errno == os.errno.EWOULDBLOCK:
+                if e.errno == errno.EWOULDBLOCK:
                     LOG.debug('%s locked; will try again (later)', path)
                     attempts -= 1
                     time.sleep(_EXCLUSIVE_WRITE_ATTEMPTS_DELAY)
@@ -261,7 +265,7 @@ def _configure_unknown_hosts():
         if os.stat(path).st_size == len(wildcard_filter):
             return
     except OSError as e:
-        if e.errno != os.errno.ENOENT:
+        if e.errno != errno.ENOENT:
             raise
 
     if _exclusive_write_or_pass(path, '%s' % wildcard_filter):
