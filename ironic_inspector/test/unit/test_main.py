@@ -633,6 +633,12 @@ class TestApiVersions(BaseAPITest):
         self.assertIn('%d.%d' % main.MINIMUM_API_VERSION, error)
         self.assertIn('%d.%d' % main.CURRENT_API_VERSION, error)
 
+    def test_request_latest_version(self):
+        headers = {conf_opts.VERSION_HEADER: 'latest'}
+        res = self.app.get('/', headers=headers)
+        self.assertEqual(200, res.status_code)
+        self._check_version_present(res)
+
 
 class TestPlugins(unittest.TestCase):
     @mock.patch.object(example_plugin.ExampleProcessingHook,
