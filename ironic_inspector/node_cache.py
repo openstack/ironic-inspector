@@ -470,6 +470,28 @@ class NodeInfo(object):
             ironic=ironic,
             capabilities=ir_utils.dict_to_capabilities(existing))
 
+    def add_trait(self, trait, ironic=None):
+        """Add a trait to the node.
+
+        :param trait: trait to add
+        :param ironic: Ironic client to use instead of self.ironic
+        """
+        ironic = ironic or self.ironic
+        ironic.node.add_trait(self.uuid, trait)
+
+    def remove_trait(self, trait, ironic=None):
+        """Remove a trait from the node.
+
+        :param trait: trait to add
+        :param ironic: Ironic client to use instead of self.ironic
+        """
+        ironic = ironic or self.ironic
+        try:
+            ironic.node.remove_trait(self.uuid, trait)
+        except exceptions.NotFound:
+            LOG.debug('Trait %s is not set, cannot remove', trait,
+                      node_info=self)
+
     def delete_port(self, port, ironic=None):
         """Delete port.
 

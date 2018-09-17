@@ -14,6 +14,7 @@
 
 """Tests for introspection rules plugins."""
 
+from ironicclient import exceptions
 import mock
 
 from ironic_inspector.common import ironic as ir_utils
@@ -222,3 +223,40 @@ class TestExtendAttributeAction(test_base.NodeTest):
         self.node.extra['value'] = [42]
         self.act.apply(self.node_info, params)
         self.assertFalse(mock_patch.called)
+
+
+@mock.patch('ironic_inspector.common.ironic.get_client', autospec=True)
+class TestAddTraitAction(test_base.NodeTest):
+    act = rules_plugins.AddTraitAction()
+    params = {'name': 'CUSTOM_FOO'}
+
+    def test_validate(self, mock_cli):
+        self.act.validate(self.params)
+        self.assertRaises(ValueError, self.act.validate, {'value': 42})
+
+    def test_add(self, mock_cli):
+        self.act.apply(self.node_info, self.params)
+        mock_cli.return_value.node.add_trait.assert_called_once_with(
+            self.uuid, 'CUSTOM_FOO')
+
+
+@mock.patch('ironic_inspector.common.ironic.get_client', autospec=True)
+class TestRemoveTraitAction(test_base.NodeTest):
+    act = rules_plugins.RemoveTraitAction()
+    params = {'name': 'CUSTOM_FOO'}
+
+    def test_validate(self, mock_cli):
+        self.act.validate(self.params)
+        self.assertRaises(ValueError, self.act.validate, {'value': 42})
+
+    def test_remove(self, mock_cli):
+        self.act.apply(self.node_info, self.params)
+        mock_cli.return_value.node.remove_trait.assert_called_once_with(
+            self.uuid, 'CUSTOM_FOO')
+
+    def test_remove_not_found(self, mock_cli):
+        mock_cli.return_value.node.remove_trait.side_effect = (
+            exceptions.NotFound('trait not found'))
+        self.act.apply(self.node_info, self.params)
+        mock_cli.return_value.node.remove_trait.assert_called_once_with(
+            self.uuid, 'CUSTOM_FOO')
