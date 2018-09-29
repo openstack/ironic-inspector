@@ -37,7 +37,7 @@ class TestIptablesDriver(test_base.NodeTest):
         self.mock_fsm = self.useFixture(
             fixtures.MockPatchObject(iptables.IptablesFilter, 'fsm')).mock
         self.mock_call = self.useFixture(
-            fixtures.MockPatchObject(iptables.subprocess, 'check_call')).mock
+            fixtures.MockPatchObject(iptables.processutils, 'execute')).mock
         self.driver = iptables.IptablesFilter()
         self.mock_iptables = self.useFixture(
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
@@ -73,8 +73,8 @@ class TestIptablesDriver(test_base.NodeTest):
         self.check_fsm([pxe_filter.Events.initialize])
 
     def test_init_args_old_iptables(self):
-        self.mock_call.side_effect = iptables.subprocess.CalledProcessError(
-            2, '')
+        exc = iptables.processutils.ProcessExecutionError(2, '')
+        self.mock_call.side_effect = exc
         self.driver.init_filter()
         init_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport', '67',

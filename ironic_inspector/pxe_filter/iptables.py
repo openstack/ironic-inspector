@@ -15,7 +15,7 @@ import contextlib
 import os
 import re
 
-from eventlet.green import subprocess
+from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log
 
@@ -68,10 +68,9 @@ class IptablesFilter(pxe_filter.BaseFilter):
         # -w flag makes iptables wait for xtables lock, but it's not supported
         # everywhere yet
         try:
-            with open(os.devnull, 'wb') as null:
-                subprocess.check_call(self.base_command + ('-w', '-h'),
-                                      stderr=null, stdout=null)
-        except subprocess.CalledProcessError:
+            cmd = self.base_command + ('-w', '-h')
+            processutils.execute(*cmd)
+        except processutils.ProcessExecutionError:
             LOG.warning('iptables does not support -w flag, please update '
                         'it to at least version 1.4.21')
         else:
@@ -151,18 +150,15 @@ class IptablesFilter(pxe_filter.BaseFilter):
         cmd = self.base_command + args
         ignore = kwargs.pop('ignore', False)
         LOG.debug('Running iptables %s', args)
-        kwargs['stderr'] = subprocess.STDOUT
         try:
-            subprocess.check_output(cmd, **kwargs)
-        except subprocess.CalledProcessError as exc:
-            decoded_output = exc.output.decode("utf-8")
-            output = decoded_output.replace('\n', '. ')
+            processutils.execute(*cmd)
+        except processutils.ProcessExecutionError as exc:
             if ignore:
-                LOG.debug('Ignoring failed iptables %(args)s: %(output)s',
-                          {'args': args, 'output': output})
+                LOG.debug('Ignoring failed iptables %(args)s: %(error)s',
+                          {'args': args, 'error': exc})
             else:
-                LOG.error('iptables %(iptables)s failed: %(exc)s',
-                          {'iptables': args, 'exc': output})
+                LOG.error('iptables %(iptables)s failed: %(error)s',
+                          {'iptables': args, 'error': exc})
                 raise
 
     def _clean_up(self, chain):
