@@ -7,22 +7,18 @@
       - release-notes-jobs
     check:
       jobs:
-        - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest-dsvm-discovery
         - ironic-inspector-tempest-dsvm-python3
         - openstack-tox-functional
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
-        - openstack-tox-lower-constraints
         - openstack-tox-cover
     gate:
       queue: ironic
       jobs:
-        - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest-dsvm-discovery
         - ironic-inspector-tempest-dsvm-python3
         - openstack-tox-functional
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
-        - openstack-tox-lower-constraints
         - openstack-tox-cover
