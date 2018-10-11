@@ -42,10 +42,10 @@ master_doc = 'index'
 project = u'Ironic Inspector'
 copyright = u'OpenStack Foundation'
 
-config_generator_config_file = '../../config-generator.conf'
+config_generator_config_file = '../../tools/config-generator.conf'
 sample_config_basename = '_static/ironic-inspector'
 
-policy_generator_config_file = '../../policy-generator.conf'
+policy_generator_config_file = '../../tools/policy-generator.conf'
 sample_policy_basename = '_static/ironic-inspector'
 
 # The version info for the project you're documenting, acts as replacement for

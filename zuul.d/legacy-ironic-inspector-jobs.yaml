@@ -20,6 +20,7 @@
       - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
       - ^setup.cfg$
+      - ^tools/.*$
       - ^tox.ini$
 
 - job:

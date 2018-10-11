@@ -4,4 +4,4 @@ ironic-inspector.conf
 ---------------------
 
 .. show-options::
-   :config-file: config-generator.conf
+   :config-file: tools/config-generator.conf
