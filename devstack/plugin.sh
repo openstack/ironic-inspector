@@ -267,8 +267,7 @@ function configure_inspector {
     inspector_iniset iptables dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection `database_connection_url ironic_inspector`
 
-    # FIXME(ankit) Remove this when swift supports python3
-    if [[ "$USE_PYTHON3" == "False" ]] && is_service_enabled swift; then
+    if is_service_enabled swift; then
         configure_inspector_swift
     fi
 

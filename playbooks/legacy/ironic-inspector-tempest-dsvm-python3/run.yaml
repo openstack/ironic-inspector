@@ -34,22 +34,6 @@
 
     - shell:
         cmd: |
-          set -e
-          set -x
-          cat << 'EOF' >>"/tmp/dg-local.conf"
-          [[local|localrc]]
-          disable_service s-account
-          disable_service s-container
-          disable_service s-object
-          disable_service s-proxy
-
-          EOF
-        executable: /bin/bash
-        chdir: '{{ ansible_user_dir }}/workspace'
-      environment: '{{ zuul | zuul_legacy_vars }}'
-
-    - shell:
-        cmd: |
           cat << 'EOF' >> ironic-extra-vars
             export DEVSTACK_GATE_TEMPEST_REGEX="Inspector"
           EOF
