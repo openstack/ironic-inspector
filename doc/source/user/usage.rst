@@ -123,6 +123,12 @@ Default available actions include:
   value as a list and appends value to it. If optional ``unique`` parameter is
   set to ``True``, nothing will be added if given value is already in a list.
 
+* ``add-trait`` adds a trait to an Ironic node. Requires a ``name`` field
+  with the name of the trait to add.
+
+* ``remove-trait`` removes a trait from an Ironic node. Requires a ``name``
+  field with the name of the trait to remove.
+
 Starting from Mitaka release, ``value`` field in actions supports fetching data
 from introspection, using `python string formatting notation
 <https://docs.python.org/2/library/string.html#formatspec>`_::

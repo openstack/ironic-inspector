@@ -151,3 +151,17 @@ class ExtendAttributeAction(base.RuleActionPlugin):
             return values
 
         node_info.replace_field(params['path'], _replace, default=[])
+
+
+class AddTraitAction(base.RuleActionPlugin):
+    REQUIRED_PARAMS = {'name'}
+
+    def apply(self, node_info, params, **kwargs):
+        node_info.add_trait(params['name'])
+
+
+class RemoveTraitAction(base.RuleActionPlugin):
+    REQUIRED_PARAMS = {'name'}
+
+    def apply(self, node_info, params, **kwargs):
+        node_info.remove_trait(params['name'])
