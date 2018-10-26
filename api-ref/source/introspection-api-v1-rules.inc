@@ -84,17 +84,6 @@ Response
    :language: javascript
 
 
-Delete Introspection Rules
-==========================
-
-.. rest_method::  DELETE /v1/rules
-
-Delete all introspection rules
-
-Normal response codes: 204
-
-
-
 Get Introspection Rule
 ======================
 
@@ -102,7 +91,7 @@ Get Introspection Rule
 
 Get one introspection rule by its ``uuid``
 
-Normal response codes: 202
+Normal response codes: 200
 
 Error codes:
 
@@ -132,6 +121,16 @@ The response will contain full rule object:
 
 .. literalinclude:: samples/api-v1-get-rule-response.json
    :language: javascript
+
+
+Delete Introspection Rules
+==========================
+
+.. rest_method::  DELETE /v1/rules
+
+Delete all introspection rules
+
+Normal response codes: 204
 
 
 Delete Introspection Rule

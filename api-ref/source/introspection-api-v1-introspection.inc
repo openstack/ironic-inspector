@@ -4,9 +4,10 @@
 Node Introspection
 ==================
 
-Start, abort introspection, get introspection status, get introspection data
-are done through the ``/v1/introspection`` resource. There are also several
-sub-resources, which allow further actions to be performed on introspection.
+Start, abort introspection, get introspection status, and get introspection
+data are done through the ``/v1/introspection`` resource. There are also
+several sub-resources, which allow further actions to be performed on
+introspection.
 
 Start Introspection
 ===================
@@ -16,8 +17,9 @@ Start Introspection
 Initiate hardware introspection for node {node_id} . All power management
 configuration for this node needs to be done prior to calling the endpoint.
 
-In case missing or invalid authentication response code will be 401 and 403.
-If Inspector don't find node {node_id}, it will return 404.
+In the case of missing or invalid authentication, the response code will be
+401 and 403 respectively.
+If Inspector doesn't find node {node_id}, it will return 404.
 
 Normal response codes: 202
 
@@ -64,7 +66,7 @@ Response
 --------
 
 The response will contain the complete introspection info, like
-create, finish time, introspection state, errors if any.
+start, finish time, introspection state, errors if any.
 
 .. rest_parameters:: parameters.yaml
 
@@ -197,13 +199,12 @@ Reapply Introspection on stored data
 
 .. rest_method::  POST /v1/introspection/{node_id}/data/unprocessed
 
-This method riggers introspection on stored unprocessed data.
+This method triggers introspection on stored unprocessed data.
 No data is allowed to be sent along with the request.
 
 .. note::
 
-    Requires enabling Swift store in processing section of the
-    configuration file.
+    Requires enabling introspection storage backend via ``[processing]store_data``.
 
 Normal response codes: 202
 
