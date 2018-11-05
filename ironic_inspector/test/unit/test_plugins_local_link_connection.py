@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ironicclient import exceptions
 import mock
 from oslo_config import cfg
 
@@ -211,3 +212,20 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
         ]
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
+
+    @mock.patch('ironic_inspector.plugins.local_link_connection.LOG')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    def test_patch_port_exception(self, mock_patch, mock_log):
+        self.data['all_interfaces'] = {
+             'em1': {"ip": self.ips[0], "mac": self.macs[0],
+                     "lldp_processed": {
+                        "switch_chassis_id": "192.0.2.1",
+                        "switch_port_id": "Ethernet2/66"}
+                     }
+        }
+
+        mock_patch.side_effect = exceptions.BadRequest('invalid data')
+        self.hook.before_update(self.data, self.node_info)
+        log_msg = ("Failed to update port %(uuid)s: %(error)s")
+        mock_log.warning.assert_called_with(log_msg, mock.ANY,
+                                            node_info=mock.ANY)

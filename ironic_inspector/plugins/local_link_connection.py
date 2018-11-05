@@ -16,6 +16,7 @@
 import binascii
 
 from construct import core
+from ironicclient import exceptions
 import netaddr
 from oslo_config import cfg
 from oslo_utils import netutils
@@ -157,4 +158,9 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                     if patch is not None:
                         patches.append(patch)
 
-            node_info.patch_port(port, patches)
+            try:
+                node_info.patch_port(port, patches)
+            except exceptions.BadRequest as e:
+                LOG.warning("Failed to update port %(uuid)s: %(error)s",
+                            {'uuid': port.uuid, 'error': e},
+                            node_info=node_info)
