@@ -114,20 +114,23 @@ class TestIptablesDriver(test_base.NodeTest):
         self.assertRaisesRegex(MyError, 'Oops!', self.driver.init_filter)
         self.check_fsm([pxe_filter.Events.initialize, pxe_filter.Events.reset])
 
-    def test__iptables_args(self):
+    def _test__iptables_args(self, expected_port):
+        self.driver = iptables.IptablesFilter()
+        self.mock_iptables = self.useFixture(
+            fixtures.MockPatchObject(self.driver, '_iptables')).mock
         self.mock_should_enable_dhcp.return_value = True
 
         _iptables_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.new_chain),
+             expected_port, '-j', self.driver.new_chain),
             ('-F', self.driver.new_chain),
             ('-X', self.driver.new_chain),
             ('-N', self.driver.new_chain),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.new_chain),
+             expected_port, '-j', self.driver.new_chain),
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.chain),
+             expected_port, '-j', self.driver.chain),
             ('-F', self.driver.chain),
             ('-X', self.driver.chain),
             ('-E', self.driver.new_chain, self.driver.chain)
@@ -141,6 +144,14 @@ class TestIptablesDriver(test_base.NodeTest):
             self.assertEqual(args, call[0])
         self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync])
+
+    def test__iptables_args_ipv4(self):
+        CONF.set_override('ip_version', '4', 'iptables')
+        self._test__iptables_args('67')
+
+    def test__iptables_args_ipv6(self):
+        CONF.set_override('ip_version', '6', 'iptables')
+        self._test__iptables_args('547')
 
     def test__iptables_kwargs(self):
         _iptables_expected_kwargs = [
@@ -163,13 +174,16 @@ class TestIptablesDriver(test_base.NodeTest):
             self.assertEqual(kwargs, call[1])
         self.check_fsm([pxe_filter.Events.sync])
 
-    def test_sync_with_blacklist(self):
+    def _test_sync_with_blacklist(self, expected_port):
+        self.driver = iptables.IptablesFilter()
+        self.mock_iptables = self.useFixture(
+            fixtures.MockPatchObject(self.driver, '_iptables')).mock
         self.mock__get_blacklist.return_value = ['AA:BB:CC:DD:EE:FF']
         self.mock_should_enable_dhcp.return_value = True
 
         _iptables_expected_args = [
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.new_chain),
+             expected_port, '-j', self.driver.new_chain),
             ('-F', self.driver.new_chain),
             ('-X', self.driver.new_chain),
             ('-N', self.driver.new_chain),
@@ -178,9 +192,9 @@ class TestIptablesDriver(test_base.NodeTest):
              self.mock__get_blacklist.return_value[0], '-j', 'DROP'),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.new_chain),
+             expected_port, '-j', self.driver.new_chain),
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.chain),
+             expected_port, '-j', self.driver.chain),
             ('-F', self.driver.chain),
             ('-X', self.driver.chain),
             ('-E', self.driver.new_chain, self.driver.chain)
@@ -203,7 +217,18 @@ class TestIptablesDriver(test_base.NodeTest):
         self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
         self.assertFalse(self.mock_iptables.called)
 
-    def test__iptables_clean_cache_on_error(self):
+    def test_sync_with_blacklist_ipv4(self):
+        CONF.set_override('ip_version', '4', 'iptables')
+        self._test_sync_with_blacklist('67')
+
+    def test_sync_with_blacklist_ipv6(self):
+        CONF.set_override('ip_version', '6', 'iptables')
+        self._test_sync_with_blacklist('547')
+
+    def _test__iptables_clean_cache_on_error(self, expected_port):
+        self.driver = iptables.IptablesFilter()
+        self.mock_iptables = self.useFixture(
+            fixtures.MockPatchObject(self.driver, '_iptables')).mock
         self.mock__get_blacklist.return_value = ['AA:BB:CC:DD:EE:FF']
         self.mock_should_enable_dhcp.return_value = True
 
@@ -217,7 +242,7 @@ class TestIptablesDriver(test_base.NodeTest):
         syncs_expected_args = [
             # driver reset
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.new_chain),
+             expected_port, '-j', self.driver.new_chain),
             ('-F', self.driver.new_chain),
             ('-X', self.driver.new_chain),
             ('-N', self.driver.new_chain),
@@ -226,9 +251,9 @@ class TestIptablesDriver(test_base.NodeTest):
              self.mock__get_blacklist.return_value[0], '-j', 'DROP'),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.new_chain),
+             expected_port, '-j', self.driver.new_chain),
             ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
-             '67', '-j', self.driver.chain),
+             expected_port, '-j', self.driver.chain),
             ('-F', self.driver.chain),
             ('-X', self.driver.chain),
             ('-E', self.driver.new_chain, self.driver.chain)
@@ -246,6 +271,24 @@ class TestIptablesDriver(test_base.NodeTest):
                                                  call_args_list)):
             self.assertEqual(args, call[0], 'idx: %s' % idx)
         self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
+
+    def test__iptables_clean_cache_on_error_ipv4(self):
+        CONF.set_override('ip_version', '4', 'iptables')
+        self._test__iptables_clean_cache_on_error('67')
+
+    def test__iptables_clean_cache_on_error_ipv6(self):
+        CONF.set_override('ip_version', '6', 'iptables')
+        self._test__iptables_clean_cache_on_error('547')
+
+    def test_iptables_command_ipv4(self):
+        CONF.set_override('ip_version', '4', 'iptables')
+        driver = iptables.IptablesFilter()
+        self.assertEqual(driver._cmd_iptables, 'iptables')
+
+    def test_iptables_command_ipv6(self):
+        CONF.set_override('ip_version', '6', 'iptables')
+        driver = iptables.IptablesFilter()
+        self.assertEqual(driver._cmd_iptables, 'ip6tables')
 
 
 class Test_ShouldEnableDhcp(test_base.BaseTest):

@@ -34,6 +34,12 @@ _OPTS = [
                        'which are not in desired state are going to be '
                        'blacklisted based on the list of neighbor MACs '
                        'on these interfaces.')),
+    cfg.StrOpt('ip_version',
+               default='4',
+               choices=[('4', _('IPv4')),
+                        ('6', _('IPv6'))],
+               help=_('The IP version that will be used for iptables filter. '
+                      'Defaults to 4.')),
 ]
 
 
