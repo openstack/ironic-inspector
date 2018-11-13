@@ -6,8 +6,8 @@ features:
     break the single-origin policy and access the API directly.
 
     OpenStack CrossProject Spec:
-       http://specs.openstack.org/openstack/openstack-specs/specs/cors-support.html
+       https://specs.openstack.org/openstack/openstack-specs/specs/cors-support.html
     Oslo_Middleware Docs:
-       http://docs.openstack.org/developer/oslo.middleware/cors.html
+       https://docs.openstack.org/developer/oslo.middleware/cors.html
     OpenStack Cloud Admin Guide:
-       http://docs.openstack.org/admin-guide-cloud/cross_project_cors.html
+       https://docs.openstack.org/admin-guide-cloud/cross_project_cors.html
