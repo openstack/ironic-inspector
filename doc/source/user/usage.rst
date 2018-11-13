@@ -386,7 +386,7 @@ for that to work. When an InfiniBand network interface is discovered, the
 **Ironic Inspector** adds a ``client-id`` attribute to the ``extra`` attribute
 in the ironic port. The **Ironic Inspector** should be configured with
 ``iptables.ethoib_interfaces`` to indicate the Ethernet Over InfiniBand (EoIB)
-which are used for physical access access to the DHCP network.
+which are used for physical access to the DHCP network.
 For example if **Ironic Inspector** DHCP server is using ``br-inspector`` and
 the ``br-inspector`` has EoIB port e.g. ``eth0``,
 the ``iptables.ethoib_interfaces`` should be set to ``eth0``.
