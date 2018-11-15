@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import socket
+
 from oslo_config import cfg
 
 from ironic_inspector.common.i18n import _
@@ -23,6 +25,14 @@ _OPTS = [
     cfg.PortOpt('listen_port',
                 default=5050,
                 help=_('Port to listen on.')),
+    cfg.StrOpt('host',
+               default=socket.getfqdn(),
+               sample_default='localhost',
+               help=_('Name of this node. This can be an opaque identifier. '
+                      'It is not necessarily a hostname, FQDN, or IP address. '
+                      'However, the node name must be valid within '
+                      'an AMQP key, and if using ZeroMQ, a valid '
+                      'hostname, FQDN, or IP address.')),
     cfg.StrOpt('auth_strategy',
                default='keystone',
                choices=('keystone', 'noauth'),

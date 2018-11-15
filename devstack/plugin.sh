@@ -267,6 +267,8 @@ function configure_inspector {
     inspector_iniset iptables dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection `database_connection_url ironic_inspector`
 
+    iniset_rpc_backend ironic-inspector $IRONIC_INSPECTOR_CONF_FILE
+
     if is_service_enabled swift; then
         configure_inspector_swift
     fi

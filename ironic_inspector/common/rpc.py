@@ -19,38 +19,31 @@ from oslo_messaging.rpc import dispatcher
 from ironic_inspector.conductor import manager
 
 CONF = cfg.CONF
-
-_SERVER = None
 TRANSPORT = None
-TOPIC = 'ironic-inspector-worker'
-SERVER_NAME = 'ironic-inspector-rpc-server'
 
 
 def get_transport():
     global TRANSPORT
 
     if TRANSPORT is None:
-        TRANSPORT = messaging.get_rpc_transport(CONF, url='fake://')
+        TRANSPORT = messaging.get_rpc_transport(CONF)
     return TRANSPORT
 
 
 def get_client():
-    target = messaging.Target(topic=TOPIC, server=SERVER_NAME,
+    """Get a RPC client instance."""
+    target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
                               version='1.1')
     transport = get_transport()
     return messaging.RPCClient(transport, target)
 
 
-def get_server():
-    """Get the singleton RPC server."""
-    global _SERVER
+def get_server(endpoints):
+    """Get a RPC server instance."""
 
-    if _SERVER is None:
-        transport = get_transport()
-        target = messaging.Target(topic=TOPIC, server=SERVER_NAME,
-                                  version='1.1')
-        mgr = manager.ConductorManager()
-        _SERVER = messaging.get_rpc_server(
-            transport, target, [mgr], executor='eventlet',
-            access_policy=dispatcher.DefaultRPCAccessPolicy)
-    return _SERVER
+    transport = get_transport()
+    target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
+                              version='1.1')
+    return messaging.get_rpc_server(
+        transport, target, endpoints, executor='eventlet',
+        access_policy=dispatcher.DefaultRPCAccessPolicy)

@@ -45,6 +45,7 @@ source $TARGET_DEVSTACK_DIR/lib/neutron-legacy
 source $TARGET_DEVSTACK_DIR/lib/apache
 source $TARGET_DEVSTACK_DIR/lib/keystone
 source $TARGET_DEVSTACK_DIR/lib/database
+source $TARGET_DEVSTACK_DIR/lib/rpc_backend
 
 # Inspector relies on couple of Ironic variables
 source $TARGET_RELEASE_DIR/ironic/devstack/lib/ironic
@@ -84,6 +85,8 @@ $IRONIC_INSPECTOR_DBSYNC_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE upgr
 # calls upgrade inspector for specific release
 upgrade_project ironic-inspector $RUN_DIR $BASE_DEVSTACK_BRANCH $TARGET_DEVSTACK_BRANCH
 
+# setup transport_url for rpc messaging
+iniset_rpc_backend ironic-inspector $IRONIC_INSPECTOR_CONF_FILE
 
 start_inspector
 if is_inspector_dhcp_required; then
