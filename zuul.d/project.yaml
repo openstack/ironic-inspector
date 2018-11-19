@@ -16,6 +16,7 @@
         - openstack-tox-functional
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
+        - bifrost-integration-tinyipa-ubuntu-xenial
     gate:
       queue: ironic
       jobs:
@@ -25,3 +26,4 @@
         - openstack-tox-functional
         - openstack-tox-functional-py35
         - ironic-tempest-dsvm-ironic-inspector
+        - bifrost-integration-tinyipa-ubuntu-xenial
