@@ -8,4 +8,4 @@ fixes:
     See bug `2002818 <https://storyboard.openstack.org/#!/story/2002818>`_.
 
     .. Note:: The filter uses the systemd service name used by the RDO
-              distrubution (``openstack-ironic-inspector-dnsmasq.service``).
+              distribution (``openstack-ironic-inspector-dnsmasq.service``).
