@@ -1,6 +1,6 @@
 # DSVM jobs
 - job:
-    name: ironic-inspector-dsvm-base
+    name: legacy-ironic-inspector-dsvm-base
     parent: legacy-dsvm-base
     required-projects:
       - openstack/ironic
@@ -26,23 +26,9 @@
 
 - job:
     name: ironic-inspector-grenade-dsvm
-    parent: ironic-inspector-dsvm-base
+    parent: legacy-ironic-inspector-dsvm-base
     run: playbooks/legacy/ironic-inspector-grenade-dsvm/run.yaml
     post-run: playbooks/legacy/ironic-inspector-grenade-dsvm/post.yaml
     timeout: 10800
     required-projects:
       - openstack-dev/grenade
-
-- job:
-    name: ironic-inspector-tempest-dsvm-discovery
-    parent: ironic-inspector-dsvm-base
-    run: playbooks/legacy/ironic-inspector-tempest-dsvm-discovery/run.yaml
-    post-run: playbooks/legacy/ironic-inspector-tempest-dsvm-discovery/post.yaml
-    timeout: 10800
-
-- job:
-    name: ironic-inspector-tempest-dsvm-python3
-    parent: ironic-inspector-dsvm-base
-    run: playbooks/legacy/ironic-inspector-tempest-dsvm-python3/run.yaml
-    post-run: playbooks/legacy/ironic-inspector-tempest-dsvm-python3/post.yaml
-    timeout: 10800

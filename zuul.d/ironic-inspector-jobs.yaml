@@ -1,0 +1,133 @@
+- job:
+    name: ironic-inspector-dsvm-base
+    description: Base job for devstack/tempest based ironic-inspector jobs.
+    parent: devstack-tempest
+    timeout: 10800
+    required-projects:
+      - openstack/ironic
+      - openstack/ironic-inspector
+      - openstack/ironic-lib
+      - openstack/ironic-python-agent
+      - openstack/ironic-tempest-plugin
+      - openstack/pyghmi
+      - openstack/python-ironic-inspector-client
+      - openstack/python-ironicclient
+      - openstack/virtualbmc
+    irrelevant-files:
+      - ^test-requirements.txt$
+      - ^.*\.rst$
+      - ^api-ref/.*$
+      - ^doc/.*$
+      - ^ironic_inspector/test/(?!.*tempest).*$
+      - ^ironic_inspector/locale/.*$
+      - ^releasenotes/.*$
+      - ^setup.cfg$
+      - ^tools/.*$
+      - ^tox.ini$
+    vars:
+      tox_envlist: all
+      tempest_test_regex: Inspector
+      tempest_concurrency: 1
+      devstack_localrc:
+        DEFAULT_INSTANCE_TYPE: baremetal
+        FORCE_CONFIG_DRIVE: True
+        INSTALL_TEMPEST: False # Don't install a tempest package globaly
+        OVERRIDE_PUBLIC_BRIDGE_MTU: 1400
+        TEMPEST_PLUGINS: "'{{ ansible_user_dir }}/src/git.openstack.org/openstack/ironic-tempest-plugin'"
+        VIRT_DRIVER: ironic
+        BUILD_TIMEOUT: 600
+        IRONIC_BAREMETAL_BASIC_OPS: True
+        IRONIC_BUILD_DEPLOY_RAMDISK: False
+        IRONIC_CALLBACK_TIMEOUT: 600
+        IRONIC_DEPLOY_DRIVER: ipmi
+        IRONIC_INSPECTOR_BUILD_RAMDISK: False
+        IRONIC_RAMDISK_TYPE: tinyipa
+        IRONIC_TEMPEST_BUILD_TIMEOUT: 600
+        IRONIC_TEMPEST_WHOLE_DISK_IMAGE: False
+        IRONIC_VM_COUNT: 1
+        IRONIC_VM_EPHEMERAL_DISK: 0
+        IRONIC_VM_LOG_DIR: '{{ devstack_base_dir }}/ironic-bm-logs'
+        IRONIC_VM_SPECS_RAM: 384
+        IRONIC_AUTOMATED_CLEAN_ENABLED: False
+        IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: enroll
+        IRONIC_INSPECTOR_CLEAN_UP_PERIOD: 5
+        IRONIC_INSPECTOR_DHCP_FILTER: iptables
+
+        Q_AGENT: openvswitch
+        Q_ML2_TENANT_NETWORK_TYPE: vxlan
+
+        SWIFT_ENABLE_TEMPURLS: True
+        SWIFT_TEMPURL_KEY: secretkey
+        USE_PYTHON3: False
+
+      devstack_plugins:
+        ironic: git://git.openstack.org/openstack/ironic
+        ironic-inspector: git://git.openstack.org/openstack/ironic-inspector
+      zuul_copy_output:
+        '{{ devstack_base_dir }}/ironic-bm-logs': 'logs'
+      devstack_services:
+        c-api: False
+        c-bak: False
+        c-sch: False
+        c-vol: False
+        cinder: False
+
+        s-account: True
+        s-container: True
+        s-object: True
+        s-proxy: True
+
+        dstat: True
+        g-api: True
+        g-reg: True
+        key: True
+        mysql: True
+        n-api: True
+        n-api-meta: True
+        n-cauth: True
+        n-cond: True
+        n-cpu: True
+        n-novnc: True
+        n-obj: True
+        n-sch: True
+        placement-api: True
+        q-agt: False
+        q-dhcp: False
+        q-l3: False
+        q-meta: False
+        q-metering: False
+        q-svc: False
+        neutron-api: True
+        neutron-agent: True
+        neutron-dhcp: True
+        neutron-l3: True
+        neutron-metadata-agent: True
+        neutron-metering: True
+        rabbit: True
+        ir-api: True
+        ir-cond: True
+        ironic-inspector: True
+        ironic-inspector-dhcp: True
+
+- job:
+    name: ironic-inspector-tempest-dsvm-python3
+    description: ironic-inspector-tempest-dsvm-python3
+    parent: ironic-inspector-dsvm-base
+    vars:
+      devstack_localrc:
+        USE_PYTHON3: True
+
+- job:
+    name: ironic-inspector-tempest-dsvm-discovery
+    description: ironic-inspector-tempest-dsvm-discovery
+    parent: ironic-inspector-dsvm-base
+    vars:
+      tempest_test_regex: InspectorDiscoveryTest
+      devstack_localrc:
+        IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA: True
+        IRONIC_DEFAULT_DEPLOY_INTERFACE: direct
+        IRONIC_TEMPEST_WHOLE_DISK_IMAGE: True
+        IRONIC_IPXE_ENABLED: True
+        IRONIC_INSPECTOR_RAMDISK_ELEMENT: ironic-agent
+        IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
+        IRONIC_INSPECTOR_BUILD_RAMDISK: False
