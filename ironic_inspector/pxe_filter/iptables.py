@@ -50,8 +50,18 @@ class IptablesFilter(pxe_filter.BaseFilter):
         self.interface = CONF.iptables.dnsmasq_interface
         self.chain = CONF.iptables.firewall_chain
         self.new_chain = self.chain + '_temp'
+
+        # Determine arguments used for pxe filtering, we only support 4 and 6
+        # at this time.
+        if CONF.iptables.ip_version == '4':
+            self._cmd_iptables = 'iptables'
+            self._dhcp_port = '67'
+        else:
+            self._cmd_iptables = 'ip6tables'
+            self._dhcp_port = '547'
+
         self.base_command = ('sudo', 'ironic-inspector-rootwrap',
-                             CONF.rootwrap_config, 'iptables')
+                             CONF.rootwrap_config, self._cmd_iptables)
 
     def reset(self):
         self.enabled = True
@@ -137,9 +147,9 @@ class IptablesFilter(pxe_filter.BaseFilter):
 
         # Swap chains
         self._iptables('-I', 'INPUT', '-i', self.interface, '-p', 'udp',
-                       '--dport', '67', '-j', chain)
+                       '--dport', self._dhcp_port, '-j', chain)
         self._iptables('-D', 'INPUT', '-i', self.interface, '-p', 'udp',
-                       '--dport', '67', '-j', main_chain,
+                       '--dport', self._dhcp_port, '-j', main_chain,
                        ignore=True)
         self._iptables('-F', main_chain, ignore=True)
         self._iptables('-X', main_chain, ignore=True)
@@ -163,7 +173,7 @@ class IptablesFilter(pxe_filter.BaseFilter):
 
     def _clean_up(self, chain):
         self._iptables('-D', 'INPUT', '-i', self.interface, '-p', 'udp',
-                       '--dport', '67', '-j', chain,
+                       '--dport', self._dhcp_port, '-j', chain,
                        ignore=True)
         self._iptables('-F', chain, ignore=True)
         self._iptables('-X', chain, ignore=True)
