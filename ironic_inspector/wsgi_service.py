@@ -10,16 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import signal
-import ssl
-import sys
-
-import eventlet
 from oslo_config import cfg
 from oslo_log import log
 from oslo_service import service
+from oslo_service import wsgi
 
-from ironic_inspector.common.rpc_service import RPCService
 from ironic_inspector import main as app
 from ironic_inspector import utils
 
@@ -27,21 +22,22 @@ LOG = log.getLogger(__name__)
 CONF = cfg.CONF
 
 
-class WSGIService(object):
+class WSGIService(service.Service):
     """Provides ability to launch API from wsgi app."""
 
     def __init__(self):
         self.app = app.app
-        signal.signal(signal.SIGHUP, self._handle_sighup)
-        signal.signal(signal.SIGTERM, self._handle_sigterm)
-        self.rpc_service = RPCService(CONF.host)
+        self.server = wsgi.Server(CONF, 'ironic_inspector',
+                                  self.app,
+                                  host=CONF.listen_address,
+                                  port=CONF.listen_port,
+                                  use_ssl=CONF.use_ssl)
 
     def _init_middleware(self):
         """Initialize WSGI middleware.
 
         :returns: None
         """
-
         if CONF.auth_strategy != 'noauth':
             utils.add_auth_middleware(self.app)
         else:
@@ -49,80 +45,31 @@ class WSGIService(object):
                         ' configuration')
         utils.add_cors_middleware(self.app)
 
-    def _create_ssl_context(self):
-        if not CONF.use_ssl:
-            return
-
-        MIN_VERSION = (2, 7, 9)
-
-        if sys.version_info < MIN_VERSION:
-            LOG.warning(('Unable to use SSL in this version of Python: '
-                         '%(current)s, please ensure your version of Python '
-                         'is greater than %(min)s to enable this feature.'),
-                        {'current': '.'.join(map(str, sys.version_info[:3])),
-                         'min': '.'.join(map(str, MIN_VERSION))})
-            return
-
-        context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-        if CONF.ssl_cert_path and CONF.ssl_key_path:
-            try:
-                context.load_cert_chain(CONF.ssl_cert_path, CONF.ssl_key_path)
-            except IOError as exc:
-                LOG.warning('Failed to load certificate or key from defined '
-                            'locations: %(cert)s and %(key)s, will continue '
-                            'to run with the default settings: %(exc)s',
-                            {'cert': CONF.ssl_cert_path,
-                             'key': CONF.ssl_key_path,
-                             'exc': exc})
-            except ssl.SSLError as exc:
-                LOG.warning('There was a problem with the loaded certificate '
-                            'and key, will continue to run with the default '
-                            'settings: %s', exc)
-        return context
-
-    def shutdown(self, error=None):
-        """Stop serving API.
+    def start(self):
+        """Start serving this service using loaded configuration.
 
         :returns: None
         """
-        LOG.debug('Shutting down')
-        self.rpc_service.stop()
-        sys.exit(error)
-
-    def run(self):
-        """Start serving this service using loaded application.
-
-        :returns: None
-        """
-        app_kwargs = {'host': CONF.listen_address,
-                      'port': CONF.listen_port}
-
-        context = self._create_ssl_context()
-        if context:
-            app_kwargs['ssl_context'] = context
-
         self._init_middleware()
+        self.server.start()
 
-        LOG.info('Spawning RPC service')
-        service.launch(CONF, self.rpc_service,
-                       restart_method='mutate')
+    def stop(self):
+        """Stop serving this API.
 
-        try:
-            self.app.run(**app_kwargs)
-        except Exception as e:
-            self.shutdown(error=str(e))
-        else:
-            self.shutdown()
+        :returns: None
+        """
+        self.server.stop()
 
-    def _handle_sighup_bg(self, *args):
-        """Reload config on SIGHUP."""
-        CONF.mutate_config_files()
+    def wait(self):
+        """Wait for the service to stop serving this API.
 
-    def _handle_sighup(self, *args):
-        eventlet.spawn(self._handle_sighup_bg, *args)
+        :returns: None
+        """
+        self.server.wait()
 
-    def _handle_sigterm(self, *args):
-        # This is a workaround to ensure that shutdown() is done when recieving
-        # SIGTERM. Raising KeyboardIntrerrupt which won't be caught by any
-        # 'except Exception' clauses.
-        raise KeyboardInterrupt
+    def reset(self):
+        """Reset server greenpool size to default.
+
+        :returns: None
+        """
+        self.server.reset()

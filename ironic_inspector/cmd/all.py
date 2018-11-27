@@ -14,16 +14,24 @@
 
 import sys
 
+from oslo_config import cfg
+from oslo_service import service
+
+from ironic_inspector.common.rpc_service import RPCService
 from ironic_inspector.common import service_utils
 from ironic_inspector import wsgi_service
+
+CONF = cfg.CONF
 
 
 def main(args=sys.argv[1:]):
     # Parse config file and command line options, then start logging
     service_utils.prepare_service(args)
 
-    server = wsgi_service.WSGIService()
-    server.run()
+    launcher = service.ServiceLauncher(CONF, restart_method='mutate')
+    launcher.launch_service(wsgi_service.WSGIService())
+    launcher.launch_service(RPCService(CONF.host))
+    launcher.wait()
 
 
 if __name__ == '__main__':

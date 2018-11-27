@@ -52,9 +52,15 @@ _OPTS = [
                 help=_('SSL Enabled/Disabled')),
     cfg.StrOpt('ssl_cert_path',
                default='',
+               deprecated_for_removal=True,
+               deprecated_reason=_('This option will be superseded by '
+                                   '[ssl]cert_file.'),
                help=_('Path to SSL certificate')),
     cfg.StrOpt('ssl_key_path',
                default='',
+               deprecated_for_removal=True,
+               deprecated_reason=_('This option will be superseded by '
+                                   '[ssl]key_file.'),
                help=_('Path to SSL key')),
     cfg.IntOpt('max_concurrency',
                default=1000, min=2,
@@ -78,7 +84,7 @@ _OPTS = [
                 help=_('Whether the current installation of ironic-inspector '
                        'can manage PXE booting of nodes. If set to False, '
                        'the API will reject introspection requests with '
-                       'manage_boot missing or set to True.'))
+                       'manage_boot missing or set to True.')),
 ]
 
 

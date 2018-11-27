@@ -11,15 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import ssl
-import sys
-import unittest
-
 import eventlet  # noqa
 import fixtures
 import mock
 from oslo_config import cfg
 
+from ironic_inspector.common import service_utils
 from ironic_inspector.test import base as test_base
 from ironic_inspector import wsgi_service
 
@@ -32,9 +29,12 @@ class BaseWSGITest(test_base.BaseTest):
         super(BaseWSGITest, self).setUp()
         self.app = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.app, 'app', autospec=True)).mock
+        self.server = self.useFixture(fixtures.MockPatchObject(
+            wsgi_service.wsgi, 'Server', autospec=True)).mock
         self.mock_log = self.useFixture(fixtures.MockPatchObject(
             wsgi_service, 'LOG')).mock
         self.service = wsgi_service.WSGIService()
+        self.service.server = self.server
 
 
 class TestWSGIServiceInitMiddleware(BaseWSGITest):
@@ -66,174 +66,55 @@ class TestWSGIServiceInitMiddleware(BaseWSGITest):
         self.mock_add_cors_middleware.assert_called_once_with(self.app)
 
 
-class TestWSGIServiceRun(BaseWSGITest):
+class TestWSGIService(BaseWSGITest):
     def setUp(self):
-        super(TestWSGIServiceRun, self).setUp()
+        super(TestWSGIService, self).setUp()
         self.mock__init_middleware = self.useFixture(fixtures.MockPatchObject(
             self.service, '_init_middleware')).mock
-        self.mock__create_ssl_context = self.useFixture(
-            fixtures.MockPatchObject(self.service, '_create_ssl_context')).mock
-        self.mock_shutdown = self.useFixture(fixtures.MockPatchObject(
-            self.service, 'shutdown')).mock
 
         # 'positive' settings
         CONF.set_override('listen_address', '42.42.42.42')
         CONF.set_override('listen_port', 42)
 
-    def test_run(self):
-        self.service.run()
+    def test_start(self):
+        self.service.start()
 
-        self.mock__create_ssl_context.assert_called_once_with()
         self.mock__init_middleware.assert_called_once_with()
-        self.app.run.assert_called_once_with(
-            host=CONF.listen_address, port=CONF.listen_port,
-            ssl_context=self.mock__create_ssl_context.return_value)
-        self.mock_shutdown.assert_called_once_with()
+        self.server.start.assert_called_once_with()
 
-    def test_run_no_ssl_context(self):
-        self.mock__create_ssl_context.return_value = None
+    def test_stop(self):
+        self.service.stop()
+        self.server.stop.assert_called_once_with()
 
-        self.service.run()
-        self.mock__create_ssl_context.assert_called_once_with()
-        self.mock__init_middleware.assert_called_once_with()
-        self.app.run.assert_called_once_with(
-            host=CONF.listen_address, port=CONF.listen_port)
-        self.mock_shutdown.assert_called_once_with()
+    def test_wait(self):
+        self.service.wait()
+        self.server.wait.assert_called_once_with()
 
-    def test_run_app_error(self):
-        class MyError(Exception):
-            pass
-
-        error = MyError('Oops!')
-        self.app.run.side_effect = error
-        self.service.run()
-
-        self.mock__create_ssl_context.assert_called_once_with()
-        self.mock__init_middleware.assert_called_once_with()
-        self.app.run.assert_called_once_with(
-            host=CONF.listen_address, port=CONF.listen_port,
-            ssl_context=self.mock__create_ssl_context.return_value)
-        self.mock_shutdown.assert_called_once_with(error=str(error))
+    def test_reset(self):
+        self.service.reset()
+        self.server.reset.assert_called_once_with()
 
 
-class TestWSGIServiceShutdown(BaseWSGITest):
-    def setUp(self):
-        super(TestWSGIServiceShutdown, self).setUp()
-        self.service = wsgi_service.WSGIService()
-        self.mock_rpc_service = mock.MagicMock()
-        self.service.rpc_service = self.mock_rpc_service
-        self.mock_exit = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.sys, 'exit')).mock
+@mock.patch.object(service_utils.log, 'register_options', autospec=True)
+class TestSSLOptions(test_base.BaseTest):
 
-    def test_shutdown(self):
-        class MyError(Exception):
-            pass
-        error = MyError('Oops!')
+    def test_use_deprecated_options(self, mock_log):
+        CONF.set_override('ssl_cert_path', 'fake_cert_file')
+        CONF.set_override('ssl_key_path', 'fake_key_file')
 
-        self.service.shutdown(error=error)
-        self.mock_rpc_service.stop.assert_called_once_with()
-        self.mock_exit.assert_called_once_with(error)
+        service_utils.prepare_service()
 
+        self.assertEqual(CONF.ssl.cert_file, 'fake_cert_file')
+        self.assertEqual(CONF.ssl.key_file, 'fake_key_file')
 
-class TestCreateSSLContext(test_base.BaseTest):
-    def setUp(self):
-        super(TestCreateSSLContext, self).setUp()
-        self.app = mock.Mock()
-        self.service = wsgi_service.WSGIService()
+    def test_use_ssl_options(self, mock_log):
+        CONF.set_override('ssl_cert_path', 'fake_cert_file')
+        CONF.set_override('ssl_key_path', 'fake_key_file')
 
-    def test_use_ssl_false(self):
-        CONF.set_override('use_ssl', False)
-        con = self.service._create_ssl_context()
-        self.assertIsNone(con)
+        service_utils.prepare_service()
 
-    @mock.patch.object(sys, 'version_info')
-    def test_old_python_returns_none(self, mock_version_info):
-        mock_version_info.__lt__.return_value = True
-        CONF.set_override('use_ssl', True)
-        con = self.service._create_ssl_context()
-        self.assertIsNone(con)
+        CONF.set_override('cert_file', 'fake_new_cert', 'ssl')
+        CONF.set_override('key_file', 'fake_new_key', 'ssl')
 
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_use_ssl_true(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        m_con = mock_cdc()
-        con = self.service._create_ssl_context()
-        self.assertEqual(m_con, con)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_only_key_path_provided(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_key_path', '/some/fake/path')
-        mock_context = mock_cdc()
-        con = self.service._create_ssl_context()
-        self.assertEqual(mock_context, con)
-        self.assertFalse(mock_context.load_cert_chain.called)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_only_cert_path_provided(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_cert_path', '/some/fake/path')
-        mock_context = mock_cdc()
-        con = self.service._create_ssl_context()
-        self.assertEqual(mock_context, con)
-        self.assertFalse(mock_context.load_cert_chain.called)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_both_paths_provided(self, mock_cdc):
-        key_path = '/some/fake/path/key'
-        cert_path = '/some/fake/path/cert'
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_key_path', key_path)
-        CONF.set_override('ssl_cert_path', cert_path)
-        mock_context = mock_cdc()
-        con = self.service._create_ssl_context()
-        self.assertEqual(mock_context, con)
-        mock_context.load_cert_chain.assert_called_once_with(cert_path,
-                                                             key_path)
-
-    @unittest.skipIf(sys.version_info[:3] < (2, 7, 9),
-                     'This feature is unsupported in this version of python '
-                     'so the tests will be skipped')
-    @mock.patch.object(ssl, 'create_default_context', autospec=True)
-    def test_load_cert_chain_fails(self, mock_cdc):
-        CONF.set_override('use_ssl', True)
-        key_path = '/some/fake/path/key'
-        cert_path = '/some/fake/path/cert'
-        CONF.set_override('use_ssl', True)
-        CONF.set_override('ssl_key_path', key_path)
-        CONF.set_override('ssl_cert_path', cert_path)
-        mock_context = mock_cdc()
-        mock_context.load_cert_chain.side_effect = IOError('Boom!')
-        con = self.service._create_ssl_context()
-        self.assertEqual(mock_context, con)
-        mock_context.load_cert_chain.assert_called_once_with(cert_path,
-                                                             key_path)
-
-
-class TestWSGIServiceOnSigHup(BaseWSGITest):
-    def setUp(self):
-        super(TestWSGIServiceOnSigHup, self).setUp()
-        self.mock_spawn = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.eventlet, 'spawn')).mock
-        self.mock_mutate_conf = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.CONF, 'mutate_config_files')).mock
-
-    def test_on_sighup(self):
-        self.service._handle_sighup()
-        self.mock_spawn.assert_called_once_with(self.service._handle_sighup_bg)
-
-    def test_on_sighup_bg(self):
-        self.service._handle_sighup_bg()
-        self.mock_mutate_conf.assert_called_once_with()
+        self.assertEqual(CONF.ssl.cert_file, 'fake_new_cert')
+        self.assertEqual(CONF.ssl.key_file, 'fake_new_key')
