@@ -13,7 +13,6 @@
 
 """Standard set of plugins."""
 
-
 from ironic_lib import utils as il_utils
 import netaddr
 from oslo_config import cfg
@@ -26,7 +25,6 @@ from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
 CONF = cfg.CONF
-
 
 LOG = utils.getProcessingLogger('ironic_inspector.plugins.standard')
 
@@ -162,7 +160,13 @@ class ValidateInterfacesHook(base.ProcessingHook):
         for iface in inventory['interfaces']:
             name = iface.get('name')
             mac = iface.get('mac_address')
-            ip = iface.get('ipv4_address')
+            ipv4_address = iface.get('ipv4_address')
+            ipv6_address = iface.get('ipv6_address')
+            # NOTE(kaifeng) ipv6 address may in the form of fd00::1%enp2s0,
+            # which is not supported by netaddr, remove the suffix if exists.
+            if ipv6_address and '%' in ipv6_address:
+                ipv6_address = ipv6_address.split('%')[0]
+            ip = ipv4_address or ipv6_address
             client_id = iface.get('client_id')
 
             if not name:
@@ -221,7 +225,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
                 LOG.debug('Skipping interface %s as it was not PXE booting',
                           name, data=data)
                 continue
-            elif CONF.processing.add_ports != 'all' and not ip:
+            elif CONF.processing.add_ports != 'all' and (
+                        not ip or netaddr.IPAddress(ip).is_link_local()):
                 LOG.debug('Skipping interface %s as it did not have '
                           'an IP address assigned during the ramdisk run',
                           name, data=data)

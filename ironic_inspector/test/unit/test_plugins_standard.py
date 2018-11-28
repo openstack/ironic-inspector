@@ -188,6 +188,50 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
         self.assertRaisesRegex(utils.Error, 'No suitable interfaces found',
                                self.hook.before_processing, self.data)
 
+    def test_skipped_interfaces_with_local_address(self):
+        CONF.set_override('add_ports', 'active', 'processing')
+        self.inventory['interfaces'] = [
+            # local interface (by IPv4 address)
+            {'name': 'em1', 'mac_address': '22:22:22:22:22:22',
+             'ipv4_address': '127.0.0.1'},
+            # local interface (by IPv6 address)
+            {'name': 'em2', 'mac_address': '33:33:33:33:33:33',
+             'ipv6_address': '::1'},
+            # interface only with local-link address
+            {'name': 'em3', 'mac_address': '44:44:44:44:44:44',
+             'ipv6_address': 'fe80::4644:44ff:fe44:4444'},
+            # interface only with local-link address with suffix
+            {'name': 'em4', 'mac_address': '55:55:55:55:55:55',
+             'ipv6_address': 'fe80::5755:55ff:fe55:5555%em4'},
+        ]
+        self.assertRaisesRegex(utils.Error, 'No suitable interfaces found',
+                               self.hook.before_processing, self.data)
+
+    def test_interfaces_with_ipv6_addresses_only(self):
+        CONF.set_override('add_ports', 'all', 'processing')
+        self.inventory['interfaces'] = [
+            # loopback interface (by IPv6 address)
+            {'name': 'em2', 'mac_address': '33:33:33:33:33:33',
+             'ipv6_address': '::1'},
+            # interface with local-link address
+            {'name': 'em3', 'mac_address': '44:44:44:44:44:44',
+             'ipv6_address': 'fe80::4644:44ff:fe44:4444'},
+            # interface with local-link address with suffix
+            {'name': 'em4', 'mac_address': '55:55:55:55:55:55',
+             'ipv6_address': 'fe80::5755:55ff:fe55:5555%em4'},
+            # interface with ULA address
+            {'name': 'em5', 'mac_address': '66:66:66:66:66:66',
+             'ipv6_address': 'fd00::1111:2222:6666'},
+        ]
+        self.hook.before_processing(self.data)
+        interfaces = self.data['interfaces']
+        self.assertEqual(interfaces['em3']['mac'], '44:44:44:44:44:44')
+        self.assertEqual(interfaces['em3']['ip'], 'fe80::4644:44ff:fe44:4444')
+        self.assertEqual(interfaces['em4']['mac'], '55:55:55:55:55:55')
+        self.assertEqual(interfaces['em4']['ip'], 'fe80::5755:55ff:fe55:5555')
+        self.assertEqual(interfaces['em5']['mac'], '66:66:66:66:66:66')
+        self.assertEqual(interfaces['em5']['ip'], 'fd00::1111:2222:6666')
+
 
 @mock.patch.object(node_cache.NodeInfo, 'delete_port', autospec=True)
 @mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
