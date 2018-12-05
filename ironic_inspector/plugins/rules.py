@@ -115,7 +115,10 @@ class FailAction(base.RuleActionPlugin):
 
 
 class SetAttributeAction(base.RuleActionPlugin):
-    REQUIRED_PARAMS = {'path', 'value'}
+    # NOTE(iurygregory): set as optional to accept None as value, check
+    # that the key 'value' is present, otherwise will raise ValueError.
+    OPTIONAL_PARAMS = {'value'}
+    REQUIRED_PARAMS = {'path'}
     # TODO(dtantsur): proper validation of path
 
     FORMATTED_PARAMS = ['value']
@@ -123,6 +126,13 @@ class SetAttributeAction(base.RuleActionPlugin):
     def apply(self, node_info, params, **kwargs):
         node_info.patch([{'op': 'add', 'path': params['path'],
                           'value': params['value']}])
+
+    def validate(self, params, **kwargs):
+        if 'value' in params:
+            super(base.RuleActionPlugin, self).validate(params, **kwargs)
+        else:
+            msg = _('missing required parameter(s): value')
+            raise ValueError(msg)
 
 
 class SetCapabilityAction(base.RuleActionPlugin):
