@@ -152,7 +152,7 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
         **flask_kwargs):
     """Decorator to wrap api methods.
 
-    Performs flask routing, exception convertion,
+    Performs flask routing, exception conversion,
     generation of oslo context for request and API access policy enforcement.
 
     :param path: flask app route path
