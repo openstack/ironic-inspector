@@ -51,7 +51,7 @@ def introspect(node_id, token=None):
         raise utils.Error(msg % validation.power['reason'],
                           node_info=node)
 
-    bmc_address = ir_utils.get_ipmi_address(node)
+    bmc_address, bmc_ipv4, bmc_ipv6 = ir_utils.get_ipmi_address(node)
     node_info = node_cache.start_introspection(node.uuid,
                                                bmc_address=bmc_address,
                                                ironic=ironic)

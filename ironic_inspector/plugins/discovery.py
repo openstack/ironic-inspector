@@ -60,7 +60,8 @@ def _check_existing_nodes(introspection_data, node_driver_info, ironic):
         #                  impact on performance on big clusters
         nodes = ironic.node.list(fields=('uuid', 'driver_info'), limit=0)
         for node in nodes:
-            if ipmi_address == ir_utils.get_ipmi_address(node):
+            bmc_address, bmc_ipv4, bmc_ipv6 = ir_utils.get_ipmi_address(node)
+            if ipmi_address in (bmc_ipv4, bmc_ipv6):
                 raise utils.Error(
                     _('Node %(uuid)s already has BMC address '
                       '%(ipmi_address)s, not enrolling') %

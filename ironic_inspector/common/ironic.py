@@ -53,18 +53,43 @@ def reset_ironic_session():
 
 
 def get_ipmi_address(node):
+    """Get the BMC address defined in node.driver_info dictionary
+
+    Possible names of BMC address value examined in order of list
+    ['ipmi_address'] + CONF.ipmi_address_fields. The value could
+    be an IP address or a hostname. DNS lookup performed for the
+    first non empty value.
+
+    The first valid BMC address value returned along with
+    it's v4 and v6 IP addresses.
+
+    :param node: Node object with defined driver_info dictionary
+    :return: tuple (ipmi_address, ipv4_address, ipv6_address)
+    """
+    none_address = None, None, None
     ipmi_fields = ['ipmi_address'] + CONF.ipmi_address_fields
     # NOTE(sambetts): IPMI Address is useless to us if bridging is enabled so
     # just ignore it and return None
     if node.driver_info.get("ipmi_bridging", "no") != "no":
-        return
+        return none_address
     for name in ipmi_fields:
         value = node.driver_info.get(name)
         if not value:
             continue
 
+        ipv4 = None
+        ipv6 = None
         try:
-            ip = socket.gethostbyname(value)
+            addrinfo = socket.getaddrinfo(value, None, 0, 0, socket.SOL_TCP)
+            for family, socket_type, proto, canon_name, sockaddr in addrinfo:
+                ip = sockaddr[0]
+                if netaddr.IPAddress(ip).is_loopback():
+                    LOG.warning('Ignoring loopback BMC address %s', ip,
+                                node_info=node)
+                elif family == socket.AF_INET:
+                    ipv4 = ip
+                elif family == socket.AF_INET6:
+                    ipv6 = ip
         except socket.gaierror:
             msg = _('Failed to resolve the hostname (%(value)s)'
                     ' for node %(uuid)s')
@@ -72,12 +97,8 @@ def get_ipmi_address(node):
                                      'uuid': node.uuid},
                               node_info=node)
 
-        if netaddr.IPAddress(ip).is_loopback():
-            LOG.warning('Ignoring loopback BMC address %s', ip,
-                        node_info=node)
-            ip = None
-
-        return ip
+        return (value, ipv4, ipv6) if ipv4 or ipv6 else none_address
+    return none_address
 
 
 def get_client(token=None,
