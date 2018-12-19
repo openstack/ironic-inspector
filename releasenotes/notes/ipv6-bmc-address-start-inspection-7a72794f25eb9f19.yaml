@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fix starting inspection of node having IPv6 BMC address.
+    Inspection could not be initiated because v6 address
+    was being considered as a hostname. Thus resolving incorrect
+    hostname ended up with blocking error.
