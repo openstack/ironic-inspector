@@ -134,6 +134,14 @@ class RuleAction(Base):
         return res
 
 
+class IntrospectionData(Base):
+    __tablename__ = 'introspection_data'
+    uuid = Column(String(36), ForeignKey('nodes.uuid'), primary_key=True)
+    processed = Column(Boolean, default=False)
+    data = Column(db_types.JsonEncodedDict(mysql_as_long=True),
+                  nullable=True)
+
+
 def init():
     """Initialize the database.
 

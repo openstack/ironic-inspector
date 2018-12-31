@@ -140,6 +140,10 @@ class NodeStateInvalidEvent(Error):
     """Invalid event attempted."""
 
 
+class IntrospectionDataNotFound(NotFoundInCacheError):
+    """Introspection data not found."""
+
+
 def executor():
     """Return the current futures executor."""
     global _EXECUTOR

@@ -441,6 +441,19 @@ class MigrationCheckersMixin(object):
         n = nodes.select(nodes.c.uuid == 'abcd').execute().first()
         self.assertIsNone(n['manage_boot'])
 
+    def _check_bf8dec16023c(self, engine, data):
+        introspection_data = db_utils.get_table(engine, 'introspection_data')
+        col_names = [column.name for column in introspection_data.c]
+        self.assertIn('uuid', col_names)
+        self.assertIn('processed', col_names)
+        self.assertIn('data', col_names)
+        self.assertIsInstance(introspection_data.c.uuid.type,
+                              sqlalchemy.types.String)
+        self.assertIsInstance(introspection_data.c.processed.type,
+                              sqlalchemy.types.Boolean)
+        self.assertIsInstance(introspection_data.c.data.type,
+                              sqlalchemy.types.Text)
+
     def test_upgrade_and_version(self):
         with patch_with_engine(self.engine):
             self.migration_ext.upgrade('head')
