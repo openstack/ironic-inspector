@@ -1,5 +1,5 @@
 - job:
-    name: ironic-inspector-dsvm-base
+    name: ironic-inspector-base
     description: Base job for devstack/tempest based ironic-inspector jobs.
     parent: devstack-tempest
     timeout: 10800
@@ -110,17 +110,17 @@
         ironic-inspector-dhcp: True
 
 - job:
-    name: ironic-inspector-tempest-dsvm-python3
-    description: ironic-inspector-tempest-dsvm-python3
-    parent: ironic-inspector-dsvm-base
+    name: ironic-inspector-tempest-python3
+    description: ironic-inspector-tempest-python3
+    parent: ironic-inspector-base
     vars:
       devstack_localrc:
         USE_PYTHON3: True
 
 - job:
-    name: ironic-inspector-tempest-dsvm-discovery
-    description: ironic-inspector-tempest-dsvm-discovery
-    parent: ironic-inspector-dsvm-base
+    name: ironic-inspector-tempest-discovery
+    description: ironic-inspector-tempest-discovery
+    parent: ironic-inspector-base
     vars:
       tempest_test_regex: InspectorDiscoveryTest
       devstack_localrc:
