@@ -31,6 +31,9 @@ _OPTS = [
                       'options. "noauth" will disable all authentication.')),
     cfg.IntOpt('timeout',
                default=3600,
+               # We're using timedelta which can overflow if somebody sets this
+               # too high, so limit to a sane value of 10 years.
+               max=315576000,
                help=_('Timeout after which introspection is considered '
                       'failed, set to 0 to disable.')),
     cfg.IntOpt('node_status_keep_time',
