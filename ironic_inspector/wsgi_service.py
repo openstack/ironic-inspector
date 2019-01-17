@@ -202,9 +202,13 @@ def periodic_clean_up():  # pragma: no cover
     try:
         if node_cache.clean_up():
             pxe_filter.driver().sync(ir_utils.get_client())
-        sync_with_ironic()
     except Exception:
         LOG.exception('Periodic clean up of node cache failed')
+
+    try:
+        sync_with_ironic()
+    except Exception:
+        LOG.exception('Periodic sync of node list with ironic failed')
 
 
 def sync_with_ironic():
