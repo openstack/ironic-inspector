@@ -11,19 +11,19 @@
     check:
       jobs:
         - ironic-inspector-grenade-dsvm
+        - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-python3
         - openstack-tox-functional
         - openstack-tox-functional-py35
-        - ironic-tempest-dsvm-ironic-inspector
         - bifrost-integration-tinyipa-ubuntu-xenial
     gate:
       queue: ironic
       jobs:
         - ironic-inspector-grenade-dsvm
+        - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-python3
         - openstack-tox-functional
         - openstack-tox-functional-py35
-        - ironic-tempest-dsvm-ironic-inspector
         - bifrost-integration-tinyipa-ubuntu-xenial
