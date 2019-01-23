@@ -25,7 +25,6 @@ from ironic_inspector.common import context
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import rpc
-from ironic_inspector.common import swift
 import ironic_inspector.conf
 from ironic_inspector.conf import opts as conf_opts
 from ironic_inspector import node_cache
@@ -289,15 +288,15 @@ def api_introspection_abort(node_id):
 @api('/v1/introspection/<node_id>/data', rule="introspection:data",
      methods=['GET'])
 def api_introspection_data(node_id):
-    if CONF.processing.store_data == 'swift':
+    try:
         if not uuidutils.is_uuid_like(node_id):
             node = ir_utils.get_node(node_id, fields=['uuid'])
             node_id = node.uuid
-        res = swift.get_introspection_data(node_id)
+        res = process.get_introspection_data(node_id)
         return res, 200, {'Content-Type': 'application/json'}
-    else:
+    except utils.IntrospectionDataStoreDisabled:
         return error_response(_('Inspector is not configured to store data. '
-                                'Set the [processing] store_data '
+                                'Set the [processing]store_data '
                                 'configuration option to change this.'),
                               code=404)
 
@@ -309,15 +308,9 @@ def api_introspection_reapply(node_id):
         return error_response(_('User data processing is not '
                                 'supported yet'), code=400)
 
-    if CONF.processing.store_data == 'swift':
-        client = rpc.get_client()
-        client.call({}, 'do_reapply', node_id=node_id)
-        return '', 202
-    else:
-        return error_response(_('Inspector is not configured to store'
-                                ' data. Set the [processing] '
-                                'store_data configuration option to '
-                                'change this.'), code=400)
+    client = rpc.get_client()
+    client.call({}, 'do_reapply', node_id=node_id)
+    return '', 202
 
 
 def rule_repr(rule, short):

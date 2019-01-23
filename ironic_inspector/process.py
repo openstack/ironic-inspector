@@ -15,7 +15,6 @@
 
 import copy
 import datetime
-import json
 import os
 
 from oslo_config import cfg
@@ -25,7 +24,6 @@ from oslo_utils import timeutils
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector.common import swift
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -38,7 +36,6 @@ CONF = cfg.CONF
 LOG = utils.getProcessingLogger(__name__)
 
 _STORAGE_EXCLUDED_KEYS = {'logs'}
-_UNPROCESSED_DATA_STORE_SUFFIX = 'UNPROCESSED'
 
 
 def _store_logs(introspection_data, node_info):
@@ -143,48 +140,28 @@ def _filter_data_excluded_keys(data):
             if k not in _STORAGE_EXCLUDED_KEYS}
 
 
-def _store_data(node_info, data, suffix=None):
-    if CONF.processing.store_data != 'swift':
-        LOG.debug("Swift support is disabled, introspection data "
-                  "won't be stored", node_info=node_info)
-        return
-
-    swift_object_name = swift.store_introspection_data(
-        _filter_data_excluded_keys(data),
-        node_info.uuid,
-        suffix=suffix
-    )
-    LOG.info('Introspection data was stored in Swift in object '
-             '%s', swift_object_name, node_info=node_info)
-    if CONF.processing.store_data_location:
-        node_info.patch([{'op': 'add', 'path': '/extra/%s' %
-                          CONF.processing.store_data_location,
-                          'value': swift_object_name}])
+def _store_data(node_info, data, processed=True):
+    introspection_data_manager = plugins_base.introspection_data_manager()
+    store = CONF.processing.store_data
+    ext = introspection_data_manager[store].obj
+    ext.save(node_info, data, processed)
 
 
 def _store_unprocessed_data(node_info, data):
     # runs in background
     try:
-        _store_data(node_info, data,
-                    suffix=_UNPROCESSED_DATA_STORE_SUFFIX)
+        _store_data(node_info, data, processed=False)
     except Exception:
         LOG.exception('Encountered exception saving unprocessed '
                       'introspection data', node_info=node_info,
                       data=data)
 
 
-def _get_unprocessed_data(uuid):
-    if CONF.processing.store_data == 'swift':
-        LOG.debug('Fetching unprocessed introspection data from '
-                  'Swift for %s', uuid)
-        return json.loads(
-            swift.get_introspection_data(
-                uuid,
-                suffix=_UNPROCESSED_DATA_STORE_SUFFIX
-            )
-        )
-    else:
-        raise utils.Error(_('Swift support is disabled'), code=400)
+def get_introspection_data(uuid, processed=True, get_json=False):
+    introspection_data_manager = plugins_base.introspection_data_manager()
+    store = CONF.processing.store_data
+    ext = introspection_data_manager[store].obj
+    return ext.get(uuid, processed=processed, get_json=get_json)
 
 
 def process(introspection_data):
@@ -309,7 +286,7 @@ def _finish(node_info, ironic, introspection_data, power_off=True):
              node_info=node_info, data=introspection_data)
 
 
-def reapply(node_ident):
+def reapply(node_ident, data=None):
     """Re-apply introspection steps.
 
     Re-apply preprocessing, postprocessing and introspection rules on
@@ -331,15 +308,20 @@ def reapply(node_ident):
         raise utils.Error(_('Node locked, please, try again later'),
                           node_info=node_info, code=409)
 
-    utils.executor().submit(_reapply, node_info)
+    utils.executor().submit(_reapply, node_info, data)
 
 
-def _reapply(node_info):
+def _reapply(node_info, data=None):
     # runs in background
     try:
         node_info.started_at = timeutils.utcnow()
         node_info.commit()
-        introspection_data = _get_unprocessed_data(node_info.uuid)
+        if data:
+            introspection_data = data
+        else:
+            introspection_data = get_introspection_data(node_info.uuid,
+                                                        processed=False,
+                                                        get_json=True)
     except Exception as exc:
         LOG.exception('Encountered exception while fetching '
                       'stored introspection data',

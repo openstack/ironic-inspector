@@ -140,6 +140,10 @@ class NodeStateInvalidEvent(Error):
     """Invalid event attempted."""
 
 
+class IntrospectionDataStoreDisabled(Error):
+    """Introspection data store is disabled."""
+
+
 class IntrospectionDataNotFound(NotFoundInCacheError):
     """Introspection data not found."""
 

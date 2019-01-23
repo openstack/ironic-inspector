@@ -11,10 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 import fixtures
 import mock
 import oslo_messaging as messaging
 
+from ironic_inspector.common import swift
 from ironic_inspector.conductor import manager
 import ironic_inspector.conf
 from ironic_inspector import introspect
@@ -302,11 +305,17 @@ class TestManagerReapply(BaseManagerTest):
         super(TestManagerReapply, self).setUp()
         CONF.set_override('store_data', 'swift', 'processing')
 
-    def test_ok(self, reapply_mock):
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_ok(self, swift_get_mock, swift_set_mock, reapply_mock):
+        swift_get_mock.return_value = json.dumps(self.data)
         self.manager.do_reapply(self.context, self.uuid)
-        reapply_mock.assert_called_once_with(self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
 
-    def test_node_locked(self, reapply_mock):
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_node_locked(self, swift_get_mock, swift_set_mock, reapply_mock):
+        swift_get_mock.return_value = json.dumps(self.data)
         exc = utils.Error('Locked.', code=409)
         reapply_mock.side_effect = exc
 
@@ -317,9 +326,13 @@ class TestManagerReapply(BaseManagerTest):
         self.assertEqual(utils.Error, exc.exc_info[0])
         self.assertIn('Locked.', str(exc.exc_info[1]))
         self.assertEqual(409, exc.exc_info[1].http_code)
-        reapply_mock.assert_called_once_with(self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
 
-    def test_node_not_found(self, reapply_mock):
+    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
+    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
+    def test_node_not_found(self, swift_get_mock, swift_set_mock,
+                            reapply_mock):
+        swift_get_mock.return_value = json.dumps(self.data)
         exc = utils.Error('Not found.', code=404)
         reapply_mock.side_effect = exc
 
@@ -330,9 +343,11 @@ class TestManagerReapply(BaseManagerTest):
         self.assertEqual(utils.Error, exc.exc_info[0])
         self.assertIn('Not found.', str(exc.exc_info[1]))
         self.assertEqual(404, exc.exc_info[1].http_code)
-        reapply_mock.assert_called_once_with(self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
 
-    def test_generic_error(self, reapply_mock):
+    @mock.patch.object(process, 'get_introspection_data', autospec=True)
+    def test_generic_error(self, get_data_mock, reapply_mock):
+        get_data_mock.return_value = self.data
         exc = utils.Error('Oops', code=400)
         reapply_mock.side_effect = exc
 
@@ -343,4 +358,52 @@ class TestManagerReapply(BaseManagerTest):
         self.assertEqual(utils.Error, exc.exc_info[0])
         self.assertIn('Oops', str(exc.exc_info[1]))
         self.assertEqual(400, exc.exc_info[1].http_code)
-        reapply_mock.assert_called_once_with(self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
+        get_data_mock.assert_called_once_with(self.uuid, processed=False,
+                                              get_json=True)
+
+    @mock.patch.object(process, 'get_introspection_data', autospec=True)
+    def test_get_introspection_data_error(self, get_data_mock, reapply_mock):
+        exc = utils.Error('The store is empty', code=404)
+        get_data_mock.side_effect = exc
+
+        exc = self.assertRaises(messaging.rpc.ExpectedException,
+                                self.manager.do_reapply,
+                                self.context, self.uuid)
+
+        self.assertEqual(utils.Error, exc.exc_info[0])
+        self.assertIn('The store is empty', str(exc.exc_info[1]))
+        self.assertEqual(404, exc.exc_info[1].http_code)
+        get_data_mock.assert_called_once_with(self.uuid, processed=False,
+                                              get_json=True)
+        self.assertFalse(reapply_mock.called)
+
+    def test_store_data_disabled(self, reapply_mock):
+        CONF.set_override('store_data', 'none', 'processing')
+
+        exc = self.assertRaises(messaging.rpc.ExpectedException,
+                                self.manager.do_reapply,
+                                self.context, self.uuid)
+
+        self.assertEqual(utils.Error, exc.exc_info[0])
+        self.assertIn('Inspector is not configured to store data',
+                      str(exc.exc_info[1]))
+        self.assertEqual(400, exc.exc_info[1].http_code)
+        self.assertFalse(reapply_mock.called)
+
+    @mock.patch.object(process, 'get_introspection_data', autospec=True)
+    def test_ok_swift(self, get_data_mock, reapply_mock):
+        get_data_mock.return_value = self.data
+        self.manager.do_reapply(self.context, self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
+        get_data_mock.assert_called_once_with(self.uuid, processed=False,
+                                              get_json=True)
+
+    @mock.patch.object(process, 'get_introspection_data', autospec=True)
+    def test_ok_db(self, get_data_mock, reapply_mock):
+        get_data_mock.return_value = self.data
+        CONF.set_override('store_data', 'database', 'processing')
+        self.manager.do_reapply(self.context, self.uuid)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
+        get_data_mock.assert_called_once_with(self.uuid, processed=False,
+                                              get_json=True)

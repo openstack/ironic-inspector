@@ -28,11 +28,13 @@ from oslo_utils import uuidutils
 import six
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import swift
 from ironic_inspector import db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
+from ironic_inspector.plugins import introspection_data as intros_data_plugin
 from ironic_inspector import process
 from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.test import base as test_base
@@ -259,22 +261,13 @@ class TestUnprocessedData(BaseProcessTest):
 
         store_mock.assert_called_once_with(mock.ANY, expected)
 
-    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
-    def test_save_unprocessed_data_failure(self, swift_mock):
+    def test_save_unprocessed_data_failure(self):
         CONF.set_override('store_data', 'swift', 'processing')
-        name = 'inspector_data-%s-%s' % (
-            self.uuid,
-            process._UNPROCESSED_DATA_STORE_SUFFIX
-        )
-
-        swift_conn = swift_mock.return_value
-        swift_conn.create_object.side_effect = utils.Error('Oops')
 
         res = process.process(self.data)
 
         # assert store failure doesn't break processing
         self.assertEqual(self.fake_result_json, res)
-        swift_conn.create_object.assert_called_once_with(name, mock.ANY)
 
 
 @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_processing',
@@ -405,6 +398,7 @@ class TestProcessNode(BaseTest):
                 started_at=self.node_info.started_at,
                 finished_at=self.node_info.finished_at,
                 error=self.node_info.error).save(self.session)
+        plugins_base._INTROSPECTION_DATA_MGR = None
 
     def test_return_includes_uuid(self):
         ret_val = process._process_node(self.node_info, self.node, self.data)
@@ -485,8 +479,8 @@ class TestProcessNode(BaseTest):
         finished_mock.assert_called_once_with(
             self.node_info, istate.Events.finish)
 
-    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
-    def test_store_data(self, swift_mock):
+    @mock.patch.object(swift, 'SwiftAPI', autospec=True)
+    def test_store_data_with_swift(self, swift_mock):
         CONF.set_override('store_data', 'swift', 'processing')
         swift_conn = swift_mock.return_value
         name = 'inspector_data-%s' % self.uuid
@@ -498,8 +492,8 @@ class TestProcessNode(BaseTest):
         self.assertEqual(expected,
                          json.loads(swift_conn.create_object.call_args[0][1]))
 
-    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
-    def test_store_data_no_logs(self, swift_mock):
+    @mock.patch.object(swift, 'SwiftAPI', autospec=True)
+    def test_store_data_no_logs_with_swift(self, swift_mock):
         CONF.set_override('store_data', 'swift', 'processing')
         swift_conn = swift_mock.return_value
         name = 'inspector_data-%s' % self.uuid
@@ -511,8 +505,8 @@ class TestProcessNode(BaseTest):
         self.assertNotIn('logs',
                          json.loads(swift_conn.create_object.call_args[0][1]))
 
-    @mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
-    def test_store_data_location(self, swift_mock):
+    @mock.patch.object(swift, 'SwiftAPI', autospec=True)
+    def test_store_data_location_with_swift(self, swift_mock):
         CONF.set_override('store_data', 'swift', 'processing')
         CONF.set_override('store_data_location', 'inspector_data_object',
                           'processing')
@@ -528,6 +522,28 @@ class TestProcessNode(BaseTest):
         self.assertEqual(expected,
                          json.loads(swift_conn.create_object.call_args[0][1]))
         self.cli.node.update.assert_any_call(self.uuid, patch)
+
+    @mock.patch.object(node_cache, 'store_introspection_data', autospec=True)
+    def test_store_data_with_database(self, store_mock):
+        CONF.set_override('store_data', 'database', 'processing')
+
+        process._process_node(self.node_info, self.node, self.data)
+
+        data = intros_data_plugin._filter_data_excluded_keys(self.data)
+        store_mock.assert_called_once_with(self.node_info.uuid, data, True)
+        self.assertEqual(data, store_mock.call_args[0][1])
+
+    @mock.patch.object(node_cache, 'store_introspection_data', autospec=True)
+    def test_store_data_no_logs_with_database(self, store_mock):
+        CONF.set_override('store_data', 'database', 'processing')
+
+        self.data['logs'] = 'something'
+
+        process._process_node(self.node_info, self.node, self.data)
+
+        data = intros_data_plugin._filter_data_excluded_keys(self.data)
+        store_mock.assert_called_once_with(self.node_info.uuid, data, True)
+        self.assertNotIn('logs', store_mock.call_args[0][1])
 
 
 @mock.patch.object(process, '_reapply', autospec=True)
@@ -558,7 +574,7 @@ class TestReapply(BaseTest):
             blocking=False
         )
 
-        reapply_mock.assert_called_once_with(pop_mock.return_value)
+        reapply_mock.assert_called_once_with(pop_mock.return_value, data=None)
 
     @prepare_mocks
     def test_locking_failed(self, pop_mock, reapply_mock):
@@ -575,7 +591,7 @@ class TestReapply(BaseTest):
 
 @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
 @mock.patch.object(process.rules, 'apply', autospec=True)
-@mock.patch.object(process.swift, 'SwiftAPI', autospec=True)
+@mock.patch.object(swift, 'SwiftAPI', autospec=True)
 @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
 @mock.patch.object(node_cache.NodeInfo, 'release_lock', autospec=True)
 class TestReapplyNode(BaseTest):

@@ -22,6 +22,7 @@ from oslo_log import log
 import oslo_messaging as messaging
 from oslo_utils import reflection
 
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import db
 from ironic_inspector import introspect
@@ -126,7 +127,15 @@ class ConductorManager(object):
 
     @messaging.expected_exceptions(utils.Error)
     def do_reapply(self, context, node_id, token=None):
-        process.reapply(node_id)
+        try:
+            data = process.get_introspection_data(node_id, processed=False,
+                                                  get_json=True)
+        except utils.IntrospectionDataStoreDisabled:
+            raise utils.Error(_('Inspector is not configured to store '
+                                'data. Set the [processing]store_data '
+                                'configuration option to change this.'),
+                              code=400)
+        process.reapply(node_id, data)
 
 
 def periodic_clean_up():  # pragma: no cover

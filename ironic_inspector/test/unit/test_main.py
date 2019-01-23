@@ -22,6 +22,7 @@ from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import rpc
+from ironic_inspector.common import swift
 import ironic_inspector.conf
 from ironic_inspector.conf import opts as conf_opts
 from ironic_inspector import introspection_state as istate
@@ -29,6 +30,7 @@ from ironic_inspector import main
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
+from ironic_inspector.plugins import introspection_data as intros_data_plugin
 from ironic_inspector import process
 from ironic_inspector import rules
 from ironic_inspector.test import base as test_base
@@ -297,10 +299,9 @@ class TestApiListStatus(GetStatusAPIBaseTest):
 
 
 class TestApiGetData(BaseAPITest):
-    @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
-    def test_get_introspection_data(self, swift_mock):
-        CONF.set_override('store_data', 'swift', 'processing')
-        data = {
+    def setUp(self):
+        super(TestApiGetData, self).setUp()
+        self.introspection_data = {
             'ipmi_address': '1.2.3.4',
             'cpus': 2,
             'cpu_arch': 'x86_64',
@@ -310,44 +311,48 @@ class TestApiGetData(BaseAPITest):
                 'em1': {'mac': '11:22:33:44:55:66', 'ip': '1.2.0.1'},
             }
         }
+
+    @mock.patch.object(swift, 'SwiftAPI', autospec=True)
+    def test_get_introspection_data_from_swift(self, swift_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
         swift_conn = swift_mock.return_value
-        swift_conn.get_object.return_value = json.dumps(data)
+        swift_conn.get_object.return_value = json.dumps(
+            self.introspection_data)
         res = self.app.get('/v1/introspection/%s/data' % self.uuid)
         name = 'inspector_data-%s' % self.uuid
         swift_conn.get_object.assert_called_once_with(name)
         self.assertEqual(200, res.status_code)
-        self.assertEqual(data, json.loads(res.data.decode('utf-8')))
+        self.assertEqual(self.introspection_data,
+                         json.loads(res.data.decode('utf-8')))
 
-    @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
-    def test_introspection_data_not_stored(self, swift_mock):
-        CONF.set_override('store_data', 'none', 'processing')
-        swift_conn = swift_mock.return_value
+    @mock.patch.object(intros_data_plugin, 'DatabaseStore',
+                       autospec=True)
+    def test_get_introspection_data_from_db(self, db_mock):
+        CONF.set_override('store_data', 'database', 'processing')
+        db_store = db_mock.return_value
+        db_store.get.return_value = json.dumps(self.introspection_data)
         res = self.app.get('/v1/introspection/%s/data' % self.uuid)
-        self.assertFalse(swift_conn.get_object.called)
+        db_store.get.assert_called_once_with(self.uuid, processed=True,
+                                             get_json=False)
+        self.assertEqual(200, res.status_code)
+        self.assertEqual(self.introspection_data,
+                         json.loads(res.data.decode('utf-8')))
+
+    def test_introspection_data_not_stored(self):
+        CONF.set_override('store_data', 'none', 'processing')
+        res = self.app.get('/v1/introspection/%s/data' % self.uuid)
         self.assertEqual(404, res.status_code)
 
     @mock.patch.object(ir_utils, 'get_node', autospec=True)
-    @mock.patch.object(main.swift, 'SwiftAPI', autospec=True)
-    def test_with_name(self, swift_mock, get_mock):
+    @mock.patch.object(main.process, 'get_introspection_data', autospec=True)
+    def test_with_name(self, process_mock, get_mock):
         get_mock.return_value = mock.Mock(uuid=self.uuid)
         CONF.set_override('store_data', 'swift', 'processing')
-        data = {
-            'ipmi_address': '1.2.3.4',
-            'cpus': 2,
-            'cpu_arch': 'x86_64',
-            'memory_mb': 1024,
-            'local_gb': 20,
-            'interfaces': {
-                'em1': {'mac': '11:22:33:44:55:66', 'ip': '1.2.0.1'},
-            }
-        }
-        swift_conn = swift_mock.return_value
-        swift_conn.get_object.return_value = json.dumps(data)
+        process_mock.return_value = json.dumps(self.introspection_data)
         res = self.app.get('/v1/introspection/name1/data')
-        name = 'inspector_data-%s' % self.uuid
-        swift_conn.get_object.assert_called_once_with(name)
         self.assertEqual(200, res.status_code)
-        self.assertEqual(data, json.loads(res.data.decode('utf-8')))
+        self.assertEqual(self.introspection_data,
+                         json.loads(res.data.decode('utf-8')))
         get_mock.assert_called_once_with('name1', fields=['uuid'])
 
 
@@ -361,8 +366,7 @@ class TestApiReapply(BaseAPITest):
         self.rpc_get_client_mock.return_value = self.client_mock
         CONF.set_override('store_data', 'swift', 'processing')
 
-    def test_ok(self):
-
+    def test_api_ok(self):
         self.app.post('/v1/introspection/%s/data/unprocessed' %
                       self.uuid)
         self.client_mock.call.assert_called_once_with({}, 'do_reapply',
@@ -377,18 +381,18 @@ class TestApiReapply(BaseAPITest):
                          message)
         self.assertFalse(self.client_mock.call.called)
 
-    def test_swift_disabled(self):
-        CONF.set_override('store_data', 'none', 'processing')
+    def test_get_introspection_data_error(self):
+        exc = utils.Error('The store is crashed', code=404)
+        self.client_mock.call.side_effect = exc
 
         res = self.app.post('/v1/introspection/%s/data/unprocessed' %
                             self.uuid)
-        self.assertEqual(400, res.status_code)
+
+        self.assertEqual(404, res.status_code)
         message = json.loads(res.data.decode())['error']['message']
-        self.assertEqual('Inspector is not configured to store '
-                         'data. Set the [processing] store_data '
-                         'configuration option to change this.',
-                         message)
-        self.assertFalse(self.client_mock.call.called)
+        self.assertEqual(str(exc), message)
+        self.client_mock.call.assert_called_once_with({}, 'do_reapply',
+                                                      node_id=self.uuid)
 
     def test_generic_error(self):
         exc = utils.Error('Oops', code=400)
