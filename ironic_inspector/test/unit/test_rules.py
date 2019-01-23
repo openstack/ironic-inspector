@@ -59,6 +59,18 @@ class TestCreateRule(BaseTest):
                           'actions': self.actions_json},
                          rule_json)
 
+    def test_create_action_none_value(self):
+        self.actions_json = [{'action': 'set-attribute',
+                              'path': '/properties/cpus', 'value': None}]
+        rule = rules.create([], self.actions_json)
+        rule_json = rule.as_dict()
+
+        self.assertTrue(rule_json.pop('uuid'))
+        self.assertEqual({'description': None,
+                          'conditions': [],
+                          'actions': self.actions_json},
+                         rule_json)
+
     def test_duplicate_uuid(self):
         rules.create([], self.actions_json, uuid=self.uuid)
         self.assertRaisesRegex(utils.Error, 'already exists',

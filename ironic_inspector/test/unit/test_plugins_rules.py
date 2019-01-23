@@ -157,6 +157,8 @@ class TestSetAttributeAction(test_base.NodeTest):
         self.assertRaises(ValueError, self.act.validate, {'value': 42})
         self.assertRaises(ValueError, self.act.validate,
                           {'path': '/extra/value'})
+        self.params['value'] = None
+        self.act.validate(self.params)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_apply(self, mock_patch):
