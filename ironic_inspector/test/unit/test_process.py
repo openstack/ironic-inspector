@@ -574,7 +574,8 @@ class TestReapply(BaseTest):
             blocking=False
         )
 
-        reapply_mock.assert_called_once_with(pop_mock.return_value, data=None)
+        reapply_mock.assert_called_once_with(pop_mock.return_value,
+                                             introspection_data=None)
 
     @prepare_mocks
     def test_locking_failed(self, pop_mock, reapply_mock):
@@ -621,7 +622,7 @@ class TestReapplyNode(BaseTest):
                 error=self.node_info.error).save(self.session)
 
     def call(self):
-        process._reapply(self.node_info)
+        process._reapply(self.node_info, introspection_data=self.data)
         # make sure node_info lock is released after a call
         self.node_info.release_lock.assert_called_once_with(self.node_info)
 
@@ -637,20 +638,14 @@ class TestReapplyNode(BaseTest):
 
     @prepare_mocks
     def test_ok(self, finished_mock, swift_mock, apply_mock, post_hook_mock):
-        swift_name = 'inspector_data-%s' % self.uuid
-        swift_mock.get_object.return_value = json.dumps(self.data)
-
         self.call()
 
         self.commit_fixture.mock.assert_called_once_with(self.node_info)
 
         post_hook_mock.assert_called_once_with(mock.ANY, self.node_info)
-        swift_mock.create_object.assert_called_once_with(swift_name,
-                                                         mock.ANY)
-        swifted_data = json.loads(swift_mock.create_object.call_args[0][1])
 
         self.node_info.invalidate_cache.assert_called_once_with()
-        apply_mock.assert_called_once_with(self.node_info, swifted_data)
+        apply_mock.assert_called_once_with(self.node_info, self.data)
 
         # assert no power operations were performed
         self.assertFalse(self.cli.node.set_power_state.called)
@@ -658,33 +653,17 @@ class TestReapplyNode(BaseTest):
             self.node_info, istate.Events.finish)
 
         # asserting validate_interfaces was called
-        self.assertEqual(self.pxe_interfaces, swifted_data['interfaces'])
-        self.assertEqual([self.pxe_mac], swifted_data['macs'])
+        self.assertEqual(self.pxe_interfaces, self.data['interfaces'])
+        self.assertEqual([self.pxe_mac], self.data['macs'])
 
         # assert ports were created with whatever there was left
         # behind validate_interfaces
         self.cli.port.create.assert_called_once_with(
             node_uuid=self.uuid,
-            address=swifted_data['macs'][0],
+            address=self.data['macs'][0],
             extra={},
             pxe_enabled=True
         )
-
-    @prepare_mocks
-    def test_get_incomming_data_exception(self, finished_mock, swift_mock,
-                                          apply_mock, post_hook_mock):
-        exc = Exception('Oops')
-        expected_error = ('Unexpected exception Exception while fetching '
-                          'unprocessed introspection data from Swift: Oops')
-        swift_mock.get_object.side_effect = exc
-        self.call()
-
-        self.commit_fixture.mock.assert_called_once_with(self.node_info)
-        self.assertFalse(swift_mock.create_object.called)
-        self.assertFalse(apply_mock.called)
-        self.assertFalse(post_hook_mock.called)
-        finished_mock.assert_called_once_with(
-            self.node_info, istate.Events.error, error=expected_error)
 
     @prepare_mocks
     def test_prehook_failure(self, finished_mock, swift_mock, apply_mock,
@@ -710,20 +689,6 @@ class TestReapplyNode(BaseTest):
         finished_mock.assert_called_once_with(
             self.node_info, istate.Events.error, error=exc_failure)
         # assert _reapply ended having detected the failure
-        self.assertFalse(swift_mock.create_object.called)
-        self.assertFalse(apply_mock.called)
-        self.assertFalse(post_hook_mock.called)
-
-    @prepare_mocks
-    def test_generic_exception_creating_ports(self, finished_mock, swift_mock,
-                                              apply_mock, post_hook_mock):
-        swift_mock.get_object.return_value = json.dumps(self.data)
-        exc = Exception('Oops')
-        self.cli.port.create.side_effect = exc
-        self.call()
-
-        finished_mock.assert_called_once_with(
-            self.node_info, istate.Events.error, error=str(exc))
         self.assertFalse(swift_mock.create_object.called)
         self.assertFalse(apply_mock.called)
         self.assertFalse(post_hook_mock.called)

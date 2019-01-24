@@ -311,26 +311,10 @@ def reapply(node_ident, data=None):
     utils.executor().submit(_reapply, node_info, data)
 
 
-def _reapply(node_info, data=None):
+def _reapply(node_info, introspection_data=None):
     # runs in background
-    try:
-        node_info.started_at = timeutils.utcnow()
-        node_info.commit()
-        if data:
-            introspection_data = data
-        else:
-            introspection_data = get_introspection_data(node_info.uuid,
-                                                        processed=False,
-                                                        get_json=True)
-    except Exception as exc:
-        LOG.exception('Encountered exception while fetching '
-                      'stored introspection data',
-                      node_info=node_info)
-        msg = (_('Unexpected exception %(exc_class)s while fetching '
-                 'unprocessed introspection data from Swift: %(error)s') %
-               {'exc_class': exc.__class__.__name__, 'error': exc})
-        node_info.finished(istate.Events.error, error=msg)
-        return
+    node_info.started_at = timeutils.utcnow()
+    node_info.commit()
 
     try:
         ironic = ir_utils.get_client()
@@ -344,6 +328,9 @@ def _reapply(node_info, data=None):
     try:
         _reapply_with_data(node_info, introspection_data)
     except Exception as exc:
+        msg = (_('Failed reapply for node %(node)s, Error: '
+                 '%(exc)s') % {'node': node_info.uuid, 'exc': exc})
+        LOG.error(msg, node_info=node_info, data=introspection_data)
         return
 
     _finish(node_info, ironic, introspection_data,
