@@ -386,8 +386,8 @@ class TestManagerReapply(BaseManagerTest):
                                 self.context, self.uuid)
 
         self.assertEqual(utils.Error, exc.exc_info[0])
-        self.assertIn('Inspector is not configured to store data',
-                      str(exc.exc_info[1]))
+        self.assertIn('Inspector is not configured to store introspection '
+                      'data', str(exc.exc_info[1]))
         self.assertEqual(400, exc.exc_info[1].http_code)
         self.assertFalse(reapply_mock.called)
 
@@ -407,3 +407,12 @@ class TestManagerReapply(BaseManagerTest):
         reapply_mock.assert_called_once_with(self.uuid, data=self.data)
         get_data_mock.assert_called_once_with(self.uuid, processed=False,
                                               get_json=True)
+
+    @mock.patch.object(process, 'store_introspection_data', autospec=True)
+    @mock.patch.object(process, 'get_introspection_data', autospec=True)
+    def test_reapply_with_data(self, get_mock, store_mock, reapply_mock):
+        self.manager.do_reapply(self.context, self.uuid, data=self.data)
+        reapply_mock.assert_called_once_with(self.uuid, data=self.data)
+        store_mock.assert_called_once_with(self.uuid, self.data,
+                                           processed=False)
+        self.assertFalse(get_mock.called)

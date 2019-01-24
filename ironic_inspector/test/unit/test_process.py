@@ -584,6 +584,16 @@ class TestReapply(BaseTest):
             blocking=False
         )
 
+    @prepare_mocks
+    def test_reapply_with_data(self, pop_mock, reapply_mock):
+        process.reapply(self.uuid, data=self.data)
+        pop_mock.assert_called_once_with(self.uuid, locked=False)
+        pop_mock.return_value.acquire_lock.assert_called_once_with(
+            blocking=False
+        )
+        reapply_mock.assert_called_once_with(pop_mock.return_value,
+                                             introspection_data=self.data)
+
 
 @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
 @mock.patch.object(process.rules, 'apply', autospec=True)

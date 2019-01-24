@@ -370,16 +370,25 @@ class TestApiReapply(BaseAPITest):
         self.app.post('/v1/introspection/%s/data/unprocessed' %
                       self.uuid)
         self.client_mock.call.assert_called_once_with({}, 'do_reapply',
-                                                      node_uuid=self.uuid)
+                                                      node_uuid=self.uuid,
+                                                      data=None)
 
     def test_user_data(self):
         res = self.app.post('/v1/introspection/%s/data/unprocessed' %
                             self.uuid, data='some data')
         self.assertEqual(400, res.status_code)
         message = json.loads(res.data.decode())['error']['message']
-        self.assertEqual('User data processing is not supported yet',
-                         message)
+        self.assertIn('Invalid data: expected a JSON object', message)
         self.assertFalse(self.client_mock.call.called)
+
+    def test_user_data_valid(self):
+        data = {"foo": "bar"}
+        res = self.app.post('/v1/introspection/%s/data/unprocessed' %
+                            self.uuid, data=json.dumps(data))
+        self.assertEqual(202, res.status_code)
+        self.client_mock.call.assert_called_once_with({}, 'do_reapply',
+                                                      node_uuid=self.uuid,
+                                                      data=data)
 
     def test_get_introspection_data_error(self):
         exc = utils.Error('The store is crashed', code=404)
@@ -392,7 +401,8 @@ class TestApiReapply(BaseAPITest):
         message = json.loads(res.data.decode())['error']['message']
         self.assertEqual(str(exc), message)
         self.client_mock.call.assert_called_once_with({}, 'do_reapply',
-                                                      node_uuid=self.uuid)
+                                                      node_uuid=self.uuid,
+                                                      data=None)
 
     def test_generic_error(self):
         exc = utils.Error('Oops', code=400)
@@ -405,7 +415,8 @@ class TestApiReapply(BaseAPITest):
         message = json.loads(res.data.decode())['error']['message']
         self.assertEqual(str(exc), message)
         self.client_mock.call.assert_called_once_with({}, 'do_reapply',
-                                                      node_uuid=self.uuid)
+                                                      node_uuid=self.uuid,
+                                                      data=None)
 
     @mock.patch.object(ir_utils, 'get_node', autospec=True)
     def test_reapply_with_node_name(self, get_mock):
@@ -413,7 +424,8 @@ class TestApiReapply(BaseAPITest):
         self.app.post('/v1/introspection/%s/data/unprocessed' %
                       'fake-node')
         self.client_mock.call.assert_called_once_with({}, 'do_reapply',
-                                                      node_uuid=self.uuid)
+                                                      node_uuid=self.uuid,
+                                                      data=None)
         get_mock.assert_called_once_with('fake-node', fields=['uuid'])
 
 

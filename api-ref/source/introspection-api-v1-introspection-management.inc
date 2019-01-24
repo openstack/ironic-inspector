@@ -70,27 +70,31 @@ The response will contain introspection data in the form of json string.
    :language: javascript
 
 
-Reapply Introspection on stored data
-====================================
+Reapply Introspection on data
+=============================
 
 .. rest_method::  POST /v1/introspection/{node_id}/data/unprocessed
 
-This method triggers introspection on stored unprocessed data.
-No data is allowed to be sent along with the request.
+This method triggers introspection on either stored introspection data or raw
+introspection data provided in the request. If the introspection data is
+provided in the request body, it should be a valid JSON with content similar to
+ramdisk callback request.
+
+.. versionadded:: 1.15
+  Unprocessed introspection data can be sent via request body.
 
 .. note::
-
-    Requires enabling introspection storage backend via ``[processing]store_data``.
+    Reapplying introspection on stored data is only possible when a storage
+    backend is enabled via ``[processing]store_data``.
 
 Normal response codes: 202
 
 Error codes:
 
-* 400 - bad request or store not configured
+* 400 - bad request, store not configured or malformed data in request body
 * 401, 403 - missing or invalid authentication
 * 404 - node not found for Node ID
 * 409 - inspector locked node for processing
-
 
 Request
 -------

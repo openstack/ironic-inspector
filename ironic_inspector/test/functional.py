@@ -634,6 +634,14 @@ class Test(Base):
         self.assertEqual(store_processing_call,
                          store_mock.call_args_list[-1])
 
+        # Reapply with provided data
+        res = self.call_reapply(self.uuid, data=copy.deepcopy(self.data))
+        self.assertEqual(202, res.status_code)
+        self.assertEqual('', res.text)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.check_status(status, finished=True, state=istate.States.finished)
+
     @mock.patch.object(swift, 'store_introspection_data', autospec=True)
     @mock.patch.object(swift, 'get_introspection_data', autospec=True)
     def test_edge_state_transitions(self, get_mock, store_mock):
