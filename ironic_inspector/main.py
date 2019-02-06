@@ -48,10 +48,13 @@ def _get_version():
     ver = flask.request.headers.get(conf_opts.VERSION_HEADER,
                                     _DEFAULT_API_VERSION)
     try:
-        requested = tuple(int(x) for x in ver.split('.'))
+        if ver.lower() == 'latest':
+            requested = CURRENT_API_VERSION
+        else:
+            requested = tuple(int(x) for x in ver.split('.'))
     except (ValueError, TypeError):
         return error_response(_('Malformed API version: expected string '
-                                'in form of X.Y'), code=400)
+                                'in form of X.Y or latest'), code=400)
     return requested
 
 
