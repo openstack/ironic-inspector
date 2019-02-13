@@ -63,7 +63,7 @@ IRONIC_IS_HARDWARE=$(trueorfalse False IRONIC_IS_HARDWARE)
 IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=${IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK:-""}
 IRONIC_INSPECTOR_OVS_PORT=${IRONIC_INSPECTOR_OVS_PORT:-brbm-inspector}
 IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE=${IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE:-""}
-
+IRONIC_INSPECTOR_POWER_OFF=${IRONIC_INSPECTOR_POWER_OFF:-True}
 GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
 GITREPO["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_REPO:-${GIT_BASE}/openstack/python-ironic-inspector-client.git}
 GITBRANCH["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_BRANCH:-master}
@@ -266,6 +266,8 @@ function configure_inspector {
     inspector_iniset pxe_filter driver $IRONIC_INSPECTOR_DHCP_FILTER
     inspector_iniset iptables dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection `database_connection_url ironic_inspector`
+
+    inspector_iniset processing power_off $IRONIC_INSPECTOR_POWER_OFF
 
     iniset_rpc_backend ironic-inspector $IRONIC_INSPECTOR_CONF_FILE
 
