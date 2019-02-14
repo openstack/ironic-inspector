@@ -34,7 +34,7 @@ def upgrade():
         'introspection_data',
         sa.Column('uuid', sa.String(36), sa.ForeignKey('nodes.uuid'),
                   primary_key=True),
-        sa.Column('processed', sa.Boolean, default=False),
+        sa.Column('processed', sa.Boolean, default=False, primary_key=True),
         sa.Column('data', db_types.JsonEncodedDict(mysql_as_long=True).impl,
                   nullable=True),
         mysql_ENGINE='InnoDB',

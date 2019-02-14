@@ -1285,3 +1285,22 @@ class TestIntrospectionDataDbStore(test_base.NodeTest):
     def test_get_no_data_available(self):
         self.assertRaises(utils.IntrospectionDataNotFound,
                           node_cache.get_introspection_data, self.node.uuid)
+
+    def test_store_proc_and_unproc(self):
+        unproc_data = {'s': 'value', 'b': True, 'i': 42}
+        node_cache.store_introspection_data(self.node.uuid,
+                                            unproc_data,
+                                            processed=False)
+
+        proc_data = {'foo': 'bar'}
+        node_cache.store_introspection_data(self.node.uuid,
+                                            proc_data,
+                                            processed=True)
+
+        stored_data = node_cache.get_introspection_data(self.node.uuid,
+                                                        True)
+        self.assertEqual(stored_data, proc_data)
+
+        stored_data = node_cache.get_introspection_data(self.node.uuid,
+                                                        False)
+        self.assertEqual(stored_data, unproc_data)
