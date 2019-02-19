@@ -42,10 +42,10 @@ def _filter_data_excluded_keys(data):
 class BaseStorageBackend(object):
 
     @abc.abstractmethod
-    def get(self, node_id, processed=True, get_json=False):
+    def get(self, node_uuid, processed=True, get_json=False):
         """Get introspected data from storage backend.
 
-        :param node_id: node UUID or name.
+        :param node_uuid: node UUID.
         :param processed: Specify whether the data to be retrieved is
                           processed or not.
         :param get_json: Specify whether return the introspection data in json
@@ -55,10 +55,10 @@ class BaseStorageBackend(object):
         """
 
     @abc.abstractmethod
-    def save(self, node_info, data, processed=True):
+    def save(self, node_uuid, data, processed=True):
         """Save introspected data to storage backend.
 
-        :param node_info: a NodeInfo object.
+        :param node_uuid: node UUID.
         :param data: the introspected data to be saved, in dict format.
         :param processed: Specify whether the data to be saved is processed or
                           not.
@@ -67,57 +67,62 @@ class BaseStorageBackend(object):
 
 
 class NoStore(BaseStorageBackend):
-    def get(self, node_id, processed=True, get_json=False):
+    def get(self, node_uuid, processed=True, get_json=False):
         raise utils.IntrospectionDataStoreDisabled(
             'Introspection data storage is disabled')
 
-    def save(self, node_info, data, processed=True):
+    def save(self, node_uuid, data, processed=True):
         LOG.debug('Introspection data storage is disabled, the data will not '
-                  'be saved', node_info=node_info)
+                  'be saved for node %(node)s', {'node': node_uuid})
 
 
 class SwiftStore(object):
-    def get(self, node_id, processed=True, get_json=False):
+    def get(self, node_uuid, processed=True, get_json=False):
         suffix = None if processed else _UNPROCESSED_DATA_STORE_SUFFIX
-        LOG.debug('Fetching introspection data from Swift for %s', node_id)
-        data = swift.get_introspection_data(node_id, suffix=suffix)
+        LOG.debug('Fetching introspection data from Swift for %s', node_uuid)
+        data = swift.get_introspection_data(node_uuid, suffix=suffix)
         if get_json:
             return json.loads(data)
         return data
 
-    def save(self, node_info, data, processed=True):
+    def save(self, node_uuid, data, processed=True):
         suffix = None if processed else _UNPROCESSED_DATA_STORE_SUFFIX
         swift_object_name = swift.store_introspection_data(
             _filter_data_excluded_keys(data),
-            node_info.uuid,
+            node_uuid,
             suffix=suffix
         )
-        LOG.info('Introspection data was stored in Swift object %s',
-                 swift_object_name, node_info=node_info)
+        LOG.info('Introspection data was stored for node %(node)s in Swift '
+                 'object %(obj_name)s', {'node': node_uuid,
+                                         'obj_name': swift_object_name})
         if CONF.processing.store_data_location:
+            node_info = node_cache.get_node(node_uuid)
+            # TODO(kaifeng) node_info is not synced back, while we are not
+            # using extra in the processing logic, it looks fine at the moment,
+            # but we should consider refactor in a later time.
             node_info.patch([{'op': 'add', 'path': '/extra/%s' %
                               CONF.processing.store_data_location,
                               'value': swift_object_name}])
 
 
 class DatabaseStore(object):
-    def get(self, node_id, processed=True, get_json=False):
+    def get(self, node_uuid, processed=True, get_json=False):
         LOG.debug('Fetching introspection data from database for %(node)s',
-                  {'node': node_id})
-        data = node_cache.get_introspection_data(node_id, processed)
+                  {'node': node_uuid})
+        data = node_cache.get_introspection_data(node_uuid, processed)
         if get_json:
             return data
         return json.dumps(data)
 
-    def save(self, node_info, data, processed=True):
+    def save(self, node_uuid, data, processed=True):
         introspection_data = _filter_data_excluded_keys(data)
         try:
-            node_cache.store_introspection_data(node_info.uuid,
+            node_cache.store_introspection_data(node_uuid,
                                                 introspection_data, processed)
         except Exception as e:
             with excutils.save_and_reraise_exception():
                 LOG.exception('Failed to store introspection data in '
                               'database: %(exc)s', {'exc': e})
         else:
-            LOG.info('Introspection data was stored in database',
-                     node_info=node_info)
+            LOG.info('Introspection data was stored in database for node '
+                     '%(node)s', {'node': node_uuid})
