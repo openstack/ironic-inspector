@@ -285,20 +285,20 @@ def _finish(node_info, ironic, introspection_data, power_off=True):
              node_info=node_info, data=introspection_data)
 
 
-def reapply(node_ident, data=None):
+def reapply(node_uuid, data=None):
     """Re-apply introspection steps.
 
     Re-apply preprocessing, postprocessing and introspection rules on
     stored data.
 
-    :param node_ident: node UUID or name
+    :param node_uuid: node UUID
     :raises: utils.Error
 
     """
 
     LOG.debug('Processing re-apply introspection request for node '
-              'UUID: %s', node_ident)
-    node_info = node_cache.get_node(node_ident, locked=False)
+              'UUID: %s', node_uuid)
+    node_info = node_cache.get_node(node_uuid, locked=False)
     if not node_info.acquire_lock(blocking=False):
         # Note (mkovacik): it should be sufficient to check data
         # presence & locking. If either introspection didn't start

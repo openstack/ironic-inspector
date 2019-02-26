@@ -126,16 +126,16 @@ class ConductorManager(object):
         introspect.abort(node_id, token=token)
 
     @messaging.expected_exceptions(utils.Error)
-    def do_reapply(self, context, node_id, token=None):
+    def do_reapply(self, context, node_uuid, token=None):
         try:
-            data = process.get_introspection_data(node_id, processed=False,
+            data = process.get_introspection_data(node_uuid, processed=False,
                                                   get_json=True)
         except utils.IntrospectionDataStoreDisabled:
             raise utils.Error(_('Inspector is not configured to store '
                                 'data. Set the [processing]store_data '
                                 'configuration option to change this.'),
                               code=400)
-        process.reapply(node_id, data)
+        process.reapply(node_uuid, data)
 
 
 def periodic_clean_up():  # pragma: no cover

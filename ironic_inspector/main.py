@@ -310,9 +310,11 @@ def api_introspection_reapply(node_id):
     if flask.request.content_length:
         return error_response(_('User data processing is not '
                                 'supported yet'), code=400)
-
+    if not uuidutils.is_uuid_like(node_id):
+        node = ir_utils.get_node(node_id, fields=['uuid'])
+        node_id = node.uuid
     client = rpc.get_client()
-    client.call({}, 'do_reapply', node_id=node_id)
+    client.call({}, 'do_reapply', node_uuid=node_id)
     return '', 202
 
 
