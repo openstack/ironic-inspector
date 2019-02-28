@@ -95,9 +95,11 @@ class SwiftStore(object):
         LOG.info('Introspection data was stored for node %(node)s in Swift '
                  'object %(obj_name)s', {'node': node_uuid,
                                          'obj_name': swift_object_name})
+        # TODO(kaifeng) Remove the deprecated store_data_location at Train
+        # cycle.
         if CONF.processing.store_data_location:
             node_info = node_cache.get_node(node_uuid)
-            # TODO(kaifeng) node_info is not synced back, while we are not
+            # NOTE(kaifeng) node_info is not synced back, while we are not
             # using extra in the processing logic, it looks fine at the moment,
             # but we should consider refactor in a later time.
             node_info.patch([{'op': 'add', 'path': '/extra/%s' %
