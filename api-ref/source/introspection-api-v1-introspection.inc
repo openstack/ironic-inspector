@@ -176,8 +176,6 @@ Error codes:
 Request
 -------
 
-Status list may be paginated with these query string fields:
-
 .. rest_parameters:: parameters.yaml
 
    - node_id: node_id
