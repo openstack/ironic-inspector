@@ -666,6 +666,16 @@ class TestUpdate(test_base.NodeTest):
         self.ironic.node.update.assert_called_once_with(self.uuid, patch)
         self.assertIs(mock.sentinel.node, self.node_info.node())
 
+    def test_patch_with_args(self):
+        self.ironic.node.update.return_value = mock.sentinel.node
+
+        self.node_info.patch([{'patch': 'patch'}], reset_interfaces=True)
+
+        self.ironic.node.update.assert_called_once_with(self.uuid,
+                                                        [{'patch': 'patch'}],
+                                                        reset_interfaces=True)
+        self.assertIs(mock.sentinel.node, self.node_info.node())
+
     def test_update_properties(self):
         self.ironic.node.update.return_value = mock.sentinel.node
 

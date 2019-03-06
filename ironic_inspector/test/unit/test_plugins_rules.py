@@ -168,6 +168,37 @@ class TestSetAttributeAction(test_base.NodeTest):
                                              'path': '/extra/value',
                                              'value': 42}])
 
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_apply_driver(self, mock_patch):
+        params = {'path': '/driver', 'value': 'ipmi'}
+        self.act.apply(self.node_info, params)
+        mock_patch.assert_called_once_with([{'op': 'add',
+                                             'path': '/driver',
+                                             'value': 'ipmi'}],
+                                           reset_interfaces=True)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_apply_driver_no_reset_interfaces(self, mock_patch):
+        params = {'path': '/driver', 'value': 'ipmi',
+                  'reset_interfaces': False}
+        self.act.apply(self.node_info, params)
+        mock_patch.assert_called_once_with([{'op': 'add',
+                                             'path': '/driver',
+                                             'value': 'ipmi'}])
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_apply_driver_not_supported(self, mock_patch):
+        for exc in (TypeError, exceptions.NotAcceptable):
+            mock_patch.reset_mock()
+            mock_patch.side_effect = [exc, None]
+            params = {'path': '/driver', 'value': 'ipmi'}
+            self.act.apply(self.node_info, params)
+            mock_patch.assert_has_calls([
+                mock.call([{'op': 'add', 'path': '/driver', 'value': 'ipmi'}],
+                          reset_interfaces=True),
+                mock.call([{'op': 'add', 'path': '/driver', 'value': 'ipmi'}])
+            ])
+
 
 @mock.patch('ironic_inspector.common.ironic.get_client', new=mock.Mock())
 class TestSetCapabilityAction(test_base.NodeTest):
