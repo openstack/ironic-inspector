@@ -87,22 +87,37 @@ class TestGetClientNoAuth(TestGetClientBase, base.BaseTest):
 
 
 class TestGetIpmiAddress(base.BaseTest):
+    def setUp(self):
+        super(TestGetIpmiAddress, self).setUp()
+        self.ipmi_address = 'www.example.com'
+        self.ipmi_ipv4 = '192.168.1.1'
+        self.ipmi_ipv6 = 'fe80::1'
+
     def test_ipv4_in_resolves(self):
         node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': '192.168.1.1'})
-        ip = ir_utils.get_ipmi_address(node)
-        self.assertEqual('192.168.1.1', ip)
+                         driver_info={'ipmi_address': self.ipmi_ipv4})
+        self.assertEqual((self.ipmi_ipv4, self.ipmi_ipv4, None),
+                         ir_utils.get_ipmi_address(node))
 
-    @mock.patch('socket.gethostbyname')
+    def test_ipv6_in_resolves(self):
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'ipmi_address': self.ipmi_ipv6})
+        self.assertEqual((self.ipmi_ipv6, None, self.ipmi_ipv6),
+                         ir_utils.get_ipmi_address(node))
+
+    @mock.patch('socket.getaddrinfo')
     def test_good_hostname_resolves(self, mock_socket):
         node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': 'www.example.com'})
-        mock_socket.return_value = '192.168.1.1'
-        ip = ir_utils.get_ipmi_address(node)
-        mock_socket.assert_called_once_with('www.example.com')
-        self.assertEqual('192.168.1.1', ip)
+                         driver_info={'ipmi_address': self.ipmi_address})
+        mock_socket.return_value = [
+            (socket.AF_INET, None, None, None, (self.ipmi_ipv4,)),
+            (socket.AF_INET6, None, None, None, (self.ipmi_ipv6,))]
+        self.assertEqual((self.ipmi_address, self.ipmi_ipv4, self.ipmi_ipv6),
+                         ir_utils.get_ipmi_address(node))
+        mock_socket.assert_called_once_with(self.ipmi_address, None, 0, 0,
+                                            socket.SOL_TCP)
 
-    @mock.patch('socket.gethostbyname')
+    @mock.patch('socket.getaddrinfo')
     def test_bad_hostname_errors(self, mock_socket):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': 'meow'},
@@ -112,24 +127,26 @@ class TestGetIpmiAddress(base.BaseTest):
 
     def test_additional_fields(self):
         node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'foo': '192.168.1.1'})
-        self.assertIsNone(ir_utils.get_ipmi_address(node))
+                         driver_info={'foo': self.ipmi_ipv4})
+        self.assertEqual((None, None, None),
+                         ir_utils.get_ipmi_address(node))
 
         self.cfg.config(ipmi_address_fields=['foo', 'bar', 'baz'])
-        ip = ir_utils.get_ipmi_address(node)
-        self.assertEqual('192.168.1.1', ip)
+        self.assertEqual((self.ipmi_ipv4, self.ipmi_ipv4, None),
+                         ir_utils.get_ipmi_address(node))
 
     def test_ipmi_bridging_enabled(self):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': 'www.example.com',
                                       'ipmi_bridging': 'single'})
-        self.assertIsNone(ir_utils.get_ipmi_address(node))
+        self.assertEqual((None, None, None),
+                         ir_utils.get_ipmi_address(node))
 
     def test_loopback_address(self):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': '127.0.0.2'})
-        ip = ir_utils.get_ipmi_address(node)
-        self.assertIsNone(ip)
+        self.assertEqual((None, None, None),
+                         ir_utils.get_ipmi_address(node))
 
 
 class TestCapabilities(unittest.TestCase):
