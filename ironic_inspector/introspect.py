@@ -54,8 +54,9 @@ def introspect(node_id, manage_boot=True, token=None):
                               node_info=node)
 
     bmc_address, bmc_ipv4, bmc_ipv6 = ir_utils.get_ipmi_address(node)
+    lookup_attrs = list(filter(None, [bmc_ipv4, bmc_ipv6]))
     node_info = node_cache.start_introspection(node.uuid,
-                                               bmc_address=bmc_address,
+                                               bmc_address=lookup_attrs,
                                                manage_boot=manage_boot,
                                                ironic=ironic)
 
