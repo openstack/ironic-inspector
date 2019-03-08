@@ -52,8 +52,9 @@ def introspect(node_id, token=None):
                           node_info=node)
 
     bmc_address, bmc_ipv4, bmc_ipv6 = ir_utils.get_ipmi_address(node)
+    lookup_attrs = list(filter(None, [bmc_ipv4, bmc_ipv6]))
     node_info = node_cache.start_introspection(node.uuid,
-                                               bmc_address=bmc_address,
+                                               bmc_address=lookup_attrs,
                                                ironic=ironic)
 
     utils.executor().submit(_background_introspect, node_info, ironic)

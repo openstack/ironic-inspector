@@ -66,7 +66,35 @@ class TestIntrospect(BaseTest):
         cli.node.validate.assert_called_once_with(self.uuid)
 
         start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=self.bmc_address,
+                                           bmc_address=[self.bmc_address],
+                                           ironic=cli)
+        self.node_info.ports.assert_called_once_with()
+        self.node_info.add_attribute.assert_called_once_with('mac',
+                                                             self.macs)
+        self.sync_filter_mock.assert_called_with(cli)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=False)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        self.node_info.acquire_lock.assert_called_once_with()
+        self.node_info.release_lock.assert_called_once_with()
+
+    @mock.patch.object(ir_utils, 'get_ipmi_address', autospec=True)
+    def test_resolved_bmc_address(self, ipmi_mock, client_mock, start_mock):
+        self.node.driver_info['ipmi_address'] = 'example.com'
+        addresses = ['93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946']
+        ipmi_mock.return_value = ('example.com',) + tuple(addresses)
+        cli = self._prepare(client_mock)
+        start_mock.return_value = self.node_info
+
+        introspect.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+        cli.node.validate.assert_called_once_with(self.uuid)
+
+        start_mock.assert_called_once_with(self.uuid,
+                                           bmc_address=addresses,
                                            ironic=cli)
         self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
@@ -91,7 +119,7 @@ class TestIntrospect(BaseTest):
         cli.node.validate.assert_called_once_with(self.uuid)
 
         start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=None,
+                                           bmc_address=[],
                                            ironic=cli)
         self.node_info.ports.assert_called_once_with()
         self.node_info.add_attribute.assert_called_once_with('mac',
@@ -114,7 +142,7 @@ class TestIntrospect(BaseTest):
             introspect.introspect(self.node.uuid)
 
         start_mock.assert_called_with(self.uuid,
-                                      bmc_address=self.bmc_address,
+                                      bmc_address=[self.bmc_address],
                                       ironic=cli)
 
     def test_power_failure(self, client_mock, start_mock):
@@ -128,7 +156,7 @@ class TestIntrospect(BaseTest):
         cli.node.get.assert_called_once_with(self.uuid)
 
         start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=self.bmc_address,
+                                           bmc_address=[self.bmc_address],
                                            ironic=cli)
         cli.node.set_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
@@ -150,7 +178,7 @@ class TestIntrospect(BaseTest):
         cli.node.get.assert_called_once_with(self.uuid)
 
         start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=self.bmc_address,
+                                           bmc_address=[self.bmc_address],
                                            ironic=cli)
         self.assertFalse(cli.node.set_boot_device.called)
         start_mock.return_value.finished.assert_called_once_with(
@@ -168,7 +196,7 @@ class TestIntrospect(BaseTest):
         self.node_info.ports.assert_called_once_with()
 
         start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=self.bmc_address,
+                                           bmc_address=[self.bmc_address],
                                            ironic=cli)
         self.assertFalse(self.node_info.add_attribute.called)
         self.assertFalse(self.sync_filter_mock.called)
