@@ -6,9 +6,16 @@
     required-projects:
       - openstack/ironic-inspector
     irrelevant-files:
-      - ^test-requirements.txt$
+      - ^.*\.rst$
+      - ^api-ref/.*$
+      - ^doc/.*$
       - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
+      - ^releasenotes/.*$
+      - ^tools/.*$
+      - ^test-requirements.txt$
+      - ^setup.cfg$
+      - ^tox.ini$
     vars:
       tox_envlist: all
       tempest_test_regex: Inspector
