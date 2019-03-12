@@ -50,7 +50,7 @@ class BaseTest(test_base.BaseTestCase):
         db.Base.metadata.create_all(engine)
         engine.connect()
         self.addCleanup(engine.dispose)
-        plugins_base._HOOKS_MGR = None
+        plugins_base.reset()
         node_cache._SEMAPHORES = lockutils.Semaphores()
         patch = mock.patch.object(i18n, '_', lambda s: s)
         patch.start()

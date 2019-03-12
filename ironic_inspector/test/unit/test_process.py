@@ -209,7 +209,6 @@ class TestProcess(BaseProcessTest):
         self.assertFalse(self.node_info.finished.called)
 
     def test_error_if_node_not_found_hook(self):
-        plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
         self.assertRaisesRegex(utils.Error,
                                'Look up error: BOOM',
@@ -221,7 +220,6 @@ class TestProcess(BaseProcessTest):
 class TestNodeNotFoundHook(BaseProcessTest):
     def test_node_not_found_hook_run_ok(self, hook_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
-        plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
         hook_mock.return_value = node_cache.NodeInfo(
             uuid=self.node.uuid,
@@ -232,7 +230,6 @@ class TestNodeNotFoundHook(BaseProcessTest):
 
     def test_node_not_found_hook_run_none(self, hook_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
-        plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
         hook_mock.return_value = None
         self.assertRaisesRegex(utils.Error,
@@ -242,7 +239,6 @@ class TestNodeNotFoundHook(BaseProcessTest):
 
     def test_node_not_found_hook_exception(self, hook_mock):
         CONF.set_override('node_not_found_hook', 'example', 'processing')
-        plugins_base._NOT_FOUND_HOOK_MGR = None
         self.find_mock.side_effect = utils.NotFoundInCacheError('BOOM')
         hook_mock.side_effect = Exception('Hook Error')
         self.assertRaisesRegex(utils.Error,
@@ -398,7 +394,6 @@ class TestProcessNode(BaseTest):
                 started_at=self.node_info.started_at,
                 finished_at=self.node_info.finished_at,
                 error=self.node_info.error).save(self.session)
-        plugins_base._INTROSPECTION_DATA_MGR = None
 
     def test_return_includes_uuid(self):
         ret_val = process._process_node(self.node_info, self.node, self.data)
@@ -670,7 +665,6 @@ class TestReapplyNode(BaseTest):
                              post_hook_mock):
         CONF.set_override('processing_hooks', 'example',
                           'processing')
-        plugins_base._HOOKS_MGR = None
 
         exc = Exception('Failed.')
         swift_mock.get_object.return_value = json.dumps(self.data)

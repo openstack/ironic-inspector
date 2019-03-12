@@ -659,7 +659,6 @@ class TestPlugins(unittest.TestCase):
     @mock.patch.object(example_plugin.ExampleProcessingHook,
                        'before_update', autospec=True)
     def test_hook(self, mock_post, mock_pre):
-        plugins_base._HOOKS_MGR = None
         CONF.set_override('processing_hooks', 'example', 'processing')
         mgr = plugins_base.processing_hooks_manager()
         mgr.map_method('before_processing', 'introspection_data')

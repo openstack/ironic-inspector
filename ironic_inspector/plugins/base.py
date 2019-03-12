@@ -145,6 +145,21 @@ _ACTIONS_MGR = None
 _INTROSPECTION_DATA_MGR = None
 
 
+def reset():
+    """Reset cached managers."""
+    global _HOOKS_MGR
+    global _NOT_FOUND_HOOK_MGR
+    global _CONDITIONS_MGR
+    global _ACTIONS_MGR
+    global _INTROSPECTION_DATA_MGR
+
+    _HOOKS_MGR = None
+    _NOT_FOUND_HOOK_MGR = None
+    _CONDITIONS_MGR = None
+    _ACTIONS_MGR = None
+    _INTROSPECTION_DATA_MGR = None
+
+
 def missing_entrypoints_callback(names):
     """Raise MissingHookError with comma-separated list of missing hooks"""
     error = _('The following hook(s) are missing or failed to load: %s')
