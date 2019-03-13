@@ -5,14 +5,13 @@ Process introspection data
 ==========================
 
 After the ramdisk collects the required information from the bare metal
-node, it should post it back to Inspector via ``POST /v1/continue`` method.
-
+node, it should post it back to Inspector via ``POST /v1/continue`` API.
 
 .. warning::
     Operators are reminded not to expose the Ironic Inspector API to
-    unsecured networks. Below method is available to *unauthenticated*
-    clients because **ironic-python-agent** ramdisk does not have access to
-    keystone credentials.
+    unsecured and untrusted networks. API below is available to
+    *unauthenticated* clients because **ironic-python-agent** ramdisk
+    does not have access to keystone credentials.
 
 
 Ramdisk Callback
@@ -20,8 +19,8 @@ Ramdisk Callback
 
 .. rest_method::  POST /v1/continue
 
-It is internal method for the ramdisk to post back all discovered data.
-This should not be used for anything other than the ramdisk.
+It is the API for the ramdisk to post back all discovered data.
+This should not be used for clients other than the ramdisk.
 
 Full list of hardware inventory keys may be found in **ironic-python-agent**
 documentation: `hardware inventory <https://docs.openstack.org/ironic-python-agent/latest/admin/how_it_works.html#hardware-inventory>`_.
@@ -45,7 +44,6 @@ List of mandatory hardware keys:
    - disks: disks
    - root_disk: root_disk
    - boot_interface: boot_interface
-   - logs: logs
 
 **Example node introspection continue request:**
 

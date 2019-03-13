@@ -1,8 +1,8 @@
 :tocdepth: 2
 
-=========================================
-Hardware Introspection for Bare Metal API
-=========================================
+============================================
+API of Hardware Introspection for Bare Metal
+============================================
 
 .. rest_expand_all::
 
