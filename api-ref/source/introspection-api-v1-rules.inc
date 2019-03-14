@@ -5,7 +5,8 @@ Introspection Rules
 ===================
 
 Simple JSON-based DSL to define rules, which run during introspection.
-
+See `<https://docs.openstack.org/ironic-inspector/latest/user/usage.html#introspection-rules>`_
+for more information on rules.
 
 Create Introspection Rule
 =========================

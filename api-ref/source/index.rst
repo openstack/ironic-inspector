@@ -8,5 +8,6 @@ API of Hardware Introspection for Bare Metal
 
 .. include:: introspection-api-versions.inc
 .. include:: introspection-api-v1-introspection.inc
+.. include:: introspection-api-v1-introspection-management.inc
 .. include:: introspection-api-v1-continue.inc
 .. include:: introspection-api-v1-rules.inc

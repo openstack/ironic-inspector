@@ -1,13 +1,12 @@
 .. -*- rst -*-
 
-==================
-Node Introspection
-==================
+==================================
+Node Introspection (introspection)
+==================================
 
-Start, abort introspection, get introspection status, and get introspection
-data are done through the ``/v1/introspection`` resource. There are also
-several sub-resources, which allow further actions to be performed on
-introspection.
+Start introspection, get introspection status are done through the
+``/v1/introspection`` resource. There are also several sub-resources, which
+allow further actions to be performed on introspection.
 
 Start Introspection
 ===================
@@ -33,55 +32,6 @@ Request
 
    - node_id: node_id
    - manage_boot: manage_boot
-
-
-Response
---------
-
-The response will be empty body.
-
-Get Introspection status
-========================
-
-.. rest_method::  GET /v1/introspection/{node_id}
-
-Get node introspection status.
-
-In case missing or invalid authentication response code will be 401 and 403.
-If Inspector don't find node {node_id}, it will return 404.
-
-Normal response codes: 200
-
-Error codes: 400, 401, 403, 404
-
-Request
--------
-
-.. rest_parameters:: parameters.yaml
-
-   - node_id: node_id
-
-
-Response
---------
-
-The response will contain the complete introspection info, like
-start, finish time, introspection state, errors if any.
-
-.. rest_parameters:: parameters.yaml
-
-   - error: error
-   - finished: finished
-   - finished_at: finished_at
-   - links: links
-   - started_at: started_at
-   - state: state
-   - uuid: node_id
-
-**Example JSON representation of an introspection:**
-
-.. literalinclude:: samples/api-v1-get-introspection-response.json
-   :language: javascript
 
 
 List All Introspection statuses
@@ -131,49 +81,19 @@ The response will contain a list of status objects:
    :language: javascript
 
 
-Abort Introspection
-===================
+Show Introspection status
+=========================
 
-.. rest_method::  POST /v1/introspection/{node_id}/abort
+.. rest_method::  GET /v1/introspection/{node_id}
 
-Abort running introspection.
+Show node introspection status.
 
-Normal response codes: 202
-
-Error codes:
-
-* 400 - bad request
-* 401, 403 - missing or invalid authentication
-* 404 - node cannot be found
-* 409 - inspector has locked this node for processing
-
-Request
--------
-
-.. rest_parameters:: parameters.yaml
-
-   - node_id: node_id
-
-
-Get Introspection data
-======================
-
-.. rest_method::  GET /v1/introspection/{node_id}/data
-
-Return stored data from successful introspection.
-
-.. note::
-    We do not provide any backward compatibility guarantees regarding the
-    format and contents of the stored data. Notably, it depends on the ramdisk
-    used and plugins enabled both in the ramdisk and in inspector itself.
+In case missing or invalid authentication response code will be 401 and 403.
+If Inspector don't find node {node_id}, it will return 404.
 
 Normal response codes: 200
 
-Error codes:
-
-* 400 - bad request
-* 401, 403 - missing or invalid authentication
-* 404 - data cannot be found or data storage not configured
+Error codes: 400, 401, 403, 404
 
 Request
 -------
@@ -186,39 +106,22 @@ Request
 Response
 --------
 
-The response will contain introspection data in the form of json string.
-
-**Example JSON representation of an introspection data:**
-
-.. literalinclude:: samples/api-v1-data-introspection-response.json
-   :language: javascript
-
-
-Reapply Introspection on stored data
-====================================
-
-.. rest_method::  POST /v1/introspection/{node_id}/data/unprocessed
-
-This method triggers introspection on stored unprocessed data.
-No data is allowed to be sent along with the request.
-
-.. note::
-
-    Requires enabling introspection storage backend via ``[processing]store_data``.
-
-Normal response codes: 202
-
-Error codes:
-
-* 400 - bad request or store not configured
-* 401, 403 - missing or invalid authentication
-* 404 - node not found for Node ID
-* 409 - inspector locked node for processing
-
-
-Request
--------
+The response will contain the complete introspection info, like
+start, finish time, introspection state, errors if any.
 
 .. rest_parameters:: parameters.yaml
 
-  - node_id: node_id
+   - error: error
+   - finished: finished
+   - finished_at: finished_at
+   - links: links
+   - started_at: started_at
+   - state: state
+   - uuid: node_id
+
+**Example JSON representation of an introspection:**
+
+.. literalinclude:: samples/api-v1-get-introspection-response.json
+   :language: javascript
+
+
