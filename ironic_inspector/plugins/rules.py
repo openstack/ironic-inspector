@@ -16,11 +16,15 @@
 import operator
 import re
 
+from ironicclient import exceptions as ironic_exc
 import netaddr
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
+
+
+LOG = utils.getProcessingLogger(__name__)
 
 
 def coerce(value, expected):
@@ -117,15 +121,36 @@ class FailAction(base.RuleActionPlugin):
 class SetAttributeAction(base.RuleActionPlugin):
     # NOTE(iurygregory): set as optional to accept None as value, check
     # that the key 'value' is present, otherwise will raise ValueError.
-    OPTIONAL_PARAMS = {'value'}
+    OPTIONAL_PARAMS = {'value', 'reset_interfaces'}
     REQUIRED_PARAMS = {'path'}
     # TODO(dtantsur): proper validation of path
 
     FORMATTED_PARAMS = ['value']
 
     def apply(self, node_info, params, **kwargs):
-        node_info.patch([{'op': 'add', 'path': params['path'],
-                          'value': params['value']}])
+        kwargs = {}
+        if (params['path'].strip('/') == 'driver'
+                and ('reset_interfaces' not in params
+                     or params['reset_interfaces'])):
+            # Using at least Rocky
+            kwargs['reset_interfaces'] = True
+
+        try:
+            node_info.patch([{'op': 'add', 'path': params['path'],
+                              'value': params['value']}], **kwargs)
+        except (TypeError, ironic_exc.NotAcceptable):
+            # TODO(dtantsur): remove support for old ironicclient and Queens
+            if 'reset_interfaces' in params:
+                # An explicit request, report an error.
+                raise utils.Error(
+                    _('Cannot pass reset_interfaces to set-attribute, '
+                      'requires API 1.46 and ironicclient >= 2.5.0'))
+
+            LOG.warning('Not passing reset_interfaces to Ironic, since '
+                        ' API 1.46 and/or ironicclient >= 2.5.0 are '
+                        'not available', node_info=node_info)
+            node_info.patch([{'op': 'add', 'path': params['path'],
+                              'value': params['value']}])
 
     def validate(self, params, **kwargs):
         if 'value' in params:

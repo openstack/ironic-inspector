@@ -447,6 +447,7 @@ elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
         if [ -n "$IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK" ]; then
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_feature True
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_default_driver fake-hardware
+            iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_target_driver ipmi
         fi
     fi
 fi

@@ -409,13 +409,14 @@ class NodeInfo(object):
         else:
             self._ports[mac] = port
 
-    def patch(self, patches, ironic=None):
+    def patch(self, patches, ironic=None, **kwargs):
         """Apply JSON patches to a node.
 
         Refreshes cached node instance.
 
         :param patches: JSON patches to apply
         :param ironic: Ironic client to use instead of self.ironic
+        :param kwargs: Arguments to pass to ironicclient.
         :raises: ironicclient exceptions
         """
         ironic = ironic or self.ironic
@@ -426,7 +427,7 @@ class NodeInfo(object):
                 patch['path'] = '/' + patch['path']
 
         LOG.debug('Updating node with patches %s', patches, node_info=self)
-        self._node = ironic.node.update(self.uuid, patches)
+        self._node = ironic.node.update(self.uuid, patches, **kwargs)
 
     def patch_port(self, port, patches, ironic=None):
         """Apply JSON patches to a port.
