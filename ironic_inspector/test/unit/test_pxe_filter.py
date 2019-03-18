@@ -211,8 +211,6 @@ class TestBaseFilterInterface(BaseFilterBaseTest):
     def test_sync(self):
         self.driver.sync(self.mock_ironic)
 
-        self.mock_log.debug.assert_called_once_with(
-            'Syncing the PXE filter driver %s', self.driver)
         self.mock_reset.assert_not_called()
 
     def test_tear_down_filter(self):

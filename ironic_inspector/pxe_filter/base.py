@@ -133,8 +133,6 @@ class BaseFilter(interface.FilterDriver):
         :raises: InvalidFilterDriverState
         :returns: nothing.
         """
-        LOG.debug('The PXE filter driver %s enters the fsm_reset_on_error '
-                  'context', self)
         try:
             yield self.fsm
         except automaton_errors.NotFound as e:
@@ -148,9 +146,6 @@ class BaseFilter(interface.FilterDriver):
                           {'filter': self, 'error': e})
             self.reset()
             raise
-        finally:
-            LOG.debug('The PXE filter driver %s left the fsm_reset_on_error '
-                      'context', self)
 
     @locked_driver_event(Events.initialize)
     def init_filter(self):
@@ -177,7 +172,6 @@ class BaseFilter(interface.FilterDriver):
         :param ironic: obligatory ironic client instance
         :returns: nothing.
         """
-        LOG.debug('Syncing the PXE filter driver %s', self)
 
     def get_periodic_sync_task(self):
         """Get periodic sync task for the filter.
