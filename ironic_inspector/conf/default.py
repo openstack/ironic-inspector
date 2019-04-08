@@ -53,18 +53,6 @@ _OPTS = [
     cfg.BoolOpt('use_ssl',
                 default=False,
                 help=_('SSL Enabled/Disabled')),
-    cfg.StrOpt('ssl_cert_path',
-               default='',
-               deprecated_for_removal=True,
-               deprecated_reason=_('This option will be superseded by '
-                                   '[ssl]cert_file.'),
-               help=_('Path to SSL certificate')),
-    cfg.StrOpt('ssl_key_path',
-               default='',
-               deprecated_for_removal=True,
-               deprecated_reason=_('This option will be superseded by '
-                                   '[ssl]key_file.'),
-               help=_('Path to SSL key')),
     cfg.IntOpt('max_concurrency',
                default=1000, min=2,
                help=_('The green thread pool size.')),

@@ -12,7 +12,6 @@
 
 from oslo_config import cfg
 from oslo_log import log
-from oslo_service import sslutils
 
 from ironic_inspector.conf import opts
 
@@ -26,11 +25,6 @@ def prepare_service(args=None):
     opts.set_config_defaults()
     opts.parse_args(args)
     log.setup(CONF, 'ironic_inspector')
-
-    # TODO(kaifeng) Remove deprecated options at T* cycle.
-    sslutils.register_opts(CONF)
-    CONF.set_default('cert_file', CONF.ssl_cert_path, group='ssl')
-    CONF.set_default('key_file', CONF.ssl_key_path, group='ssl')
 
     LOG.debug("Configuration:")
     CONF.log_opt_values(LOG, log.DEBUG)

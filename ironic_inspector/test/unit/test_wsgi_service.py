@@ -13,10 +13,8 @@
 
 import eventlet  # noqa
 import fixtures
-import mock
 from oslo_config import cfg
 
-from ironic_inspector.common import service_utils
 from ironic_inspector.test import base as test_base
 from ironic_inspector import wsgi_service
 
@@ -93,28 +91,3 @@ class TestWSGIService(BaseWSGITest):
     def test_reset(self):
         self.service.reset()
         self.server.reset.assert_called_once_with()
-
-
-@mock.patch.object(service_utils.log, 'register_options', autospec=True)
-class TestSSLOptions(test_base.BaseTest):
-
-    def test_use_deprecated_options(self, mock_log):
-        CONF.set_override('ssl_cert_path', 'fake_cert_file')
-        CONF.set_override('ssl_key_path', 'fake_key_file')
-
-        service_utils.prepare_service()
-
-        self.assertEqual(CONF.ssl.cert_file, 'fake_cert_file')
-        self.assertEqual(CONF.ssl.key_file, 'fake_key_file')
-
-    def test_use_ssl_options(self, mock_log):
-        CONF.set_override('ssl_cert_path', 'fake_cert_file')
-        CONF.set_override('ssl_key_path', 'fake_key_file')
-
-        service_utils.prepare_service()
-
-        CONF.set_override('cert_file', 'fake_new_cert', 'ssl')
-        CONF.set_override('key_file', 'fake_new_key', 'ssl')
-
-        self.assertEqual(CONF.ssl.cert_file, 'fake_new_cert')
-        self.assertEqual(CONF.ssl.key_file, 'fake_new_key')
