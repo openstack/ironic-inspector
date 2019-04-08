@@ -500,24 +500,6 @@ class TestProcessNode(BaseTest):
         self.assertNotIn('logs',
                          json.loads(swift_conn.create_object.call_args[0][1]))
 
-    @mock.patch.object(swift, 'SwiftAPI', autospec=True)
-    def test_store_data_location_with_swift(self, swift_mock):
-        CONF.set_override('store_data', 'swift', 'processing')
-        CONF.set_override('store_data_location', 'inspector_data_object',
-                          'processing')
-        swift_conn = swift_mock.return_value
-        name = 'inspector_data-%s' % self.uuid
-        patch = [{'path': '/extra/inspector_data_object',
-                  'value': name, 'op': 'add'}]
-        expected = self.data
-
-        process._process_node(self.node_info, self.node, self.data)
-
-        swift_conn.create_object.assert_called_once_with(name, mock.ANY)
-        self.assertEqual(expected,
-                         json.loads(swift_conn.create_object.call_args[0][1]))
-        self.cli.node.update.assert_any_call(self.uuid, patch)
-
     @mock.patch.object(node_cache, 'store_introspection_data', autospec=True)
     def test_store_data_with_database(self, store_mock):
         CONF.set_override('store_data', 'database', 'processing')

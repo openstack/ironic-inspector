@@ -78,13 +78,6 @@ _OPTS = [
                       'Possible values are: \'none\', \'database\' and '
                       '\'swift\'. If set to \'none\', introspection data will '
                       'not be stored.')),
-    cfg.StrOpt('store_data_location',
-               help=_('Name of the key to store the location of stored data '
-                      'in the extra column of the Ironic database.'),
-               deprecated_for_removal=True,
-               deprecated_reason=_('The introspection data could be retrieved '
-                                   'from inspector API, there is no need to '
-                                   'keep an extra link in ironic.')),
     cfg.BoolOpt('disk_partitioning_spacing',
                 default=True,
                 help=_('Whether to leave 1 GiB of disk size untouched for '
