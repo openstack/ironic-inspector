@@ -261,6 +261,7 @@ function configure_inspector {
 
     inspector_iniset DEFAULT debug $IRONIC_INSPECTOR_DEBUG
     inspector_configure_auth_for ironic
+    inspector_configure_auth_for service_catalog
     configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
 
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT

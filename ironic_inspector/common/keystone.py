@@ -70,3 +70,8 @@ def add_auth_options(options, service_type):
     add_options(opts, adapter_opts)
     opts.sort(key=lambda x: x.name)
     return opts
+
+
+def get_endpoint(group, **kwargs):
+    return get_adapter(group, session=get_session(group)).get_endpoint(
+        **kwargs)

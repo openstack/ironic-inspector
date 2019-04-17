@@ -14,9 +14,11 @@
 import json
 
 import fixtures
+from ironic_lib import mdns
 import mock
 import oslo_messaging as messaging
 
+from ironic_inspector.common import keystone
 from ironic_inspector.common import swift
 from ironic_inspector.conductor import manager
 import ironic_inspector.conf
@@ -99,12 +101,14 @@ class TestManagerInitHost(BaseManagerTest):
             'Introspection data will not be stored. Change "[processing] '
             'store_data" option if this is not the desired behavior')
 
-    def test_init_host(self):
+    @mock.patch.object(mdns, 'Zeroconf', autospec=True)
+    def test_init_host(self, mock_zc):
         self.manager.init_host()
-        self.mock_db_init.asset_called_once_with()
+        self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
+        self.assertFalse(mock_zc.called)
 
     def test_init_host_validate_processing_hooks_exception(self):
         class MyError(Exception):
@@ -122,6 +126,18 @@ class TestManagerInitHost(BaseManagerTest):
         self.mock_log.critical.assert_called_once_with(str(error))
         self.mock_exit.assert_called_once_with(1)
         self.mock_filter.init_filter.assert_not_called()
+
+    @mock.patch.object(mdns, 'Zeroconf', autospec=True)
+    @mock.patch.object(keystone, 'get_endpoint', autospec=True)
+    def test_init_host_with_mdns(self, mock_endpoint, mock_zc):
+        CONF.set_override('enable_mdns', True)
+        self.manager.init_host()
+        self.mock_db_init.assert_called_once_with()
+        self.mock_validate_processing_hooks.assert_called_once_with()
+        self.mock_filter.init_filter.assert_called_once_with()
+        self.assert_periodics()
+        mock_zc.return_value.register_service.assert_called_once_with(
+            'baremetal-introspection', mock_endpoint.return_value)
 
 
 class TestManagerDelHost(BaseManagerTest):
@@ -142,6 +158,23 @@ class TestManagerDelHost(BaseManagerTest):
     def test_del_host(self):
         self.manager.del_host()
 
+        self.mock__shutting_down.acquire.assert_called_once_with(
+            blocking=False)
+        self.mock__periodic_worker.stop.assert_called_once_with()
+        self.mock__periodic_worker.wait.assert_called_once_with()
+        self.assertIsNone(self.manager._periodics_worker)
+        self.mock_executor.shutdown.assert_called_once_with(wait=True)
+        self.mock_filter.tear_down_filter.assert_called_once_with()
+        self.mock__shutting_down.release.assert_called_once_with()
+
+    def test_del_host_with_mdns(self):
+        mock_zc = mock.Mock(spec=mdns.Zeroconf)
+        self.manager._zeroconf = mock_zc
+
+        self.manager.del_host()
+
+        mock_zc.close.assert_called_once_with()
+        self.assertIsNone(self.manager._zeroconf)
         self.mock__shutting_down.acquire.assert_called_once_with(
             blocking=False)
         self.mock__periodic_worker.stop.assert_called_once_with()

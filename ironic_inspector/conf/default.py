@@ -76,6 +76,9 @@ _OPTS = [
                        'can manage PXE booting of nodes. If set to False, '
                        'the API will reject introspection requests with '
                        'manage_boot missing or set to True.')),
+    cfg.BoolOpt('enable_mdns', default=False,
+                help=_('Whether to enable publishing the ironic-inspector API '
+                       'endpoint via multicast DNS.')),
 ]
 
 
