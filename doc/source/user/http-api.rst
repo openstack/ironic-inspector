@@ -398,4 +398,4 @@ Version History
 * **1.13** adds ``manage_boot`` parameter for the introspection API.
 * **1.14** allows formatting to be applied to strings nested in dicts and lists
   in the actions of introspection rules.
-
+* **1.15** allows reapply with provided introspection data from request.

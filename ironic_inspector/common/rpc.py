@@ -33,7 +33,7 @@ def get_transport():
 def get_client():
     """Get a RPC client instance."""
     target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
-                              version='1.1')
+                              version='1.2')
     transport = get_transport()
     return messaging.RPCClient(transport, target)
 
@@ -43,7 +43,7 @@ def get_server(endpoints):
 
     transport = get_transport()
     target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
-                              version='1.1')
+                              version='1.2')
     return messaging.get_rpc_server(
         transport, target, endpoints, executor='eventlet',
         access_policy=dispatcher.DefaultRPCAccessPolicy)

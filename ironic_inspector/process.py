@@ -140,7 +140,15 @@ def _filter_data_excluded_keys(data):
             if k not in _STORAGE_EXCLUDED_KEYS}
 
 
-def _store_data(node_uuid, data, processed=True):
+def store_introspection_data(node_uuid, data, processed=True):
+    """Store introspection data to the storage backend.
+
+    :param node_uuid: node UUID
+    :param data: Introspection data to be saved
+    :param processed: The type of introspection data, set to True means the
+                      introspection data is processed, otherwise unprocessed.
+    :raises: utils.Error
+    """
     introspection_data_manager = plugins_base.introspection_data_manager()
     store = CONF.processing.store_data
     ext = introspection_data_manager[store].obj
@@ -150,13 +158,22 @@ def _store_data(node_uuid, data, processed=True):
 def _store_unprocessed_data(node_uuid, data):
     # runs in background
     try:
-        _store_data(node_uuid, data, processed=False)
+        store_introspection_data(node_uuid, data, processed=False)
     except Exception:
         LOG.exception('Encountered exception saving unprocessed '
                       'introspection data for node %s', node_uuid, data=data)
 
 
 def get_introspection_data(uuid, processed=True, get_json=False):
+    """Get introspection data from the storage backend.
+
+    :param uuid: node UUID
+    :param processed: Indicates the type of introspection data to be read,
+                      set True to request processed introspection data.
+    :param get_json: Specify whether return the introspection data in json
+                     format, string value is returned if False.
+    :raises: utils.Error
+    """
     introspection_data_manager = plugins_base.introspection_data_manager()
     store = CONF.processing.store_data
     ext = introspection_data_manager[store].obj
@@ -242,7 +259,7 @@ def _process_node(node_info, node, introspection_data):
     # NOTE(dtantsur): repeat the check in case something changed
     ir_utils.check_provision_state(node)
     _run_post_hooks(node_info, introspection_data)
-    _store_data(node_info.uuid, introspection_data)
+    store_introspection_data(node_info.uuid, introspection_data)
 
     ironic = ir_utils.get_client()
     pxe_filter.driver().sync(ironic)
@@ -292,8 +309,8 @@ def reapply(node_uuid, data=None):
     stored data.
 
     :param node_uuid: node UUID
+    :param data: unprocessed introspection data to be reapplied
     :raises: utils.Error
-
     """
 
     LOG.debug('Processing re-apply introspection request for node '
@@ -307,7 +324,7 @@ def reapply(node_uuid, data=None):
         raise utils.Error(_('Node locked, please, try again later'),
                           node_info=node_info, code=409)
 
-    utils.executor().submit(_reapply, node_info, data)
+    utils.executor().submit(_reapply, node_info, introspection_data=data)
 
 
 def _reapply(node_info, introspection_data=None):
@@ -350,6 +367,6 @@ def _reapply_with_data(node_info, introspection_data):
                           '\n'.join(failures), node_info=node_info)
 
     _run_post_hooks(node_info, introspection_data)
-    _store_data(node_info.uuid, introspection_data)
+    store_introspection_data(node_info.uuid, introspection_data)
     node_info.invalidate_cache()
     rules.apply(node_info, introspection_data)

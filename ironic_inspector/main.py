@@ -39,7 +39,7 @@ app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 14)
+CURRENT_API_VERSION = (1, 15)
 DEFAULT_API_VERSION = CURRENT_API_VERSION
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
@@ -307,14 +307,25 @@ def api_introspection_data(node_id):
 @api('/v1/introspection/<node_id>/data/unprocessed',
      rule="introspection:reapply", methods=['POST'])
 def api_introspection_reapply(node_id):
+    data = None
     if flask.request.content_length:
-        return error_response(_('User data processing is not '
-                                'supported yet'), code=400)
+        try:
+            data = flask.request.get_json(force=True)
+        except Exception:
+            raise utils.Error(
+                _('Invalid data: expected a JSON object, got %s') % data)
+        if not isinstance(data, dict):
+            raise utils.Error(
+                _('Invalid data: expected a JSON object, got %s') %
+                data.__class__.__name__)
+        LOG.debug("Received reapply data from request", data=data)
+
     if not uuidutils.is_uuid_like(node_id):
         node = ir_utils.get_node(node_id, fields=['uuid'])
         node_id = node.uuid
+
     client = rpc.get_client()
-    client.call({}, 'do_reapply', node_uuid=node_id)
+    client.call({}, 'do_reapply', node_uuid=node_id, data=data)
     return '', 202
 
 
