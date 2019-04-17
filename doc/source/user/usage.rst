@@ -168,7 +168,8 @@ unless you understand what you're doing:
       node driver ``root_device`` hints to prevent unexpected HW failures
       passing silently.
 
-``validate_interfaces`` validates network interfaces information. Creates new
+``validate_interfaces``
+    validates network interfaces information. Creates new
     ports, optionally deletes ports that were not present in the introspection
     data. Also sets the ``pxe_enabled`` flag for the PXE-booting port and
     unsets it for all the other ports to avoid **nova** picking a random port
