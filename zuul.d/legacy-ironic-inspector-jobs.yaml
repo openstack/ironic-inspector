@@ -8,7 +8,7 @@
       - openstack/ironic-lib
       - openstack/ironic-python-agent
       - openstack/ironic-tempest-plugin
-      - openstack/pyghmi
+      - x/pyghmi
       - openstack/python-ironic-inspector-client
       - openstack/python-ironicclient
       - openstack/virtualbmc
@@ -31,4 +31,4 @@
     post-run: playbooks/legacy/ironic-inspector-grenade-dsvm/post.yaml
     timeout: 10800
     required-projects:
-      - openstack-dev/grenade
+      - openstack/grenade
