@@ -64,6 +64,7 @@ IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=${IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK:-""}
 IRONIC_INSPECTOR_OVS_PORT=${IRONIC_INSPECTOR_OVS_PORT:-brbm-inspector}
 IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE=${IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE:-""}
 IRONIC_INSPECTOR_POWER_OFF=${IRONIC_INSPECTOR_POWER_OFF:-True}
+IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE=${IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE:-swift}
 GITDIR["python-ironic-inspector-client"]=$DEST/python-ironic-inspector-client
 GITREPO["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_REPO:-${GIT_BASE}/openstack/python-ironic-inspector-client.git}
 GITBRANCH["python-ironic-inspector-client"]=${IRONIC_INSPECTOR_CLIENT_BRANCH:-master}
@@ -277,6 +278,8 @@ function configure_inspector {
         configure_inspector_swift
     fi
 
+    inspector_iniset processing store_data $IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE
+
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI
 
@@ -319,7 +322,6 @@ function configure_inspector {
 
 function configure_inspector_swift {
     inspector_configure_auth_for swift
-    inspector_iniset processing store_data swift
 }
 
 function configure_inspector_dhcp {
@@ -449,6 +451,7 @@ elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_default_driver fake-hardware
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_target_driver ipmi
         fi
+        iniset $TEMPEST_CONFIG baremetal_introspection data_store $IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE
     fi
 fi
 
