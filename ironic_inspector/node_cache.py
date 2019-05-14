@@ -18,6 +18,7 @@ import contextlib
 import copy
 import datetime
 import json
+import operator
 import six
 
 from automaton import exceptions as automaton_errors
@@ -30,7 +31,6 @@ from oslo_utils import reflection
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from sqlalchemy.orm import exc as orm_errors
-from sqlalchemy import text
 
 from ironic_inspector import db
 from ironic_inspector.common.i18n import _, _LE, _LW, _LI
@@ -795,14 +795,11 @@ def find_node(**attributes):
 
         LOG.debug('Trying to use %s of value %s for node look up',
                   name, value)
-        value_list = []
-        for v in value:
-            value_list.append("name='%s' AND value='%s'" % (name, v))
-        stmt = ('select distinct node_uuid from attributes where ' +
-                ' OR '.join(value_list))
-        rows = (db.model_query(db.Attribute.node_uuid).from_statement(
-            text(stmt)).all())
-        found.update(row.node_uuid for row in rows)
+        query = db.model_query(db.Attribute.node_uuid)
+        pairs = [(db.Attribute.name == name) &
+                 (db.Attribute.value == v) for v in value]
+        query = query.filter(six.moves.reduce(operator.or_, pairs))
+        found.update(row.node_uuid for row in query.distinct().all())
 
     if not found:
         raise utils.NotFoundInCacheError(_(
