@@ -303,6 +303,11 @@ class TestNodeCacheFind(test_base.NodeTest):
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
+    def test_input_filtering(self):
+        self.assertRaises(utils.NotFoundInCacheError,
+                          node_cache.find_node,
+                          bmc_address="' OR ''='")
+
 
 class TestNodeCacheCleanUp(test_base.NodeTest):
     def setUp(self):
