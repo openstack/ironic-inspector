@@ -133,7 +133,7 @@ def abort(node_id, token=None):
     """
     LOG.debug('Aborting introspection for node %s', node_id)
     ironic = ir_utils.get_client(token)
-    node_info = node_cache.get_node(node_id, ironic=ironic, locked=False)
+    node_info = node_cache.get_node(node_id, ironic=ironic)
 
     # check pending operations
     locked = node_info.acquire_lock(blocking=False)
