@@ -53,7 +53,15 @@ class ExtraHardwareHook(base.ProcessingHook):
         data = introspection_data['data']
 
         name = 'extra_hardware-%s' % node_info.uuid
-        self._store_extra_hardware(name, json.dumps(data))
+        try:
+            self._store_extra_hardware(name, json.dumps(data))
+        except utils.Error as e:
+            LOG.error("Failed to save extra hardware information in "
+                      "Swift: %s", e, node_info=node_info)
+        else:
+            node_info.patch([{'op': 'add',
+                              'path': '/extra/hardware_swift_object',
+                              'value': name}])
 
         # NOTE(sambetts) If data is edeploy format, convert to dicts for rules
         # processing, store converted data in introspection_data['extra'].
@@ -75,9 +83,6 @@ class ExtraHardwareHook(base.ProcessingHook):
                   'stored in swift',
                   node_info=node_info, data=introspection_data)
         del introspection_data['data']
-
-        node_info.patch([{'op': 'add', 'path': '/extra/hardware_swift_object',
-                          'value': name}])
 
     def _is_edeploy_data(self, data):
         return all(isinstance(item, list) and len(item) == EDEPLOY_ITEM_SIZE
