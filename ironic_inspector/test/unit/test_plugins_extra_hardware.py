@@ -18,6 +18,7 @@ import mock
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import extra_hardware
 from ironic_inspector.test import base as test_base
+from ironic_inspector import utils
 
 
 @mock.patch.object(extra_hardware.swift, 'SwiftAPI', autospec=True)
@@ -95,3 +96,39 @@ class TestExtraHardware(test_base.NodeTest):
                          'Larry': {'the': {'Lobster': None}},
                          'Eugene': {'H.': {'Krabs': 'The cashier'}}}
         self.assertEqual(expected_data, data)
+
+    def test_swift_access_failed(self, patch_mock, swift_mock):
+        introspection_data = {
+            'data': [['memory', 'total', 'size', '4294967296'],
+                     ['cpu', 'physical', 'number', '1'],
+                     ['cpu', 'logical', 'number', '1']]}
+        data = json.dumps(introspection_data['data'])
+        name = 'extra_hardware-%s' % self.uuid
+
+        swift_conn = swift_mock.return_value
+        swift_conn.create_object.side_effect = utils.Error('no one')
+
+        self.hook.before_processing(introspection_data)
+        self.hook.before_update(introspection_data, self.node_info)
+
+        swift_conn.create_object.assert_called_once_with(name, data)
+        patch_mock.assert_not_called()
+
+        expected = {
+            'memory': {
+                'total': {
+                    'size': 4294967296
+                }
+            },
+            'cpu': {
+                'physical': {
+                    'number': 1
+                },
+                'logical': {
+                    'number': 1
+                },
+            }
+        }
+
+        self.assertNotIn('data', introspection_data)
+        self.assertEqual(expected, introspection_data['extra'])
