@@ -343,10 +343,11 @@ class TestGetBlacklist(test_base.BaseTest):
         self.mock_ironic = mock.Mock()
 
     def test_active_port(self):
-        self.mock_ironic.port.list.return_value = [
+        mock_ports_list = [
             mock.Mock(address='foo'),
             mock.Mock(address='bar'),
         ]
+        self.mock_ironic.port.list.return_value = mock_ports_list
         self.mock_active_macs.return_value = {'foo'}
 
         ports = iptables._get_blacklist(self.mock_ironic)
@@ -354,16 +355,18 @@ class TestGetBlacklist(test_base.BaseTest):
         self.assertEqual(['bar'], ports)
         self.mock_ironic.port.list.assert_called_once_with(
             limit=0, fields=['address', 'extra'])
-        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(ports)
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            [mock_ports_list[1]])
 
     @mock.patch('time.sleep', lambda _x: None)
     def test_retry_on_port_list_failure(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
         self.mock_ironic.port.list.side_effect = [
             ironic_exc.ConnectionRefused('boom'),
-            [
-                mock.Mock(address='foo'),
-                mock.Mock(address='bar'),
-            ]
+            mock_ports_list
         ]
         self.mock_active_macs.return_value = {'foo'}
 
@@ -372,4 +375,5 @@ class TestGetBlacklist(test_base.BaseTest):
         self.assertEqual(['bar'], ports)
         self.mock_ironic.port.list.assert_called_with(
             limit=0, fields=['address', 'extra'])
-        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(ports)
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            [mock_ports_list[1]])
