@@ -78,25 +78,6 @@ class TestSwiftStore(BaseTest):
             db.Node(uuid=self.node_info.uuid,
                     state=istate.States.starting).save(session)
 
-    def test_store_data_location(self, swift_mock):
-        CONF.set_override('store_data_location', 'inspector_data_object',
-                          'processing')
-        self._create_node()
-        swift_conn = swift_mock.return_value
-        name = 'inspector_data-%s' % self.uuid
-        patch = [{'path': '/extra/inspector_data_object',
-                  'value': name, 'op': 'add'}]
-        expected = self.data
-
-        self.driver.save(self.node_info.uuid, self.data)
-
-        data = introspection_data._filter_data_excluded_keys(self.data)
-        swift_conn.create_object.assert_called_once_with(name,
-                                                         json.dumps(data))
-        self.assertEqual(expected,
-                         json.loads(swift_conn.create_object.call_args[0][1]))
-        self.cli.node.update.assert_any_call(self.uuid, patch)
-
 
 class TestDatabaseStore(BaseTest):
     def setUp(self):
