@@ -89,8 +89,9 @@ class TestProcess(BaseProcessTest):
 
         self.assertEqual(self.fake_result_json, res)
 
-        self.find_mock.assert_called_once_with(bmc_address=self.bmc_address,
-                                               mac=mock.ANY)
+        self.find_mock.assert_called_once_with(
+            bmc_address=[self.bmc_address, self.bmc_v6address],
+            mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         self.cli.node.get.assert_called_once_with(self.uuid)
@@ -99,9 +100,11 @@ class TestProcess(BaseProcessTest):
 
     def test_no_ipmi(self):
         del self.inventory['bmc_address']
+        del self.inventory['bmc_v6address']
         process.process(self.data)
 
-        self.find_mock.assert_called_once_with(bmc_address=None, mac=mock.ANY)
+        self.find_mock.assert_called_once_with(bmc_address=[None, None],
+                                               mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         self.cli.node.get.assert_called_once_with(self.uuid)
@@ -110,9 +113,11 @@ class TestProcess(BaseProcessTest):
 
     def test_ipmi_not_detected(self):
         self.inventory['bmc_address'] = '0.0.0.0'
+        self.inventory['bmc_v6address'] = '::/0'
         process.process(self.data)
 
-        self.find_mock.assert_called_once_with(bmc_address=None, mac=mock.ANY)
+        self.find_mock.assert_called_once_with(bmc_address=[None, None],
+                                               mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         self.cli.node.get.assert_called_once_with(self.uuid)
@@ -124,7 +129,9 @@ class TestProcess(BaseProcessTest):
         self.data['ipmi_address'] = '0.0.0.0'
         process.process(self.data)
 
-        self.find_mock.assert_called_once_with(bmc_address=None, mac=mock.ANY)
+        self.find_mock.assert_called_once_with(
+            bmc_address=[None, self.bmc_v6address],
+            mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
         self.cli.node.get.assert_called_once_with(self.uuid)

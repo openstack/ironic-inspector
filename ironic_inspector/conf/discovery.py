@@ -21,6 +21,16 @@ _OPTS = [
                default='fake-hardware',
                help=_('The name of the Ironic driver used by the enroll '
                       'hook when creating a new node in Ironic.')),
+    cfg.ListOpt('enabled_bmc_address_version',
+                default=['4', '6'],
+                help=_('IP version of BMC address that will be '
+                       'used when enrolling a new node in Ironic. '
+                       'Defaults to "4,6". Could be "4" (use v4 address '
+                       'only), "4,6" (v4 address have higher priority and '
+                       'if both addresses found v6 version is ignored), '
+                       '"6,4" (v6 is desired but fall back to v4 address '
+                       'for BMCs having v4 address, opposite to "4,6"), '
+                       '"6" (use v6 address only and ignore v4 version).')),
 ]
 
 

@@ -60,19 +60,39 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
     def test_enroll_with_ipmi_address(self, mock_check_existing, mock_client,
                                       mock_create_node):
         mock_client.return_value = self.ironic
-        introspection_data = {'ipmi_address': '1.2.3.4'}
-        expected_data = introspection_data.copy()
+        expected_data = copy.deepcopy(self.data)
         mock_check_existing = copy_call_args(mock_check_existing)
 
-        discovery.enroll_node_not_found_hook(introspection_data)
+        discovery.enroll_node_not_found_hook(self.data)
 
         mock_create_node.assert_called_once_with(
             'fake-hardware', ironic=self.ironic,
-            driver_info={'ipmi_address': '1.2.3.4'})
+            driver_info={'ipmi_address': self.bmc_address})
         mock_check_existing.assert_called_once_with(
-            expected_data, {'ipmi_address': '1.2.3.4'}, self.ironic)
-        self.assertEqual({'ipmi_address': '1.2.3.4', 'auto_discovered': True},
-                         introspection_data)
+            expected_data, {'ipmi_address': self.bmc_address}, self.ironic)
+        self.assertTrue(self.data['auto_discovered'])
+
+    @mock.patch.object(node_cache, 'create_node', autospec=True)
+    @mock.patch.object(ir_utils, 'get_client', autospec=True)
+    @mock.patch.object(discovery, '_check_existing_nodes', autospec=True)
+    def test_enroll_with_ipmi_v6address(self, mock_check_existing, mock_client,
+                                        mock_create_node):
+        mock_client.return_value = self.ironic
+        # By default enabled_bmc_address_version="4,6".
+        # Because bmc_address is not set (pop it) _extract_node_driver_info
+        # method returns bmc_v6address
+        self.data['inventory'].pop('bmc_address')
+        expected_data = copy.deepcopy(self.data)
+        mock_check_existing = copy_call_args(mock_check_existing)
+
+        discovery.enroll_node_not_found_hook(self.data)
+
+        mock_create_node.assert_called_once_with(
+            'fake-hardware', ironic=self.ironic,
+            driver_info={'ipmi_address': self.bmc_v6address})
+        mock_check_existing.assert_called_once_with(
+            expected_data, {'ipmi_address': self.bmc_v6address}, self.ironic)
+        self.assertTrue(self.data['auto_discovered'])
 
     @mock.patch.object(node_cache, 'create_node', autospec=True)
     @mock.patch.object(ir_utils, 'get_client', autospec=True)
