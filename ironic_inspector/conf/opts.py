@@ -69,4 +69,5 @@ def list_opts():
         ('processing', ironic_inspector.conf.processing.list_opts()),
         ('pci_devices', ironic_inspector.conf.pci_devices.list_opts()),
         ('pxe_filter', ironic_inspector.conf.pxe_filter.list_opts()),
+        ('service_catalog', ironic_inspector.conf.service_catalog.list_opts()),
     ]

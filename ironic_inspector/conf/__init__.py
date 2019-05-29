@@ -21,6 +21,7 @@ from ironic_inspector.conf import ironic
 from ironic_inspector.conf import pci_devices
 from ironic_inspector.conf import processing
 from ironic_inspector.conf import pxe_filter
+from ironic_inspector.conf import service_catalog
 from ironic_inspector.conf import swift
 
 
@@ -36,4 +37,5 @@ ironic.register_opts(CONF)
 pci_devices.register_opts(CONF)
 processing.register_opts(CONF)
 pxe_filter.register_opts(CONF)
+service_catalog.register_opts(CONF)
 swift.register_opts(CONF)

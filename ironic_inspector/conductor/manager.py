@@ -17,6 +17,7 @@ import traceback as traceback_mod
 import eventlet
 from eventlet import semaphore
 from futurist import periodics
+from ironic_lib import mdns
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging as messaging
@@ -24,6 +25,7 @@ from oslo_utils import reflection
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import keystone
 from ironic_inspector import db
 from ironic_inspector import introspect
 from ironic_inspector import node_cache
@@ -45,6 +47,7 @@ class ConductorManager(object):
 
     def __init__(self):
         self._periodics_worker = None
+        self._zeroconf = None
         self._shutting_down = semaphore.Semaphore()
 
     def init_host(self):
@@ -86,6 +89,12 @@ class ConductorManager(object):
             on_failure=self._periodics_watchdog)
         utils.executor().submit(self._periodics_worker.start)
 
+        if CONF.enable_mdns:
+            endpoint = keystone.get_endpoint('service_catalog')
+            self._zeroconf = mdns.Zeroconf()
+            self._zeroconf.register_service('baremetal-introspection',
+                                            endpoint)
+
     def del_host(self):
 
         if not self._shutting_down.acquire(blocking=False):
@@ -104,6 +113,10 @@ class ConductorManager(object):
 
         if utils.executor().alive:
             utils.executor().shutdown(wait=True)
+
+        if self._zeroconf is not None:
+            self._zeroconf.close()
+            self._zeroconf = None
 
         self._shutting_down.release()
         LOG.info('Shut down successfully')
