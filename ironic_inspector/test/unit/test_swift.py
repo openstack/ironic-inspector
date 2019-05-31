@@ -14,7 +14,7 @@
 
 # Mostly copied from ironic/tests/test_swift.py
 
-
+from keystoneauth1 import exceptions as ks_exc
 from keystoneauth1 import loading as kloading
 import mock
 from swiftclient import client as swift_client
@@ -72,6 +72,24 @@ class SwiftTestCase(BaseTest):
         fake_endpoint = "http://localhost:6000"
         adapter_mock.return_value.get_endpoint.return_value = fake_endpoint
         swift.SwiftAPI()
+        connection_mock.assert_called_once_with(
+            session=load_mock.return_value,
+            os_options={'object_storage_url': fake_endpoint})
+
+    def test___init__keystone_failure(self, connection_mock, load_mock,
+                                      opts_mock, adapter_mock):
+        adapter_mock.side_effect = ks_exc.MissingRequiredOptions([])
+        self.assertRaisesRegex(utils.Error, 'Could not create an adapter',
+                               swift.SwiftAPI)
+        self.assertFalse(connection_mock.called)
+
+    def test___init__swift_failure(self, connection_mock, load_mock,
+                                   opts_mock, adapter_mock):
+        fake_endpoint = "http://localhost:6000"
+        adapter_mock.return_value.get_endpoint.return_value = fake_endpoint
+        connection_mock.side_effect = RuntimeError()
+        self.assertRaisesRegex(utils.Error, 'Could not connect',
+                               swift.SwiftAPI)
         connection_mock.assert_called_once_with(
             session=load_mock.return_value,
             os_options={'object_storage_url': fake_endpoint})
