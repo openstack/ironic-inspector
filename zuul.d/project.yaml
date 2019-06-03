@@ -17,6 +17,8 @@
         - openstack-tox-functional
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-xenial
+        - ironic-inspector-tox-bandit:
+            voting: false
     gate:
       queue: ironic
       jobs:
