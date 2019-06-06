@@ -18,28 +18,11 @@ import json
 
 from oslo_config import cfg
 
-from ironic_inspector.common.i18n import _
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
-PCI_DEVICES_OPTS = [
-    cfg.MultiStrOpt('alias',
-                    default=[],
-                    help=_('An alias for PCI device identified by '
-                           '\'vendor_id\' and \'product_id\' fields. Format: '
-                           '{"vendor_id": "1234", "product_id": "5678", '
-                           '"name": "pci_dev1"}')),
-]
-
-
-def list_opts():
-    return [
-        ('pci_devices', PCI_DEVICES_OPTS)
-    ]
-
 
 CONF = cfg.CONF
-CONF.register_opts(PCI_DEVICES_OPTS, group='pci_devices')
 
 LOG = utils.getProcessingLogger(__name__)
 
