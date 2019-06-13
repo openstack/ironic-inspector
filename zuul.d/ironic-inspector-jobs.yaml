@@ -63,3 +63,24 @@
         IRONIC_INSPECTOR_RAMDISK_ELEMENT: ironic-agent
         IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
         IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE: database
+
+- job:
+    # Security testing for known issues
+    name: ironic-inspector-tox-bandit
+    parent: openstack-tox
+    timeout: 2400
+    vars:
+      tox_envlist: bandit
+    required-projects:
+      - openstack/ironic-inspector
+    irrelevant-files:
+      - ^.*\.rst$
+      - ^api-ref/.*$
+      - ^doc/.*$
+      - ^ironic_inspector/test/(?!.*tempest).*$
+      - ^ironic_inspector/locale/.*$
+      - ^releasenotes/.*$
+      - ^tools/.*$
+      - ^test-requirements.txt$
+      - ^setup.cfg$
+      - ^tox.ini$
