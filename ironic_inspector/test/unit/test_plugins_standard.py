@@ -64,6 +64,40 @@ class TestSchedulerHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_missing_cpu(self, mock_patch):
+        self.data['inventory']['cpu'] = {'count': 'none'}
+        patch = [
+            {'path': '/properties/memory_mb', 'value': '12288', 'op': 'add'},
+        ]
+
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_missing_memory(self, mock_patch):
+        # We require physical_mb, not total
+        self.data['inventory']['memory'] = {'total': 42}
+        patch = [
+            {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+        ]
+
+        self.hook.before_update(self.data, self.node_info)
+        self.assertCalledWithPatch(patch, mock_patch)
+
+    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    def test_no_data(self, mock_patch):
+        self.data['inventory']['cpu'] = {}
+        self.data['inventory']['memory'] = {}
+        self.hook.before_update(self.data, self.node_info)
+
+        del self.data['inventory']['cpu']
+        del self.data['inventory']['memory']
+        self.hook.before_update(self.data, self.node_info)
+
+        self.assertFalse(mock_patch.called)
+
 
 class TestValidateInterfacesHookLoad(test_base.NodeTest):
     def test_hook_loadable_by_name(self):
@@ -87,7 +121,7 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
                                self.hook.before_processing, {'inventory': {}})
         del self.inventory['interfaces']
         self.assertRaisesRegex(utils.Error,
-                               'interfaces key is missing or empty',
+                               'No network interfaces',
                                self.hook.before_processing, self.data)
 
     def test_only_pxe(self):
