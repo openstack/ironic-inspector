@@ -202,9 +202,6 @@ def get_valid_macs(data):
             if m.get('mac')]
 
 
-_INVENTORY_MANDATORY_KEYS = ('memory', 'cpu', 'interfaces')
-
-
 def get_inventory(data, node_info=None):
     """Get and validate the hardware inventory from introspection data."""
     inventory = data.get('inventory')
@@ -213,10 +210,9 @@ def get_inventory(data, node_info=None):
         raise Error(_('Hardware inventory is empty or missing'),
                     data=data, node_info=node_info)
 
-    for key in _INVENTORY_MANDATORY_KEYS:
-        if not inventory.get(key):
-            raise Error(_('Invalid hardware inventory: %s key is missing '
-                          'or empty') % key, data=data, node_info=node_info)
+    if not inventory.get('interfaces'):
+        raise Error(_('No network interfaces provided in the inventory'),
+                    data=data, node_info=node_info)
 
     if not inventory.get('disks'):
         LOG.info('No disks were detected in the inventory, assuming this '

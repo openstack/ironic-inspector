@@ -100,39 +100,33 @@ class SchedulerHook(base.ProcessingHook):
         """Update node with scheduler properties."""
         inventory = utils.get_inventory(introspection_data,
                                         node_info=node_info)
-        errors = []
-
         try:
             introspection_data['cpus'] = int(inventory['cpu']['count'])
             introspection_data['cpu_arch'] = six.text_type(
                 inventory['cpu']['architecture'])
         except (KeyError, ValueError, TypeError):
-            errors.append(_('malformed or missing CPU information: %s') %
-                          inventory.get('cpu'))
+            LOG.warning('malformed or missing CPU information: %s',
+                        inventory.get('cpu'))
 
         try:
             introspection_data['memory_mb'] = int(
                 inventory['memory']['physical_mb'])
         except (KeyError, ValueError, TypeError):
-            errors.append(_('malformed or missing memory information: %s; '
-                            'introspection requires physical memory size '
-                            'from dmidecode') % inventory.get('memory'))
+            LOG.warning('malformed or missing memory information: %s; '
+                        'introspection requires physical memory size '
+                        'from dmidecode', inventory.get('memory'))
 
-        if errors:
-            raise utils.Error(_('The following problems encountered: %s') %
-                              '; '.join(errors),
-                              node_info=node_info, data=introspection_data)
-
-        LOG.info('Discovered data: CPUs: %(cpus)s %(cpu_arch)s, '
-                 'memory %(memory_mb)s MiB',
+        LOG.info('Discovered data: CPUs: count %(cpus)s, architecture '
+                 '%(cpu_arch)s, memory %(memory_mb)s MiB',
                  {key: introspection_data.get(key) for key in self.KEYS},
                  node_info=node_info, data=introspection_data)
 
         overwrite = CONF.processing.overwrite_existing
         properties = {key: str(introspection_data[key])
-                      for key in self.KEYS if overwrite or
-                      not node_info.node().properties.get(key)}
-        node_info.update_properties(**properties)
+                      for key in self.KEYS if introspection_data.get(key) and
+                      (overwrite or not node_info.node().properties.get(key))}
+        if properties:
+            node_info.update_properties(**properties)
 
 
 class ValidateInterfacesHook(base.ProcessingHook):
