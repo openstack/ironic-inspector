@@ -414,8 +414,7 @@ class TestAbort(BaseTest):
 
         introspect.abort(self.node.uuid)
 
-        get_mock.assert_called_once_with(self.uuid, ironic=cli,
-                                         locked=False)
+        get_mock.assert_called_once_with(self.uuid, ironic=cli)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
@@ -433,8 +432,7 @@ class TestAbort(BaseTest):
 
         introspect.abort(self.node.uuid)
 
-        get_mock.assert_called_once_with(self.uuid, ironic=cli,
-                                         locked=False)
+        get_mock.assert_called_once_with(self.uuid, ironic=cli)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         self.assertFalse(cli.node.set_power_state.called)
@@ -479,8 +477,7 @@ class TestAbort(BaseTest):
 
         introspect.abort(self.uuid)
 
-        get_mock.assert_called_once_with(self.uuid, ironic=cli,
-                                         locked=False)
+        get_mock.assert_called_once_with(self.uuid, ironic=cli)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
@@ -498,8 +495,7 @@ class TestAbort(BaseTest):
 
         introspect.abort(self.uuid)
 
-        get_mock.assert_called_once_with(self.uuid, ironic=cli,
-                                         locked=False)
+        get_mock.assert_called_once_with(self.uuid, ironic=cli)
         self.node_info.acquire_lock.assert_called_once_with(blocking=False)
         self.sync_filter_mock.assert_called_once_with(cli)
         cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')

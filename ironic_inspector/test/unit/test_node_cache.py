@@ -102,7 +102,7 @@ class TestNodeCache(test_base.NodeTest):
             uuid=self.uuid).first()
         self.assertIsNone(row_option)
 
-    @mock.patch.object(node_cache, '_get_lock_ctx', autospec=True)
+    @mock.patch.object(node_cache, '_get_lock', autospec=True)
     @mock.patch.object(node_cache, '_list_node_uuids')
     @mock.patch.object(node_cache, '_delete_node')
     def test_delete_nodes_not_in_list(self, mock__delete_node,
@@ -368,9 +368,9 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual(1, db.model_query(db.IntrospectionData).count())
         self.assertFalse(get_lock_mock.called)
 
-    @mock.patch.object(node_cache, '_get_lock', autospec=True)
+    @mock.patch.object(node_cache.NodeInfo, 'acquire_lock', autospec=True)
     @mock.patch.object(timeutils, 'utcnow')
-    def test_timeout(self, time_mock, get_lock_mock):
+    def test_timeout(self, time_mock, lock_mock):
         # Add a finished node to confirm we don't try to timeout it
         time_mock.return_value = self.started_at
         session = db.get_writer_session()
@@ -396,8 +396,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
             res)
         self.assertEqual([], db.model_query(db.Attribute).all())
         self.assertEqual([], db.model_query(db.Option).all())
-        get_lock_mock.assert_called_once_with(self.uuid)
-        get_lock_mock.return_value.acquire.assert_called_once_with()
+        lock_mock.assert_called_once_with(mock.ANY, blocking=False)
 
     @mock.patch.object(node_cache, '_get_lock', autospec=True)
     @mock.patch.object(timeutils, 'utcnow')
@@ -421,6 +420,22 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                 [(istate.States.error, current_time, 'Introspection timeout')],
                 res)
 
+    @mock.patch.object(node_cache.NodeInfo, 'acquire_lock', autospec=True)
+    @mock.patch.object(timeutils, 'utcnow')
+    def test_timeout_lock_failed(self, time_mock, get_lock_mock):
+        time_mock.return_value = self.started_at
+        CONF.set_override('timeout', 1)
+        get_lock_mock.return_value = False
+        current_time = self.started_at + datetime.timedelta(seconds=2)
+        time_mock.return_value = current_time
+
+        self.assertEqual([], node_cache.clean_up())
+
+        res = [(row.state, row.finished_at, row.error) for row in
+               db.model_query(db.Node).all()]
+        self.assertEqual([('waiting', None, None)], res)
+        get_lock_mock.assert_called_once_with(mock.ANY, blocking=False)
+
 
 class TestNodeCacheGetNode(test_base.NodeTest):
     def test_ok(self):
@@ -438,22 +453,6 @@ class TestNodeCacheGetNode(test_base.NodeTest):
         self.assertIsNone(info.finished_at)
         self.assertIsNone(info.error)
         self.assertFalse(info._locked)
-
-    def test_locked(self):
-        started_at = (datetime.datetime.utcnow() -
-                      datetime.timedelta(seconds=42))
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.uuid,
-                    state=istate.States.starting,
-                    started_at=started_at).save(session)
-        info = node_cache.get_node(self.uuid, locked=True)
-        self.addCleanup(info.release_lock)
-        self.assertEqual(self.uuid, info.uuid)
-        self.assertEqual(started_at, info.started_at)
-        self.assertIsNone(info.finished_at)
-        self.assertIsNone(info.error)
-        self.assertTrue(info._locked)
 
     def test_not_found(self):
         self.assertRaises(utils.Error, node_cache.get_node,

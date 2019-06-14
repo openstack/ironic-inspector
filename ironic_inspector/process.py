@@ -315,7 +315,7 @@ def reapply(node_uuid, data=None):
 
     LOG.debug('Processing re-apply introspection request for node '
               'UUID: %s', node_uuid)
-    node_info = node_cache.get_node(node_uuid, locked=False)
+    node_info = node_cache.get_node(node_uuid)
     if not node_info.acquire_lock(blocking=False):
         # Note (mkovacik): it should be sufficient to check data
         # presence & locking. If either introspection didn't start

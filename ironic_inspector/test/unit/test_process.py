@@ -546,7 +546,7 @@ class TestReapply(BaseTest):
     @prepare_mocks
     def test_ok(self, pop_mock, reapply_mock):
         process.reapply(self.uuid)
-        pop_mock.assert_called_once_with(self.uuid, locked=False)
+        pop_mock.assert_called_once_with(self.uuid)
         pop_mock.return_value.acquire_lock.assert_called_once_with(
             blocking=False
         )
@@ -561,7 +561,7 @@ class TestReapply(BaseTest):
                                'Node locked, please, try again later',
                                process.reapply, self.uuid)
 
-        pop_mock.assert_called_once_with(self.uuid, locked=False)
+        pop_mock.assert_called_once_with(self.uuid)
         pop_mock.return_value.acquire_lock.assert_called_once_with(
             blocking=False
         )
@@ -569,7 +569,7 @@ class TestReapply(BaseTest):
     @prepare_mocks
     def test_reapply_with_data(self, pop_mock, reapply_mock):
         process.reapply(self.uuid, data=self.data)
-        pop_mock.assert_called_once_with(self.uuid, locked=False)
+        pop_mock.assert_called_once_with(self.uuid)
         pop_mock.return_value.acquire_lock.assert_called_once_with(
             blocking=False
         )

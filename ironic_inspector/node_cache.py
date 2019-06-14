@@ -56,11 +56,6 @@ def _get_lock(uuid):
                                    semaphores=_SEMAPHORES)
 
 
-def _get_lock_ctx(uuid):
-    """Get context manager yielding a lock object for a given node UUID."""
-    return lockutils.lock(_LOCK_TEMPLATE % uuid, semaphores=_SEMAPHORES)
-
-
 class NodeInfo(object):
     """Record about a node in the cache.
 
@@ -71,7 +66,7 @@ class NodeInfo(object):
 
     def __init__(self, uuid, version_id=None, state=None, started_at=None,
                  finished_at=None, error=None, node=None, ports=None,
-                 ironic=None, lock=None, manage_boot=True):
+                 ironic=None, manage_boot=True):
         self.uuid = uuid
         self.started_at = started_at
         self.finished_at = finished_at
@@ -89,9 +84,9 @@ class NodeInfo(object):
         # equivalent to True actually.
         self._manage_boot = manage_boot if manage_boot is not None else True
         # This is a lock on a node UUID, not on a NodeInfo object
-        self._lock = lock if lock is not None else _get_lock(uuid)
+        self._lock = _get_lock(uuid)
         # Whether lock was acquired using this NodeInfo object
-        self._locked = lock is not None
+        self._locked = False
         self._fsm = None
 
     def __del__(self):
@@ -319,12 +314,12 @@ class NodeInfo(object):
             self._attributes = None
 
     @classmethod
-    def from_row(cls, row, ironic=None, lock=None, node=None):
+    def from_row(cls, row, ironic=None, node=None):
         """Construct NodeInfo from a database row."""
         fields = {key: row[key]
                   for key in ('uuid', 'version_id', 'state', 'started_at',
                               'finished_at', 'error', 'manage_boot')}
-        return cls(ironic=ironic, lock=lock, node=node, **fields)
+        return cls(ironic=ironic, node=node, **fields)
 
     def invalidate_cache(self):
         """Clear all cached info, so that it's reloaded next time."""
@@ -743,7 +738,7 @@ def delete_nodes_not_in_list(uuids):
     for uuid in inspector_uuids - uuids:
         LOG.warning('Node %s was deleted from Ironic, dropping from Ironic '
                     'Inspector database', uuid)
-        with _get_lock_ctx(uuid):
+        with _get_lock(uuid):
             _delete_node(uuid)
 
 
@@ -783,12 +778,11 @@ def _list_node_uuids():
     return {x.uuid for x in db.model_query(db.Node.uuid)}
 
 
-def get_node(node_id, ironic=None, locked=False):
+def get_node(node_id, ironic=None):
     """Get node from cache.
 
     :param node_id: node UUID or name.
     :param ironic: optional ironic client instance
-    :param locked: if True, get a lock on node before fetching its data
     :returns: structure NodeInfo.
     """
     if uuidutils.is_uuid_like(node_id):
@@ -798,22 +792,11 @@ def get_node(node_id, ironic=None, locked=False):
         node = ir_utils.get_node(node_id, ironic=ironic)
         uuid = node.uuid
 
-    if locked:
-        lock = _get_lock(uuid)
-        lock.acquire()
-    else:
-        lock = None
-
-    try:
-        row = db.model_query(db.Node).filter_by(uuid=uuid).first()
-        if row is None:
-            raise utils.Error(_('Could not find node %s in cache') % uuid,
-                              code=404)
-        return NodeInfo.from_row(row, ironic=ironic, lock=lock, node=node)
-    except Exception:
-        with excutils.save_and_reraise_exception():
-            if lock is not None:
-                lock.release()
+    row = db.model_query(db.Node).filter_by(uuid=uuid).first()
+    if row is None:
+        raise utils.Error(_('Could not find node %s in cache') % uuid,
+                          code=404)
+    return NodeInfo.from_row(row, ironic=ironic, node=node)
 
 
 def find_node(**attributes):
@@ -911,22 +894,28 @@ def clean_up():
         return []
 
     LOG.error('Introspection for nodes %s has timed out', uuids)
+    locked_uuids = []
     for u in uuids:
-        node_info = get_node(u, locked=True)
-        try:
-            if node_info.finished_at or node_info.started_at > threshold:
-                continue
-            if node_info.state != istate.States.waiting:
-                LOG.error('Something went wrong, timeout occurred '
-                          'while introspection in "%s" state',
-                          node_info.state,
-                          node_info=node_info)
-            node_info.finished(
-                istate.Events.timeout, error='Introspection timeout')
-        finally:
-            node_info.release_lock()
+        node_info = get_node(u)
+        if node_info.acquire_lock(blocking=False):
+            try:
+                if node_info.finished_at or node_info.started_at > threshold:
+                    continue
+                if node_info.state != istate.States.waiting:
+                    LOG.error('Something went wrong, timeout occurred '
+                              'while introspection in "%s" state',
+                              node_info.state,
+                              node_info=node_info)
+                node_info.finished(
+                    istate.Events.timeout, error='Introspection timeout')
+                locked_uuids.append(u)
+            finally:
+                node_info.release_lock()
+        else:
+            LOG.info('Failed to acquire lock when updating node state',
+                     node_info=node_info)
 
-    return uuids
+    return locked_uuids
 
 
 def create_node(driver, ironic=None, **attributes):
