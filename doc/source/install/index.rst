@@ -98,6 +98,22 @@ Fill in these minimum configuration values:
 * if you wish to use the ``dnsmasq`` PXE/DHCP filter driver rather than the
   default ``iptables`` driver, see the :ref:`dnsmasq_pxe_filter` description.
 
+* ``store_data`` in the ``processing`` section defines where introspection data
+  is stored and takes one of three values:
+
+  ``none``
+    introspection data is not stored (the default)
+  ``database``
+    introspection data is stored in the database (recommended for standalone
+    deployments)
+  ``swift``
+    introspection data is stored in the Object Store service (recommended for
+    full openstack deployments)
+
+  .. note::
+    It is possible to create third party storage backends using the
+    ``ironic_inspector.introspection_data.store`` entry point.
+
 See comments inside :doc:`the sample configuration
 </configuration/sample-config>` for other possible configuration options.
 
