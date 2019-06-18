@@ -56,11 +56,7 @@ class SwiftTestCase(BaseTest):
         super(SwiftTestCase, self).setUp()
         swift.reset_swift_session()
         self.swift_exception = swift_exception.ClientException('', '')
-        self.cfg.config(group='swift',
-                        os_service_type='object-store',
-                        os_endpoint_type='internalURL',
-                        os_region='somewhere',
-                        max_retries=2)
+        self.cfg.config(group='swift', max_retries=2)
         # NOTE(aarefiev) register keystoneauth dynamic options
         adapter_opts = kloading.get_adapter_conf_options(
             include_deprecated=False)

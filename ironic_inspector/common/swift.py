@@ -49,17 +49,11 @@ class SwiftAPI(object):
         """
         global SWIFT_SESSION
 
-        adapter_opts = dict()
-        # TODO(pas-ha): remove handling deprecated options in Rocky
-        if CONF.swift.os_region and not CONF.swift.region_name:
-            adapter_opts['region_name'] = CONF.swift.os_region
-
         try:
             if not SWIFT_SESSION:
                 SWIFT_SESSION = keystone.get_session('swift')
 
-            adapter = keystone.get_adapter('swift', session=SWIFT_SESSION,
-                                           **adapter_opts)
+            adapter = keystone.get_adapter('swift', session=SWIFT_SESSION)
         except Exception as exc:
             raise utils.Error(_("Could not create an adapter to connect to "
                                 "the object storage service: %s") % exc)

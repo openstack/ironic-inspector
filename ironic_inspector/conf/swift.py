@@ -35,23 +35,6 @@ _OPTS = [
                default='ironic-inspector',
                help=_('Default Swift container to use when creating '
                       'objects.')),
-    cfg.StrOpt('os_service_type',
-               default='object-store',
-               help=_('Swift service type.'),
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use [swift]/service_type option '
-                                   'to set specific service type')),
-    cfg.StrOpt('os_endpoint_type',
-               default='internalURL',
-               help=_('Swift endpoint type.'),
-               deprecated_for_removal=True,
-               deprecated_reason=_('Use [swift]/valid_interfaces option '
-                                   'to specify endpoint interfaces.')),
-    cfg.StrOpt('os_region',
-               help=_('Keystone region to get endpoint for.'),
-               deprecated_for_removal=True,
-               deprecated_reason=_("Use [swift]/region_name option to "
-                                   "configure region."))
 ]
 
 
