@@ -31,7 +31,6 @@ def set_config_defaults():
                                          'requests=WARNING',
                                          'urllib3.connectionpool=WARNING',
                                          'keystonemiddleware=WARNING',
-                                         'swiftclient=WARNING',
                                          'keystoneauth=WARNING',
                                          'ironicclient=WARNING'])
     set_cors_middleware_defaults()
