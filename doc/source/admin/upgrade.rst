@@ -26,3 +26,16 @@ When upgrading ironic-inspector, the following steps should always be taken:
 .. note::
     There is no implicit upgrade order between ironic and ironic-inspector,
     unless the `release notes`_ say otherwise.
+
+Migrating introspection data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Starting with Stein release, ironic-inspector supports two introspection data
+storage backends: ``swift`` and ``database``. If you decide to change the
+backend, you can use the provided command to migrate the data::
+
+    ironic-inspector-migrate-data --from swift --to database --config-file /etc/ironic-inspector/inspector.conf
+
+.. note::
+    Configuration for **both** backends is expected to be present in the
+    configuration file for this command to succeed.
