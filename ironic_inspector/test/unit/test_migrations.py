@@ -30,13 +30,15 @@ import alembic
 from alembic import script
 import mock
 from oslo_config import cfg
+from oslo_db.sqlalchemy import enginefacade
 from oslo_db.sqlalchemy.migration_cli import ext_alembic
 from oslo_db.sqlalchemy import orm
-from oslo_db.sqlalchemy import test_base
+from oslo_db.sqlalchemy import test_fixtures
 from oslo_db.sqlalchemy import test_migrations
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_log import log as logging
 from oslo_utils import uuidutils
+from oslotest import base as test_base
 import sqlalchemy
 
 from ironic_inspector import db
@@ -46,41 +48,6 @@ from ironic_inspector.test import base
 
 CONF = cfg.CONF
 LOG = logging.getLogger(__name__)
-
-
-def _get_connect_string(backend, user, passwd, database):
-    """Get database connection
-
-    Try to get a connection with a very specific set of values, if we get
-    these then we'll run the tests, otherwise they are skipped
-    """
-    if backend == "sqlite":
-        backend = "sqlite"
-    elif backend == "postgres":
-        backend = "postgresql+psycopg2"
-    elif backend == "mysql":
-        backend = "mysql+mysqldb"
-    else:
-        raise Exception("Unrecognized backend: '%s'" % backend)
-
-    return ("%(backend)s://%(user)s:%(passwd)s@localhost/%(database)s"
-            % {'backend': backend, 'user': user, 'passwd': passwd,
-               'database': database})
-
-
-def _is_backend_avail(backend, user, passwd, database):
-    try:
-        connect_uri = _get_connect_string(backend, user, passwd, database)
-        engine = sqlalchemy.create_engine(connect_uri)
-        connection = engine.connect()
-    except Exception:
-        # intentionally catch all to handle exceptions even if we don't
-        # have any backend code loaded.
-        return False
-    else:
-        connection.close()
-        engine.dispose()
-        return True
 
 
 @contextlib.contextmanager
@@ -199,6 +166,7 @@ class TestWalkVersions(base.BaseTest, WalkVersionsMixin):
 class MigrationCheckersMixin(object):
     def setUp(self):
         super(MigrationCheckersMixin, self).setUp()
+        self.engine = enginefacade.writer.get_engine()
         self.config = dbsync._get_alembic_config()
         self.config.ironic_inspector_config = CONF
         # create AlembicExtension with fake config and replace
@@ -209,16 +177,6 @@ class MigrationCheckersMixin(object):
 
     def test_walk_versions(self):
         self._walk_versions(self.engine, self.config)
-
-    def test_connect_fail(self):
-        """Test that we can trigger a database connection failure
-
-        Test that we can fail gracefully to ensure we don't break people
-        without specific database backend
-        """
-        if _is_backend_avail(self.FIXTURE.DRIVER, "openstack_cifail",
-                             self.FIXTURE.USERNAME, self.FIXTURE.DBNAME):
-            self.fail("Shouldn't have connected")
 
     def _check_578f84f38d(self, engine, data):
         nodes = db_utils.get_table(engine, 'nodes')
@@ -470,23 +428,30 @@ class MigrationCheckersMixin(object):
 
 class TestMigrationsMySQL(MigrationCheckersMixin,
                           WalkVersionsMixin,
-                          test_base.MySQLOpportunisticTestCase):
-    pass
+                          test_fixtures.OpportunisticDBTestMixin,
+                          test_base.BaseTestCase):
+    FIXTURE = test_fixtures.MySQLOpportunisticFixture
 
 
 class TestMigrationsPostgreSQL(MigrationCheckersMixin,
                                WalkVersionsMixin,
-                               test_base.PostgreSQLOpportunisticTestCase):
-    pass
+                               test_fixtures.OpportunisticDBTestMixin,
+                               test_base.BaseTestCase):
+    FIXTURE = test_fixtures.PostgresqlOpportunisticFixture
 
 
 class TestMigrationSqlite(MigrationCheckersMixin,
                           WalkVersionsMixin,
-                          test_base.DbTestCase):
-    pass
+                          test_fixtures.OpportunisticDBTestMixin,
+                          test_base.BaseTestCase):
+    FIXTURE = test_fixtures.OpportunisticDbFixture
 
 
 class ModelsMigrationSyncMixin(object):
+
+    def setUp(self):
+        super(ModelsMigrationSyncMixin, self).setUp()
+        self.engine = enginefacade.writer.get_engine()
 
     def get_metadata(self):
         return db.Base.metadata
@@ -503,14 +468,17 @@ class ModelsMigrationSyncMixin(object):
 
 class ModelsMigrationsSyncMysql(ModelsMigrationSyncMixin,
                                 test_migrations.ModelsMigrationsSync,
-                                test_base.MySQLOpportunisticTestCase):
-    pass
+                                test_fixtures.OpportunisticDBTestMixin,
+                                test_base.BaseTestCase):
+    FIXTURE = test_fixtures.MySQLOpportunisticFixture
 
 
 class ModelsMigrationsSyncPostgres(ModelsMigrationSyncMixin,
                                    test_migrations.ModelsMigrationsSync,
-                                   test_base.PostgreSQLOpportunisticTestCase):
-    pass
+                                   test_fixtures.OpportunisticDBTestMixin,
+                                   test_base.BaseTestCase):
+    FIXTURE = test_fixtures.PostgresqlOpportunisticFixture
+
 
 # NOTE(TheJulia): Sqlite database testing is known to encounter race
 # conditions as the default always falls to the same database which
@@ -520,5 +488,6 @@ class ModelsMigrationsSyncPostgres(ModelsMigrationSyncMixin,
 # in ironic's unit tests. Here we're testing databases and sqlite.
 # class ModelsMigrationsSyncSqlite(ModelsMigrationSyncMixin,
 #                                  test_migrations.ModelsMigrationsSync,
-#                                  test_base.DbTestCase):
-#     pass
+#                                  test_fixtures.OpportunisticDBTestMixin,
+#                                  test_base.BaseTestCase):
+#     FIXTURE = test_fixtures.OpportunisticDbFixture
