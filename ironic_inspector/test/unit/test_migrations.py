@@ -512,8 +512,13 @@ class ModelsMigrationsSyncPostgres(ModelsMigrationSyncMixin,
                                    test_base.PostgreSQLOpportunisticTestCase):
     pass
 
-
-class ModelsMigrationsSyncSqlite(ModelsMigrationSyncMixin,
-                                 test_migrations.ModelsMigrationsSync,
-                                 test_base.DbTestCase):
-    pass
+# NOTE(TheJulia): Sqlite database testing is known to encounter race
+# conditions as the default always falls to the same database which
+# means a different test runner an collide with the test and fail as
+# a result. Commenting out in case we figure out a solid way to
+# prevent this. It should be noted we only test actual databases
+# in ironic's unit tests. Here we're testing databases and sqlite.
+# class ModelsMigrationsSyncSqlite(ModelsMigrationSyncMixin,
+#                                  test_migrations.ModelsMigrationsSync,
+#                                  test_base.DbTestCase):
+#     pass
