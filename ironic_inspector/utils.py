@@ -43,6 +43,19 @@ def get_ipmi_address_from_data(introspection_data):
         return result
 
 
+def get_ipmi_v6address_from_data(introspection_data):
+    try:
+        result = introspection_data['inventory']['bmc_v6address']
+    except KeyError:
+        result = introspection_data.get('ipmi_v6address')
+
+    if result in ('', '::/0'):
+        # ipmitool can return these values, if it does not know the address
+        return None
+    else:
+        return result
+
+
 def get_pxe_mac(introspection_data):
     pxe_mac = introspection_data.get('boot_interface')
     if pxe_mac and '-' in pxe_mac:

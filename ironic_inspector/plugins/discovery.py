@@ -28,9 +28,16 @@ LOG = utils.getProcessingLogger(__name__)
 
 def _extract_node_driver_info(introspection_data):
     node_driver_info = {}
-    ipmi_address = utils.get_ipmi_address_from_data(introspection_data)
-    if ipmi_address:
-        node_driver_info['ipmi_address'] = ipmi_address
+    for ip_version in CONF.discovery.enabled_bmc_address_version:
+        address = None
+        if ip_version == '4':
+            address = utils.get_ipmi_address_from_data(introspection_data)
+        elif ip_version == '6':
+            address = utils.get_ipmi_v6address_from_data(introspection_data)
+
+        if address:
+            node_driver_info['ipmi_address'] = address
+            break
     else:
         LOG.warning('No BMC address provided, discovered node will be '
                     'created without ipmi address')

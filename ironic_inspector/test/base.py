@@ -92,6 +92,7 @@ class InventoryTest(BaseTest):
         # Prepare some realistic inventory
         # https://github.com/openstack/ironic-inspector/blob/master/HTTP-API.rst  # noqa
         self.bmc_address = '1.2.3.4'
+        self.bmc_v6address = '2001:1234:1234:1234:1234:1234:1234:1234/64'
         self.macs = (
             ['11:22:33:44:55:66', '66:55:44:33:22:11', '7c:fe:90:29:26:52'])
         self.ips = ['1.2.1.2', '1.2.1.1', '1.2.1.3']
@@ -137,7 +138,8 @@ class InventoryTest(BaseTest):
                 'memory': {
                     'physical_mb': 12288
                 },
-                'bmc_address': self.bmc_address
+                'bmc_address': self.bmc_address,
+                'bmc_v6address': self.bmc_v6address
             },
             'root_disk': {'name': '/dev/sda', 'model': 'Big Data Disk',
                           'size': 1000 * units.Gi,
