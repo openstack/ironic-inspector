@@ -80,7 +80,7 @@
       - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
-      - ^tools/.*$
+      - ^tools/(?!bandit\.yml).*$
       - ^test-requirements.txt$
       - ^setup.cfg$
       - ^tox.ini$
