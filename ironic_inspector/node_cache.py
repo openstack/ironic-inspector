@@ -22,7 +22,6 @@ import operator
 
 from automaton import exceptions as automaton_errors
 from ironicclient import exceptions
-from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
@@ -34,26 +33,15 @@ from sqlalchemy.orm import exc as orm_errors
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector.common import locking
 from ironic_inspector import db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import utils
 
 
 CONF = cfg.CONF
-
-
 LOG = utils.getProcessingLogger(__name__)
-
-
 MACS_ATTRIBUTE = 'mac'
-_LOCK_TEMPLATE = 'node-%s'
-_SEMAPHORES = lockutils.Semaphores()
-
-
-def _get_lock(uuid):
-    """Get lock object for a given node UUID."""
-    return lockutils.internal_lock(_LOCK_TEMPLATE % uuid,
-                                   semaphores=_SEMAPHORES)
 
 
 class NodeInfo(object):
@@ -84,13 +72,12 @@ class NodeInfo(object):
         # equivalent to True actually.
         self._manage_boot = manage_boot if manage_boot is not None else True
         # This is a lock on a node UUID, not on a NodeInfo object
-        self._lock = _get_lock(uuid)
+        self._lock = locking.get_lock(uuid)
         # Whether lock was acquired using this NodeInfo object
-        self._locked = False
         self._fsm = None
 
     def __del__(self):
-        if self._locked:
+        if self._lock.is_locked():
             LOG.warning('BUG: node lock was not released by the moment '
                         'node info object is deleted')
             self._lock.release()
@@ -112,12 +99,11 @@ class NodeInfo(object):
                          return immediately.
         :returns: boolean value, whether lock was acquired successfully
         """
-        if self._locked:
+        if self._lock.is_locked():
             return True
 
         LOG.debug('Attempting to acquire lock', node_info=self)
         if self._lock.acquire(blocking):
-            self._locked = True
             LOG.debug('Successfully acquired lock', node_info=self)
             return True
         else:
@@ -129,10 +115,9 @@ class NodeInfo(object):
 
         Does nothing if lock was not acquired using this NodeInfo object.
         """
-        if self._locked:
+        if self._lock.is_locked():
             LOG.debug('Successfully released lock', node_info=self)
             self._lock.release()
-        self._locked = False
 
     @property
     def version_id(self):
@@ -663,7 +648,7 @@ def release_lock(func):
         finally:
             # FIXME(milan) hacking the test cases to work
             # with release_lock.assert_called_once...
-            if node_info._locked:
+            if node_info._lock.is_locked():
                 node_info.release_lock()
     return inner
 
@@ -738,7 +723,7 @@ def delete_nodes_not_in_list(uuids):
     for uuid in inspector_uuids - uuids:
         LOG.warning('Node %s was deleted from Ironic, dropping from Ironic '
                     'Inspector database', uuid)
-        with _get_lock(uuid):
+        with locking.get_lock(uuid):
             _delete_node(uuid)
 
 
