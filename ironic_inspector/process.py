@@ -259,7 +259,8 @@ def _run_post_hooks(node_info, introspection_data):
 @node_cache.fsm_transition(istate.Events.process, reentrant=False)
 def _process_node(node_info, node, introspection_data):
     # NOTE(dtantsur): repeat the check in case something changed
-    ir_utils.check_provision_state(node)
+    keep_power_on = ir_utils.check_provision_state(node)
+
     _run_post_hooks(node_info, introspection_data)
     store_introspection_data(node_info.uuid, introspection_data)
 
@@ -271,8 +272,13 @@ def _process_node(node_info, node, introspection_data):
 
     resp = {'uuid': node.uuid}
 
+    # determine how to handle power
+    if keep_power_on:
+        power_action = False
+    else:
+        power_action = CONF.processing.power_off
     utils.executor().submit(_finish, node_info, ironic, introspection_data,
-                            power_off=CONF.processing.power_off)
+                            power_off=power_action)
 
     return resp
 

@@ -433,6 +433,30 @@ class TestProcessNode(BaseTest):
         post_hook_mock.assert_called_once_with(self.data, self.node_info)
         finished_mock.assert_called_once_with(mock.ANY, istate.Events.finish)
 
+    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update',
+                       autospec=True)
+    @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
+    def test_ok_node_active(self, finished_mock, post_hook_mock):
+        self.node.provision_state = 'active'
+        CONF.set_override('permit_active_introspection', True, 'processing')
+        process._process_node(self.node_info, self.node, self.data)
+
+        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             address=self.macs[0],
+                                             extra={},
+                                             pxe_enabled=True)
+        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             address=self.macs[1],
+                                             extra={},
+                                             pxe_enabled=False)
+
+        self.cli.node.set_power_state.assert_not_called()
+        self.assertFalse(self.cli.node.validate.called)
+
+        post_hook_mock.assert_called_once_with(mock.ANY, self.data,
+                                               self.node_info)
+        finished_mock.assert_called_once_with(mock.ANY, istate.Events.finish)
+
     def test_port_failed(self):
         self.cli.port.create.side_effect = (
             [exceptions.Conflict()] + self.ports[1:])

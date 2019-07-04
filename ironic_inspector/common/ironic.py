@@ -27,8 +27,11 @@ CONF = cfg.CONF
 LOG = utils.getProcessingLogger(__name__)
 
 # See https://docs.openstack.org/ironic/latest/contributor/states.html  # noqa
-VALID_STATES = {'enroll', 'manageable', 'inspecting', 'inspect wait',
-                'inspect failed'}
+VALID_STATES = frozenset(['enroll', 'manageable', 'inspecting', 'inspect wait',
+                          'inspect failed'])
+
+# States where an instance is deployed and an admin may be doing something.
+VALID_ACTIVE_STATES = frozenset(['active', 'rescue'])
 
 # 1.38 is the latest API version in the Queens release series, 10.1.0.
 # 1.46 is the latest API version in the Rocky release series, 11.1.0.
@@ -135,11 +138,27 @@ def get_client(token=None,
 
 
 def check_provision_state(node):
+    """Sanity checks the provision state of the node.
+
+    :param node: An API client returned node object describing
+                 the baremetal node according to ironic's node
+                 data model.
+    :returns: None if no action is to be taken, True if the
+              power node state should not be modified.
+    :raises: Error on an invalid state being detected.
+    """
     state = node.provision_state.lower()
     if state not in VALID_STATES:
+        if (CONF.processing.permit_active_introspection
+                and state in VALID_ACTIVE_STATES):
+            # Hey, we can leave the power on! Lets return
+            # True to let the caller know.
+            return True
+
         msg = _('Invalid provision state for introspection: '
                 '"%(state)s", valid states are "%(valid)s"')
-        raise utils.Error(msg % {'state': state, 'valid': list(VALID_STATES)},
+        raise utils.Error(msg % {'state': state,
+                                 'valid': list(VALID_STATES)},
                           node_info=node)
 
 
