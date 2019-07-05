@@ -39,8 +39,8 @@ from oslo_log import log as logging
 from oslo_utils import uuidutils
 import sqlalchemy
 
+from ironic_inspector.cmd import dbsync
 from ironic_inspector import db
-from ironic_inspector import dbsync
 from ironic_inspector import introspection_state as istate
 from ironic_inspector.test import base
 
