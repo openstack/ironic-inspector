@@ -34,10 +34,10 @@ import six
 from six.moves import urllib
 
 from ironic_inspector.cmd import all as inspector_cmd
+from ironic_inspector.cmd import dbsync
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
 from ironic_inspector import db
-from ironic_inspector import dbsync
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
 from ironic_inspector import node_cache

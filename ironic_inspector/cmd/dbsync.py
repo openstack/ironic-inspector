@@ -60,8 +60,8 @@ command_opt = cfg.SubCommandOpt('command',
 
 
 def _get_alembic_config():
-    return alembic_config.Config(os.path.join(os.path.dirname(__file__),
-                                 'alembic.ini'))
+    base_path = os.path.split(os.path.dirname(__file__))[0]
+    return alembic_config.Config(os.path.join(base_path, 'alembic.ini'))
 
 
 def do_revision(config, cmd, *args, **kwargs):
