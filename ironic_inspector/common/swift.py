@@ -15,9 +15,9 @@
 
 import json
 
+import openstack
+from openstack import exceptions as os_exc
 from oslo_config import cfg
-from swiftclient import client as swift_client
-from swiftclient import exceptions as swift_exceptions
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import keystone
@@ -53,19 +53,9 @@ class SwiftAPI(object):
             if not SWIFT_SESSION:
                 SWIFT_SESSION = keystone.get_session('swift')
 
-            adapter = keystone.get_adapter('swift', session=SWIFT_SESSION)
-        except Exception as exc:
-            raise utils.Error(_("Could not create an adapter to connect to "
-                                "the object storage service: %s") % exc)
-
-        # TODO(pas-ha) reverse-construct SSL-related session options here
-        params = {
-            'os_options': {
-                'object_storage_url': adapter.get_endpoint()}}
-
-        try:
-            self.connection = swift_client.Connection(session=SWIFT_SESSION,
-                                                      **params)
+            self.connection = openstack.connection.Connection(
+                session=SWIFT_SESSION,
+                oslo_conf=CONF).object_store
         except Exception as exc:
             raise utils.Error(_("Could not connect to the object storage "
                                 "service: %s") % exc)
@@ -82,8 +72,8 @@ class SwiftAPI(object):
         :raises: utils.Error, if any operation with Swift fails.
         """
         try:
-            self.connection.put_container(container)
-        except swift_exceptions.ClientException as e:
+            self.connection.create_container(container)
+        except os_exc.SDKException as e:
             err_msg = (_('Swift failed to create container %(container)s. '
                          'Error was: %(error)s') %
                        {'container': container, 'error': e})
@@ -94,11 +84,9 @@ class SwiftAPI(object):
             headers['X-Delete-After'] = CONF.swift.delete_after
 
         try:
-            obj_uuid = self.connection.put_object(container,
-                                                  object,
-                                                  data,
-                                                  headers=headers)
-        except swift_exceptions.ClientException as e:
+            obj_uuid = self.connection.create_object(
+                container, object, data=data, headers=headers)
+        except os_exc.SDKException as e:
             err_msg = (_('Swift failed to create object %(object)s in '
                          'container %(container)s. Error was: %(error)s') %
                        {'object': object, 'container': container, 'error': e})
@@ -115,8 +103,8 @@ class SwiftAPI(object):
         :raises: utils.Error, if the Swift operation fails.
         """
         try:
-            headers, obj = self.connection.get_object(container, object)
-        except swift_exceptions.ClientException as e:
+            obj = self.connection.download_object(object, container=container)
+        except os_exc.SDKException as e:
             err_msg = (_('Swift failed to get object %(object)s in '
                          'container %(container)s. Error was: %(error)s') %
                        {'object': object, 'container': container, 'error': e})
