@@ -139,6 +139,37 @@ class TestManagerInitHost(BaseManagerTest):
         mock_zc.return_value.register_service.assert_called_once_with(
             'baremetal-introspection', mock_endpoint.return_value)
 
+    @mock.patch.object(utils, 'get_coordinator', autospec=True)
+    @mock.patch.object(keystone, 'get_endpoint', autospec=True)
+    def test_init_host_with_coordinator(self, mock_endpoint, mock_get_coord):
+        CONF.set_override('standalone', False)
+        mock_coordinator = mock.MagicMock()
+        mock_get_coord.return_value = mock_coordinator
+        self.manager.init_host()
+        self.mock_db_init.assert_called_once_with()
+        self.mock_validate_processing_hooks.assert_called_once_with()
+        self.mock_filter.init_filter.assert_called_once_with()
+        self.assert_periodics()
+        mock_get_coord.assert_called_once_with()
+        mock_coordinator.start.assert_called_once_with()
+
+    @mock.patch.object(manager.ConductorManager, 'del_host')
+    @mock.patch.object(utils, 'get_coordinator', autospec=True)
+    @mock.patch.object(keystone, 'get_endpoint', autospec=True)
+    def test_init_host_with_coordinator_failed(self, mock_endpoint,
+                                               mock_get_coord, mock_del_host):
+        CONF.set_override('standalone', False)
+        mock_get_coord.side_effect = (utils.Error('Reaching coordination '
+                                                  'backend failed.'),
+                                      None)
+        self.assertRaises(utils.Error, self.manager.init_host)
+        self.mock_db_init.assert_called_once_with()
+        self.mock_validate_processing_hooks.assert_called_once_with()
+        self.mock_filter.init_filter.assert_called_once_with()
+        self.assert_periodics()
+        mock_get_coord.assert_called_once_with()
+        mock_del_host.assert_called_once_with()
+
 
 class TestManagerDelHost(BaseManagerTest):
     def setUp(self):
@@ -250,6 +281,26 @@ class TestManagerDelHost(BaseManagerTest):
         self.mock_executor.shutdown.assert_not_called()
         self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
+
+    @mock.patch.object(utils, 'get_coordinator', autospec=True)
+    def test_del_host_with_coordinator(self, mock_get_coord):
+        CONF.set_override('standalone', False)
+        mock_coordinator = mock.MagicMock()
+        mock_coordinator.is_started = True
+        mock_get_coord.return_value = mock_coordinator
+
+        self.manager.del_host()
+
+        self.assertIsNone(self.manager._zeroconf)
+        self.mock__shutting_down.acquire.assert_called_once_with(
+            blocking=False)
+        self.mock__periodic_worker.stop.assert_called_once_with()
+        self.mock__periodic_worker.wait.assert_called_once_with()
+        self.assertIsNone(self.manager._periodics_worker)
+        self.mock_executor.shutdown.assert_called_once_with(wait=True)
+        self.mock_filter.tear_down_filter.assert_called_once_with()
+        self.mock__shutting_down.release.assert_called_once_with()
+        mock_coordinator.stop.called_once_with()
 
 
 class TestManagerPeriodicWatchDog(BaseManagerTest):

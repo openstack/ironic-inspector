@@ -123,6 +123,7 @@ testrepository==0.0.20
 testresources==2.0.0
 testscenarios==0.4
 testtools==2.3.0
+tooz==1.64.0
 traceback2==1.4.0
 unittest2==1.1.0
 urllib3==1.22

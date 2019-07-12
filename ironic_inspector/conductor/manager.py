@@ -21,6 +21,7 @@ from ironic_lib import mdns
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging as messaging
+from oslo_utils import excutils
 from oslo_utils import reflection
 
 from ironic_inspector.common.i18n import _
@@ -95,6 +96,18 @@ class ConductorManager(object):
             self._zeroconf.register_service('baremetal-introspection',
                                             endpoint)
 
+        if not CONF.standalone:
+            try:
+                coordinator = utils.get_coordinator()
+                coordinator.start()
+            except Exception:
+                with excutils.save_and_reraise_exception():
+                    LOG.critical('Failed when connecting to coordination '
+                                 'backend.')
+                    self.del_host()
+            else:
+                LOG.info('Successfully connected to coordination backend.')
+
     def del_host(self):
 
         if not self._shutting_down.acquire(blocking=False):
@@ -119,6 +132,15 @@ class ConductorManager(object):
             self._zeroconf = None
 
         self._shutting_down.release()
+
+        if not CONF.standalone:
+            try:
+                coordinator = utils.get_coordinator()
+                if coordinator and coordinator.is_started:
+                    coordinator.stop()
+            except Exception:
+                LOG.exception('Failed to stop coordinator')
+
         LOG.info('Shut down successfully')
 
     def _periodics_watchdog(self, callable_, activity, spacing, exc_info,

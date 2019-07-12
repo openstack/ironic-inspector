@@ -154,3 +154,14 @@ class TestIsoTimestamp(base.BaseTest):
 
     def test_none(self):
         self.assertIsNone(utils.iso_timestamp(None))
+
+
+@mock.patch.object(utils, 'coordination', autospec=True)
+class TestGetCoordinator(base.BaseTest):
+    def test_get(self, mock_coordination):
+        CONF.set_override('backend_url', 'etcd3://1.2.3.4:2379',
+                          'coordination')
+        CONF.set_override('host', '1.2.3.5')
+        utils.get_coordinator()
+        mock_coordination.get_coordinator.assert_called_once_with(
+            'etcd3://1.2.3.4:2379', b'1.2.3.5')
