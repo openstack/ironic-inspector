@@ -79,8 +79,7 @@ class BaseProcessTest(BaseTest):
         self.addCleanup(self._cleanup_lock, self.node_info)
 
     def _cleanup_lock(self, node_info):
-        if node_info._locked:
-            node_info.release_lock()
+        node_info.release_lock()
 
 
 class TestProcess(BaseProcessTest):
