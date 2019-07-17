@@ -194,3 +194,85 @@ class TestCallWithRetries(unittest.TestCase):
                                 self.call, 'meow', answer=42)
         self.call.assert_called_with('meow', answer=42)
         self.assertEqual(5, self.call.call_count)
+
+
+class TestLookupNode(base.NodeTest):
+    def setUp(self):
+        super(TestLookupNode, self).setUp()
+        self.ironic = mock.Mock(spec=['node', 'port'],
+                                node=mock.Mock(spec=['list']),
+                                port=mock.Mock(spec=['list']))
+        self.ironic.node.list.return_value = [self.node]
+        # Simulate only the PXE port enrolled
+        self.port = mock.Mock(address=self.pxe_mac, node_uuid=self.node.uuid)
+        self.ironic.port.list.side_effect = [
+            [self.port]
+        ] + [[]] * (len(self.macs) - 1)
+
+    def test_no_input_no_result(self):
+        self.assertIsNone(ir_utils.lookup_node())
+
+    def test_lookup_by_mac_only(self):
+        uuid = ir_utils.lookup_node(macs=self.macs, ironic=self.ironic)
+        self.assertEqual(self.node.uuid, uuid)
+        self.ironic.port.list.assert_has_calls([
+            mock.call(address=mac) for mac in self.macs
+        ])
+
+    def test_lookup_by_mac_duplicates(self):
+        self.ironic.port.list.side_effect = [
+            [self.port],
+            [mock.Mock(address=self.inactive_mac, node_uuid='another')]
+        ] + [[]] * (len(self.macs) - 1)
+        self.assertRaisesRegex(utils.Error, 'more than one node',
+                               ir_utils.lookup_node,
+                               macs=self.macs, ironic=self.ironic)
+        self.ironic.port.list.assert_has_calls([
+            mock.call(address=mac) for mac in self.macs
+        ])
+
+    def test_lookup_by_bmc_only(self):
+        uuid = ir_utils.lookup_node(bmc_addresses=[self.bmc_address,
+                                                   '42.42.42.42'],
+                                    ironic=self.ironic)
+        self.assertEqual(self.node.uuid, uuid)
+        self.assertEqual(1, self.ironic.node.list.call_count)
+
+    def test_lookup_by_bmc_duplicates(self):
+        self.ironic.node.list.return_value = [
+            self.node,
+            mock.Mock(uuid='another',
+                      driver_info={'ipmi_address': '42.42.42.42'}),
+        ]
+        self.assertRaisesRegex(utils.Error, 'more than one node',
+                               ir_utils.lookup_node,
+                               bmc_addresses=[self.bmc_address,
+                                              '42.42.42.42'],
+                               ironic=self.ironic)
+        self.assertEqual(1, self.ironic.node.list.call_count)
+
+    def test_lookup_by_both(self):
+        uuid = ir_utils.lookup_node(bmc_addresses=[self.bmc_address,
+                                                   self.bmc_v6address],
+                                    macs=self.macs,
+                                    ironic=self.ironic)
+        self.assertEqual(self.node.uuid, uuid)
+        self.ironic.port.list.assert_has_calls([
+            mock.call(address=mac) for mac in self.macs
+        ])
+        self.assertEqual(1, self.ironic.node.list.call_count)
+
+    def test_lookup_by_both_duplicates(self):
+        self.ironic.port.list.side_effect = [
+            [mock.Mock(address=self.inactive_mac, node_uuid='another')]
+        ] + [[]] * (len(self.macs) - 1)
+        self.assertRaisesRegex(utils.Error, 'correspond to different nodes',
+                               ir_utils.lookup_node,
+                               bmc_addresses=[self.bmc_address,
+                                              self.bmc_v6address],
+                               macs=self.macs,
+                               ironic=self.ironic)
+        self.ironic.port.list.assert_has_calls([
+            mock.call(address=mac) for mac in self.macs
+        ])
+        self.assertEqual(1, self.ironic.node.list.call_count)

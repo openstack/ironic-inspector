@@ -1320,3 +1320,37 @@ class TestIntrospectionDataDbStore(test_base.NodeTest):
         stored_data = node_cache.get_introspection_data(self.node.uuid,
                                                         False)
         self.assertEqual(stored_data, unproc_data)
+
+
+@mock.patch.object(ir_utils, 'lookup_node', autospec=True)
+class TestRecordNode(test_base.NodeTest):
+    def setUp(self):
+        super(TestRecordNode, self).setUp()
+        self.node.provision_state = 'active'
+        self.ironic = mock.Mock(spec=['node'],
+                                node=mock.Mock(spec=['get']))
+        self.ironic.node.get.return_value = self.node
+
+    def test_no_lookup_data(self, mock_lookup):
+        self.assertRaisesRegex(utils.NotFoundInCacheError,
+                               'neither MAC addresses nor BMC addresses',
+                               node_cache.record_node)
+
+    def test_success(self, mock_lookup):
+        mock_lookup.return_value = self.uuid
+        result = node_cache.record_node(macs=self.macs, ironic=self.ironic)
+        self.assertIsInstance(result, node_cache.NodeInfo)
+        self.assertEqual(self.uuid, result.uuid)
+
+    def test_not_found(self, mock_lookup):
+        mock_lookup.return_value = None
+        self.assertRaises(utils.NotFoundInCacheError,
+                          node_cache.record_node,
+                          macs=self.macs, ironic=self.ironic)
+
+    def test_bad_provision_state(self, mock_lookup):
+        mock_lookup.return_value = self.uuid
+        self.node.provision_state = 'deploying'
+        self.assertRaisesRegex(utils.Error, 'is not active',
+                               node_cache.record_node,
+                               macs=self.macs, ironic=self.ironic)
