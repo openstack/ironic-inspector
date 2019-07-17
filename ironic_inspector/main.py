@@ -18,7 +18,6 @@ import flask
 from oslo_utils import strutils
 from oslo_utils import uuidutils
 import six
-import werkzeug
 
 from ironic_inspector import api_tools
 from ironic_inspector.common import context
@@ -79,8 +78,6 @@ def convert_exceptions(func):
             return func(*args, **kwargs)
         except utils.Error as exc:
             return error_response(exc, exc.http_code)
-        except werkzeug.exceptions.HTTPException as exc:
-            return error_response(exc, exc.code or 400)
         except Exception as exc:
             LOG.exception('Internal server error')
             msg = _('Internal server error')
