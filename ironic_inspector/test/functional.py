@@ -18,6 +18,7 @@ import copy
 import datetime
 import json
 import os
+import sys
 import tempfile
 import time
 import unittest
@@ -798,5 +799,10 @@ def mocked_server():
 
 
 if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        test_name = sys.argv[1]
+    else:
+        test_name = None
+
     with mocked_server():
-        unittest.main(verbosity=2)
+        unittest.main(verbosity=2, defaultTest=test_name)
