@@ -37,7 +37,6 @@ from six.moves import urllib
 from ironic_inspector.cmd import all as inspector_cmd
 from ironic_inspector.cmd import dbsync
 from ironic_inspector.common import ironic as ir_utils
-from ironic_inspector.common import swift
 from ironic_inspector import db
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import main
@@ -63,6 +62,7 @@ transport_url=fake://
 connection = sqlite:///%(db_file)s
 [processing]
 processing_hooks=$default_processing_hooks,lldp_basic
+store_data = database
 """
 
 
@@ -177,6 +177,10 @@ class Base(base.NodeTest):
 
     def call_get_status(self, uuid, **kwargs):
         return self.call('get', '/v1/introspection/%s' % uuid, **kwargs).json()
+
+    def call_get_data(self, uuid, **kwargs):
+        return self.call('get', '/v1/introspection/%s/data' % uuid,
+                         **kwargs).json()
 
     @_query_string('marker', 'limit')
     def call_get_statuses(self, query_string='', **kwargs):
@@ -567,16 +571,7 @@ class Test(Base):
         # after releasing the node lock
         self.call('post', '/v1/continue', self.data, expect_error=400)
 
-    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
-    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
-    def test_stored_data_processing(self, get_mock, store_mock):
-        cfg.CONF.set_override('store_data', 'swift', 'processing')
-
-        # ramdisk data copy
-        # please mind the data is changed during processing
-        ramdisk_data = json.dumps(copy.deepcopy(self.data))
-        get_mock.return_value = ramdisk_data
-
+    def test_stored_data_processing(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
@@ -590,6 +585,9 @@ class Test(Base):
         inspect_started_at = timeutils.parse_isotime(status['started_at'])
         self.check_status(status, finished=True, state=istate.States.finished)
 
+        data = self.call_get_data(self.uuid)
+        self.assertEqual(self.data['inventory'], data['inventory'])
+
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
         self.assertEqual('', res.text)
@@ -602,58 +600,27 @@ class Test(Base):
         reapply_started_at = timeutils.parse_isotime(status['started_at'])
         self.assertLess(inspect_started_at, reapply_started_at)
 
-        # reapply request data
-        get_mock.assert_called_once_with(self.uuid,
-                                         suffix='UNPROCESSED')
-
-        # store ramdisk data, store processing result data, store
-        # reapply processing result data; the ordering isn't
-        # guaranteed as store ramdisk data runs in a background
-        # thread; hower, last call has to always be reapply processing
-        # result data
-        store_ramdisk_call = mock.call(mock.ANY, self.uuid,
-                                       suffix='UNPROCESSED')
-        store_processing_call = mock.call(mock.ANY, self.uuid,
-                                          suffix=None)
-        self.assertEqual(3, len(store_mock.call_args_list))
-        self.assertIn(store_ramdisk_call,
-                      store_mock.call_args_list[0:2])
-        self.assertIn(store_processing_call,
-                      store_mock.call_args_list[0:2])
-        self.assertEqual(store_processing_call,
-                         store_mock.call_args_list[2])
-
         # second reapply call
-        get_mock.return_value = ramdisk_data
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
         self.assertEqual('', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        # reapply saves the result
-        self.assertEqual(4, len(store_mock.call_args_list))
-        self.assertEqual(store_processing_call,
-                         store_mock.call_args_list[-1])
-
         # Reapply with provided data
-        res = self.call_reapply(self.uuid, data=copy.deepcopy(self.data))
+        new_data = copy.deepcopy(self.data)
+        new_data['inventory']['cpu']['count'] = 42
+        res = self.call_reapply(self.uuid, data=new_data)
         self.assertEqual(202, res.status_code)
         self.assertEqual('', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         self.check_status(status, finished=True, state=istate.States.finished)
 
-    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
-    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
-    def test_edge_state_transitions(self, get_mock, store_mock):
+        data = self.call_get_data(self.uuid)
+        self.assertEqual(42, data['inventory']['cpu']['count'])
+
+    def test_edge_state_transitions(self):
         """Assert state transitions work as expected in edge conditions."""
-        cfg.CONF.set_override('store_data', 'swift', 'processing')
-
-        # ramdisk data copy
-        # please mind the data is changed during processing
-        ramdisk_data = json.dumps(copy.deepcopy(self.data))
-        get_mock.return_value = ramdisk_data
-
         # multiple introspect calls
         self.call_introspect(self.uuid)
         self.call_introspect(self.uuid)
@@ -734,14 +701,7 @@ class Test(Base):
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
 
-    @mock.patch.object(swift, 'store_introspection_data', autospec=True)
-    @mock.patch.object(swift, 'get_introspection_data', autospec=True)
-    def test_lldp_plugin(self, get_mock, store_mock):
-        cfg.CONF.set_override('store_data', 'swift', 'processing')
-
-        ramdisk_data = json.dumps(copy.deepcopy(self.data))
-        get_mock.return_value = ramdisk_data
-
+    def test_lldp_plugin(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
         self.cli.node.set_power_state.assert_called_once_with(self.uuid,
@@ -757,9 +717,7 @@ class Test(Base):
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
 
-        # Verify that the lldp_processed data is written to swift
-        # as expected by the lldp plugin
-        updated_data = store_mock.call_args[0][0]
+        updated_data = self.call_get_data(self.uuid)
         lldp_out = updated_data['all_interfaces']['eth1']
 
         expected_chassis_id = "11:22:33:aa:bb:cc"
