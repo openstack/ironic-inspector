@@ -35,11 +35,12 @@ VALID_ACTIVE_STATES = frozenset(['active', 'rescue'])
 
 # 1.38 is the latest API version in the Queens release series, 10.1.0.
 # 1.46 is the latest API version in the Rocky release series, 11.1.0.
+# 1.56 is the latest API version in the Stein release series, 12.1.0
 # NOTE(mgoddard): This should be updated with each release to ensure that
 # inspector is able to use the latest ironic API. In particular, this version
 # is used when processing introspection rules, and is the default version used
 # by processing plugins.
-DEFAULT_IRONIC_API_VERSION = ['1.38', '1.46']
+DEFAULT_IRONIC_API_VERSION = ['1.38', '1.46', '1.56']
 
 IRONIC_SESSION = None
 
