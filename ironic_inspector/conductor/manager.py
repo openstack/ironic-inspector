@@ -62,9 +62,9 @@ class ConductorManager(object):
             LOG.warning('Introspection data will not be stored. Change '
                         '"[processing] store_data" option if this is not '
                         'the desired behavior')
-        elif CONF.processing.store_data == 'swift':
-            LOG.info('Introspection data will be stored in Swift in the '
-                     'container %s', CONF.swift.container)
+        else:
+            LOG.info('Introspection data will be stored in the %s backend',
+                     CONF.processing.store_data)
 
         db.init()
 
