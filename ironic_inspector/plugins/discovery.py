@@ -68,9 +68,15 @@ def enroll_node_not_found_hook(introspection_data, **kwargs):
     node_driver_info = _extract_node_driver_info(introspection_data)
     node_attr['driver_info'] = node_driver_info
 
+    # NOTE(rpittau) by default, if the provision_state is None, it will
+    # be set to 'available' by openstacksdk, blocking the inspection of the
+    # node in this phase, as it's not a valid state for inspection.
+    node_attr['provision_state'] = 'enroll'
+
     node_driver = CONF.discovery.enroll_node_driver
 
     _check_existing_nodes(introspection_data, node_driver_info, ironic)
+
     LOG.debug('Creating discovered node with driver %(driver)s and '
               'attributes: %(attr)s',
               {'driver': node_driver, 'attr': node_attr},

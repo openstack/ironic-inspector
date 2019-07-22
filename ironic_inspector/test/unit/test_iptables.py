@@ -14,8 +14,8 @@
 # under the License.
 
 import fixtures
-from ironicclient import exc as ironic_exc
 import mock
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 
 from ironic_inspector import node_cache
@@ -390,14 +390,14 @@ class TestGetBlacklist(test_base.BaseTest):
             mock.Mock(address='foo'),
             mock.Mock(address='bar'),
         ]
-        self.mock_ironic.port.list.return_value = mock_ports_list
+        self.mock_ironic.ports.return_value = mock_ports_list
         self.mock_active_macs.return_value = {'foo'}
 
         ports = iptables._get_blacklist(self.mock_ironic)
         # foo is an active address so we expect the blacklist contains only bar
         self.assertEqual(['bar'], ports)
-        self.mock_ironic.port.list.assert_called_once_with(
-            limit=0, fields=['address', 'extra'])
+        self.mock_ironic.ports.assert_called_once_with(
+            limit=None, fields=['address', 'extra'])
         self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
             [mock_ports_list[1]])
 
@@ -407,8 +407,8 @@ class TestGetBlacklist(test_base.BaseTest):
             mock.Mock(address='foo'),
             mock.Mock(address='bar'),
         ]
-        self.mock_ironic.port.list.side_effect = [
-            ironic_exc.ConnectionRefused('boom'),
+        self.mock_ironic.ports.side_effect = [
+            os_exc.SDKException('boom'),
             mock_ports_list
         ]
         self.mock_active_macs.return_value = {'foo'}
@@ -416,7 +416,7 @@ class TestGetBlacklist(test_base.BaseTest):
         ports = iptables._get_blacklist(self.mock_ironic)
         # foo is an active address so we expect the blacklist contains only bar
         self.assertEqual(['bar'], ports)
-        self.mock_ironic.port.list.assert_called_with(
-            limit=0, fields=['address', 'extra'])
+        self.mock_ironic.ports.assert_called_with(
+            limit=None, fields=['address', 'extra'])
         self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
             [mock_ports_list[1]])

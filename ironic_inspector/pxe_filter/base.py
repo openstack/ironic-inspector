@@ -182,11 +182,14 @@ class BaseFilter(interface.FilterDriver):
         :raises: periodics.NeverAgain
         :returns: a periodic task to be run in the background.
         """
-        ironic = ir_utils.get_client()
+        _cached_client = None
 
         def periodic_sync_task():
+            nonlocal _cached_client
+            if _cached_client is None:
+                _cached_client = ir_utils.get_client()
             try:
-                self.sync(ironic)
+                self.sync(_cached_client)
             except InvalidFilterDriverState as e:
                 LOG.warning('Filter driver %s disabling periodic sync '
                             'task because of an invalid state.', self)

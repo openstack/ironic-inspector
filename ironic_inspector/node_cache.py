@@ -22,7 +22,7 @@ import json
 import operator
 
 from automaton import exceptions as automaton_errors
-from ironicclient import exceptions
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_utils import excutils
@@ -339,17 +339,17 @@ class NodeInfo(object):
         for port in ports:
             mac = port
             extra = {}
-            pxe_enabled = True
+            is_pxe_enabled = True
             if isinstance(port, dict):
                 mac = port['mac']
                 client_id = port.get('client_id')
                 if client_id:
                     extra = {'client-id': client_id}
-                pxe_enabled = port.get('pxe', True)
+                is_pxe_enabled = port.get('pxe', True)
 
             if mac not in self.ports():
                 self._create_port(mac, ironic=ironic, extra=extra,
-                                  pxe_enabled=pxe_enabled)
+                                  is_pxe_enabled=is_pxe_enabled)
             else:
                 existing_macs.append(mac)
 
@@ -366,21 +366,21 @@ class NodeInfo(object):
         """
         if self._ports is None:
             ironic = ironic or self.ironic
-            port_list = ironic.node.list_ports(self.uuid, limit=0, detail=True)
+            port_list = ironic.ports(node=self.uuid, limit=None, details=True)
             self._ports = {p.address: p for p in port_list}
         return self._ports
 
     def _create_port(self, mac, ironic=None, **kwargs):
         ironic = ironic or self.ironic
         try:
-            port = ironic.port.create(
+            port = ironic.create_port(
                 node_uuid=self.uuid, address=mac, **kwargs)
             LOG.info('Port %(uuid)s was created successfully, MAC: %(mac)s,'
                      'attributes: %(attrs)s',
-                     {'uuid': port.uuid, 'mac': port.address,
+                     {'uuid': port.id, 'mac': port.address,
                       'attrs': kwargs},
                      node_info=self)
-        except exceptions.Conflict:
+        except os_exc.ConflictException:
             LOG.warning('Port %s already exists, skipping',
                         mac, node_info=self)
             # NOTE(dtantsur): we didn't get port object back, so we have to
@@ -397,7 +397,7 @@ class NodeInfo(object):
         :param patches: JSON patches to apply
         :param ironic: Ironic client to use instead of self.ironic
         :param kwargs: Arguments to pass to ironicclient.
-        :raises: ironicclient exceptions
+        :raises: openstacksdk exceptions
         """
         ironic = ironic or self.ironic
         # NOTE(aarefiev): support path w/o ahead forward slash
@@ -407,7 +407,7 @@ class NodeInfo(object):
                 patch['path'] = '/' + patch['path']
 
         LOG.debug('Updating node with patches %s', patches, node_info=self)
-        self._node = ironic.node.update(self.uuid, patches, **kwargs)
+        self._node = ironic.patch_node(self.uuid, patches, **kwargs)
 
     def patch_port(self, port, patches, ironic=None):
         """Apply JSON patches to a port.
@@ -424,7 +424,7 @@ class NodeInfo(object):
         LOG.debug('Updating port %(mac)s with patches %(patches)s',
                   {'mac': port.address, 'patches': patches},
                   node_info=self)
-        new_port = ironic.port.update(port.uuid, patches)
+        new_port = ironic.patch_port(port.id, patches)
         ports[port.address] = new_port
 
     def update_properties(self, ironic=None, **props):
@@ -458,7 +458,7 @@ class NodeInfo(object):
         :param ironic: Ironic client to use instead of self.ironic
         """
         ironic = ironic or self.ironic
-        ironic.node.add_trait(self.uuid, trait)
+        ironic.add_node_trait(self.uuid, trait)
 
     def remove_trait(self, trait, ironic=None):
         """Remove a trait from the node.
@@ -468,8 +468,8 @@ class NodeInfo(object):
         """
         ironic = ironic or self.ironic
         try:
-            ironic.node.remove_trait(self.uuid, trait)
-        except exceptions.NotFound:
+            ironic.remove_node_trait(self.uuid, trait)
+        except os_exc.NotFoundException:
             LOG.debug('Trait %s is not set, cannot remove', trait,
                       node_info=self)
 
@@ -484,7 +484,7 @@ class NodeInfo(object):
         if isinstance(port, str):
             port = ports[port]
 
-        ironic.port.delete(port.uuid)
+        ironic.delete_port(port.id)
         del ports[port.address]
 
     def get_by_path(self, path):
@@ -919,12 +919,12 @@ def create_node(driver, ironic=None, **attributes):
     if ironic is None:
         ironic = ir_utils.get_client()
     try:
-        node = ironic.node.create(driver=driver, **attributes)
-    except exceptions.InvalidAttribute as e:
+        node = ironic.create_node(driver=driver, **attributes)
+    except os_exc.SDKException as e:
         LOG.error('Failed to create new node: %s', e)
     else:
-        LOG.info('Node %s was created successfully', node.uuid)
-        return add_node(node.uuid, istate.States.enrolling, ironic=ironic)
+        LOG.info('Node %s was created successfully', node.id)
+        return add_node(node.id, istate.States.enrolling, ironic=ironic)
 
 
 def record_node(ironic=None, bmc_addresses=None, macs=None):
@@ -953,7 +953,7 @@ def record_node(ironic=None, bmc_addresses=None, macs=None):
               "and BMC address(es) %(addr)s") %
             {'macs': macs, 'addr': bmc_addresses})
 
-    node = ironic.node.get(node, fields=['uuid', 'provision_state'])
+    node = ironic.get_node(node, fields=['uuid', 'provision_state'])
     # TODO(dtantsur): do we want to allow updates in all states?
     if node.provision_state not in ir_utils.VALID_ACTIVE_STATES:
         raise utils.Error(_("Node %(node)s is not active, its provision "

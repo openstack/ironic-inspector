@@ -87,7 +87,7 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         active_macs = node_cache.active_macs()
         # ironic_macs are all the MACs know to ironic (all ironic ports)
         ironic_macs = set(port.address for port in
-                          ir_utils.call_with_retries(ironic.port.list, limit=0,
+                          ir_utils.call_with_retries(ironic.ports, limit=None,
                                                      fields=['address']))
         blacklist, whitelist = _get_black_white_lists()
         # removedlist are the MACs that are in either blacklist or whitelist,

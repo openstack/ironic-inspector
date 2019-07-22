@@ -14,10 +14,9 @@
 import socket
 import unittest
 
-from ironicclient import client
-from ironicclient import exc as ironic_exc
 import mock
-from oslo_config import cfg
+import openstack
+from openstack import exceptions as os_exc
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import keystone
@@ -25,59 +24,16 @@ from ironic_inspector.test import base
 from ironic_inspector import utils
 
 
-CONF = cfg.CONF
-
-
-class TestGetClientBase(object):
-    def test_get_client_with_auth_token(self, mock_client, mock_load,
-                                        mock_opts, mock_adapter):
-        fake_token = 'token'
-        mock_sess = mock.Mock()
-        mock_load.return_value = mock_sess
-        ir_utils.get_client(fake_token)
-        args = {'token': fake_token,
-                'session': mock_sess,
-                'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
-                'max_retries': CONF.ironic.max_retries,
-                'retry_interval': CONF.ironic.retry_interval}
-        endpoint = mock_adapter.return_value.get_endpoint.return_value
-        mock_client.assert_called_once_with(1, endpoint=endpoint, **args)
-
-    def test_get_client_without_auth_token(self, mock_client, mock_load,
-                                           mock_opts, mock_adapter):
-        mock_sess = mock.Mock()
-        mock_load.return_value = mock_sess
-        ir_utils.get_client(None)
-        args = {'session': mock_sess,
-                'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
-                'max_retries': CONF.ironic.max_retries,
-                'retry_interval': CONF.ironic.retry_interval}
-        endpoint = mock_adapter.return_value.get_endpoint.return_value
-        mock_client.assert_called_once_with(1, endpoint=endpoint, **args)
-
-
-@mock.patch.object(keystone, 'get_adapter')
-@mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'get_client', autospec=True)
-class TestGetClientAuth(TestGetClientBase, base.BaseTest):
+@mock.patch.object(openstack.connection, 'Connection', autospec=True)
+class TestGetClientBase(base.BaseTest):
     def setUp(self):
-        super(TestGetClientAuth, self).setUp()
+        super(TestGetClientBase, self).setUp()
         ir_utils.reset_ironic_session()
-        self.cfg.config(auth_strategy='keystone')
-        self.addCleanup(ir_utils.reset_ironic_session)
 
-
-@mock.patch.object(keystone, 'get_adapter')
-@mock.patch.object(keystone, 'register_auth_opts')
-@mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'get_client', autospec=True)
-class TestGetClientNoAuth(TestGetClientBase, base.BaseTest):
-    def setUp(self):
-        super(TestGetClientNoAuth, self).setUp()
-        ir_utils.reset_ironic_session()
-        self.cfg.config(auth_strategy='noauth')
-        self.addCleanup(ir_utils.reset_ironic_session)
+    def test_get_client(self, mock_connection, mock_session):
+        ir_utils.get_client()
+        self.assertEqual(1, mock_session.call_count)
 
 
 class TestGetIpmiAddress(base.BaseTest):
@@ -178,7 +134,7 @@ class TestCallWithRetries(unittest.TestCase):
     @mock.patch('time.sleep', lambda _x: None)
     def test_retries_on_ironicclient_error(self):
         self.call.side_effect = [
-            ironic_exc.ClientException('boom')
+            os_exc.SDKException('boom')
         ] * 3 + [mock.sentinel.result]
 
         result = ir_utils.call_with_retries(self.call, 'meow', answer=42)
@@ -188,8 +144,8 @@ class TestCallWithRetries(unittest.TestCase):
 
     @mock.patch('time.sleep', lambda _x: None)
     def test_retries_on_ironicclient_error_with_failure(self):
-        self.call.side_effect = ironic_exc.ClientException('boom')
-        self.assertRaisesRegexp(ironic_exc.ClientException, 'boom',
+        self.call.side_effect = os_exc.SDKException('boom')
+        self.assertRaisesRegexp(os_exc.SDKException, 'boom',
                                 ir_utils.call_with_retries,
                                 self.call, 'meow', answer=42)
         self.call.assert_called_with('meow', answer=42)
@@ -199,13 +155,13 @@ class TestCallWithRetries(unittest.TestCase):
 class TestLookupNode(base.NodeTest):
     def setUp(self):
         super(TestLookupNode, self).setUp()
-        self.ironic = mock.Mock(spec=['node', 'port'],
-                                node=mock.Mock(spec=['list']),
-                                port=mock.Mock(spec=['list']))
-        self.ironic.node.list.return_value = [self.node]
+        self.ironic = mock.Mock(spec=['nodes', 'ports'],
+                                nodes=mock.Mock(spec=['list']),
+                                ports=mock.Mock(spec=['list']))
+        self.ironic.nodes.return_value = [self.node]
         # Simulate only the PXE port enrolled
-        self.port = mock.Mock(address=self.pxe_mac, node_uuid=self.node.uuid)
-        self.ironic.port.list.side_effect = [
+        self.port = mock.Mock(address=self.pxe_mac, node_id=self.node.uuid)
+        self.ironic.ports.side_effect = [
             [self.port]
         ] + [[]] * (len(self.macs) - 1)
 
@@ -215,20 +171,20 @@ class TestLookupNode(base.NodeTest):
     def test_lookup_by_mac_only(self):
         uuid = ir_utils.lookup_node(macs=self.macs, ironic=self.ironic)
         self.assertEqual(self.node.uuid, uuid)
-        self.ironic.port.list.assert_has_calls([
+        self.ironic.ports.assert_has_calls([
             mock.call(address=mac,
                       fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
 
     def test_lookup_by_mac_duplicates(self):
-        self.ironic.port.list.side_effect = [
+        self.ironic.ports.side_effect = [
             [self.port],
-            [mock.Mock(address=self.inactive_mac, node_uuid='another')]
+            [mock.Mock(address=self.inactive_mac, node_id='another')]
         ] + [[]] * (len(self.macs) - 1)
         self.assertRaisesRegex(utils.Error, 'more than one node',
                                ir_utils.lookup_node,
                                macs=self.macs, ironic=self.ironic)
-        self.ironic.port.list.assert_has_calls([
+        self.ironic.ports.assert_has_calls([
             mock.call(address=mac,
                       fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
@@ -238,12 +194,12 @@ class TestLookupNode(base.NodeTest):
                                                    '42.42.42.42'],
                                     ironic=self.ironic)
         self.assertEqual(self.node.uuid, uuid)
-        self.assertEqual(1, self.ironic.node.list.call_count)
+        self.assertEqual(1, self.ironic.nodes.call_count)
 
     def test_lookup_by_bmc_duplicates(self):
-        self.ironic.node.list.return_value = [
+        self.ironic.nodes.return_value = [
             self.node,
-            mock.Mock(uuid='another',
+            mock.Mock(id='another',
                       driver_info={'ipmi_address': '42.42.42.42'}),
         ]
         self.assertRaisesRegex(utils.Error, 'more than one node',
@@ -251,7 +207,7 @@ class TestLookupNode(base.NodeTest):
                                bmc_addresses=[self.bmc_address,
                                               '42.42.42.42'],
                                ironic=self.ironic)
-        self.assertEqual(1, self.ironic.node.list.call_count)
+        self.assertEqual(1, self.ironic.nodes.call_count)
 
     def test_lookup_by_both(self):
         uuid = ir_utils.lookup_node(bmc_addresses=[self.bmc_address,
@@ -259,15 +215,15 @@ class TestLookupNode(base.NodeTest):
                                     macs=self.macs,
                                     ironic=self.ironic)
         self.assertEqual(self.node.uuid, uuid)
-        self.ironic.port.list.assert_has_calls([
+        self.ironic.ports.assert_has_calls([
             mock.call(address=mac,
                       fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
-        self.assertEqual(1, self.ironic.node.list.call_count)
+        self.assertEqual(1, self.ironic.nodes.call_count)
 
     def test_lookup_by_both_duplicates(self):
-        self.ironic.port.list.side_effect = [
-            [mock.Mock(address=self.inactive_mac, node_uuid='another')]
+        self.ironic.ports.side_effect = [
+            [mock.Mock(address=self.inactive_mac, node_id='another')]
         ] + [[]] * (len(self.macs) - 1)
         self.assertRaisesRegex(utils.Error, 'correspond to different nodes',
                                ir_utils.lookup_node,
@@ -275,8 +231,8 @@ class TestLookupNode(base.NodeTest):
                                               self.bmc_v6address],
                                macs=self.macs,
                                ironic=self.ironic)
-        self.ironic.port.list.assert_has_calls([
+        self.ironic.ports.assert_has_calls([
             mock.call(address=mac,
                       fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
-        self.assertEqual(1, self.ironic.node.list.call_count)
+        self.assertEqual(1, self.ironic.nodes.call_count)

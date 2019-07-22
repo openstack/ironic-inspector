@@ -283,7 +283,7 @@ def _process_node(node_info, node, introspection_data):
     node_info.invalidate_cache()
     rules.apply(node_info, introspection_data)
 
-    resp = {'uuid': node.uuid}
+    resp = {'uuid': node.id}
 
     # determine how to handle power
     if keep_power_on or not node_info.manage_boot:
@@ -301,7 +301,7 @@ def _finish(node_info, ironic, introspection_data, power_off=True):
     if power_off:
         LOG.debug('Forcing power off of node %s', node_info.uuid)
         try:
-            ironic.node.set_power_state(node_info.uuid, 'off')
+            ironic.set_node_power_state(node_info.uuid, 'power off')
         except Exception as exc:
             if node_info.node().provision_state == 'enroll':
                 LOG.info("Failed to power off the node in"

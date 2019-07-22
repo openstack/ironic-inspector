@@ -19,7 +19,7 @@ keystonemiddleware==4.18.0
 mock==3.0.0
 netaddr==0.7.18
 openstackdocstheme==1.20.0
-openstacksdk==0.30.0
+openstacksdk==0.40.0
 os-api-ref==1.4.0
 oslo.concurrency==3.26.0
 oslo.config==5.2.0

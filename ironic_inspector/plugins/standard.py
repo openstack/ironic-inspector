@@ -296,7 +296,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                     node_info.delete_port(port)
 
         if CONF.processing.overwrite_existing:
-            # Make sure pxe_enabled is up-to-date
+            # Make sure is_pxe_enabled is up-to-date
             ports = node_info.ports()
             for iface in introspection_data['interfaces'].values():
                 try:
@@ -305,8 +305,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
                     continue
 
                 real_pxe = iface.get('pxe', True)
-                if port.pxe_enabled != real_pxe:
-                    LOG.info('Fixing pxe_enabled=%(val)s on port %(port)s '
+                if port.is_pxe_enabled != real_pxe:
+                    LOG.info('Fixing is_pxe_enabled=%(val)s on port %(port)s '
                              'to match introspected data',
                              {'port': port.address, 'val': real_pxe},
                              node_info=node_info, data=introspection_data)

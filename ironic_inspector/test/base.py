@@ -171,17 +171,23 @@ class NodeTest(InventoryTest):
     def setUp(self):
         super(NodeTest, self).setUp()
         self.uuid = uuidutils.generate_uuid()
+
         fake_node = {
             'driver': 'ipmi',
             'driver_info': {'ipmi_address': self.bmc_address},
             'properties': {'cpu_arch': 'i386', 'local_gb': 40},
-            'uuid': self.uuid,
+            'id': self.uuid,
             'power_state': 'power on',
             'provision_state': 'inspecting',
             'extra': {},
             'instance_uuid': None,
             'maintenance': False
         }
+        # TODO(rpittau) the correct value is id, not uuid, based on the
+        # openstacksdk schema. The code and the fake_node date are correct
+        # but all the tests still use uuid, so just making it equal to id
+        # until we find the courage to change it in all tests.
+        fake_node['uuid'] = fake_node['id']
         mock_to_dict = mock.Mock(return_value=fake_node)
 
         self.node = mock.Mock(**fake_node)

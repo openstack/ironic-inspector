@@ -14,8 +14,8 @@
 
 """Tests for introspection rules plugins."""
 
-from ironicclient import exceptions
 import mock
+from openstack import exceptions as os_exc
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
@@ -188,7 +188,7 @@ class TestSetAttributeAction(test_base.NodeTest):
 
     @mock.patch.object(node_cache.NodeInfo, 'patch')
     def test_apply_driver_not_supported(self, mock_patch):
-        for exc in (TypeError, exceptions.NotAcceptable):
+        for exc in (TypeError, os_exc.SDKException):
             mock_patch.reset_mock()
             mock_patch.side_effect = [exc, None]
             params = {'path': '/driver', 'value': 'ipmi'}
@@ -269,7 +269,7 @@ class TestAddTraitAction(test_base.NodeTest):
 
     def test_add(self, mock_cli):
         self.act.apply(self.node_info, self.params)
-        mock_cli.return_value.node.add_trait.assert_called_once_with(
+        mock_cli.return_value.add_node_trait.assert_called_once_with(
             self.uuid, 'CUSTOM_FOO')
 
 
@@ -284,12 +284,12 @@ class TestRemoveTraitAction(test_base.NodeTest):
 
     def test_remove(self, mock_cli):
         self.act.apply(self.node_info, self.params)
-        mock_cli.return_value.node.remove_trait.assert_called_once_with(
+        mock_cli.return_value.remove_node_trait.assert_called_once_with(
             self.uuid, 'CUSTOM_FOO')
 
     def test_remove_not_found(self, mock_cli):
-        mock_cli.return_value.node.remove_trait.side_effect = (
-            exceptions.NotFound('trait not found'))
+        mock_cli.return_value.remove_node_trait.side_effect = (
+            os_exc.NotFoundException('trait not found'))
         self.act.apply(self.node_info, self.params)
-        mock_cli.return_value.node.remove_trait.assert_called_once_with(
+        mock_cli.return_value.remove_node_trait.assert_called_once_with(
             self.uuid, 'CUSTOM_FOO')

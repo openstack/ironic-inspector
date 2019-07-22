@@ -20,8 +20,8 @@ import datetime
 import os
 
 import fixtures
-from ironicclient import exc as ironic_exc
 import mock
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
@@ -380,7 +380,7 @@ class TestSync(DnsmasqTestBase):
         self.whitelist = {}
         self.mock__get_black_white_lists.return_value = (self.blacklist,
                                                          self.whitelist)
-        self.mock_ironic.port.list.return_value = [
+        self.mock_ironic.ports.return_value = [
             mock.Mock(address=address) for address in self.ironic_macs]
         self.mock_active_macs.return_value = self.active_macs
         self.mock_should_enable_unknown_hosts = self.useFixture(
@@ -406,8 +406,8 @@ class TestSync(DnsmasqTestBase):
         self.mock__whitelist_mac.assert_called_once_with('active_mac')
         self.mock__blacklist_mac.assert_called_once_with('new_mac')
 
-        self.mock_ironic.port.list.assert_called_once_with(limit=0,
-                                                           fields=['address'])
+        self.mock_ironic.ports.assert_called_once_with(
+            limit=None, fields=['address'])
         self.mock_active_macs.assert_called_once_with()
         self.mock__get_black_white_lists.assert_called_once_with()
         self.mock__configure_unknown_hosts.assert_called_once_with()
@@ -420,8 +420,8 @@ class TestSync(DnsmasqTestBase):
 
     @mock.patch('time.sleep', lambda _x: None)
     def test__sync_with_port_list_retries(self):
-        self.mock_ironic.port.list.side_effect = [
-            ironic_exc.ConnectionRefused('boom'),
+        self.mock_ironic.ports.side_effect = [
+            os_exc.SDKException('boom'),
             [mock.Mock(address=address) for address in self.ironic_macs]
         ]
         self.driver._sync(self.mock_ironic)
@@ -429,8 +429,8 @@ class TestSync(DnsmasqTestBase):
         self.mock__whitelist_mac.assert_called_once_with('active_mac')
         self.mock__blacklist_mac.assert_called_once_with('new_mac')
 
-        self.mock_ironic.port.list.assert_called_with(limit=0,
-                                                      fields=['address'])
+        self.mock_ironic.ports.assert_called_with(
+            limit=None, fields=['address'])
         self.mock_active_macs.assert_called_once_with()
         self.mock__get_black_white_lists.assert_called_once_with()
         self.mock__configure_removedlist.assert_called_once_with({'gone_mac'})

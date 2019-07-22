@@ -114,9 +114,9 @@ class Base(base.NodeTest):
         self.cli_fixture = self.useFixture(
             fixtures.MockPatchObject(ir_utils, 'get_client'))
         self.cli = self.cli_fixture.mock.return_value
-        self.cli.node.get.return_value = self.node
-        self.cli.node.update.return_value = self.node
-        self.cli.node.list.return_value = [self.node]
+        self.cli.get_node.return_value = self.node
+        self.cli.patch_node.return_value = self.node
+        self.cli.nodes.return_value = [self.node]
 
         self.patch = [
             {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
@@ -249,8 +249,8 @@ class Test(Base):
     def test_bmc(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
@@ -259,12 +259,12 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
-        self.assertCalledWithPatch(self.patch, self.cli.node.update)
-        self.cli.port.create.assert_called_once_with(
+        self.cli.patch_node.assert_called_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.patch_node)
+        self.cli.create_port.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
-            pxe_enabled=True)
-        self.assertTrue(self.cli.node.set_boot_device.called)
+            is_pxe_enabled=True)
+        self.assertTrue(self.cli.set_node_boot_device.called)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
@@ -275,22 +275,22 @@ class Test(Base):
 
         uuid_to_delete = uuidutils.generate_uuid()
         uuid_to_update = uuidutils.generate_uuid()
-        # Two ports already exist: one with incorrect pxe_enabled, the other
+        # Two ports already exist: one with incorrect is_pxe_enabled, the other
         # should be deleted.
-        self.cli.node.list_ports.return_value = [
-            mock.Mock(address=self.macs[1], uuid=uuid_to_update,
-                      node_uuid=self.uuid, extra={}, pxe_enabled=True),
-            mock.Mock(address='foobar', uuid=uuid_to_delete,
-                      node_uuid=self.uuid, extra={}, pxe_enabled=True),
+        self.cli.ports.return_value = [
+            mock.Mock(address=self.macs[1], id=uuid_to_update,
+                      node_id=self.uuid, extra={}, is_pxe_enabled=True),
+            mock.Mock(address='foobar', id=uuid_to_delete,
+                      node_id=self.uuid, extra={}, is_pxe_enabled=True),
         ]
         # Two more ports are created, one with client_id. Make sure the
         # returned object has the same properties as requested in create().
-        self.cli.port.create.side_effect = mock.Mock
+        self.cli.create_port.side_effect = mock.Mock
 
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
@@ -299,17 +299,18 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
-        self.assertCalledWithPatch(self.patch, self.cli.node.update)
+        self.cli.patch_node.assert_called_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.patch_node)
         calls = [
             mock.call(node_uuid=self.uuid, address=self.macs[0],
-                      extra={}, pxe_enabled=True),
+                      extra={}, is_pxe_enabled=True),
             mock.call(node_uuid=self.uuid, address=self.macs[2],
-                      extra={'client-id': self.client_id}, pxe_enabled=False),
+                      extra={'client-id': self.client_id},
+                      is_pxe_enabled=False),
         ]
-        self.cli.port.create.assert_has_calls(calls, any_order=True)
-        self.cli.port.delete.assert_called_once_with(uuid_to_delete)
-        self.cli.port.update.assert_called_once_with(
+        self.cli.create_port.assert_has_calls(calls, any_order=True)
+        self.cli.delete_port.assert_called_once_with(uuid_to_delete)
+        self.cli.patch_port.assert_called_once_with(
             uuid_to_update,
             [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
 
@@ -369,7 +370,7 @@ class Test(Base):
     def test_manage_boot(self):
         self.call_introspect(self.uuid, manage_boot=False)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.assertFalse(self.cli.node.set_power_state.called)
+        self.assertFalse(self.cli.set_node_power_state.called)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
@@ -378,8 +379,8 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
-        self.assertFalse(self.cli.node.set_boot_device.called)
+        self.cli.patch_node.assert_called_with(self.uuid, mock.ANY)
+        self.assertFalse(self.cli.set_node_boot_device.called)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
@@ -476,7 +477,7 @@ class Test(Base):
         self.call_continue(self.data)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_any_call(
+        self.cli.patch_node.assert_any_call(
             self.uuid,
             [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
 
@@ -514,11 +515,11 @@ class Test(Base):
         self.call_continue(self.data)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_any_call(
+        self.cli.patch_node.assert_any_call(
             self.uuid,
             [{'op': 'add', 'path': '/extra/foo', 'value': 'bar'}])
 
-        self.cli.node.update.assert_any_call(
+        self.cli.patch_node.assert_any_call(
             self.uuid,
             [{'op': 'add', 'path': '/driver_info/ipmi_address',
               'value': self.data['inventory']['bmc_address']}])
@@ -528,8 +529,8 @@ class Test(Base):
 
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
@@ -538,10 +539,10 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.assertCalledWithPatch(self.patch_root_hints, self.cli.node.update)
-        self.cli.port.create.assert_called_once_with(
+        self.assertCalledWithPatch(self.patch_root_hints, self.cli.patch_node)
+        self.cli.create_port.assert_called_once_with(
             node_uuid=self.uuid, address='11:22:33:44:55:66', extra={},
-            pxe_enabled=True)
+            is_pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
@@ -549,8 +550,8 @@ class Test(Base):
     def test_abort_introspection(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
 
@@ -573,8 +574,8 @@ class Test(Base):
     def test_stored_data_processing(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
 
         res = self.call_continue(self.data)
         self.assertEqual({'uuid': self.uuid}, res)
@@ -681,8 +682,8 @@ class Test(Base):
 
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
@@ -691,11 +692,11 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
-        self.assertCalledWithPatch(self.patch, self.cli.node.update)
-        self.cli.port.create.assert_called_once_with(
+        self.cli.patch_node.assert_called_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.patch_node)
+        self.cli.create_port.assert_called_once_with(
             node_uuid=self.uuid, extra={}, address='11:22:33:44:55:66',
-            pxe_enabled=True)
+            is_pxe_enabled=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
@@ -703,8 +704,8 @@ class Test(Base):
     def test_lldp_plugin(self):
         self.call_introspect(self.uuid)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid,
-                                                              'reboot')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=False, state=istate.States.waiting)
@@ -730,8 +731,8 @@ class Test(Base):
         cfg.CONF.set_override('permit_active_introspection', True,
                               'processing')
         self.node.provision_state = 'active'
-        self.cli.node.list_ports.return_value = [
-            mock.Mock(address='11:22:33:44:55:66', node_uuid=self.node.uuid)
+        self.cli.ports.return_value = [
+            mock.Mock(address='11:22:33:44:55:66', node_id=self.node.uuid)
         ]
 
         # NOTE(dtantsur): we're not starting introspection in this test.
@@ -739,10 +740,10 @@ class Test(Base):
         self.assertEqual({'uuid': self.uuid}, res)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
-        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
-        self.assertCalledWithPatch(self.patch, self.cli.node.update)
-        self.assertFalse(self.cli.port.create.called)
-        self.assertFalse(self.cli.node.set_boot_device.called)
+        self.cli.patch_node.assert_called_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.patch_node)
+        self.assertFalse(self.cli.create_port.called)
+        self.assertFalse(self.cli.set_node_boot_device.called)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
@@ -751,9 +752,9 @@ class Test(Base):
         # Start with a normal introspection as a pre-requisite
         self.test_bmc()
 
-        self.cli.node.update.reset_mock()
-        self.cli.node.set_boot_device.reset_mock()
-        self.cli.port.create.reset_mock()
+        self.cli.patch_node.reset_mock()
+        self.cli.set_node_boot_device.reset_mock()
+        self.cli.create_port.reset_mock()
         # Provide some updates
         self.data['inventory']['memory']['physical_mb'] = 16384
         self.patch = [

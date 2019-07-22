@@ -343,15 +343,15 @@ class TestValidateInterfacesHookBeforeUpdatePXEEnabled(test_base.NodeTest):
         sorted_interfaces = sorted(self.valid_interfaces.values(),
                                    key=lambda i: i['mac'])
         self.existing_ports = [
-            mock.Mock(spec=['address', 'uuid', 'pxe_enabled'],
-                      address=iface['mac'], pxe_enabled=True)
+            mock.Mock(spec=['address', 'uuid', 'is_pxe_enabled'],
+                      address=iface['mac'], is_pxe_enabled=True)
             for iface in sorted_interfaces
         ]
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node,
                                              ports=self.existing_ports)
 
-    def test_fix_pxe_enabled(self, mock_create_ports, mock_patch_port):
+    def test_fix_is_pxe_enabled(self, mock_create_ports, mock_patch_port):
         self.hook.before_update(self.data, self.node_info)
         # Note(milan) there are just 2 self.valid_interfaces, 'eth1' and 'ib0'
         # eth1 is the PXE booting interface and eth1.mac < ib0.mac

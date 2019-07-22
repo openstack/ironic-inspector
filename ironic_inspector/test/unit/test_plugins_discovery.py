@@ -50,7 +50,8 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
 
         mock_create_node.assert_called_once_with('fake-hardware',
                                                  ironic=self.ironic,
-                                                 driver_info={})
+                                                 driver_info={},
+                                                 provision_state='enroll')
         mock_check_existing.assert_called_once_with(
             introspection_data, {}, self.ironic)
 
@@ -67,7 +68,8 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
 
         mock_create_node.assert_called_once_with(
             'fake-hardware', ironic=self.ironic,
-            driver_info={'ipmi_address': self.bmc_address})
+            driver_info={'ipmi_address': self.bmc_address},
+            provision_state='enroll')
         mock_check_existing.assert_called_once_with(
             expected_data, {'ipmi_address': self.bmc_address}, self.ironic)
         self.assertTrue(self.data['auto_discovered'])
@@ -89,7 +91,8 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
 
         mock_create_node.assert_called_once_with(
             'fake-hardware', ironic=self.ironic,
-            driver_info={'ipmi_address': self.bmc_v6address})
+            driver_info={'ipmi_address': self.bmc_v6address},
+            provision_state='enroll')
         mock_check_existing.assert_called_once_with(
             expected_data, {'ipmi_address': self.bmc_v6address}, self.ironic)
         self.assertTrue(self.data['auto_discovered'])
@@ -108,13 +111,14 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
         discovery.enroll_node_not_found_hook(introspection_data)
 
         mock_create_node.assert_called_once_with('fake2', ironic=self.ironic,
-                                                 driver_info={})
+                                                 driver_info={},
+                                                 provision_state='enroll')
         mock_check_existing.assert_called_once_with(
             {}, {}, self.ironic)
         self.assertEqual({'auto_discovered': True}, introspection_data)
 
     def test__check_existing_nodes_new_mac(self):
-        self.ironic.port.list.return_value = []
+        self.ironic.ports.return_value = []
         introspection_data = {'macs': self.macs}
         node_driver_info = {}
 
@@ -122,7 +126,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
             introspection_data, node_driver_info, self.ironic)
 
     def test__check_existing_nodes_existing_mac(self):
-        self.ironic.port.list.return_value = [mock.MagicMock(
+        self.ironic.ports.return_value = [mock.MagicMock(
             address=self.macs[0], uuid='fake_port')]
         introspection_data = {
             'all_interfaces': {'eth%d' % i: {'mac': m}
@@ -135,7 +139,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
                           introspection_data, node_driver_info, self.ironic)
 
     def test__check_existing_nodes_new_node(self):
-        self.ironic.node.list.return_value = [mock.MagicMock(
+        self.ironic.nodes.return_value = [mock.MagicMock(
             driver_info={'ipmi_address': '1.2.4.3'}, uuid='fake_node')]
         introspection_data = {}
         node_driver_info = {'ipmi_address': self.bmc_address}
@@ -144,7 +148,7 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
                                         self.ironic)
 
     def test__check_existing_nodes_existing_node(self):
-        self.ironic.node.list.return_value = [mock.MagicMock(
+        self.ironic.nodes.return_value = [mock.MagicMock(
             driver_info={'ipmi_address': self.bmc_address}, uuid='fake_node')]
         introspection_data = {}
         node_driver_info = {'ipmi_address': self.bmc_address}

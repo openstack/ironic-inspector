@@ -16,8 +16,8 @@
 import operator
 import re
 
-from ironicclient import exceptions as ironic_exc
 import netaddr
+from openstack import exceptions as os_exc
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.plugins import base
@@ -138,7 +138,7 @@ class SetAttributeAction(base.RuleActionPlugin):
         try:
             node_info.patch([{'op': 'add', 'path': params['path'],
                               'value': params['value']}], **kwargs)
-        except (TypeError, ironic_exc.NotAcceptable):
+        except (TypeError, os_exc.SDKException):
             # TODO(dtantsur): remove support for old ironicclient and Queens
             if 'reset_interfaces' in params:
                 # An explicit request, report an error.

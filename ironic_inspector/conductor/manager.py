@@ -90,6 +90,7 @@ class ConductorManager(object):
                        (periodic_clean_up_, None, None)],
             executor_factory=periodics.ExistingExecutor(utils.executor()),
             on_failure=self._periodics_watchdog)
+
         utils.executor().submit(self._periodics_worker.start)
 
         if CONF.enable_mdns:
@@ -203,6 +204,6 @@ def periodic_clean_up():  # pragma: no cover
 def sync_with_ironic():
     ironic = ir_utils.get_client()
     # TODO(yuikotakada): pagination
-    ironic_nodes = ironic.node.list(limit=0)
-    ironic_node_uuids = {node.uuid for node in ironic_nodes}
+    ironic_nodes = ironic.nodes(fields=["uuid"], limit=None)
+    ironic_node_uuids = {node.id for node in ironic_nodes}
     node_cache.delete_nodes_not_in_list(ironic_node_uuids)

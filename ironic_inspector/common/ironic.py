@@ -13,9 +13,9 @@
 
 import socket
 
-from ironicclient import client
-from ironicclient import exceptions as ironic_exc
 import netaddr
+import openstack
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 import retrying
 
@@ -26,23 +26,14 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 LOG = utils.getProcessingLogger(__name__)
 
-# See https://docs.openstack.org/ironic/latest/contributor/states.html  # noqa
+# See https://docs.openstack.org/ironic/latest/contributor/states.html
 VALID_STATES = frozenset(['enroll', 'manageable', 'inspecting', 'inspect wait',
                           'inspect failed'])
 
 # States where an instance is deployed and an admin may be doing something.
 VALID_ACTIVE_STATES = frozenset(['active', 'rescue'])
 
-# 1.38 is the latest API version in the Queens release series, 10.1.0.
-# 1.46 is the latest API version in the Rocky release series, 11.1.0.
-# 1.56 is the latest API version in the Stein release series, 12.1.0
-# NOTE(mgoddard): This should be updated with each release to ensure that
-# inspector is able to use the latest ironic API. In particular, this version
-# is used when processing introspection rules, and is the default version used
-# by processing plugins.
-DEFAULT_IRONIC_API_VERSION = ['1.38', '1.46', '1.56']
-
-IRONIC_SESSION = None
+_IRONIC_SESSION = None
 
 
 class NotFound(utils.Error):
@@ -53,13 +44,34 @@ class NotFound(utils.Error):
         super(NotFound, self).__init__(msg, code, *args, **kwargs)
 
 
+def _get_ironic_session():
+    global _IRONIC_SESSION
+
+    if not _IRONIC_SESSION:
+        _IRONIC_SESSION = keystone.get_session('ironic')
+    return _IRONIC_SESSION
+
+
+def get_client(token=None):
+    """Get an ironic client connection."""
+    session = _get_ironic_session()
+
+    try:
+        return openstack.connection.Connection(
+            session=session, oslo_conf=CONF).baremetal
+    except Exception as exc:
+        LOG.error('Failed to establish a connection with ironic, '
+                  'reason: %s', exc)
+        raise
+
+
 def reset_ironic_session():
     """Reset the global session variable.
 
     Mostly useful for unit tests.
     """
-    global IRONIC_SESSION
-    IRONIC_SESSION = None
+    global _IRONIC_SESSION
+    _IRONIC_SESSION = None
 
 
 def get_ipmi_address(node):
@@ -109,33 +121,6 @@ def get_ipmi_address(node):
 
         return (value, ipv4, ipv6) if ipv4 or ipv6 else none_address
     return none_address
-
-
-def get_client(token=None,
-               api_version=DEFAULT_IRONIC_API_VERSION):  # pragma: no cover
-    """Get Ironic client instance."""
-    global IRONIC_SESSION
-
-    if not IRONIC_SESSION:
-        IRONIC_SESSION = keystone.get_session('ironic')
-
-    args = {
-        'session': IRONIC_SESSION,
-        'os_ironic_api_version': api_version,
-        'max_retries': CONF.ironic.max_retries,
-        'retry_interval': CONF.ironic.retry_interval
-    }
-
-    if token is not None:
-        args['token'] = token
-
-    endpoint = keystone.get_adapter('ironic',
-                                    session=IRONIC_SESSION).get_endpoint()
-    if not endpoint:
-        raise utils.Error(
-            _('Cannot find the bare metal endpoint either in Keystone or '
-              'in the configuration'), code=500)
-    return client.get_client(1, endpoint=endpoint, **args)
 
 
 def check_provision_state(node):
@@ -188,16 +173,18 @@ def get_node(node_id, ironic=None, **kwargs):
     ironic = ironic if ironic is not None else get_client()
 
     try:
-        return ironic.node.get(node_id, **kwargs)
-    except ironic_exc.NotFound:
+        node = ironic.get_node(node_id, **kwargs)
+        node.uuid = node.id
+    except os_exc.ResourceNotFound:
         raise NotFound(node_id)
-    except ironic_exc.HttpError as exc:
+    except os_exc.BadRequestException as exc:
         raise utils.Error(_("Cannot get node %(node)s: %(exc)s") %
                           {'node': node_id, 'exc': exc})
+    return node
 
 
 @retrying.retry(
-    retry_on_exception=lambda exc: isinstance(exc, ironic_exc.ClientException),
+    retry_on_exception=lambda exc: isinstance(exc, os_exc.SDKException),
     stop_max_attempt_number=5, wait_fixed=1000)
 def call_with_retries(func, *args, **kwargs):
     """Call an ironic client function retrying all errors.
@@ -217,15 +204,16 @@ def lookup_node_by_macs(macs, introspection_data=None,
 
     nodes = set()
     for mac in macs:
-        ports = ironic.port.list(address=mac, fields=["uuid", "node_uuid"])
+        ports = ironic.ports(address=mac, fields=["uuid", "node_uuid"])
+        ports = list(ports)
         if not ports:
             continue
         elif fail:
             raise utils.Error(
                 _('Port %(mac)s already exists, uuid: %(uuid)s') %
-                {'mac': mac, 'uuid': ports[0].uuid}, data=introspection_data)
+                {'mac': mac, 'uuid': ports[0].id}, data=introspection_data)
         else:
-            nodes.update(p.node_uuid for p in ports)
+            nodes.update(p.node_id for p in ports)
 
     if len(nodes) > 1:
         raise utils.Error(_('MAC addresses %(macs)s correspond to more than '
@@ -233,6 +221,7 @@ def lookup_node_by_macs(macs, introspection_data=None,
                           {'macs': ', '.join(macs),
                            'nodes': ', '.join(nodes)},
                           data=introspection_data)
+
     elif nodes:
         return nodes.pop()
 
@@ -245,7 +234,7 @@ def lookup_node_by_bmc_addresses(addresses, introspection_data=None,
 
     # FIXME(aarefiev): it's not effective to fetch all nodes, and may
     #                  impact on performance on big clusters
-    nodes = ironic.node.list(fields=('uuid', 'driver_info'), limit=0)
+    nodes = ironic.nodes(fields=('id', 'driver_info'), limit=None)
     found = set()
     for node in nodes:
         bmc_address, bmc_ipv4, bmc_ipv6 = get_ipmi_address(node)
@@ -255,10 +244,10 @@ def lookup_node_by_bmc_addresses(addresses, introspection_data=None,
             elif fail:
                 raise utils.Error(
                     _('Node %(uuid)s already has BMC address %(addr)s') %
-                    {'addr': addr, 'uuid': node.uuid},
+                    {'addr': addr, 'uuid': node.id},
                     data=introspection_data)
             else:
-                found.add(node.uuid)
+                found.add(node.id)
 
     if len(found) > 1:
         raise utils.Error(_('BMC addresses %(addr)s correspond to more than '

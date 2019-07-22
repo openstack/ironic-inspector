@@ -43,7 +43,6 @@ class BaseManagerTest(test_base.NodeTest):
         self.mock__shutting_down.acquire.return_value = True
         self.manager = manager.ConductorManager()
         self.context = {}
-        self.token = None
 
 
 class TestManagerInitHost(BaseManagerTest):
@@ -327,18 +326,18 @@ class TestManagerPeriodicWatchDog(BaseManagerTest):
 class TestManagerIntrospect(BaseManagerTest):
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_do_introspect(self, introspect_mock):
-        self.manager.do_introspection(self.context, self.uuid, self.token)
+        self.manager.do_introspection(self.context, self.uuid)
 
-        introspect_mock.assert_called_once_with(self.uuid, token=self.token,
-                                                manage_boot=True)
+        introspect_mock.assert_called_once_with(self.uuid, manage_boot=True,
+                                                token=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_do_introspect_with_manage_boot(self, introspect_mock):
-        self.manager.do_introspection(self.context, self.uuid, self.token,
-                                      False)
+        self.manager.do_introspection(self.context, self.uuid,
+                                      manage_boot=False)
 
-        introspect_mock.assert_called_once_with(self.uuid, token=self.token,
-                                                manage_boot=False)
+        introspect_mock.assert_called_once_with(self.uuid, manage_boot=False,
+                                                token=None)
 
     @mock.patch.object(introspect, 'introspect', autospec=True)
     def test_introspect_failed(self, introspect_mock):
@@ -346,19 +345,19 @@ class TestManagerIntrospect(BaseManagerTest):
 
         exc = self.assertRaises(messaging.rpc.ExpectedException,
                                 self.manager.do_introspection,
-                                self.context, self.uuid, self.token)
+                                self.context, self.uuid)
 
         self.assertEqual(utils.Error, exc.exc_info[0])
-        introspect_mock.assert_called_once_with(self.uuid, token=None,
-                                                manage_boot=True)
+        introspect_mock.assert_called_once_with(self.uuid, manage_boot=True,
+                                                token=None)
 
 
 class TestManagerAbort(BaseManagerTest):
     @mock.patch.object(introspect, 'abort', autospec=True)
     def test_abort_ok(self, abort_mock):
-        self.manager.do_abort(self.context, self.uuid, self.token)
+        self.manager.do_abort(self.context, self.uuid)
 
-        abort_mock.assert_called_once_with(self.uuid, token=self.token)
+        abort_mock.assert_called_once_with(self.uuid, token=None)
 
     @mock.patch.object(introspect, 'abort', autospec=True)
     def test_abort_node_not_found(self, abort_mock):
@@ -366,7 +365,7 @@ class TestManagerAbort(BaseManagerTest):
 
         exc = self.assertRaises(messaging.rpc.ExpectedException,
                                 self.manager.do_abort,
-                                self.context, self.uuid, self.token)
+                                self.context, self.uuid)
 
         self.assertEqual(utils.Error, exc.exc_info[0])
         abort_mock.assert_called_once_with(self.uuid, token=None)
@@ -378,7 +377,7 @@ class TestManagerAbort(BaseManagerTest):
 
         exc = self.assertRaises(messaging.rpc.ExpectedException,
                                 self.manager.do_abort,
-                                self.context, self.uuid, self.token)
+                                self.context, self.uuid)
 
         self.assertEqual(utils.Error, exc.exc_info[0])
         abort_mock.assert_called_once_with(self.uuid, token=None)

@@ -20,8 +20,8 @@ import tempfile
 
 import eventlet
 import fixtures
-from ironicclient import exceptions
 import mock
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import timeutils
@@ -73,7 +73,7 @@ class BaseProcessTest(BaseTest):
             started_at=self.started_at)
         self.node_info.finished = mock.Mock()
         self.find_mock.return_value = self.node_info
-        self.cli.node.get.return_value = self.node
+        self.cli.get_node.return_value = self.node
         self.process_mock = self.process_fixture.mock
         self.process_mock.return_value = self.fake_result_json
         self.addCleanup(self._cleanup_lock, self.node_info)
@@ -93,7 +93,7 @@ class TestProcess(BaseProcessTest):
             mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
-        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.cli.get_node.assert_called_once_with(self.uuid)
         self.process_mock.assert_called_once_with(
             self.node_info, self.node, self.data)
 
@@ -106,7 +106,7 @@ class TestProcess(BaseProcessTest):
                                                mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
-        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.cli.get_node.assert_called_once_with(self.uuid)
         self.process_mock.assert_called_once_with(self.node_info, self.node,
                                                   self.data)
 
@@ -119,7 +119,7 @@ class TestProcess(BaseProcessTest):
                                                mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
-        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.cli.get_node.assert_called_once_with(self.uuid)
         self.process_mock.assert_called_once_with(self.node_info, self.node,
                                                   self.data)
 
@@ -133,7 +133,7 @@ class TestProcess(BaseProcessTest):
             mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
-        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.cli.get_node.assert_called_once_with(self.uuid)
         self.process_mock.assert_called_once_with(self.node_info, self.node,
                                                   self.data)
 
@@ -142,14 +142,14 @@ class TestProcess(BaseProcessTest):
         self.assertRaisesRegex(utils.Error,
                                'not found',
                                process.process, self.data)
-        self.assertFalse(self.cli.node.get.called)
+        self.assertFalse(self.cli.get_node.called)
         self.assertFalse(self.process_mock.called)
 
     @mock.patch.object(node_cache, 'record_node', autospec=True)
     def test_not_found_in_cache_active_introspection(self, mock_record):
         CONF.set_override('permit_active_introspection', True, 'processing')
         self.find_mock.side_effect = utils.NotFoundInCacheError('not found')
-        self.cli.node.get.side_effect = exceptions.NotFound('boom')
+        self.cli.get_node.side_effect = os_exc.NotFoundException('boom')
         self.cache_fixture.mock.acquire_lock = mock.Mock()
         self.cache_fixture.mock.uuid = '1111'
         self.cache_fixture.mock.finished_at = None
@@ -169,7 +169,7 @@ class TestProcess(BaseProcessTest):
             macs=mock.ANY)
         actual_macs = mock_record.call_args[1]['macs']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
-        self.cli.node.get.assert_not_called()
+        self.cli.get_node.assert_not_called()
         self.process_mock.assert_called_once_with(
             mock.ANY, mock.ANY, self.data)
 
@@ -188,17 +188,17 @@ class TestProcess(BaseProcessTest):
             mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
-        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.cli.get_node.assert_called_once_with(self.uuid)
         self.process_mock.assert_called_once_with(
             mock.ANY, mock.ANY, self.data)
 
     def test_not_found_in_ironic(self):
-        self.cli.node.get.side_effect = exceptions.NotFound()
+        self.cli.get_node.side_effect = os_exc.NotFoundException()
 
         self.assertRaisesRegex(utils.Error,
                                'Node %s was not found' % self.uuid,
                                process.process, self.data)
-        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.cli.get_node.assert_called_once_with(self.uuid)
         self.assertFalse(self.process_mock.called)
         self.node_info.finished.assert_called_once_with(
             istate.Events.error, error=mock.ANY)
@@ -367,7 +367,7 @@ class TestStoreLogs(BaseProcessTest):
         self._check_contents()
 
     def test_store_find_node_error(self, hook_mock):
-        self.cli.node.get.side_effect = exceptions.NotFound('boom')
+        self.cli.get_node.side_effect = os_exc.NotFoundException('boom')
         self.assertRaises(utils.Error, process.process, self.data)
         self._check_contents()
 
@@ -431,11 +431,11 @@ class TestProcessNode(BaseTest):
         self.data['interfaces'] = self.valid_interfaces
         self.ports = self.all_ports
 
-        self.cli.node.get_boot_device.side_effect = (
+        self.cli.get_node.return_value.boot_device.side_effect = (
             [RuntimeError()] * self.validate_attempts + [None])
-        self.cli.port.create.side_effect = self.ports
-        self.cli.node.update.return_value = self.node
-        self.cli.node.list_ports.return_value = []
+        self.cli.create_port.side_effect = self.ports
+        self.cli.update_node.return_value = self.node
+        self.cli.ports.return_value = []
 
         self.useFixture(fixtures.MockPatchObject(
             pxe_filter, 'driver', autospec=True))
@@ -465,16 +465,17 @@ class TestProcessNode(BaseTest):
     def test_ok(self, finished_mock, post_hook_mock):
         process._process_node(self.node_info, self.node, self.data)
 
-        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+        self.cli.create_port.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0],
                                              extra={},
-                                             pxe_enabled=True)
-        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             is_pxe_enabled=True)
+        self.cli.create_port.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1],
                                              extra={},
-                                             pxe_enabled=False)
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
-        self.assertFalse(self.cli.node.validate.called)
+                                             is_pxe_enabled=False)
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'power off')
+        self.assertFalse(self.cli.validate_node.called)
 
         post_hook_mock.assert_called_once_with(self.data, self.node_info)
         finished_mock.assert_called_once_with(mock.ANY, istate.Events.finish)
@@ -487,42 +488,43 @@ class TestProcessNode(BaseTest):
         CONF.set_override('permit_active_introspection', True, 'processing')
         process._process_node(self.node_info, self.node, self.data)
 
-        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+        self.cli.create_port.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0],
                                              extra={},
-                                             pxe_enabled=True)
-        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             is_pxe_enabled=True)
+        self.cli.create_port.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1],
                                              extra={},
-                                             pxe_enabled=False)
+                                             is_pxe_enabled=False)
 
-        self.cli.node.set_power_state.assert_not_called()
-        self.assertFalse(self.cli.node.validate.called)
+        self.cli.set_node_power_state.assert_not_called()
+        self.assertFalse(self.cli.validate_node.called)
 
         post_hook_mock.assert_called_once_with(mock.ANY, self.data,
                                                self.node_info)
         finished_mock.assert_called_once_with(mock.ANY, istate.Events.finish)
 
     def test_port_failed(self):
-        self.cli.port.create.side_effect = (
-            [exceptions.Conflict()] + self.ports[1:])
+        self.cli.create_port.side_effect = (
+            [os_exc.ConflictException()] + self.ports[1:])
 
         process._process_node(self.node_info, self.node, self.data)
 
-        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+        self.cli.create_port.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[0],
-                                             extra={}, pxe_enabled=True)
-        self.cli.port.create.assert_any_call(node_uuid=self.uuid,
+                                             extra={}, is_pxe_enabled=True)
+        self.cli.create_port.assert_any_call(node_uuid=self.uuid,
                                              address=self.macs[1],
-                                             extra={}, pxe_enabled=False)
+                                             extra={}, is_pxe_enabled=False)
 
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_power_off_failed(self, finished_mock):
-        self.cli.node.set_power_state.side_effect = RuntimeError('boom')
+        self.cli.set_node_power_state.side_effect = RuntimeError('boom')
 
         process._process_node(self.node_info, self.node, self.data)
 
-        self.cli.node.set_power_state.assert_called_once_with(self.uuid, 'off')
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'power off')
         finished_mock.assert_called_once_with(
             mock.ANY, istate.Events.error,
             error='Failed to power off node %s, check its power '
@@ -538,7 +540,7 @@ class TestProcessNode(BaseTest):
         process._process_node(self.node_info, self.node, self.data)
 
         self.assertTrue(post_hook_mock.called)
-        self.assertTrue(self.cli.node.set_power_state.called)
+        self.assertTrue(self.cli.set_node_power_state.called)
         finished_mock.assert_called_once_with(
             self.node_info, istate.Events.finish)
 
@@ -547,7 +549,7 @@ class TestProcessNode(BaseTest):
         CONF.set_override('power_off', False, 'processing')
         process._process_node(self.node_info, self.node, self.data)
 
-        self.assertFalse(self.cli.node.set_power_state.called)
+        self.assertFalse(self.cli.set_node_power_state.called)
         finished_mock.assert_called_once_with(
             self.node_info, istate.Events.finish)
 
@@ -682,9 +684,9 @@ class TestReapplyNode(BaseTest):
                                              node=self.node)
         self.node_info.invalidate_cache = mock.Mock()
 
-        self.cli.port.create.side_effect = self.ports
-        self.cli.node.update.return_value = self.node
-        self.cli.node.list_ports.return_value = []
+        self.cli.create_port.side_effect = self.ports
+        self.cli.update_node.return_value = self.node
+        self.cli.ports.return_value = []
         self.node_info._state = istate.States.finished
         self.commit_fixture = self.useFixture(
             fixtures.MockPatchObject(node_cache.NodeInfo, 'commit',
@@ -721,7 +723,7 @@ class TestReapplyNode(BaseTest):
         apply_mock.assert_called_once_with(self.node_info, self.data)
 
         # assert no power operations were performed
-        self.assertFalse(self.cli.node.set_power_state.called)
+        self.assertFalse(self.cli.set_node_power_state.called)
         finished_mock.assert_called_once_with(
             self.node_info, istate.Events.finish)
 
@@ -731,11 +733,11 @@ class TestReapplyNode(BaseTest):
 
         # assert ports were created with whatever there was left
         # behind validate_interfaces
-        self.cli.port.create.assert_called_once_with(
+        self.cli.create_port.assert_called_once_with(
             node_uuid=self.uuid,
             address=self.data['macs'][0],
             extra={},
-            pxe_enabled=True
+            is_pxe_enabled=True
         )
 
     @prepare_mocks

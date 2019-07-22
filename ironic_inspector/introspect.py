@@ -16,6 +16,7 @@
 import time
 
 from eventlet import semaphore
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 from oslo_utils import strutils
 
@@ -48,15 +49,15 @@ def introspect(node_id, manage_boot=True, token=None):
 
     ir_utils.check_provision_state(node)
     if manage_boot:
-        validation = ironic.node.validate(node.uuid)
-        if not validation.power['result']:
-            msg = _('Failed validation of power interface, reason: %s')
-            raise utils.Error(msg % validation.power['reason'],
-                              node_info=node)
+        try:
+            ironic.validate_node(node.id, required='power')
+        except os_exc.ValidationException as exc:
+            msg = _('Failed validation of power interface: %s')
+            raise utils.Error(msg % exc, node_info=node)
 
     bmc_address, bmc_ipv4, bmc_ipv6 = ir_utils.get_ipmi_address(node)
     lookup_attrs = list(filter(None, [bmc_ipv4, bmc_ipv6]))
-    node_info = node_cache.start_introspection(node.uuid,
+    node_info = node_cache.start_introspection(node.id,
                                                bmc_address=lookup_attrs,
                                                manage_boot=manage_boot,
                                                ironic=ironic)
@@ -114,7 +115,7 @@ def _background_introspect_locked(node_info, ironic):
 
     if node_info.manage_boot:
         try:
-            ironic.node.set_boot_device(
+            ironic.set_node_boot_device(
                 node_info.uuid, 'pxe',
                 persistent=_persistent_ramdisk_boot(node_info.node()))
         except Exception as exc:
@@ -122,9 +123,9 @@ def _background_introspect_locked(node_info, ironic):
                               node_info=node_info)
 
         try:
-            ironic.node.set_power_state(node_info.uuid, 'reboot')
+            ironic.set_node_power_state(node_info.uuid, 'rebooting')
         except Exception as exc:
-            raise utils.Error(_('Failed to power on the node, check it\'s '
+            raise utils.Error(_('Failed to power on the node, check its '
                                 'power management configuration: %s') % exc,
                               node_info=node_info)
         LOG.info('Introspection started successfully',
@@ -164,7 +165,7 @@ def _abort(node_info, ironic):
     LOG.debug('Forcing power-off', node_info=node_info)
     if node_info.manage_boot:
         try:
-            ironic.node.set_power_state(node_info.uuid, 'off')
+            ironic.set_node_power_state(node_info.uuid, 'power off')
         except Exception as exc:
             LOG.warning('Failed to power off node: %s', exc,
                         node_info=node_info)
