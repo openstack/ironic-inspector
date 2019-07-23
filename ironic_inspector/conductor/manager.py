@@ -23,7 +23,9 @@ from oslo_log import log
 import oslo_messaging as messaging
 from oslo_utils import excutils
 from oslo_utils import reflection
+import tooz
 
+from ironic_inspector.common import coordination
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import keystone
@@ -37,12 +39,12 @@ from ironic_inspector import utils
 
 LOG = log.getLogger(__name__)
 CONF = cfg.CONF
-MANAGER_TOPIC = 'ironic-inspector-conductor'
+MANAGER_TOPIC = 'ironic_inspector.conductor'
 
 
 class ConductorManager(object):
     """ironic inspector conductor manager"""
-    RPC_API_VERSION = '1.2'
+    RPC_API_VERSION = '1.3'
 
     target = messaging.Target(version=RPC_API_VERSION)
 
@@ -98,9 +100,10 @@ class ConductorManager(object):
 
         if not CONF.standalone:
             try:
-                coordinator = utils.get_coordinator()
-                coordinator.start()
-            except Exception:
+                coordinator = coordination.get_coordinator(prefix='conductor')
+                coordinator.start(heartbeat=True)
+                coordinator.join_group()
+            except tooz.ToozError:
                 with excutils.save_and_reraise_exception():
                     LOG.critical('Failed when connecting to coordination '
                                  'backend.')
@@ -109,6 +112,16 @@ class ConductorManager(object):
                 LOG.info('Successfully connected to coordination backend.')
 
     def del_host(self):
+        """Shutdown the ironic inspector conductor service."""
+
+        if not CONF.standalone:
+            try:
+                coordinator = coordination.get_coordinator(prefix='conductor')
+                if coordinator.started:
+                    coordinator.leave_group()
+                    coordinator.stop()
+            except tooz.ToozError:
+                LOG.exception('Failed to stop coordinator')
 
         if not self._shutting_down.acquire(blocking=False):
             LOG.warning('Attempted to shut down while already shutting down')
@@ -132,14 +145,6 @@ class ConductorManager(object):
             self._zeroconf = None
 
         self._shutting_down.release()
-
-        if not CONF.standalone:
-            try:
-                coordinator = utils.get_coordinator()
-                if coordinator and coordinator.is_started:
-                    coordinator.stop()
-            except Exception:
-                LOG.exception('Failed to stop coordinator')
 
         LOG.info('Shut down successfully')
 
@@ -176,6 +181,10 @@ class ConductorManager(object):
             process.store_introspection_data(node_uuid, data, processed=False)
 
         process.reapply(node_uuid, data=data)
+
+    @messaging.expected_exceptions(utils.Error)
+    def do_continue(self, context, data):
+        return process.process(data)
 
 
 def periodic_clean_up():  # pragma: no cover

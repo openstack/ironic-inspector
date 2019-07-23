@@ -20,6 +20,7 @@ import mock
 import oslo_messaging as messaging
 from oslo_utils import uuidutils
 
+from ironic_inspector.common import coordination
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import rpc
 from ironic_inspector.common import swift
@@ -31,7 +32,6 @@ from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector.plugins import example as example_plugin
 from ironic_inspector.plugins import introspection_data as intros_data_plugin
-from ironic_inspector import process
 from ironic_inspector import rules
 from ironic_inspector.test import base as test_base
 from ironic_inspector import utils
@@ -46,20 +46,17 @@ def _get_error(res):
 class BaseAPITest(test_base.BaseTest):
     def setUp(self):
         super(BaseAPITest, self).setUp()
-        main.app.config['TESTING'] = True
-        self.app = main.app.test_client()
+        main._app.config['TESTING'] = True
+        self.app = main._app.test_client()
         CONF.set_override('auth_strategy', 'noauth')
         self.uuid = uuidutils.generate_uuid()
-
-
-class TestApiIntrospect(BaseAPITest):
-    def setUp(self):
-        super(TestApiIntrospect, self).setUp()
         self.rpc_get_client_mock = self.useFixture(
             fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
         self.client_mock = mock.MagicMock(spec=messaging.RPCClient)
         self.rpc_get_client_mock.return_value = self.client_mock
 
+
+class TestApiIntrospect(BaseAPITest):
     def test_introspect_no_authentication(self):
         CONF.set_override('auth_strategy', 'noauth')
 
@@ -125,40 +122,34 @@ class TestApiIntrospect(BaseAPITest):
         self.assertFalse(self.client_mock.call.called)
 
 
-@mock.patch.object(process, 'process', autospec=True)
 class TestApiContinue(BaseAPITest):
-    def test_continue(self, process_mock):
+    def test_continue(self):
         # should be ignored
         CONF.set_override('auth_strategy', 'keystone')
-        process_mock.return_value = {'result': 42}
+        self.client_mock.call.return_value = {'result': 42}
         res = self.app.post('/v1/continue', data='{"foo": "bar"}')
         self.assertEqual(200, res.status_code)
-        process_mock.assert_called_once_with({"foo": "bar"})
+        self.client_mock.call.assert_called_once_with({}, 'do_continue',
+                                                      data={"foo": "bar"})
         self.assertEqual({"result": 42}, json.loads(res.data.decode()))
 
-    def test_continue_failed(self, process_mock):
-        process_mock.side_effect = utils.Error("boom")
+    def test_continue_failed(self):
+        self.client_mock.call.side_effect = utils.Error("boom")
         res = self.app.post('/v1/continue', data='{"foo": "bar"}')
         self.assertEqual(400, res.status_code)
-        process_mock.assert_called_once_with({"foo": "bar"})
+        self.client_mock.call.assert_called_once_with({}, 'do_continue',
+                                                      data={"foo": "bar"})
         self.assertEqual('boom', _get_error(res))
 
-    def test_continue_wrong_type(self, process_mock):
+    def test_continue_wrong_type(self):
         res = self.app.post('/v1/continue', data='42')
         self.assertEqual(400, res.status_code)
         self.assertEqual('Invalid data: expected a JSON object, got int',
                          _get_error(res))
-        self.assertFalse(process_mock.called)
+        self.client_mock.call.assert_not_called()
 
 
 class TestApiAbort(BaseAPITest):
-    def setUp(self):
-        super(TestApiAbort, self).setUp()
-        self.rpc_get_client_mock = self.useFixture(
-            fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
-        self.client_mock = mock.MagicMock(spec=messaging.RPCClient)
-        self.rpc_get_client_mock.return_value = self.client_mock
-
     def test_ok(self):
 
         res = self.app.post('/v1/introspection/%s/abort' % self.uuid,
@@ -360,10 +351,6 @@ class TestApiReapply(BaseAPITest):
 
     def setUp(self):
         super(TestApiReapply, self).setUp()
-        self.rpc_get_client_mock = self.useFixture(
-            fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
-        self.client_mock = mock.MagicMock(spec=messaging.RPCClient)
-        self.rpc_get_client_mock.return_value = self.client_mock
         CONF.set_override('store_data', 'swift', 'processing')
 
     def test_api_ok(self):
@@ -590,7 +577,7 @@ class TestApiVersions(BaseAPITest):
         }]}
         self.assertEqual(expected, json_data)
 
-    @mock.patch.object(main.app.url_map, "iter_rules", autospec=True)
+    @mock.patch.object(main._app.url_map, "iter_rules", autospec=True)
     def test_version_endpoint(self, mock_rules):
         mock_rules.return_value = ["/v1/endpoint1", "/v1/endpoint2/<uuid>",
                                    "/v1/endpoint1/<name>",
@@ -626,11 +613,8 @@ class TestApiVersions(BaseAPITest):
         # API version on unknown pages
         self._check_version_present(self.app.get('/v1/foobar'))
 
-    @mock.patch.object(rpc, 'get_client', autospec=True)
     @mock.patch.object(node_cache, 'get_node', autospec=True)
-    def test_usual_requests(self, get_mock, rpc_mock):
-        client_mock = mock.MagicMock(spec=messaging.RPCClient)
-        rpc_mock.return_value = client_mock
+    def test_usual_requests(self, get_mock):
         get_mock.return_value = node_cache.NodeInfo(uuid=self.uuid,
                                                     started_at=42.0)
         # Successful
@@ -681,3 +665,71 @@ class TestPlugins(unittest.TestCase):
     def test_manager_is_cached(self):
         self.assertIs(plugins_base.processing_hooks_manager(),
                       plugins_base.processing_hooks_manager())
+
+
+class TestTopic(test_base.BaseTest):
+    def setUp(self):
+        super(TestTopic, self).setUp()
+        self.transport_mock = self.useFixture(
+            fixtures.MockPatchObject(rpc, 'get_transport',
+                                     autospec=True)).mock
+        self.target_mock = self.useFixture(
+            fixtures.MockPatchObject(rpc.messaging, 'Target',
+                                     autospec=True)).mock
+        self.rpcclient_mock = self.useFixture(
+            fixtures.MockPatchObject(rpc.messaging, 'RPCClient',
+                                     autospec=True)).mock
+        CONF.set_override('host', 'a-host')
+
+    def test_get_client_compat_standalone(self):
+        main.get_client_compat()
+        self.target_mock.assert_called_with(topic='ironic_inspector.conductor',
+                                            server='a-host', version=mock.ANY)
+
+    @mock.patch.object(main, 'get_random_topic', autospec=True)
+    def test_get_client_compat_non_standalone(self, mock_get_topic):
+        CONF.set_override('host', 'a-host')
+        CONF.set_override('standalone', False)
+        mock_get_topic.return_value = 'hello'
+        main.get_client_compat()
+        self.target_mock.assert_called_with(
+            topic='hello', version=mock.ANY)
+
+    @mock.patch.object(coordination, 'get_coordinator')
+    def test_get_random_topic(self, mock_get_coordinator):
+        mock_coordinator = mock.Mock(spec=['get_members'])
+        members = [('ironic_inspector.conductor.host%s' % i).encode('ascii')
+                   for i in range(5)]
+        topics = [('ironic_inspector.conductor.host%s' % i) for i in range(5)]
+        mock_coordinator.get_members.return_value = set(members)
+        mock_get_coordinator.return_value = mock_coordinator
+        for i in range(10):
+            topic = main.get_random_topic()
+            self.assertIn(topic, topics)
+
+    @mock.patch.object(coordination, 'get_coordinator')
+    def test_get_random_topic_host_with_domain(self, mock_get_coordinator):
+        mock_coordinator = mock.Mock(spec=['get_members'])
+        members = ['ironic_inspector.conductor.'
+                   'local.domain'.encode('ascii')]
+        mock_coordinator.get_members.return_value = set(members)
+        mock_get_coordinator.return_value = mock_coordinator
+        topic = main.get_random_topic()
+        self.assertEqual(topic, 'ironic_inspector.conductor.local.domain')
+
+    @mock.patch.object(coordination, 'get_coordinator')
+    def test_get_random_topic_host_bypass_invalid(self, mock_get_coordinator):
+        mock_coordinator = mock.Mock(spec=['get_members'])
+        members = ['this_should_not_happen'.encode('ascii')]
+        mock_coordinator.get_members.return_value = set(members)
+        mock_get_coordinator.return_value = mock_coordinator
+        self.assertRaisesRegex(utils.NoAvailableConductor,
+                               'No available conductor',
+                               main.get_random_topic)
+
+    @mock.patch.object(coordination, 'get_coordinator')
+    def test_get_random_topic_no_member(self, mock_get_coordinator):
+        mock_coordinator = mock.Mock(spec=['get_members'])
+        mock_coordinator.get_members.return_value = set()
+        mock_get_coordinator.return_value = mock_coordinator
+        self.assertRaises(utils.NoAvailableConductor, main.get_random_topic)

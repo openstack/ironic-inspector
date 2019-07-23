@@ -21,7 +21,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 import pytz
-from tooz import coordination
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector import policy
@@ -162,6 +161,13 @@ class IntrospectionDataNotFound(NotFoundInCacheError):
     """Introspection data not found."""
 
 
+class NoAvailableConductor(Error):
+    """No available conductor in the service group."""
+
+    def __init__(self, msg, **kwargs):
+        super(NoAvailableConductor, self).__init__(msg, code=503, **kwargs)
+
+
 def executor():
     """Return the current futures executor."""
     global _EXECUTOR
@@ -248,14 +254,3 @@ def iso_timestamp(timestamp=None, tz=pytz.timezone('utc')):
         return None
     date = datetime.datetime.fromtimestamp(timestamp, tz=tz)
     return date.isoformat()
-
-
-_COORDINATOR = None
-
-
-def get_coordinator():
-    global _COORDINATOR
-    if _COORDINATOR is None:
-        _COORDINATOR = coordination.get_coordinator(
-            CONF.coordination.backend_url, str.encode(CONF.host))
-    return _COORDINATOR

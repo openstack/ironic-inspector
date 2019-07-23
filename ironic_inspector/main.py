@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import os
+import random
 import re
 
 import flask
@@ -21,9 +22,11 @@ import six
 
 from ironic_inspector import api_tools
 from ironic_inspector.common import context
+from ironic_inspector.common import coordination
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import rpc
+from ironic_inspector.conductor import manager
 import ironic_inspector.conf
 from ironic_inspector.conf import opts as conf_opts
 from ironic_inspector import node_cache
@@ -34,13 +37,62 @@ from ironic_inspector import utils
 CONF = ironic_inspector.conf.CONF
 
 
-app = flask.Flask(__name__)
+_app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
 CURRENT_API_VERSION = (1, 15)
 DEFAULT_API_VERSION = CURRENT_API_VERSION
 _LOGGING_EXCLUDED_KEYS = ('logs',)
+
+
+def _init_middleware():
+    """Initialize WSGI middleware.
+
+    :returns: None
+    """
+    if CONF.auth_strategy != 'noauth':
+        utils.add_auth_middleware(_app)
+    else:
+        LOG.warning('Starting unauthenticated, please check'
+                    ' configuration')
+    utils.add_cors_middleware(_app)
+
+
+def get_app():
+    """Get the flask instance."""
+    _init_middleware()
+    return _app
+
+
+# TODO(kaifeng) Extract rpc related code into a rpcapi module
+def get_random_topic():
+    coordinator = coordination.get_coordinator(prefix='api')
+    members = coordinator.get_members()
+    hosts = []
+    for member in members:
+        # NOTE(kaifeng) recomposite host in case it contains '.'
+        parts = member.decode('ascii').split('.')
+        if len(parts) < 3:
+            LOG.warning('Found invalid member %s', member)
+            continue
+
+        if parts[1] == 'conductor':
+            hosts.append('.'.join(parts[2:]))
+
+    if not hosts:
+        raise utils.NoAvailableConductor('No available conductor service')
+
+    topic = '%s.%s' % (manager.MANAGER_TOPIC, random.choice(hosts))
+    return topic
+
+
+def get_client_compat():
+    if CONF.standalone:
+        return rpc.get_client()
+
+    topic = get_random_topic()
+    return rpc.get_client(topic)
 
 
 def _get_version():
@@ -88,7 +140,16 @@ def convert_exceptions(func):
     return wrapper
 
 
-@app.before_request
+@_app.before_first_request
+def start_coordinator():
+    """Create a coordinator instance for non-standalone case."""
+    if not CONF.standalone:
+        coordinator = coordination.get_coordinator(prefix='api')
+        coordinator.start(heartbeat=False)
+        LOG.info('Sucessfully created coordinator.')
+
+
+@_app.before_request
 def check_api_version():
     requested = _get_version()
 
@@ -101,7 +162,7 @@ def check_api_version():
                               code=406)
 
 
-@app.after_request
+@_app.after_request
 def add_version_headers(res):
     res.headers[conf_opts.MIN_VERSION_HEADER] = '%s.%s' % MINIMUM_API_VERSION
     res.headers[conf_opts.MAX_VERSION_HEADER] = '%s.%s' % CURRENT_API_VERSION
@@ -166,7 +227,7 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
     :param kwargs: all the rest kwargs are passed to flask app.route
     """
     def outer(func):
-        @app.route(path, **flask_kwargs)
+        @_app.route(path, **flask_kwargs)
         @convert_exceptions
         @six.wraps(func)
         def wrapper(*args, **kwargs):
@@ -206,7 +267,7 @@ def version_root(version):
     pat = re.compile(r'^\/%s\/[^\/]*?$' % version)
 
     resources = []
-    for url in app.url_map.iter_rules():
+    for url in _app.url_map.iter_rules():
         if pat.match(str(url)):
             resources.append(url)
 
@@ -229,7 +290,9 @@ def api_continue():
     LOG.debug("Received data from the ramdisk: %s", logged_data,
               data=data)
 
-    return flask.jsonify(process.process(data))
+    client = get_client_compat()
+    result = client.call({}, 'do_continue', data=data)
+    return flask.jsonify(result)
 
 
 # TODO(sambetts) Add API discovery for this endpoint
@@ -253,7 +316,7 @@ def api_introspection(node_id):
                                 'installation cannot manage boot ('
                                 '(can_manage_boot set to False)'),
                               code=400)
-        client = rpc.get_client()
+        client = get_client_compat()
         client.call({}, 'do_introspection', node_id=node_id,
                     manage_boot=manage_boot,
                     token=flask.request.headers.get('X-Auth-Token'))
@@ -279,7 +342,7 @@ def api_introspection_statuses():
 @api('/v1/introspection/<node_id>/abort', rule="introspection:abort",
      methods=['POST'])
 def api_introspection_abort(node_id):
-    client = rpc.get_client()
+    client = get_client_compat()
     client.call({}, 'do_abort', node_id=node_id,
                 token=flask.request.headers.get('X-Auth-Token'))
     return '', 202
@@ -321,7 +384,7 @@ def api_introspection_reapply(node_id):
         node = ir_utils.get_node(node_id, fields=['uuid'])
         node_id = node.uuid
 
-    client = rpc.get_client()
+    client = get_client_compat()
     client.call({}, 'do_reapply', node_uuid=node_id, data=data)
     return '', 202
 
@@ -374,6 +437,6 @@ def api_rule(uuid):
         return '', 204
 
 
-@app.errorhandler(404)
+@_app.errorhandler(404)
 def handle_404(error):
     return error_response(error, code=404)

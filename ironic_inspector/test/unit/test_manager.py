@@ -17,7 +17,9 @@ import fixtures
 from ironic_lib import mdns
 import mock
 import oslo_messaging as messaging
+import tooz
 
+from ironic_inspector.common import coordination
 from ironic_inspector.common import keystone
 from ironic_inspector.common import swift
 from ironic_inspector.conductor import manager
@@ -139,7 +141,7 @@ class TestManagerInitHost(BaseManagerTest):
         mock_zc.return_value.register_service.assert_called_once_with(
             'baremetal-introspection', mock_endpoint.return_value)
 
-    @mock.patch.object(utils, 'get_coordinator', autospec=True)
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     @mock.patch.object(keystone, 'get_endpoint', autospec=True)
     def test_init_host_with_coordinator(self, mock_endpoint, mock_get_coord):
         CONF.set_override('standalone', False)
@@ -150,24 +152,24 @@ class TestManagerInitHost(BaseManagerTest):
         self.mock_validate_processing_hooks.assert_called_once_with()
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
-        mock_get_coord.assert_called_once_with()
-        mock_coordinator.start.assert_called_once_with()
+        mock_get_coord.assert_called_once_with(prefix='conductor')
+        mock_coordinator.start.assert_called_once_with(heartbeat=True)
 
     @mock.patch.object(manager.ConductorManager, 'del_host')
-    @mock.patch.object(utils, 'get_coordinator', autospec=True)
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     @mock.patch.object(keystone, 'get_endpoint', autospec=True)
     def test_init_host_with_coordinator_failed(self, mock_endpoint,
                                                mock_get_coord, mock_del_host):
         CONF.set_override('standalone', False)
-        mock_get_coord.side_effect = (utils.Error('Reaching coordination '
-                                                  'backend failed.'),
+        mock_get_coord.side_effect = (tooz.ToozError('Reaching coordination '
+                                                     'backend failed.'),
                                       None)
-        self.assertRaises(utils.Error, self.manager.init_host)
+        self.assertRaises(tooz.ToozError, self.manager.init_host)
         self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
-        mock_get_coord.assert_called_once_with()
+        mock_get_coord.assert_called_once_with(prefix='conductor')
         mock_del_host.assert_called_once_with()
 
 
@@ -282,11 +284,11 @@ class TestManagerDelHost(BaseManagerTest):
         self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
 
-    @mock.patch.object(utils, 'get_coordinator', autospec=True)
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     def test_del_host_with_coordinator(self, mock_get_coord):
         CONF.set_override('standalone', False)
-        mock_coordinator = mock.MagicMock()
-        mock_coordinator.is_started = True
+        mock_coordinator = mock.Mock(spec=coordination.Coordinator)
+        mock_coordinator.started = True
         mock_get_coord.return_value = mock_coordinator
 
         self.manager.del_host()
@@ -500,3 +502,20 @@ class TestManagerReapply(BaseManagerTest):
         store_mock.assert_called_once_with(self.uuid, self.data,
                                            processed=False)
         self.assertFalse(get_mock.called)
+
+
+class TestManagerContinue(BaseManagerTest):
+    @mock.patch.object(process, 'process', autospec=True)
+    def test_continue_ok(self, process_mock):
+        self.manager.do_continue(self.context, self.data)
+        process_mock.assert_called_once_with(self.data)
+
+    @mock.patch.object(process, 'process', autospec=True)
+    def test_continue_failed(self, process_mock):
+        process_mock.side_effect = utils.Error("Boom.")
+        exc = self.assertRaises(messaging.rpc.ExpectedException,
+                                self.manager.do_continue,
+                                self.context, self.data)
+
+        self.assertEqual(utils.Error, exc.exc_info[0])
+        process_mock.assert_called_once_with(self.data)

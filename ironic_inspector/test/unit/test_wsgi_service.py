@@ -15,7 +15,9 @@ import eventlet  # noqa
 import fixtures
 from oslo_config import cfg
 
+from ironic_inspector import main
 from ironic_inspector.test import base as test_base
+from ironic_inspector import utils
 from ironic_inspector import wsgi_service
 
 CONF = cfg.CONF
@@ -26,37 +28,32 @@ class BaseWSGITest(test_base.BaseTest):
         # generic mocks setUp method
         super(BaseWSGITest, self).setUp()
         self.app = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service.app, 'app', autospec=True)).mock
+            main, '_app', autospec=True)).mock
         self.server = self.useFixture(fixtures.MockPatchObject(
             wsgi_service.wsgi, 'Server', autospec=True)).mock
-        self.mock_log = self.useFixture(fixtures.MockPatchObject(
-            wsgi_service, 'LOG')).mock
-        self.service = wsgi_service.WSGIService()
-        self.service.server = self.server
 
 
 class TestWSGIServiceInitMiddleware(BaseWSGITest):
     def setUp(self):
         super(TestWSGIServiceInitMiddleware, self).setUp()
         self.mock_add_auth_middleware = self.useFixture(
-            fixtures.MockPatchObject(wsgi_service.utils,
-                                     'add_auth_middleware')).mock
+            fixtures.MockPatchObject(utils, 'add_auth_middleware')).mock
         self.mock_add_cors_middleware = self.useFixture(
-            fixtures.MockPatchObject(wsgi_service.utils,
-                                     'add_cors_middleware')).mock
+            fixtures.MockPatchObject(utils, 'add_cors_middleware')).mock
+        self.mock_log = self.useFixture(fixtures.MockPatchObject(
+            main, 'LOG')).mock
         # 'positive' settings
         CONF.set_override('auth_strategy', 'keystone')
         CONF.set_override('store_data', 'swift', 'processing')
 
     def test_init_middleware(self):
-        self.service._init_middleware()
-
+        wsgi_service.WSGIService()
         self.mock_add_auth_middleware.assert_called_once_with(self.app)
         self.mock_add_cors_middleware.assert_called_once_with(self.app)
 
     def test_init_middleware_noauth(self):
         CONF.set_override('auth_strategy', 'noauth')
-        self.service._init_middleware()
+        wsgi_service.WSGIService()
 
         self.mock_add_auth_middleware.assert_not_called()
         self.mock_log.warning.assert_called_once_with(
@@ -67,8 +64,10 @@ class TestWSGIServiceInitMiddleware(BaseWSGITest):
 class TestWSGIService(BaseWSGITest):
     def setUp(self):
         super(TestWSGIService, self).setUp()
+        self.service = wsgi_service.WSGIService()
+        self.service.server = self.server
         self.mock__init_middleware = self.useFixture(fixtures.MockPatchObject(
-            self.service, '_init_middleware')).mock
+            main, '_init_middleware')).mock
 
         # 'positive' settings
         CONF.set_override('listen_address', '42.42.42.42')
@@ -76,8 +75,6 @@ class TestWSGIService(BaseWSGITest):
 
     def test_start(self):
         self.service.start()
-
-        self.mock__init_middleware.assert_called_once_with()
         self.server.start.assert_called_once_with()
 
     def test_stop(self):

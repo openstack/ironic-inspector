@@ -17,7 +17,7 @@ from oslo_concurrency import lockutils
 from oslo_config import cfg
 import six
 
-from ironic_inspector import utils
+from ironic_inspector.common import coordination
 
 CONF = cfg.CONF
 _LOCK_TEMPLATE = 'node-%s'
@@ -70,11 +70,14 @@ class InternalLock(BaseLock):
 
 
 class ToozLock(BaseLock):
-    """Locking mechanism based on tooz."""
+    """Wrapper on tooz locks."""
 
-    def __init__(self, coordinator, uuid, prefix='ironic_inspector_'):
-        name = (prefix + uuid).encode()
-        self._lock = coordinator.get_lock(name)
+    def __init__(self, lock):
+        """Creates a wrapper on the tooz lock.
+
+        :param lock: a tooz lock instance.
+        """
+        self._lock = lock
 
     def acquire(self, blocking=True):
         if not self._lock.acquired:
@@ -100,5 +103,6 @@ def get_lock(uuid):
     if CONF.standalone:
         return InternalLock(uuid)
 
-    coordinator = utils.get_coordinator()
-    return ToozLock(coordinator, uuid)
+    coordinator = coordination.get_coordinator()
+    lock = coordinator.get_lock(uuid)
+    return ToozLock(lock)

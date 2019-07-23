@@ -15,8 +15,7 @@ from oslo_log import log
 from oslo_service import service
 from oslo_service import wsgi
 
-from ironic_inspector import main as app
-from ironic_inspector import utils
+from ironic_inspector import main
 
 LOG = log.getLogger(__name__)
 CONF = cfg.CONF
@@ -26,31 +25,18 @@ class WSGIService(service.Service):
     """Provides ability to launch API from wsgi app."""
 
     def __init__(self):
-        self.app = app.app
+        self.app = main.get_app()
         self.server = wsgi.Server(CONF, 'ironic_inspector',
                                   self.app,
                                   host=CONF.listen_address,
                                   port=CONF.listen_port,
                                   use_ssl=CONF.use_ssl)
 
-    def _init_middleware(self):
-        """Initialize WSGI middleware.
-
-        :returns: None
-        """
-        if CONF.auth_strategy != 'noauth':
-            utils.add_auth_middleware(self.app)
-        else:
-            LOG.warning('Starting unauthenticated, please check'
-                        ' configuration')
-        utils.add_cors_middleware(self.app)
-
     def start(self):
         """Start serving this service using loaded configuration.
 
         :returns: None
         """
-        self._init_middleware()
         self.server.start()
 
     def stop(self):
