@@ -911,7 +911,7 @@ def create_node(driver, ironic=None, **attributes):
     * Sets node_info state to enrolling.
 
     :param driver: driver for Ironic node.
-    :param ironic: ronic client instance.
+    :param ironic: ironic client instance.
     :param attributes: dict, additional keyword arguments to pass
                              to the ironic client on node creation.
     :return: NodeInfo, or None in case error happened.
@@ -925,6 +925,44 @@ def create_node(driver, ironic=None, **attributes):
     else:
         LOG.info('Node %s was created successfully', node.uuid)
         return add_node(node.uuid, istate.States.enrolling, ironic=ironic)
+
+
+def record_node(ironic=None, bmc_addresses=None, macs=None):
+    """Create a cache record for a known active node.
+
+    :param ironic: ironic client instance.
+    :param bmc_addresses: list of BMC addresses.
+    :param macs: list of MAC addresses.
+    :return: NodeInfo
+    """
+    if not bmc_addresses and not macs:
+        raise utils.NotFoundInCacheError(
+            _("Existing node cannot be found since neither MAC addresses "
+              "nor BMC addresses are present in the inventory"))
+
+    if ironic is None:
+        ironic = ir_utils.get_client()
+
+    node = ir_utils.lookup_node(macs=macs, bmc_addresses=bmc_addresses,
+                                ironic=ironic)
+    if not node:
+        bmc_addresses = ', '.join(bmc_addresses) if bmc_addresses else None
+        macs = ', '.join(macs) if macs else None
+        raise utils.NotFoundInCacheError(
+            _("Existing node was not found by MAC address(es) %(macs)s "
+              "and BMC address(es) %(addr)s") %
+            {'macs': macs, 'addr': bmc_addresses})
+
+    node = ironic.node.get(node, fields=['uuid', 'provision_state'])
+    # TODO(dtantsur): do we want to allow updates in all states?
+    if node.provision_state not in ir_utils.VALID_ACTIVE_STATES:
+        raise utils.Error(_("Node %(node)s is not active, its provision "
+                            "state is %(state)s") %
+                          {'node': node.uuid,
+                           'state': node.provision_state})
+
+    return add_node(node.uuid, istate.States.waiting,
+                    manage_boot=False, mac=macs, bmc_address=bmc_addresses)
 
 
 def get_node_list(ironic=None, marker=None, limit=None):

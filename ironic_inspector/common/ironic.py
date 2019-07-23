@@ -207,3 +207,85 @@ def call_with_retries(func, *args, **kwargs):
     the func raises again, the exception is propagated to the caller.
     """
     return func(*args, **kwargs)
+
+
+def lookup_node_by_macs(macs, introspection_data=None,
+                        ironic=None, fail=False):
+    """Find a node by its MACs."""
+    if ironic is None:
+        ironic = get_client()
+
+    nodes = set()
+    for mac in macs:
+        ports = ironic.port.list(address=mac)
+        if not ports:
+            continue
+        elif fail:
+            raise utils.Error(
+                _('Port %(mac)s already exists, uuid: %(uuid)s') %
+                {'mac': mac, 'uuid': ports[0].uuid}, data=introspection_data)
+        else:
+            nodes.update(p.node_uuid for p in ports)
+
+    if len(nodes) > 1:
+        raise utils.Error(_('MAC addresses %(macs)s correspond to more than '
+                            'one node: %(nodes)s') %
+                          {'macs': ', '.join(macs),
+                           'nodes': ', '.join(nodes)},
+                          data=introspection_data)
+    elif nodes:
+        return nodes.pop()
+
+
+def lookup_node_by_bmc_addresses(addresses, introspection_data=None,
+                                 ironic=None, fail=False):
+    """Find a node by its BMC address."""
+    if ironic is None:
+        ironic = get_client()
+
+    # FIXME(aarefiev): it's not effective to fetch all nodes, and may
+    #                  impact on performance on big clusters
+    nodes = ironic.node.list(fields=('uuid', 'driver_info'), limit=0)
+    found = set()
+    for node in nodes:
+        bmc_address, bmc_ipv4, bmc_ipv6 = get_ipmi_address(node)
+        for addr in addresses:
+            if addr not in (bmc_ipv4, bmc_ipv6):
+                continue
+            elif fail:
+                raise utils.Error(
+                    _('Node %(uuid)s already has BMC address %(addr)s') %
+                    {'addr': addr, 'uuid': node.uuid},
+                    data=introspection_data)
+            else:
+                found.add(node.uuid)
+
+    if len(found) > 1:
+        raise utils.Error(_('BMC addresses %(addr)s correspond to more than '
+                            'one node: %(nodes)s') %
+                          {'addr': ', '.join(addresses),
+                           'nodes': ', '.join(found)},
+                          data=introspection_data)
+    elif found:
+        return found.pop()
+
+
+def lookup_node(macs=None, bmc_addresses=None, introspection_data=None,
+                ironic=None):
+    """Lookup a node in the ironic database."""
+    node = node2 = None
+
+    if macs:
+        node = lookup_node_by_macs(macs, ironic=ironic)
+    if bmc_addresses:
+        node2 = lookup_node_by_bmc_addresses(bmc_addresses, ironic=ironic)
+
+    if node and node2 and node != node2:
+        raise utils.Error(_('MAC addresses %(mac)s and BMC addresses %(addr)s '
+                            'correspond to different nodes: %(node1)s and '
+                            '%(node2)s') %
+                          {'mac': ', '.join(macs),
+                           'addr': ', '.join(bmc_addresses),
+                           'node1': node, 'node2': node2})
+
+    return node or node2

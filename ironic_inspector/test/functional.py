@@ -727,6 +727,46 @@ class Test(Base):
         self.assertEqual(expected_port_id,
                          lldp_out['lldp_processed']['switch_port_id'])
 
+    def test_update_unknown_active_node(self):
+        cfg.CONF.set_override('permit_active_introspection', True,
+                              'processing')
+        self.node.provision_state = 'active'
+        self.cli.node.list_ports.return_value = [
+            mock.Mock(address='11:22:33:44:55:66', node_uuid=self.node.uuid)
+        ]
+
+        # NOTE(dtantsur): we're not starting introspection in this test.
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.cli.node.update.assert_called_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.node.update)
+        self.assertFalse(self.cli.port.create.called)
+        self.assertFalse(self.cli.node.set_boot_device.called)
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.finished)
+
+    def test_update_known_active_node(self):
+        # Start with a normal introspection as a pre-requisite
+        self.test_bmc()
+
+        self.cli.node.update.reset_mock()
+        self.cli.node.set_boot_device.reset_mock()
+        self.cli.port.create.reset_mock()
+        # Provide some updates
+        self.data['inventory']['memory']['physical_mb'] = 16384
+        self.patch = [
+            {'op': 'add', 'path': '/properties/cpus', 'value': '4'},
+            {'path': '/properties/cpu_arch', 'value': 'x86_64', 'op': 'add'},
+            {'op': 'add', 'path': '/properties/memory_mb', 'value': '16384'},
+            {'path': '/properties/local_gb', 'value': '999', 'op': 'add'}
+        ]
+
+        # Then continue with active node test
+        self.test_update_unknown_active_node()
+
 
 @contextlib.contextmanager
 def mocked_server():

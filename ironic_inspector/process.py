@@ -81,10 +81,23 @@ def _find_node_info(introspection_data, failures):
     try:
         address = utils.get_ipmi_address_from_data(introspection_data)
         v6address = utils.get_ipmi_v6address_from_data(introspection_data)
-        return node_cache.find_node(
-            bmc_address=[address, v6address],
-            mac=utils.get_valid_macs(introspection_data))
+        bmc_addresses = list(filter(None, [address, v6address]))
+        macs = utils.get_valid_macs(introspection_data)
+        return node_cache.find_node(bmc_address=bmc_addresses,
+                                    mac=macs)
     except utils.NotFoundInCacheError as exc:
+        if CONF.processing.permit_active_introspection:
+            try:
+                return node_cache.record_node(bmc_addresses=bmc_addresses,
+                                              macs=macs)
+            except utils.NotFoundInCacheError:
+                LOG.debug(
+                    'Active nodes introspection is enabled, but no node '
+                    'was found for MAC(s) %(mac)s and BMC address(es) '
+                    '%(addr)s; proceeding with discovery',
+                    {'mac': ', '.join(macs) if macs else None,
+                     'addr': ', '.join(filter(None, bmc_addresses)) or None})
+
         not_found_hook = plugins_base.node_not_found_hook_manager()
         if not_found_hook is None:
             failures.append(_('Look up error: %s') % exc)

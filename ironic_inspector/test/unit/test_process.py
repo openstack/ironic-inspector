@@ -102,7 +102,7 @@ class TestProcess(BaseProcessTest):
         del self.inventory['bmc_v6address']
         process.process(self.data)
 
-        self.find_mock.assert_called_once_with(bmc_address=[None, None],
+        self.find_mock.assert_called_once_with(bmc_address=[],
                                                mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
@@ -115,7 +115,7 @@ class TestProcess(BaseProcessTest):
         self.inventory['bmc_v6address'] = '::/0'
         process.process(self.data)
 
-        self.find_mock.assert_called_once_with(bmc_address=[None, None],
+        self.find_mock.assert_called_once_with(bmc_address=[],
                                                mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
@@ -129,7 +129,7 @@ class TestProcess(BaseProcessTest):
         process.process(self.data)
 
         self.find_mock.assert_called_once_with(
-            bmc_address=[None, self.bmc_v6address],
+            bmc_address=[self.bmc_v6address],
             mac=mock.ANY)
         actual_macs = self.find_mock.call_args[1]['mac']
         self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
@@ -144,6 +144,53 @@ class TestProcess(BaseProcessTest):
                                process.process, self.data)
         self.assertFalse(self.cli.node.get.called)
         self.assertFalse(self.process_mock.called)
+
+    @mock.patch.object(node_cache, 'record_node', autospec=True)
+    def test_not_found_in_cache_active_introspection(self, mock_record):
+        CONF.set_override('permit_active_introspection', True, 'processing')
+        self.find_mock.side_effect = utils.NotFoundInCacheError('not found')
+        self.cli.node.get.side_effect = exceptions.NotFound('boom')
+        self.cache_fixture.mock.acquire_lock = mock.Mock()
+        self.cache_fixture.mock.uuid = '1111'
+        self.cache_fixture.mock.finished_at = None
+        self.cache_fixture.mock.node = mock.Mock()
+        mock_record.return_value = self.cache_fixture.mock
+        res = process.process(self.data)
+
+        self.assertEqual(self.fake_result_json, res)
+        self.find_mock.assert_called_once_with(
+            bmc_address=[self.bmc_address, self.bmc_v6address],
+            mac=mock.ANY)
+        actual_macs = self.find_mock.call_args[1]['mac']
+        self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
+        mock_record.assert_called_once_with(
+            bmc_addresses=['1.2.3.4',
+                           '2001:1234:1234:1234:1234:1234:1234:1234/64'],
+            macs=mock.ANY)
+        actual_macs = mock_record.call_args[1]['macs']
+        self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
+        self.cli.node.get.assert_not_called()
+        self.process_mock.assert_called_once_with(
+            mock.ANY, mock.ANY, self.data)
+
+    def test_found_in_cache_active_introspection(self):
+        CONF.set_override('permit_active_introspection', True, 'processing')
+        self.node.provision_state = 'active'
+        self.cache_fixture.mock.acquire_lock = mock.Mock()
+        self.cache_fixture.mock.uuid = '1111'
+        self.cache_fixture.mock.finished_at = None
+        self.cache_fixture.mock.node = mock.Mock()
+        res = process.process(self.data)
+
+        self.assertEqual(self.fake_result_json, res)
+        self.find_mock.assert_called_once_with(
+            bmc_address=[self.bmc_address, self.bmc_v6address],
+            mac=mock.ANY)
+        actual_macs = self.find_mock.call_args[1]['mac']
+        self.assertEqual(sorted(self.all_macs), sorted(actual_macs))
+        self.cli.node.get.assert_called_once_with(self.uuid)
+        self.process_mock.assert_called_once_with(
+            mock.ANY, mock.ANY, self.data)
 
     def test_not_found_in_ironic(self):
         self.cli.node.get.side_effect = exceptions.NotFound()
