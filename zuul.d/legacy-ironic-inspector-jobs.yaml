@@ -5,12 +5,7 @@
     required-projects:
       - openstack/ironic
       - openstack/ironic-inspector
-      - openstack/ironic-lib
-      - openstack/ironic-python-agent
       - openstack/ironic-tempest-plugin
-      - x/pyghmi
-      - openstack/python-ironic-inspector-client
-      - openstack/python-ironicclient
       - openstack/virtualbmc
     irrelevant-files:
       - ^test-requirements.txt$
