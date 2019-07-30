@@ -79,7 +79,6 @@
         cmd: |
           cat << 'EOF' >> ironic-extra-vars
             export PROJECTS="openstack/ironic-inspector $PROJECTS"
-          export PROJECTS="openstack/python-ironic-inspector-client $PROJECTS"
           export DEVSTACK_GATE_IRONIC_INSPECTOR=1
 
           export DEVSTACK_LOCAL_CONFIG+=$'\n'"enable_plugin ironic-inspector https://opendev.org/openstack/ironic-inspector"
@@ -95,11 +94,7 @@
           set -e
           set -x
           export PROJECTS="openstack/ironic $PROJECTS"
-          export PROJECTS="openstack/ironic-lib $PROJECTS"
-          export PROJECTS="openstack/ironic-python-agent $PROJECTS"
           export PROJECTS="openstack/ironic-tempest-plugin $PROJECTS"
-          export PROJECTS="openstack/python-ironicclient $PROJECTS"
-          export PROJECTS="x/pyghmi $PROJECTS"
           export PROJECTS="openstack/virtualbmc $PROJECTS"
           export PYTHONUNBUFFERED=true
           export DEVSTACK_GATE_TEMPEST=1
