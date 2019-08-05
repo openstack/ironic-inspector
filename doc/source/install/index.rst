@@ -74,12 +74,39 @@ top level of the code tree::
 For a pre-generated sample configuration file, see
 :doc:`/configuration/sample-policy`.
 
+Installation options
+--------------------
+
+Starting with Train release, ironic-inspector can run in a non-standalone
+mode, which means ironic-inspector API and ironic-inspector conductor are
+separated services, they can be installed on the same host or different
+hosts.
+
+Following are some considerations when you run ironic-inspector in
+non-standalone mode:
+
+* Additional packages may be required depending on the tooz backend used in
+  the installation. For example, ``etcd3gw`` is required if the backend driver
+  is configured to use ``etcd3+http://``, ``pymemcache`` is required to use
+  ``memcached://``. Some distributions may provide packages like
+  ``python3-etcd3gw`` or ``python3-memcache``. Supported drivers are listed at
+  `Tooz drivers <https://docs.openstack.org/tooz/latest/user/drivers.html>`_.
+
+* For ironic-inspector running in non-standalone mode, PXE configuration is
+  only required on the node where ironic-inspector conductor service is
+  deployed.
+
+* Switch to a database backend other than sqlite.
+
 Configuration
 -------------
 
 Copy the sample configuration files to some permanent place
 (e.g. ``/etc/ironic-inspector/inspector.conf``).
 Fill in these minimum configuration values:
+
+* The ``standalone`` in the ``DEFAULT`` section - This determines whether
+  ironic-inspector services are intended to be deployed separately.
 
 * The ``keystone_authtoken`` section - credentials to use when checking user
   authentication.
@@ -88,7 +115,9 @@ Fill in these minimum configuration values:
   API.
 
 * ``connection`` in the ``database`` section - SQLAlchemy connection string
-  for the database.
+  for the database. By default ironic-inspector uses sqlite as the database
+  backend, if you are running ironic-inspector in a non-standalone mode,
+  please change to other database backends.
 
 * ``dnsmasq_interface`` in the ``iptables`` section - interface on which
   ``dnsmasq`` (or another DHCP service) listens for PXE boot requests
@@ -396,7 +425,48 @@ Other available commands can be discovered by running::
 Running
 -------
 
-::
+Running in standalone mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Execute::
 
     ironic-inspector --config-file /etc/ironic-inspector/inspector.conf
 
+Running in non-standalone mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+API service can be started in development mode with::
+
+    ironic-inspector-api-wsgi -p 5050 -- --config-file /etc/ironic-inspector/inspector.conf
+
+For production, the ironic-inspector API service should be hosted under a web
+service. Below is a sample configuration for Apache with module mod_wsgi::
+
+    Listen 5050
+
+    <VirtualHost *:5050>
+        WSGIDaemonProcess ironic-inspector user=stack group=stack threads=10 display-name=%{GROUP}
+        WSGIScriptAlias / /usr/local/bin/ironic-inspector-api-wsgi
+
+        SetEnv APACHE_RUN_USER stack
+        SetEnv APACHE_RUN_GROUP stack
+        WSGIProcessGroup ironic-inspector
+
+        ErrorLog /var/log/apache2/ironic_inspector_error.log
+        LogLevel info
+        CustomLog /var/log/apache2/ironic_inspector_access.log combined
+
+        <Directory /opt/stack/ironic-inspector/ironic_inspector/cmd>
+            WSGIProcessGroup ironic-inspector
+            WSGIApplicationGroup %{GLOBAL}
+            AllowOverride All
+            Require all granted
+        </Directory>
+    </VirtualHost>
+
+You can refer to `ironic installation document <https://docs.openstack.org/ironic/latest/install/install-rdo.html#configuring-ironic-api-behind-mod-wsgi>`_
+for more guides.
+
+ironic-inspector conductor can be started with::
+
+    ironic-inspector-conductor --config-file /etc/ironic-inspector/inspector.conf
