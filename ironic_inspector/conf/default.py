@@ -79,6 +79,9 @@ _OPTS = [
     cfg.BoolOpt('enable_mdns', default=False,
                 help=_('Whether to enable publishing the ironic-inspector API '
                        'endpoint via multicast DNS.')),
+    cfg.BoolOpt('standalone', default=True,
+                help=_('Whether to run ironic-inspector as a standalone '
+                       'service. It\'s EXPERIMENTAL to set to False.'))
 ]
 
 

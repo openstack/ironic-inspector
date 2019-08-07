@@ -58,6 +58,7 @@ def parse_args(args, default_config_files=None):
 def list_opts():
     return [
         ('capabilities', ironic_inspector.conf.capabilities.list_opts()),
+        ('coordination', ironic_inspector.conf.coordination.list_opts()),
         ('DEFAULT', ironic_inspector.conf.default.list_opts()),
         ('discovery', ironic_inspector.conf.discovery.list_opts()),
         ('dnsmasq_pxe_filter',

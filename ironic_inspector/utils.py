@@ -21,6 +21,7 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 import pytz
+from tooz import coordination
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector import policy
@@ -247,3 +248,14 @@ def iso_timestamp(timestamp=None, tz=pytz.timezone('utc')):
         return None
     date = datetime.datetime.fromtimestamp(timestamp, tz=tz)
     return date.isoformat()
+
+
+_COORDINATOR = None
+
+
+def get_coordinator():
+    global _COORDINATOR
+    if _COORDINATOR is None:
+        _COORDINATOR = coordination.get_coordinator(
+            CONF.coordination.backend_url, str.encode(CONF.host))
+    return _COORDINATOR

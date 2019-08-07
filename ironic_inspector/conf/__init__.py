@@ -13,6 +13,7 @@
 from oslo_config import cfg
 
 from ironic_inspector.conf import capabilities
+from ironic_inspector.conf import coordination
 from ironic_inspector.conf import default
 from ironic_inspector.conf import discovery
 from ironic_inspector.conf import dnsmasq_pxe_filter
@@ -29,6 +30,7 @@ CONF = cfg.CONF
 
 
 capabilities.register_opts(CONF)
+coordination.register_opts(CONF)
 discovery.register_opts(CONF)
 default.register_opts(CONF)
 dnsmasq_pxe_filter.register_opts(CONF)

@@ -17,6 +17,7 @@ import sys
 from oslo_config import cfg
 from oslo_service import service
 
+from ironic_inspector.common.i18n import _
 from ironic_inspector.common.rpc_service import RPCService
 from ironic_inspector.common import service_utils
 from ironic_inspector import wsgi_service
@@ -27,6 +28,11 @@ CONF = cfg.CONF
 def main(args=sys.argv[1:]):
     # Parse config file and command line options, then start logging
     service_utils.prepare_service(args)
+
+    if not CONF.standalone:
+        msg = _('To run ironic-inspector in standalone mode, '
+                '[DEFAULT]standalone should be set to True.')
+        sys.exit(msg)
 
     launcher = service.ServiceLauncher(CONF, restart_method='mutate')
     launcher.launch_service(wsgi_service.WSGIService())
