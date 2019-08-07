@@ -8,15 +8,20 @@ IRONIC_INSPECTOR_DIR=$DEST/ironic-inspector
 IRONIC_INSPECTOR_DATA_DIR=$DATA_DIR/ironic-inspector
 IRONIC_INSPECTOR_BIN_DIR=$(get_python_exec_prefix)
 IRONIC_INSPECTOR_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector
+IRONIC_INSPECTOR_BIN_FILE_API=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-api-wsgi
+IRONIC_INSPECTOR_BIN_FILE_CONDUCTOR=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-conductor
 IRONIC_INSPECTOR_DBSYNC_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-dbsync
 IRONIC_INSPECTOR_CONF_DIR=${IRONIC_INSPECTOR_CONF_DIR:-/etc/ironic-inspector}
 IRONIC_INSPECTOR_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/inspector.conf
 IRONIC_INSPECTOR_CMD="$IRONIC_INSPECTOR_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE"
+IRONIC_INSPECTOR_CMD_API="$IRONIC_INSPECTOR_BIN_FILE_API -p 5050 -- --config-file $IRONIC_INSPECTOR_CONF_FILE"
+IRONIC_INSPECTOR_CMD_CONDUCTOR="$IRONIC_INSPECTOR_BIN_FILE_CONDUCTOR --config-file $IRONIC_INSPECTOR_CONF_FILE"
 IRONIC_INSPECTOR_DHCP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/dnsmasq.conf
 IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/rootwrap.conf
 IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
 IRONIC_INSPECTOR_AUTH_CACHE_DIR=${IRONIC_INSPECTOR_AUTH_CACHE_DIR:-/var/cache/ironic-inspector}
 IRONIC_INSPECTOR_DHCP_FILTER=${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}
+IRONIC_INSPECTOR_STANDALONE=${IRONIC_INSPECTOR_STANDALONE:-True}
 if [[ -n ${IRONIC_INSPECTOR_MANAGE_FIREWALL} ]] ; then
     echo "IRONIC_INSPECTOR_MANAGE_FIREWALL is deprecated." >&2
     echo "Please, use IRONIC_INSPECTOR_DHCP_FILTER == noop/iptables/dnsmasq instead." >&2
@@ -118,7 +123,12 @@ function install_inspector_client {
 }
 
 function start_inspector {
-    run_process ironic-inspector "$IRONIC_INSPECTOR_CMD"
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "True" ]]; then
+        run_process ironic-inspector "$IRONIC_INSPECTOR_CMD"
+    else
+        run_process ironic-inspector-api "$IRONIC_INSPECTOR_CMD_API"
+        run_process ironic-inspector-conductor "$IRONIC_INSPECTOR_CMD_CONDUCTOR"
+    fi
 }
 
 function is_inspector_dhcp_required {
@@ -134,7 +144,12 @@ function start_inspector_dhcp {
 }
 
 function stop_inspector {
-    stop_process ironic-inspector
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "True" ]]; then
+        stop_process ironic-inspector
+    else
+        stop_process ironic-inspector-api
+        stop_process ironic-inspector-conductor
+    fi
 }
 
 function stop_inspector_dhcp {
@@ -265,6 +280,7 @@ function configure_inspector {
     rm -f "$IRONIC_INSPECTOR_CONF_FILE"
 
     inspector_iniset DEFAULT debug $IRONIC_INSPECTOR_DEBUG
+    inspector_iniset DEFAULT standalone $IRONIC_INSPECTOR_STANDALONE
     inspector_configure_auth_for ironic
     inspector_configure_auth_for service_catalog
     configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
@@ -279,6 +295,12 @@ function configure_inspector {
     inspector_iniset processing power_off $IRONIC_INSPECTOR_POWER_OFF
 
     iniset_rpc_backend ironic-inspector $IRONIC_INSPECTOR_CONF_FILE
+
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+      # memcached listens localhost instead of $SERVICE_HOST, which is exactly the default value,
+      # but set explicitly in case that changed.
+      inspector_iniset coordination backend_url "memcached://localhost:11211"
+    fi
 
     if is_service_enabled swift; then
         configure_inspector_swift

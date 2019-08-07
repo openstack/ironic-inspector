@@ -13,6 +13,7 @@
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-python3
+        - ironic-inspector-non-standalone-tempest-python3
         - openstack-tox-functional
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-xenial
@@ -25,6 +26,7 @@
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-python3
+        - ironic-inspector-non-standalone-tempest-python3
         - openstack-tox-functional
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-xenial
