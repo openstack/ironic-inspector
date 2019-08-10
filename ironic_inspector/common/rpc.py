@@ -22,12 +22,9 @@ CONF = cfg.CONF
 TRANSPORT = None
 
 
-def get_transport():
+def init():
     global TRANSPORT
-
-    if TRANSPORT is None:
-        TRANSPORT = messaging.get_rpc_transport(CONF)
-    return TRANSPORT
+    TRANSPORT = messaging.get_rpc_transport(CONF)
 
 
 def get_client(topic=None):
@@ -36,22 +33,22 @@ def get_client(topic=None):
     :param topic: The topic of the message will be delivered to. This argument
                   is ignored if CONF.standalone is True.
     """
+    assert TRANSPORT is not None
     if CONF.standalone:
         target = messaging.Target(topic=manager.MANAGER_TOPIC,
                                   server=CONF.host,
                                   version='1.3')
     else:
         target = messaging.Target(topic=topic, version='1.3')
-    transport = get_transport()
-    return messaging.RPCClient(transport, target)
+    return messaging.RPCClient(TRANSPORT, target)
 
 
 def get_server(endpoints):
     """Get a RPC server instance."""
 
-    transport = get_transport()
+    assert TRANSPORT is not None
     target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
                               version='1.3')
     return messaging.get_rpc_server(
-        transport, target, endpoints, executor='eventlet',
+        TRANSPORT, target, endpoints, executor='eventlet',
         access_policy=dispatcher.DefaultRPCAccessPolicy)

@@ -671,7 +671,7 @@ class TestTopic(test_base.BaseTest):
     def setUp(self):
         super(TestTopic, self).setUp()
         self.transport_mock = self.useFixture(
-            fixtures.MockPatchObject(rpc, 'get_transport',
+            fixtures.MockPatchObject(rpc, 'TRANSPORT',
                                      autospec=True)).mock
         self.target_mock = self.useFixture(
             fixtures.MockPatchObject(rpc.messaging, 'Target',
