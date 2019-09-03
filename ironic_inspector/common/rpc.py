@@ -30,10 +30,18 @@ def get_transport():
     return TRANSPORT
 
 
-def get_client():
-    """Get a RPC client instance."""
-    target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
-                              version='1.2')
+def get_client(topic=None):
+    """Get a RPC client instance.
+
+    :param topic: The topic of the message will be delivered to. This argument
+                  is ignored if CONF.standalone is True.
+    """
+    if CONF.standalone:
+        target = messaging.Target(topic=manager.MANAGER_TOPIC,
+                                  server=CONF.host,
+                                  version='1.3')
+    else:
+        target = messaging.Target(topic=topic, version='1.3')
     transport = get_transport()
     return messaging.RPCClient(transport, target)
 
@@ -43,7 +51,7 @@ def get_server(endpoints):
 
     transport = get_transport()
     target = messaging.Target(topic=manager.MANAGER_TOPIC, server=CONF.host,
-                              version='1.2')
+                              version='1.3')
     return messaging.get_rpc_server(
         transport, target, endpoints, executor='eventlet',
         access_policy=dispatcher.DefaultRPCAccessPolicy)
