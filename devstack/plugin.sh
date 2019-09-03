@@ -276,6 +276,10 @@ function configure_inspector {
     inspector_iniset iptables dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
     inspector_iniset database connection `database_connection_url ironic_inspector`
 
+    if [[ -n "$IRONIC_INSPECTOR_PROCESSING_HOOKS" ]]; then
+        inspector_iniset processing processing_hooks "\$default_processing_hooks,$IRONIC_INSPECTOR_PROCESSING_HOOKS"
+    fi
+
     inspector_iniset processing power_off $IRONIC_INSPECTOR_POWER_OFF
 
     iniset_rpc_backend ironic-inspector $IRONIC_INSPECTOR_CONF_FILE
