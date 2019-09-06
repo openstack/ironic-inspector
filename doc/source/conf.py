@@ -7,6 +7,7 @@
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
+              'sphinxcontrib.rsvgconverter',
               'oslo_policy.sphinxext',
               'oslo_policy.sphinxpolicygen',
               'oslo_config.sphinxext',
@@ -19,9 +20,7 @@ except ImportError:
     openstackdocstheme = None
 
 repository_name = 'openstack/ironic-inspector'
-bug_project = 'ironic-inspector'
-bug_tag = ''
-html_last_updated_fmt = '%Y-%m-%d %H:%M'
+use_storyboard = True
 
 wsme_protocols = ['restjson']
 
@@ -39,8 +38,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Ironic Inspector'
-copyright = u'OpenStack Foundation'
+copyright = u'OpenStack Developers'
 
 config_generator_config_file = '../../tools/config-generator.conf'
 sample_config_basename = '_static/ironic-inspector'
@@ -92,8 +90,9 @@ else:
 #html_static_path = ['_static']
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = '%sdoc' % project
+htmlhelp_basename = 'ironic-inspectordoc'
 
+latex_use_xindy = False
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass
@@ -101,8 +100,8 @@ htmlhelp_basename = '%sdoc' % project
 latex_documents = [
     (
         'index',
-        '%s.tex' % project,
-        u'%s Documentation' % project,
+        'doc-ironic-inspector.tex',
+        u'Ironic Inspector Documentation',
         u'OpenStack Foundation',
         'manual'
     ),

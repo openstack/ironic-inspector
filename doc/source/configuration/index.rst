@@ -8,8 +8,15 @@ file. The overview of configuration file options follow.
   :maxdepth: 1
 
   Ironic Inspector Configuration Options <ironic-inspector>
-  Sample Ironic Inspector Configuration <sample-config>
   Policies <policy>
-  Sample policy file <sample-policy>
 
+.. only:: html
 
+   Sample files
+   ------------
+
+   .. toctree::
+      :maxdepth: 1
+
+      Sample Ironic Inspector Configuration <sample-config>
+      Sample policy file <sample-policy>
