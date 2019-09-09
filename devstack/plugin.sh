@@ -14,7 +14,6 @@ IRONIC_INSPECTOR_DBSYNC_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-dbsy
 IRONIC_INSPECTOR_CONF_DIR=${IRONIC_INSPECTOR_CONF_DIR:-/etc/ironic-inspector}
 IRONIC_INSPECTOR_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/inspector.conf
 IRONIC_INSPECTOR_CMD="$IRONIC_INSPECTOR_BIN_FILE --config-file $IRONIC_INSPECTOR_CONF_FILE"
-IRONIC_INSPECTOR_CMD_API="$IRONIC_INSPECTOR_BIN_FILE_API -p 5050 -- --config-file $IRONIC_INSPECTOR_CONF_FILE"
 IRONIC_INSPECTOR_CMD_CONDUCTOR="$IRONIC_INSPECTOR_BIN_FILE_CONDUCTOR --config-file $IRONIC_INSPECTOR_CONF_FILE"
 IRONIC_INSPECTOR_DHCP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/dnsmasq.conf
 IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/rootwrap.conf
@@ -22,6 +21,10 @@ IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
 IRONIC_INSPECTOR_AUTH_CACHE_DIR=${IRONIC_INSPECTOR_AUTH_CACHE_DIR:-/var/cache/ironic-inspector}
 IRONIC_INSPECTOR_DHCP_FILTER=${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}
 IRONIC_INSPECTOR_STANDALONE=${IRONIC_INSPECTOR_STANDALONE:-True}
+# Support entry points installation of console scripts
+IRONIC_INSPECTOR_UWSGI=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-api-wsgi
+IRONIC_INSPECTOR_UWSGI_CONF=$IRONIC_INSPECTOR_CONF_DIR/ironic-inspector-uwsgi.ini
+
 if [[ -n ${IRONIC_INSPECTOR_MANAGE_FIREWALL} ]] ; then
     echo "IRONIC_INSPECTOR_MANAGE_FIREWALL is deprecated." >&2
     echo "Please, use IRONIC_INSPECTOR_DHCP_FILTER == noop/iptables/dnsmasq instead." >&2
@@ -44,9 +47,15 @@ IRONIC_INSPECTOR_DHCP_HOSTSDIR=${IRONIC_INSPECTOR_DHCP_HOSTSDIR:-/etc/ironic-ins
 IRONIC_INSPECTOR_DNSMASQ_STOP_COMMAND=${IRONIC_INSPECTOR_DNSMASQ_STOP_COMMAND:-systemctl stop devstack@ironic-inspector-dhcp}
 IRONIC_INSPECTOR_DNSMASQ_START_COMMAND=${IRONIC_INSPECTOR_DNSMASQ_START_COMMAND:-systemctl start devstack@ironic-inspector-dhcp}
 
-IRONIC_INSPECTOR_HOST=$HOST_IP
+IRONIC_INSPECTOR_HOST=$SERVICE_HOST
 IRONIC_INSPECTOR_PORT=5050
-IRONIC_INSPECTOR_URI="http://$IRONIC_INSPECTOR_HOST:$IRONIC_INSPECTOR_PORT"
+
+if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+    IRONIC_INSPECTOR_URI="http://$IRONIC_INSPECTOR_HOST/baremetal-introspection"
+else
+    IRONIC_INSPECTOR_URI="http://$IRONIC_INSPECTOR_HOST:$IRONIC_INSPECTOR_PORT"
+fi
+
 IRONIC_INSPECTOR_BUILD_RAMDISK=$(trueorfalse False IRONIC_INSPECTOR_BUILD_RAMDISK)
 IRONIC_AGENT_KERNEL_URL=${IRONIC_AGENT_KERNEL_URL:-http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe.vmlinuz}
 IRONIC_AGENT_RAMDISK_URL=${IRONIC_AGENT_RAMDISK_URL:-http://tarballs.openstack.org/ironic-python-agent/coreos/files/coreos_production_pxe_image-oem.cpio.gz}
@@ -61,7 +70,13 @@ IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE=${IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE:-2
 IRONIC_INSPECTOR_DHCP_RANGE=${IRONIC_INSPECTOR_DHCP_RANGE:-172.24.42.100,172.24.42.253}
 IRONIC_INSPECTOR_INTERFACE=${IRONIC_INSPECTOR_INTERFACE:-br-inspector}
 IRONIC_INSPECTOR_INTERFACE_PHYSICAL=$(trueorfalse False IRONIC_INSPECTOR_INTERFACE_PHYSICAL)
-IRONIC_INSPECTOR_INTERNAL_URI="http://$IRONIC_INSPECTOR_INTERNAL_IP:$IRONIC_INSPECTOR_PORT"
+
+if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+    IRONIC_INSPECTOR_INTERNAL_URI="http://$IRONIC_INSPECTOR_INTERNAL_IP/baremetal-introspection"
+else
+    IRONIC_INSPECTOR_INTERNAL_URI="http://$IRONIC_INSPECTOR_INTERNAL_IP:$IRONIC_INSPECTOR_PORT"
+fi
+
 IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET="$IRONIC_INSPECTOR_INTERNAL_IP/$IRONIC_INSPECTOR_INTERNAL_SUBNET_SIZE"
 # Whether DevStack will be setup for bare metal or VMs
 IRONIC_IS_HARDWARE=$(trueorfalse False IRONIC_IS_HARDWARE)
@@ -107,6 +122,10 @@ function inspector_iniset {
 
 function install_inspector {
     setup_develop $IRONIC_INSPECTOR_DIR
+
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+        install_apache_wsgi
+    fi
 }
 
 function install_inspector_dhcp {
@@ -126,8 +145,13 @@ function start_inspector {
     if [[ "$IRONIC_INSPECTOR_STANDALONE" == "True" ]]; then
         run_process ironic-inspector "$IRONIC_INSPECTOR_CMD"
     else
-        run_process ironic-inspector-api "$IRONIC_INSPECTOR_CMD_API"
-        run_process ironic-inspector-conductor "$IRONIC_INSPECTOR_CMD_CONDUCTOR"
+      run_process ironic-inspector-api "$IRONIC_INSPECTOR_BIN_DIR/uwsgi --procname-prefix ironic-inspector-api --ini $IRONIC_INSPECTOR_UWSGI_CONF --pyargv \"--config-file $IRONIC_INSPECTOR_CONF_FILE\""
+      run_process ironic-inspector-conductor "$IRONIC_INSPECTOR_CMD_CONDUCTOR"
+    fi
+
+    echo "Waiting for ironic-inspector API to start..."
+    if ! timeout $SERVICE_TIMEOUT sh -c "while ! wget --no-proxy -q -O- $IRONIC_INSPECTOR_URI; do sleep 1; done"; then
+        die $LINENO "ironic-inspector API did not start"
     fi
 }
 
@@ -317,6 +341,11 @@ function configure_inspector {
 
     setup_logging $IRONIC_INSPECTOR_CONF_FILE DEFAULT
 
+    # Adds uWSGI for inspector API
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+        write_uwsgi_config "$IRONIC_INSPECTOR_UWSGI_CONF" "$IRONIC_INSPECTOR_UWSGI" "/baremetal-introspection"
+    fi
+
     cp "$IRONIC_INSPECTOR_DIR/rootwrap.conf" "$IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE"
     cp -r "$IRONIC_INSPECTOR_DIR/rootwrap.d" "$IRONIC_INSPECTOR_CONF_DIR"
     local ironic_inspector_rootwrap=$(get_rootwrap_location ironic-inspector)
@@ -406,6 +435,12 @@ function prepare_environment {
         --dport 69 -j ACCEPT
     sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp \
         --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
+
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+        sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 80 -j ACCEPT
+        sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 443 -j ACCEPT
+    fi
+
 }
 
 # create_ironic_inspector_cache_dir() - Part of the prepare_environment() process
@@ -428,6 +463,11 @@ function cleanup_inspector {
     sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
     sudo rm -rf "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
 
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+        sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 80 -j ACCEPT | true
+        sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 443 -j ACCEPT | true
+    fi
+
     # Always try to clean up firewall rules, no matter filter driver used
     sudo iptables -D INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
         --dport 69 -j ACCEPT | true
@@ -443,6 +483,11 @@ function cleanup_inspector {
     fi
     sudo ip link show $IRONIC_INSPECTOR_OVS_PORT && sudo ip link delete $IRONIC_INSPECTOR_OVS_PORT
     sudo ovs-vsctl --if-exists del-port $IRONIC_INSPECTOR_OVS_PORT
+
+    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+        remove_uwsgi_config "$IRONIC_INSPECTOR_UWSGI_CONF" "$IRONIC_INSPECTOR_UWSGI"
+        restart_apache_server
+    fi
 }
 
 function sync_inspector_database {

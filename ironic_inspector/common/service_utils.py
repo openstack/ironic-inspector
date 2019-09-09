@@ -13,7 +13,9 @@
 from oslo_config import cfg
 from oslo_log import log
 
+from ironic_inspector.common import rpc
 from ironic_inspector.conf import opts
+
 
 LOG = log.getLogger(__name__)
 CONF = cfg.CONF
@@ -24,6 +26,7 @@ def prepare_service(args=None):
     log.register_options(CONF)
     opts.set_config_defaults()
     opts.parse_args(args)
+    rpc.init()
     log.setup(CONF, 'ironic_inspector')
 
     LOG.debug("Configuration:")
