@@ -50,6 +50,25 @@
         USE_PYTHON3: True
 
 - job:
+    name: ironic-inspector-non-standalone-tempest-python3
+    description: Execute python3 tempest tests for ironic-inspector running in non-standalone mode
+    parent: ironic-inspector-base
+    vars:
+      devstack_localrc:
+        USE_PYTHON3: True
+        IRONIC_INSPECTOR_STANDALONE: False
+      devstack_services:
+        s-account: True
+        s-container: True
+        s-object: True
+        s-proxy: True
+        ir-api: True
+        ir-cond: True
+        ironic-inspector-api: True
+        ironic-inspector-conductor: True
+        ironic-inspector-dhcp: True
+
+- job:
     name: ironic-inspector-tempest-discovery
     description: ironic-inspector-tempest-discovery
     parent: ironic-inspector-base
