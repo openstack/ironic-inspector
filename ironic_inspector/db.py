@@ -28,7 +28,7 @@ from sqlalchemy import (Boolean, Column, DateTime, Enum, ForeignKey,
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import orm
 
-from ironic_inspector import conf  # noqa
+
 from ironic_inspector import introspection_state as istate
 
 
