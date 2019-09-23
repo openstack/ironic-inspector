@@ -1,14 +1,14 @@
 ---
 features:
   - |
-    Allows splitting the ironic-inspector service to ironic-inspector-api and
+    Allows splitting the ironic-inspector service into ironic-inspector-api and
     ironic-inspector-conductor which coordinate via tooz and its underlying
     backend. A new configuration option ``[DEFAULT]standalone`` is introduced
-    to enable this feature. The configuration defaults to True,
+    to enable this feature. The configuration defaults to True, and
     ironic-inspector runs as a single service, which is compatible with the
     old behavior. When set to False, ``ironic-inspector-api-wsgi`` is used to
     start the API service, and ``ironic-inspector-conductor`` is used to start
-    the conductor service. For ironic-inspector running at non-standalone
-    mode, user needs to set the new configuration option
+    the conductor service. For ironic-inspector running in non-standalone
+    mode, the user needs to set the new configuration option
     ``[coordination]backend_url``, which specifies the backend used for
     coordination.
