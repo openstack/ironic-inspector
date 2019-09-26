@@ -60,17 +60,18 @@ class SwiftAPI(object):
             raise utils.Error(_("Could not connect to the object storage "
                                 "service: %s") % exc)
 
-    def create_object(self, object, data, container=CONF.swift.container,
-                      headers=None):
+    def create_object(self, object, data, container=None, headers=None):
         """Uploads a given string to Swift.
 
         :param object: The name of the object in Swift
         :param data: string data to put in the object
         :param container: The name of the container for the object.
+            Defaults to the value set in the configuration options.
         :param headers: the headers for the object to pass to Swift
         :returns: The Swift UUID of the object
         :raises: utils.Error, if any operation with Swift fails.
         """
+        container = container or CONF.swift.container
         try:
             self.connection.create_container(container)
         except os_exc.SDKException as e:
@@ -94,14 +95,16 @@ class SwiftAPI(object):
 
         return obj_uuid
 
-    def get_object(self, object, container=CONF.swift.container):
+    def get_object(self, object, container=None):
         """Downloads a given object from Swift.
 
         :param object: The name of the object in Swift
         :param container: The name of the container for the object.
+            Defaults to the value set in the configuration options.
         :returns: Swift object
         :raises: utils.Error, if the Swift operation fails.
         """
+        container = container or CONF.swift.container
         try:
             obj = self.connection.download_object(object, container=container)
         except os_exc.SDKException as e:
