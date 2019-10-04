@@ -82,9 +82,10 @@ commands to, for instance, directly control the **dnsmasq** service::
 
 .. note::
 
-  These commands are executed through the rootwrap_ facility, so overriding
-  may require a filter file to be created in the ``rootwrap.d`` directory. A
-  sample configuration to use with the **systemctl** facility might be:
+  These commands are executed through the :oslo.rootwrap-doc:`rootwrap <>`
+  facility, so overriding may require a filter file to be created in the
+  ``rootwrap.d`` directory. A sample configuration to use with the
+  **systemctl** facility might be:
 
   .. code-block:: console
 
@@ -94,8 +95,6 @@ commands to, for instance, directly control the **dnsmasq** service::
     systemctl: CommandFilter, systemctl, root, restart, dnsmasq
     systemctl: CommandFilter, systemctl, root, stop, dnsmasq
     EOF
-
-  .. _rootwrap: https://docs.openstack.org/oslo.rootwrap/latest/
 
 Caveats
 -------

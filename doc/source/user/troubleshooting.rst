@@ -22,8 +22,8 @@ There may be 3 reasons why introspection can time out after some time
 #. Fatal failure in processing chain before node was found in the local cache.
    See `Troubleshooting data processing`_ for the hints.
 
-#. Failure to load the ramdisk on the target node. See `Troubleshooting
-   PXE boot`_ for the hints.
+#. Failure to load the ramdisk on the target node. See
+   `Troubleshooting PXE boot`_ for the hints.
 
 #. Failure during ramdisk run. See `Troubleshooting ramdisk run`_ for the
    hints.
