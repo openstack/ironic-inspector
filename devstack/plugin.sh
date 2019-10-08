@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-# This package should be tested under python 3, when the job enables Python 3
-enable_python3_package ironic-inspector
-
 IRONIC_INSPECTOR_DEBUG=${IRONIC_INSPECTOR_DEBUG:-True}
 IRONIC_INSPECTOR_DIR=$DEST/ironic-inspector
 IRONIC_INSPECTOR_DATA_DIR=$DATA_DIR/ironic-inspector
