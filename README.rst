@@ -15,7 +15,7 @@ scheduling from a bare metal node, given its power management credentials
 (e.g. IPMI address, user name and password).
 
 * Free software: Apache license
-* Source: https://git.openstack.org/cgit/openstack/ironic-inspector
+* Source: https://opendev.org/openstack/ironic-inspector/
 * Bugs: https://storyboard.openstack.org/#!/project/944
 * Downloads: https://tarballs.openstack.org/ironic-inspector/
 * Documentation: https://docs.openstack.org/ironic-inspector/latest/
