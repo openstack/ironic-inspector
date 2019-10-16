@@ -12,6 +12,7 @@
         - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
+        - ironic-inspector-tempest-managed
         - ironic-inspector-non-standalone-tempest
         - openstack-tox-functional
         - openstack-tox-functional-py36
@@ -25,6 +26,7 @@
         - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
+        - ironic-inspector-tempest-managed
         - ironic-inspector-non-standalone-tempest
         - openstack-tox-functional
         - openstack-tox-functional-py36
