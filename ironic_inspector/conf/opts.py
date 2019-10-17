@@ -32,7 +32,9 @@ def set_config_defaults():
                                          'urllib3.connectionpool=WARNING',
                                          'keystonemiddleware=WARNING',
                                          'keystoneauth=WARNING',
-                                         'ironicclient=WARNING'])
+                                         'ironicclient=WARNING',
+                                         'amqp=WARNING',
+                                         'amqplib=WARNING'])
     set_cors_middleware_defaults()
 
 
