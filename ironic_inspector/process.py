@@ -286,7 +286,7 @@ def _process_node(node_info, node, introspection_data):
     resp = {'uuid': node.uuid}
 
     # determine how to handle power
-    if keep_power_on:
+    if keep_power_on or not node_info.manage_boot:
         power_action = False
     else:
         power_action = CONF.processing.power_off
