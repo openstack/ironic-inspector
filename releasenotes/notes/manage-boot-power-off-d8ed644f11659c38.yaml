@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    No longer tries to power off nodes after introspection if ``manage_boot``
+    is ``False``.
