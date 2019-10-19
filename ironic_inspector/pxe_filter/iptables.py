@@ -159,7 +159,6 @@ class IptablesFilter(pxe_filter.BaseFilter):
         # NOTE(dtantsur): -w flag makes it wait for xtables lock
         cmd = self.base_command + args
         ignore = kwargs.pop('ignore', False)
-        LOG.debug('Running iptables %s', args)
         try:
             processutils.execute(*cmd)
         except processutils.ProcessExecutionError as exc:
