@@ -372,18 +372,26 @@ nodes not supporting iPXE. To use iPXE, you'll need:
     dhcp-match=ipxe,175
     dhcp-match=set:efi,option:client-arch,7
     dhcp-match=set:efi,option:client-arch,9
+    dhcp-match=set:efi,option:client-arch,11
+    # dhcpv6.option: Client System Architecture Type (61)
+    dhcp-match=set:efi6,option6:61,0007
+    dhcp-match=set:efi6,option6:61,0009
+    dhcp-match=set:efi6,option6:61,0011
+    dhcp-userclass=set:ipxe6,iPXE
     # Client is already running iPXE; move to next stage of chainloading
     dhcp-boot=tag:ipxe,http://{IP}:8088/inspector.ipxe
     # Client is PXE booting over EFI without iPXE ROM,
     # send EFI version of iPXE chainloader
     dhcp-boot=tag:efi,tag:!ipxe,ipxe.efi
+    dhcp-option=tag:efi6,tag:!ipxe6,option6:bootfile-url,tftp://{IP}/ipxe.efi
+    # Client is running PXE over BIOS; send BIOS version of iPXE chainloader
     dhcp-boot=undionly.kpxe,localhost.localdomain,{IP}
 
   First, we configure the same common parameters as with PXE. Then we define
-  ``ipxe`` and ``efi`` tags. Nodes already supporting iPXE are ordered to
-  download and execute ``inspector.ipxe``. Nodes without iPXE booted with UEFI
-  will get ``ipxe.efi`` firmware to execute, while the remaining will get
-  ``undionly.kpxe``.
+  ``ipxe`` and ``efi`` tags for IPv4 and ``ipxe6`` and ``efi6`` for IPv6.
+  Nodes already supporting iPXE are ordered to download and execute
+  ``inspector.ipxe``. Nodes without iPXE booted with UEFI will get ``ipxe.efi``
+  firmware to execute, while the remaining will get ``undionly.kpxe``.
 
 Managing the **ironic-inspector** Database
 ------------------------------------------
