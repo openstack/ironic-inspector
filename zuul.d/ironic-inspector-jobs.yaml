@@ -28,7 +28,6 @@
         IRONIC_INSPECTOR_DHCP_FILTER: iptables
         SWIFT_ENABLE_TEMPURLS: True
         SWIFT_TEMPURL_KEY: secretkey
-        USE_PYTHON3: False
       devstack_plugins:
         ironic-inspector: https://opendev.org/openstack/ironic-inspector
       devstack_services:
@@ -42,20 +41,11 @@
         ironic-inspector-dhcp: True
 
 - job:
-    name: ironic-inspector-tempest-python3
-    description: ironic-inspector-tempest-python3
-    parent: ironic-inspector-base
-    vars:
-      devstack_localrc:
-        USE_PYTHON3: True
-
-- job:
-    name: ironic-inspector-non-standalone-tempest-python3
+    name: ironic-inspector-non-standalone-tempest
     description: Execute python3 tempest tests for ironic-inspector running in non-standalone mode
     parent: ironic-inspector-base
     vars:
       devstack_localrc:
-        USE_PYTHON3: True
         IRONIC_INSPECTOR_STANDALONE: False
       devstack_services:
         s-account: True
