@@ -3,7 +3,6 @@
       - check-requirements
       - openstack-cover-jobs
       - openstack-lower-constraints-jobs
-      - openstack-python-jobs
       - openstack-python3-ussuri-jobs
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
@@ -13,7 +12,6 @@
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-non-standalone-tempest
-        - openstack-tox-functional
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-xenial:
             voting: false
@@ -26,5 +24,4 @@
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-non-standalone-tempest
-        - openstack-tox-functional
         - openstack-tox-functional-py36

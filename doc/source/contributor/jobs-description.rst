@@ -34,8 +34,6 @@ The description of each jobs that runs in the CI when you submit a patch for
      - Deploys Ironic and Ironic Inspector in DevStack under Python3.
        Runs tempest tests that match the regex `Inspector` and deploys 1
        virtual baremetal.
-   * - openstack-tox-functional
-     - Run tox-based functional tests for Ironic Inspector under Python2
    * - openstack-tox-functional-py36
      - Run tox-based functional tests for Ironic Inspector under Python3.6
    * - bifrost-integration-tinyipa-ubuntu-xenial
