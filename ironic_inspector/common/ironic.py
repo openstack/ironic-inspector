@@ -217,7 +217,7 @@ def lookup_node_by_macs(macs, introspection_data=None,
 
     nodes = set()
     for mac in macs:
-        ports = ironic.port.list(address=mac)
+        ports = ironic.port.list(address=mac, fields=["uuid", "node_uuid"])
         if not ports:
             continue
         elif fail:
