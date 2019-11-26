@@ -216,7 +216,8 @@ class TestLookupNode(base.NodeTest):
         uuid = ir_utils.lookup_node(macs=self.macs, ironic=self.ironic)
         self.assertEqual(self.node.uuid, uuid)
         self.ironic.port.list.assert_has_calls([
-            mock.call(address=mac) for mac in self.macs
+            mock.call(address=mac,
+                      fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
 
     def test_lookup_by_mac_duplicates(self):
@@ -228,7 +229,8 @@ class TestLookupNode(base.NodeTest):
                                ir_utils.lookup_node,
                                macs=self.macs, ironic=self.ironic)
         self.ironic.port.list.assert_has_calls([
-            mock.call(address=mac) for mac in self.macs
+            mock.call(address=mac,
+                      fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
 
     def test_lookup_by_bmc_only(self):
@@ -258,7 +260,8 @@ class TestLookupNode(base.NodeTest):
                                     ironic=self.ironic)
         self.assertEqual(self.node.uuid, uuid)
         self.ironic.port.list.assert_has_calls([
-            mock.call(address=mac) for mac in self.macs
+            mock.call(address=mac,
+                      fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
         self.assertEqual(1, self.ironic.node.list.call_count)
 
@@ -273,6 +276,7 @@ class TestLookupNode(base.NodeTest):
                                macs=self.macs,
                                ironic=self.ironic)
         self.ironic.port.list.assert_has_calls([
-            mock.call(address=mac) for mac in self.macs
+            mock.call(address=mac,
+                      fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
         self.assertEqual(1, self.ironic.node.list.call_count)
