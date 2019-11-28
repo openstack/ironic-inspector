@@ -15,7 +15,6 @@ import abc
 
 from oslo_concurrency import lockutils
 from oslo_config import cfg
-import six
 
 from ironic_inspector.common import coordination
 
@@ -24,8 +23,7 @@ _LOCK_TEMPLATE = 'node-%s'
 _SEMAPHORES = lockutils.Semaphores()
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseLock(object):
+class BaseLock(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def acquire(self, blocking=True):

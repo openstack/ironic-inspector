@@ -19,7 +19,6 @@ import jsonschema
 from oslo_db import exception as db_exc
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-import six
 from sqlalchemy import orm
 
 from ironic_inspector.common.i18n import _
@@ -225,7 +224,7 @@ def _format_value(value, data):
     :param data: Introspection data.
     :returns: `value`, formatted with the parameters from `data`.
     """
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         # NOTE(aarefiev): verify provided value with introspection
         # data format specifications.
         # TODO(aarefiev): simple verify on import rule time.
@@ -237,7 +236,7 @@ def _format_value(value, data):
                               {'val': value, 'e': e}, data=data)
     elif isinstance(value, dict):
         return {_format_value(k, data): _format_value(v, data)
-                for k, v in six.iteritems(value)}
+                for k, v in value.items()}
     elif isinstance(value, list):
         return [_format_value(v, data) for v in value]
     else:

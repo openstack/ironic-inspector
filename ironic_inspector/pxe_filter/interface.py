@@ -15,11 +15,8 @@
 
 import abc
 
-import six
 
-
-@six.add_metaclass(abc.ABCMeta)
-class FilterDriver(object):
+class FilterDriver(object, metaclass=abc.ABCMeta):
     """The PXE boot filtering interface."""
 
     @abc.abstractmethod

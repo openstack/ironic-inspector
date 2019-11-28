@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import builtins
 try:
     import errno
 except ImportError:
@@ -22,7 +23,6 @@ import fixtures
 from ironicclient import exc as ironic_exc
 import mock
 from oslo_config import cfg
-import six
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
@@ -110,7 +110,7 @@ class TestExclusiveWriteOrPass(test_base.BaseTest):
     def setUp(self):
         super(TestExclusiveWriteOrPass, self).setUp()
         self.mock_open = self.useFixture(fixtures.MockPatchObject(
-            six.moves.builtins, 'open', new=mock.mock_open())).mock
+            builtins, 'open', new=mock.mock_open())).mock
         self.mock_fd = self.mock_open.return_value
         self.mock_fcntl = self.useFixture(fixtures.MockPatchObject(
             dnsmasq.fcntl, 'flock', autospec=True)).mock

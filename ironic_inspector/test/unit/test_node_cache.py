@@ -13,6 +13,7 @@
 
 import copy
 import datetime
+import functools
 import json
 import unittest
 
@@ -22,7 +23,6 @@ from oslo_config import cfg
 import oslo_db
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-import six
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import locking
@@ -56,7 +56,7 @@ class TestNodeCache(test_base.NodeTest):
         self.assertEqual(self.uuid, node.uuid)
         self.assertTrue(
             (datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
-                < node.started_at <
+             < node.started_at <
              datetime.datetime.utcnow() + datetime.timedelta(seconds=60)))
         self.assertFalse(node._lock.is_locked())
 
@@ -85,7 +85,7 @@ class TestNodeCache(test_base.NodeTest):
                     state=istate.States.finished).save(session)
             db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
                          value='11:22:11:22:11:22', node_uuid=self.uuid).save(
-                             session)
+                session)
             data = {'s': 'value', 'b': True, 'i': 42}
             encoded = json.dumps(data)
             db.Option(uuid=self.uuid, name='name', value=encoded).save(
@@ -264,8 +264,8 @@ class TestNodeCacheFind(test_base.NodeTest):
         node_cache.add_node(uuid2,
                             istate.States.starting,
                             bmc_address='1.2.3.4')
-        six.assertRaisesRegex(self, utils.Error, 'Multiple nodes',
-                              node_cache.find_node, bmc_address='1.2.3.4')
+        self.assertRaisesRegex(utils.Error, 'Multiple nodes',
+                               node_cache.find_node, bmc_address='1.2.3.4')
 
     def test_macs(self):
         res = node_cache.find_node(mac=['11:22:33:33:33:33', self.macs[1]])
@@ -304,7 +304,7 @@ class TestNodeCacheFind(test_base.NodeTest):
         session = db.get_writer_session()
         with session.begin():
             (db.model_query(db.Node).filter_by(uuid=self.uuid).
-                delete())
+             delete())
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
@@ -312,7 +312,7 @@ class TestNodeCacheFind(test_base.NodeTest):
         session = db.get_writer_session()
         with session.begin():
             (db.model_query(db.Node).filter_by(uuid=self.uuid).
-                update({'finished_at': datetime.datetime.utcnow()}))
+             update({'finished_at': datetime.datetime.utcnow()}))
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
@@ -502,19 +502,19 @@ class TestNodeInfoFinished(test_base.NodeTest):
         with session.begin():
             self.assertEqual((datetime.datetime(1, 1, 1), None),
                              tuple(db.model_query(
-                                   db.Node.finished_at,
-                                   db.Node.error).first()))
+                                 db.Node.finished_at,
+                                 db.Node.error).first()))
             self.assertEqual([], db.model_query(db.Attribute,
-                             session=session).all())
+                                                session=session).all())
             self.assertEqual([], db.model_query(db.Option,
-                             session=session).all())
+                                                session=session).all())
 
     def test_error(self):
         self.node_info.finished(istate.Events.error, error='boom')
 
         self.assertEqual((datetime.datetime(1, 1, 1), 'boom'),
                          tuple(db.model_query(db.Node.finished_at,
-                               db.Node.error).first()))
+                                              db.Node.error).first()))
         self.assertEqual([], db.model_query(db.Attribute).all())
         self.assertEqual([], db.model_query(db.Option).all())
 
@@ -981,7 +981,8 @@ class TestNodeInfoVersionId(test_base.NodeStateTest):
         def func():
             return self.node_info.version_id
 
-        six.assertRaisesRegex(self, utils.NotFoundInCacheError, '.*', func)
+        self.assertRaisesRegex(utils.NotFoundInCacheError, '.*',
+                               func)
 
     def test_set(self):
         with db.ensure_transaction() as session:
@@ -997,9 +998,10 @@ class TestNodeInfoVersionId(test_base.NodeStateTest):
             row.update({'version_id': uuidutils.generate_uuid()})
             row.save(session)
 
-        six.assertRaisesRegex(self, utils.NodeStateRaceCondition,
-                              'Node state mismatch', self.node_info._set_state,
-                              istate.States.finished)
+        self.assertRaisesRegex(utils.NodeStateRaceCondition,
+                               'Node state mismatch',
+                               self.node_info._set_state,
+                               istate.States.finished)
 
 
 class TestNodeInfoState(test_base.NodeStateTest):
@@ -1013,9 +1015,9 @@ class TestNodeInfoState(test_base.NodeStateTest):
         self.assertEqual(self.node_info.state, row.state)
 
     def test_set_invalid_state(self):
-        six.assertRaisesRegex(self, oslo_db.exception.DBError,
-                              'constraint failed',
-                              self.node_info._set_state, 'foo')
+        self.assertRaisesRegex(oslo_db.exception.DBError,
+                               'constraint failed',
+                               self.node_info._set_state, 'foo')
 
     def test_commit(self):
         current_time = timeutils.utcnow()
@@ -1038,9 +1040,9 @@ class TestNodeInfoStateFsm(test_base.NodeStateTest):
     def test__get_fsm_invalid_state(self):
         self.node_info._fsm = None
         self.node_info._state = 'foo'
-        six.assertRaisesRegex(self, automaton.exceptions.NotFound,
-                              '.*undefined state.*',
-                              self.node_info._get_fsm)
+        self.assertRaisesRegex(automaton.exceptions.NotFound,
+                               '.*undefined state.*',
+                               self.node_info._get_fsm)
 
     def test__fsm_ctx_set_state(self):
         with self.node_info._fsm_ctx() as fsm:
@@ -1056,9 +1058,10 @@ class TestNodeInfoStateFsm(test_base.NodeStateTest):
 
     def test__fsm_ctx_illegal_event(self):
         with self.node_info._fsm_ctx() as fsm:
-            six.assertRaisesRegex(self, automaton.exceptions.NotFound,
-                                  'no defined transition', fsm.process_event,
-                                  istate.Events.finish)
+            self.assertRaisesRegex(automaton.exceptions.NotFound,
+                                   'no defined transition',
+                                   fsm.process_event,
+                                   istate.Events.finish)
         self.assertEqual(self.node_info.state, istate.States.starting)
 
     def test__fsm_ctx_generic_exception(self):
@@ -1078,16 +1081,17 @@ class TestNodeInfoStateFsm(test_base.NodeStateTest):
         self.assertEqual(self.node_info.state, istate.States.waiting)
 
     def test_fsm_illegal_event(self):
-        six.assertRaisesRegex(self, utils.NodeStateInvalidEvent,
-                              'no defined transition',
-                              self.node_info.fsm_event, istate.Events.finish)
+        self.assertRaisesRegex(utils.NodeStateInvalidEvent,
+                               'no defined transition',
+                               self.node_info.fsm_event,
+                               istate.Events.finish)
         self.assertEqual(self.node_info.state, istate.States.starting)
 
     def test_fsm_illegal_strict_event(self):
-        six.assertRaisesRegex(self, utils.NodeStateInvalidEvent,
-                              'no defined transition',
-                              self.node_info.fsm_event,
-                              istate.Events.finish, strict=True)
+        self.assertRaisesRegex(utils.NodeStateInvalidEvent,
+                               'no defined transition',
+                               self.node_info.fsm_event,
+                               istate.Events.finish, strict=True)
         self.assertIn('no defined transition', self.node_info.error)
         self.assertEqual(self.node_info.state, istate.States.error)
 
@@ -1196,6 +1200,7 @@ class TestFsmEvent(test_base.NodeStateTest):
         @node_cache.fsm_transition(istate.Events.finish)
         def func():
             pass
+
         fsm_event_after_mock.assert_called_once_with(istate.Events.finish)
         trigger_mock.assert_called_once_with()
 
@@ -1207,6 +1212,7 @@ class TestFsmEvent(test_base.NodeStateTest):
         @node_cache.fsm_transition(istate.Events.abort, reentrant=False)
         def func():
             pass
+
         fsm_event_before_mock.assert_called_once_with(istate.Events.abort,
                                                       strict=True)
         trigger_mock.assert_called_once_with()
@@ -1216,13 +1222,14 @@ class TestFsmEvent(test_base.NodeStateTest):
 @mock.patch.object(node_cache, 'NodeInfo', autospec=True)
 class TestStartIntrospection(test_base.NodeTest):
     def prepare_mocks(fn):
-        @six.wraps(fn)
+        @functools.wraps(fn)
         def inner(self, NodeMock, *args):
             method_mock = mock.Mock()
             NodeMock.return_value = self.node_info
             self.node_info.fsm_event = method_mock
             fn(self, method_mock, *args)
             method_mock.assert_called_once_with(istate.Events.start)
+
         return inner
 
     @prepare_mocks
@@ -1237,25 +1244,25 @@ class TestStartIntrospection(test_base.NodeTest):
     @prepare_mocks
     def test_node_in_db_invalid_state(self, fsm_event_mock, add_node_mock):
         fsm_event_mock.side_effect = utils.NodeStateInvalidEvent('Oops!')
-        six.assertRaisesRegex(self, utils.NodeStateInvalidEvent, 'Oops!',
-                              node_cache.start_introspection,
-                              self.node_info.uuid)
+        self.assertRaisesRegex(utils.NodeStateInvalidEvent, 'Oops!',
+                               node_cache.start_introspection,
+                               self.node_info.uuid)
         self.assertFalse(add_node_mock.called)
 
     @prepare_mocks
     def test_node_in_db_race_condition(self, fsm_event_mock, add_node_mock):
         fsm_event_mock.side_effect = utils.NodeStateRaceCondition()
-        six.assertRaisesRegex(self, utils.NodeStateRaceCondition, '.*',
-                              node_cache.start_introspection,
-                              self.node_info.uuid)
+        self.assertRaisesRegex(utils.NodeStateRaceCondition, '.*',
+                               node_cache.start_introspection,
+                               self.node_info.uuid)
         self.assertFalse(add_node_mock.called)
 
     @prepare_mocks
     def test_error_fsm_event(self, fsm_event_mock, add_node_mock):
         fsm_event_mock.side_effect = utils.Error('Oops!')
-        six.assertRaisesRegex(self, utils.Error, 'Oops!',
-                              node_cache.start_introspection,
-                              self.node_info.uuid)
+        self.assertRaisesRegex(utils.Error, 'Oops!',
+                               node_cache.start_introspection,
+                               self.node_info.uuid)
         self.assertFalse(add_node_mock.called)
 
     @prepare_mocks
@@ -1271,9 +1278,9 @@ class TestStartIntrospection(test_base.NodeTest):
             pass
 
         fsm_event_mock.side_effect = CustomError('Oops!')
-        six.assertRaisesRegex(self, CustomError, 'Oops!',
-                              node_cache.start_introspection,
-                              self.node_info.uuid)
+        self.assertRaisesRegex(CustomError, 'Oops!',
+                               node_cache.start_introspection,
+                               self.node_info.uuid)
         self.assertFalse(add_node_mock.called)
 
 

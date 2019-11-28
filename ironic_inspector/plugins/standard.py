@@ -18,7 +18,6 @@ import netaddr
 from oslo_config import cfg
 from oslo_utils import netutils
 from oslo_utils import units
-import six
 
 
 from ironic_inspector.common.i18n import _
@@ -104,7 +103,7 @@ class SchedulerHook(base.ProcessingHook):
                                         node_info=node_info)
         try:
             introspection_data['cpus'] = int(inventory['cpu']['count'])
-            introspection_data['cpu_arch'] = six.text_type(
+            introspection_data['cpu_arch'] = str(
                 inventory['cpu']['architecture'])
         except (KeyError, ValueError, TypeError):
             LOG.warning('malformed or missing CPU information: %s',

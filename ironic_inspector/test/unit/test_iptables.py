@@ -335,7 +335,7 @@ class TestIBMapping(test_base.BaseTest):
         self.fileobj = mock.mock_open(read_data=self.ib_data)
 
     def test_matching_ib(self):
-        with mock.patch('six.moves.builtins.open', self.fileobj,
+        with mock.patch('builtins.open', self.fileobj,
                         create=True) as mock_open:
             iptables._ib_mac_to_rmac_mapping(self.ports)
 
@@ -346,7 +346,7 @@ class TestIBMapping(test_base.BaseTest):
 
     def test_ib_not_match(self):
         self.ports[0].extra['client-id'] = 'foo'
-        with mock.patch('six.moves.builtins.open', self.fileobj,
+        with mock.patch('builtins.open', self.fileobj,
                         create=True) as mock_open:
             iptables._ib_mac_to_rmac_mapping(self.ports)
 
@@ -356,7 +356,7 @@ class TestIBMapping(test_base.BaseTest):
                                           'r')
 
     def test_open_no_such_file(self):
-        with mock.patch('six.moves.builtins.open',
+        with mock.patch('builtins.open',
                         side_effect=IOError()) as mock_open:
             iptables._ib_mac_to_rmac_mapping(self.ports)
 
@@ -367,7 +367,7 @@ class TestIBMapping(test_base.BaseTest):
 
     def test_no_interfaces(self):
         CONF.set_override('ethoib_interfaces', [], 'iptables')
-        with mock.patch('six.moves.builtins.open', self.fileobj,
+        with mock.patch('builtins.open', self.fileobj,
                         create=True) as mock_open:
             iptables._ib_mac_to_rmac_mapping(self.ports)
 

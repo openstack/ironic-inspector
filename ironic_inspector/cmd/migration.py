@@ -19,7 +19,6 @@ import sys
 from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import encodeutils
-import six
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.conf import opts
@@ -120,7 +119,7 @@ def main():
         print(_("... terminating migration tool"), file=sys.stderr)
         return 130
     except Exception as e:
-        print(encodeutils.safe_encode(six.text_type(e)), file=sys.stderr)
+        print(encodeutils.safe_encode(str(e)), file=sys.stderr)
         return 1
 
 

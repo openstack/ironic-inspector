@@ -14,7 +14,6 @@
 import mock
 from oslo_config import cfg
 from oslo_utils import units
-import six
 
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base
@@ -426,10 +425,10 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.node.properties['root_device'] = {'size': 10}
         self.inventory['disks'] = []
 
-        six.assertRaisesRegex(self, utils.Error,
-                              'No disks satisfied root device hints',
-                              self.hook.before_update,
-                              self.data, self.node_info)
+        self.assertRaisesRegex(utils.Error,
+                               'No disks satisfied root device hints',
+                               self.hook.before_update,
+                               self.data, self.node_info)
 
         self.assertNotIn('local_gb', self.data)
         self.assertFalse(self.node_info.update_properties.called)

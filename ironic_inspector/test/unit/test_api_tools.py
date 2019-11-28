@@ -11,11 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+
 import flask
 import mock
 from oslo_config import cfg
 from oslo_utils import uuidutils
-import six
 
 from ironic_inspector import api_tools
 import ironic_inspector.test.base as test_base
@@ -28,8 +29,9 @@ app.testing = True
 
 def mock_test_field(return_value=None, side_effect=None):
     """Mock flask.request.args.get"""
+
     def outer(func):
-        @six.wraps(func)
+        @functools.wraps(func)
         def inner(self, *args, **kwargs):
             with app.test_request_context('/'):
                 get_mock = flask.request.args.get = mock.Mock()
@@ -37,7 +39,9 @@ def mock_test_field(return_value=None, side_effect=None):
                 get_mock.side_effect = side_effect
                 ret = func(self, get_mock, *args, **kwargs)
             return ret
+
         return inner
+
     return outer
 
 
@@ -46,6 +50,7 @@ class RaisesCoercionExceptionTestCase(test_base.BaseTest):
         @api_tools.raises_coercion_exceptions
         def fn():
             return True
+
         self.assertIs(True, fn())
 
     def test_assertion_error(self):
@@ -53,14 +58,14 @@ class RaisesCoercionExceptionTestCase(test_base.BaseTest):
         def fn():
             assert False, 'Oops!'
 
-        six.assertRaisesRegex(self, utils.Error, 'Bad request: Oops!', fn)
+        self.assertRaisesRegex(utils.Error, 'Bad request: Oops!', fn)
 
     def test_value_error(self):
         @api_tools.raises_coercion_exceptions
         def fn():
             raise ValueError('Oops!')
 
-        six.assertRaisesRegex(self, utils.Error, 'Bad request: Oops!', fn)
+        self.assertRaisesRegex(utils.Error, 'Bad request: Oops!', fn)
 
 
 class RequestFieldTestCase(test_base.BaseTest):
@@ -102,8 +107,9 @@ class MarkerFieldTestCase(test_base.BaseTest):
     @mock_test_field(return_value='foo')
     def test_marker_check_fails(self, get_mock, like_mock):
         like_mock.return_value = False
-        six.assertRaisesRegex(self, utils.Error, '.*(Marker not UUID-like)',
-                              api_tools.marker_field)
+        self.assertRaisesRegex(utils.Error,
+                               '.*(Marker not UUID-like)',
+                               api_tools.marker_field)
         like_mock.assert_called_once_with(get_mock.return_value)
 
 
@@ -115,9 +121,9 @@ class LimitFieldTestCase(test_base.BaseTest):
 
     @mock_test_field(return_value=str(CONF.api_max_limit + 1))
     def test_limit_over(self, get_mock):
-        six.assertRaisesRegex(self, utils.Error,
-                              '.*(Limit over %s)' % CONF.api_max_limit,
-                              api_tools.limit_field)
+        self.assertRaisesRegex(utils.Error,
+                               '.*(Limit over %s)' % CONF.api_max_limit,
+                               api_tools.limit_field)
 
     @mock_test_field(return_value='0')
     def test_limit_zero(self, get_mock):
@@ -126,11 +132,11 @@ class LimitFieldTestCase(test_base.BaseTest):
 
     @mock_test_field(return_value='-1')
     def test_limit_negative(self, get_mock):
-        six.assertRaisesRegex(self, utils.Error,
-                              '.*(Limit cannot be negative)',
-                              api_tools.limit_field)
+        self.assertRaisesRegex(utils.Error,
+                               '.*(Limit cannot be negative)',
+                               api_tools.limit_field)
 
     @mock_test_field(return_value='foo')
     def test_limit_invalid_value(self, get_mock):
-        six.assertRaisesRegex(self, utils.Error, 'Bad request',
-                              api_tools.limit_field)
+        self.assertRaisesRegex(utils.Error, 'Bad request',
+                               api_tools.limit_field)

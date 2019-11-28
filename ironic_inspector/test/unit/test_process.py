@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import copy
+import functools
 import json
 import os
 import shutil
@@ -25,7 +26,6 @@ from oslo_config import cfg
 from oslo_serialization import base64
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-import six
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import swift
@@ -613,7 +613,7 @@ class TestProcessNode(BaseTest):
 @mock.patch.object(node_cache, 'get_node', autospec=True)
 class TestReapply(BaseTest):
     def prepare_mocks(func):
-        @six.wraps(func)
+        @functools.wraps(func)
         def wrapper(self, pop_mock, *args, **kw):
             pop_mock.return_value = node_cache.NodeInfo(
                 uuid=self.node.uuid,
@@ -700,7 +700,7 @@ class TestReapplyNode(BaseTest):
         self.node_info.release_lock.assert_called_once_with(self.node_info)
 
     def prepare_mocks(fn):
-        @six.wraps(fn)
+        @functools.wraps(fn)
         def wrapper(self, release_mock, finished_mock, swift_mock,
                     *args, **kw):
             finished_mock.side_effect = lambda *a, **kw: \

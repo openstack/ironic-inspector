@@ -17,7 +17,6 @@ import fixtures
 from futurist import periodics
 import mock
 from oslo_config import cfg
-import six
 import stevedore
 
 from ironic_inspector.common import ironic as ir_utils
@@ -78,8 +77,8 @@ class TestDriverManagerLoading(test_base.BaseTest):
 
     def test_invalid_filter_driver(self):
         CONF.set_override('driver', 'foo', 'pxe_filter')
-        six.assertRaisesRegex(self, stevedore.exception.NoMatches, 'foo',
-                              pxe_filter._driver_manager)
+        self.assertRaisesRegex(stevedore.exception.NoMatches, 'foo',
+                               pxe_filter._driver_manager)
         self.assertIsNone(pxe_filter._DRIVER_MANAGER)
 
 
@@ -118,7 +117,7 @@ class TestLockedDriverEvent(BaseFilterBaseTest):
         self.mock_fsm = self.useFixture(
             fixtures.MockPatchObject(self.driver, 'fsm')).mock
         (self.driver.fsm_reset_on_error.return_value.
-            __enter__.return_value) = self.mock_fsm
+         __enter__.return_value) = self.mock_fsm
 
     def test_locked_driver_event(self):
         event = 'foo'
@@ -163,7 +162,6 @@ class TestBaseFilterFsmPrecautions(BaseFilterBaseTest):
         self.mock_reset.assert_not_called()
 
     def test_fsm_automaton_error(self):
-
         def fun():
             with self.driver.fsm_reset_on_error():
                 raise automaton_errors.NotFound('Oops!')
@@ -173,7 +171,6 @@ class TestBaseFilterFsmPrecautions(BaseFilterBaseTest):
         self.mock_reset.assert_not_called()
 
     def test_fsm_reset_on_error_ctx_custom_error(self):
-
         class MyError(Exception):
             pass
 

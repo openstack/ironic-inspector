@@ -17,7 +17,6 @@ import abc
 
 from oslo_config import cfg
 from oslo_log import log
-import six
 import stevedore
 
 from ironic_inspector.common.i18n import _
@@ -27,8 +26,7 @@ CONF = cfg.CONF
 LOG = log.getLogger(__name__)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ProcessingHook(object):  # pragma: no cover
+class ProcessingHook(object, metaclass=abc.ABCMeta):  # pragma: no cover
     """Abstract base class for introspection data processing hooks."""
 
     dependencies = []
@@ -97,8 +95,7 @@ class WithValidation(object):
             raise ValueError('; '.join(msg))
 
 
-@six.add_metaclass(abc.ABCMeta)
-class RuleConditionPlugin(WithValidation):  # pragma: no cover
+class RuleConditionPlugin(WithValidation, metaclass=abc.ABCMeta):  # pragma: no cover # noqa
     """Abstract base class for rule condition plugins."""
 
     REQUIRED_PARAMS = {'value'}
@@ -120,8 +117,7 @@ class RuleConditionPlugin(WithValidation):  # pragma: no cover
         """
 
 
-@six.add_metaclass(abc.ABCMeta)
-class RuleActionPlugin(WithValidation):  # pragma: no cover
+class RuleActionPlugin(WithValidation, metaclass=abc.ABCMeta):  # pragma: no cover # noqa
     """Abstract base class for rule action plugins."""
 
     FORMATTED_PARAMS = []

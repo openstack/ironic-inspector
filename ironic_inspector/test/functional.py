@@ -11,18 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import eventlet
-
-import contextlib  # noqa
+import contextlib
 import copy
 import datetime
+import functools
 import json
 import os
 import sys
 import tempfile
 import time
 import unittest
+import urllib
 
+import eventlet
 import fixtures
 import mock
 from oslo_config import cfg
@@ -31,8 +32,6 @@ from oslo_utils import timeutils
 from oslo_utils import uuidutils
 import pytz
 import requests
-import six
-from six.moves import urllib
 
 from ironic_inspector.cmd import all as inspector_cmd
 from ironic_inspector.cmd import dbsync
@@ -88,7 +87,7 @@ def get_error(response):
 
 def _query_string(*field_names):
     def outer(func):
-        @six.wraps(func)
+        @functools.wraps(func)
         def inner(*args, **kwargs):
             queries = []
             for field_name in field_names:

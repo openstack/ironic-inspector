@@ -21,7 +21,6 @@ from alembic import config as alembic_config
 from alembic import util as alembic_util
 from oslo_config import cfg
 from oslo_log import log
-import six
 
 from ironic_inspector import conf  # noqa
 
@@ -78,7 +77,7 @@ def do_alembic_command(config, cmd, *args, **kwargs):
     try:
         getattr(alembic_command, cmd)(config, *args, **kwargs)
     except alembic_util.CommandError as e:
-        alembic_util.err(six.text_type(e))
+        alembic_util.err(str(e))
 
 
 def main(args=sys.argv[1:]):

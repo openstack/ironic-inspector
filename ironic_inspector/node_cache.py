@@ -17,6 +17,7 @@ import collections
 import contextlib
 import copy
 import datetime
+import functools
 import json
 import operator
 
@@ -28,7 +29,6 @@ from oslo_utils import excutils
 from oslo_utils import reflection
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-import six
 from sqlalchemy.orm import exc as orm_errors
 
 from ironic_inspector.common.i18n import _
@@ -418,7 +418,7 @@ class NodeInfo(object):
         """
         ironic = ironic or self.ironic
         ports = self.ports()
-        if isinstance(port, six.string_types):
+        if isinstance(port, str):
             port = ports[port]
 
         LOG.debug('Updating port %(mac)s with patches %(patches)s',
@@ -481,7 +481,7 @@ class NodeInfo(object):
         """
         ironic = ironic or self.ironic
         ports = self.ports()
-        if isinstance(port, six.string_types):
+        if isinstance(port, str):
             port = ports[port]
 
         ironic.port.delete(port.uuid)
@@ -545,7 +545,7 @@ def triggers_fsm_error_transition(errors=(Exception,),
                       error event.
     """
     def outer(func):
-        @six.wraps(func)
+        @functools.wraps(func)
         def inner(node_info, *args, **kwargs):
             ret = None
             try:
@@ -581,7 +581,7 @@ def fsm_event_before(event, strict=False):
     :param strict: make an invalid fsm event trigger an error event
     """
     def outer(func):
-        @six.wraps(func)
+        @functools.wraps(func)
         def inner(node_info, *args, **kwargs):
             LOG.debug('Processing event %(event)s before calling '
                       '%(func)s', {'event': event, 'func': func},
@@ -602,7 +602,7 @@ def fsm_event_after(event, strict=False):
     :param strict: make an invalid fsm event trigger an error event
     """
     def outer(func):
-        @six.wraps(func)
+        @functools.wraps(func)
         def inner(node_info, *args, **kwargs):
             ret = func(node_info, *args, **kwargs)
             LOG.debug('Processing event %(event)s after calling '
@@ -641,7 +641,7 @@ def release_lock(func):
     instance.
 
     """
-    @six.wraps(func)
+    @functools.wraps(func)
     def inner(node_info, *args, **kwargs):
         try:
             return func(node_info, *args, **kwargs)
@@ -811,7 +811,7 @@ def find_node(**attributes):
         query = db.model_query(db.Attribute.node_uuid)
         pairs = [(db.Attribute.name == name) &
                  (db.Attribute.value == v) for v in value]
-        query = query.filter(six.moves.reduce(operator.or_, pairs))
+        query = query.filter(functools.reduce(operator.or_, pairs))
         found.update(row.node_uuid for row in query.distinct().all())
 
     if not found:

@@ -18,7 +18,6 @@ import json
 
 from oslo_config import cfg
 from oslo_utils import excutils
-import six
 
 from ironic_inspector.common import swift
 from ironic_inspector import node_cache
@@ -38,8 +37,7 @@ def _filter_data_excluded_keys(data):
             if k not in _STORAGE_EXCLUDED_KEYS}
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseStorageBackend(object):
+class BaseStorageBackend(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get(self, node_uuid, processed=True, get_json=False):

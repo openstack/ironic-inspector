@@ -12,10 +12,11 @@
 # limitations under the License.
 """Generic Rest Api tools."""
 
+import functools
+
 import flask
 from oslo_config import cfg
 from oslo_utils import uuidutils
-import six
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector import utils
@@ -29,7 +30,7 @@ def raises_coercion_exceptions(fn):
     :raises: utils.Error when the coercion function raises an
              AssertionError or a ValueError
     """
-    @six.wraps(fn)
+    @functools.wraps(fn)
     def inner(*args, **kwargs):
         try:
             ret = fn(*args, **kwargs)
@@ -46,7 +47,7 @@ def request_field(field_name):
     :returns: a decorator
     """
     def outer(fn):
-        @six.wraps(fn)
+        @functools.wraps(fn)
         def inner(*args, **kwargs):
             default = kwargs.pop('default', None)
             field = flask.request.args.get(field_name, default=default)

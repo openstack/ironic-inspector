@@ -41,7 +41,6 @@ python-ironicclient==2.3.0
 pytz==2013.6
 reno==2.5.0
 retrying==1.2.3
-six==1.10.0
 sphinx==1.6.2
 sphinxcontrib-svg2pdfconverter==0.1.0
 SQLAlchemy==1.0.10
