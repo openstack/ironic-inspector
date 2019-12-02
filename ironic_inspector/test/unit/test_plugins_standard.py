@@ -322,6 +322,15 @@ class TestValidateInterfacesHookBeforeUpdateDeletion(test_base.NodeTest):
         mock_delete_port.assert_any_call(self.node_info,
                                          self.existing_ports[1])
 
+    def test_active_do_not_delete(self, mock_create_ports, mock_delete_port):
+        CONF.set_override('permit_active_introspection', True, 'processing')
+        CONF.set_override('keep_ports', 'present', 'processing')
+        self.data['all_interfaces'] = self.all_interfaces
+        self.node_info.node().provision_state = 'active'
+        self.hook.before_update(self.data, self.node_info)
+        mock_create_ports.assert_called_once_with(self.node_info, mock.ANY)
+        self.assertFalse(mock_delete_port.called)
+
 
 @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
 @mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
@@ -350,6 +359,12 @@ class TestValidateInterfacesHookBeforeUpdatePXEEnabled(test_base.NodeTest):
         mock_patch_port.assert_called_once_with(
             self.node_info, self.existing_ports[1],
             [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
+
+    def test_active_do_not_modify(self, mock_create_ports, mock_patch_port):
+        CONF.set_override('permit_active_introspection', True, 'processing')
+        self.node_info.node().provision_state = 'active'
+        self.hook.before_update(self.data, self.node_info)
+        self.assertFalse(mock_patch_port.called)
 
     def test_no_overwrite(self, mock_create_ports, mock_patch_port):
         CONF.set_override('overwrite_existing', False, 'processing')
