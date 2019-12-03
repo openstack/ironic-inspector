@@ -74,6 +74,15 @@
         IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE: database
 
 - job:
+    name: ironic-inspector-tempest-managed
+    description: A job with boot managed by ironic
+    parent: ironic-inspector-base
+    vars:
+      devstack_localrc:
+        IRONIC_INSPECTOR_MANAGED_BOOT: True
+        IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: ''
+
+- job:
     # Security testing for known issues
     name: ironic-inspector-tox-bandit
     parent: openstack-tox

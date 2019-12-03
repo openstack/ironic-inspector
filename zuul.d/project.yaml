@@ -11,6 +11,7 @@
         - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
+        - ironic-inspector-tempest-managed
         - ironic-inspector-non-standalone-tempest
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-xenial:
@@ -23,5 +24,6 @@
         - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
+        - ironic-inspector-tempest-managed
         - ironic-inspector-non-standalone-tempest
         - openstack-tox-functional-py36

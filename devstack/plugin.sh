@@ -81,6 +81,8 @@ IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK=${IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK:-""}
 IRONIC_INSPECTOR_OVS_PORT=${IRONIC_INSPECTOR_OVS_PORT:-brbm-inspector}
 IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE=${IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE:-""}
 IRONIC_INSPECTOR_POWER_OFF=${IRONIC_INSPECTOR_POWER_OFF:-True}
+IRONIC_INSPECTOR_MANAGED_BOOT=$(trueorfalse False IRONIC_INSPECTOR_MANAGED_BOOT)
+IRONIC_INSPECTION_NET_NAME=${IRONIC_INSPECTION_NET_NAME:-$IRONIC_CLEAN_NET_NAME}
 if is_service_enabled swift; then
     DEFAULT_DATA_STORE=swift
 else
@@ -154,7 +156,8 @@ function start_inspector {
 
 function is_inspector_dhcp_required {
     [[ "$IRONIC_INSPECTOR_MANAGE_FIREWALL" == "True" ]] || \
-    [[ "${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}" != "noop" ]]
+        [[ "${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}" != "noop" ]] && \
+        [[ "$IRONIC_INSPECTOR_MANAGED_BOOT" == "False" ]]
 }
 
 function start_inspector_dhcp {
@@ -335,6 +338,15 @@ function configure_inspector {
 
     iniset "$IRONIC_CONF_FILE" inspector enabled True
     iniset "$IRONIC_CONF_FILE" inspector service_url $IRONIC_INSPECTOR_URI
+    if [[ "$IRONIC_INSPECTOR_MANAGED_BOOT" == "True" ]]; then
+        iniset "$IRONIC_CONF_FILE" neutron inspection_network $IRONIC_INSPECTION_NET_NAME
+        iniset "$IRONIC_CONF_FILE" inspector require_managed_boot True
+        iniset "$IRONIC_CONF_FILE" inspector extra_kernel_params \
+            "ipa-inspection-collectors=\"$IRONIC_INSPECTOR_COLLECTORS\""
+        # In this mode we do not have our own PXE environment, so do not accept
+        # requests without manage_boot=False.
+        inspector_iniset DEFAULT can_manage_boot False
+    fi
 
     setup_logging $IRONIC_INSPECTOR_CONF_FILE DEFAULT
 
@@ -415,29 +427,33 @@ EOF
 }
 
 function prepare_environment {
-    prepare_tftp
     create_ironic_inspector_cache_dir
 
-    if [[ "$IRONIC_BAREMETAL_BASIC_OPS" == "True" && "$IRONIC_IS_HARDWARE" == "False" ]]; then
-        sudo ip link add $IRONIC_INSPECTOR_OVS_PORT type veth peer name $IRONIC_INSPECTOR_INTERFACE
-        sudo ip link set dev $IRONIC_INSPECTOR_OVS_PORT up
-        sudo ip link set dev $IRONIC_INSPECTOR_OVS_PORT mtu $PUBLIC_BRIDGE_MTU
-        sudo ovs-vsctl add-port $IRONIC_VM_NETWORK_BRIDGE $IRONIC_INSPECTOR_OVS_PORT
+    if [[ "$IRONIC_INSPECTOR_MANAGED_BOOT" == "False" ]]; then
+        prepare_tftp
+
+        if [[ "$IRONIC_BAREMETAL_BASIC_OPS" == "True" && "$IRONIC_IS_HARDWARE" == "False" ]]; then
+            sudo ip link add $IRONIC_INSPECTOR_OVS_PORT type veth peer name $IRONIC_INSPECTOR_INTERFACE
+            sudo ip link set dev $IRONIC_INSPECTOR_OVS_PORT up
+            sudo ip link set dev $IRONIC_INSPECTOR_OVS_PORT mtu $PUBLIC_BRIDGE_MTU
+            sudo ovs-vsctl add-port $IRONIC_VM_NETWORK_BRIDGE $IRONIC_INSPECTOR_OVS_PORT
+        fi
+        sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE up
+        sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE mtu $PUBLIC_BRIDGE_MTU
+        sudo ip addr add $IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET dev $IRONIC_INSPECTOR_INTERFACE
+
+        sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
+            --dport 69 -j ACCEPT
+        sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp \
+            --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
+
+        if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
+            sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 80 -j ACCEPT
+            sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 443 -j ACCEPT
+        fi
+    else
+        sudo iptables -I INPUT -d $HOST_IP -p tcp --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
     fi
-    sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE up
-    sudo ip link set dev $IRONIC_INSPECTOR_INTERFACE mtu $PUBLIC_BRIDGE_MTU
-    sudo ip addr add $IRONIC_INSPECTOR_INTERNAL_IP_WITH_NET dev $IRONIC_INSPECTOR_INTERFACE
-
-    sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p udp \
-        --dport 69 -j ACCEPT
-    sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp \
-        --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
-
-    if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
-        sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 80 -j ACCEPT
-        sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 443 -j ACCEPT
-    fi
-
 }
 
 # create_ironic_inspector_cache_dir() - Part of the prepare_environment() process
