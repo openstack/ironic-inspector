@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    Fixes an issue during manual inspection of active nodes
+    where the node uuid was not passed back to the inspector
+    when it tried to identify a matching port.
