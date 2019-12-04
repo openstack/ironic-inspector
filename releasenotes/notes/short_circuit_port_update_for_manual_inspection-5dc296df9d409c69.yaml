@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Fixes an issue happening during manual inspection of
+    active nodes where the code attempts to delete or update
+    ports, while the only modification allowed for active
+    nodes is updating the MAC address if the node is in
+    maintenance.

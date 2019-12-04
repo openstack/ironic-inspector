@@ -20,7 +20,9 @@ from oslo_utils import netutils
 from oslo_utils import units
 import six
 
+
 from ironic_inspector.common.i18n import _
+from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -273,6 +275,14 @@ class ValidateInterfacesHook(base.ProcessingHook):
             }
         elif CONF.processing.keep_ports == 'added':
             expected_macs = set(introspection_data['macs'])
+
+        node_provision_state = node_info.node().provision_state
+        if node_provision_state in ir_utils.VALID_ACTIVE_STATES:
+            LOG.debug('Node %(node)s is %(state)s; '
+                      'not modifying / deleting its ports',
+                      {'node': node_info.uuid,
+                       'state': node_provision_state})
+            return
 
         if CONF.processing.keep_ports != 'all':
             # list is required as we modify underlying dict
