@@ -393,6 +393,48 @@ nodes not supporting iPXE. To use iPXE, you'll need:
   ``inspector.ipxe``. Nodes without iPXE booted with UEFI will get ``ipxe.efi``
   firmware to execute, while the remaining will get ``undionly.kpxe``.
 
+Configuring PXE for aarch64
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For aarch64 Bare Metals, the PXE boot environment is basically the same as
+x86_64, you'll need:
+
+* TFTP server running and accessible (see below for using *dnsmasq*).
+  Ensure ``grubaa64.efi`` is present in the TFTP root. The firmware can be
+  retrieved from the installation distributions for aarch64.
+
+* Copy ``ironic-agent.kernel`` and ``ironic-agent.initramfs`` to the TFTP root
+  as well. Note that the ramdisk needs to be pre-built on an aarch64 machine
+  with tools like ``ironic-python-agent-builder``, see
+  https://docs.openstack.org/ironic-python-agent-builder/latest/admin/dib.html
+  for how to build ramdisk for aarch64.
+
+* Next, setup ``$TFTPROOT/EFI/BOOT/grub.cfg`` as follows::
+
+    set default="1"
+    set timeout=5
+
+    menuentry 'Introspection for aarch64' {
+        linux ironic-agent.kernel text showopts selinux=0 ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default ipa-collect-lldp=1 systemd.journald.forward_to_console=no
+        initrd ironic-agent.initramfs
+    }
+
+  Replace ``{IP}`` with IP of the machine (do not use loopback interface, it
+  will be accessed by ramdisk on a booting machine).
+
+* Update DHCP options for aarch64, here is an example *dnsmasq.conf*::
+
+    port=0
+    interface={INTERFACE}
+    bind-interfaces
+    dhcp-range={DHCP IP RANGE, e.g. 192.168.0.50,192.168.0.150}
+    enable-tftp
+    dhcp-match=aarch64, option:client-arch, 11 # aarch64
+    dhcp-boot=tag:aarch64, grubaa64.efi
+    tftp-root={TFTP ROOT, e.g. /tftpboot}
+    dhcp-sequential-ip
+
+
 Managing the **ironic-inspector** Database
 ------------------------------------------
 
