@@ -6,19 +6,17 @@ environment)::
 
     pip install ironic-inspector
 
-Also there is a `DevStack <https://docs.openstack.org/devstack/latest/>`_
-plugin for **ironic-inspector** - see :ref:`contributing_link` for the
-current status.
+Also there is a :devstack-doc:`DevStack <>` plugin for **ironic-inspector** -
+see :ref:`contributing_link` for the current status.
 
 Finally, some distributions (e.g. Fedora) provide **ironic-inspector**
 packaged, some of them - under its old name *ironic-discoverd*.
 
 There are several projects you can use to set up **ironic-inspector** in
-production. `puppet-ironic
-<https://git.openstack.org/cgit/openstack/puppet-ironic/>`_ provides Puppet
-manifests, while `bifrost <https://docs.openstack.org/bifrost/latest/>`_
-provides an Ansible-based standalone installer. Refer to Configuration_
-if you plan on installing **ironic-inspector** manually.
+production. `puppet-ironic <https://git.openstack.org/cgit/openstack/puppet-ironic/>`_
+provides Puppet manifests, while :bifrost-doc:`bifrost <>` provides an
+Ansible-based standalone installer. Refer to Configuration_ if you plan on
+installing **ironic-inspector** manually.
 
 .. _PyPI: https://pypi.org/project/ironic-inspector
 
@@ -90,7 +88,7 @@ non-standalone mode:
   is configured to use ``etcd3+http://``, ``pymemcache`` is required to use
   ``memcached://``. Some distributions may provide packages like
   ``python3-etcd3gw`` or ``python3-memcache``. Supported drivers are listed at
-  `Tooz drivers <https://docs.openstack.org/tooz/latest/user/drivers.html>`_.
+  :tooz-doc:`Tooz drivers <user/drivers.html>`.
 
 * For ironic-inspector running in non-standalone mode, PXE configuration is
   only required on the node where ironic-inspector conductor service is
@@ -228,9 +226,9 @@ Replace ``stack`` with whatever user you'll be using to run
 Configuring IPA
 ~~~~~~~~~~~~~~~
 
-ironic-python-agent_ is a ramdisk developed for **ironic** and support
-for **ironic-inspector** was added during the Liberty cycle. This is the
-default ramdisk starting with the Mitaka release.
+:ironic-python-agent-doc:`ironic-python-agent <>` is a ramdisk developed for
+**ironic** and support for **ironic-inspector** was added during the Liberty
+cycle. This is the default ramdisk starting with the Mitaka release.
 
 .. note::
     You need at least 1.5 GiB of RAM on the machines to use IPA built with
@@ -254,11 +252,10 @@ To build an **ironic-python-agent** ramdisk, do the following:
 
 Alternatively, you can download a `prebuilt TinyIPA image
 <https://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_ or use
-the `other builders
-<https://docs.openstack.org/ironic-python-agent/latest/install/index.html#image-builders>`_.
+the :ironic-python-agent-doc:`other builders
+<install/index.html#image-builders>`.
 
 .. _diskimage-builder: https://docs.openstack.org/diskimage-builder/latest/
-.. _ironic-python-agent: https://docs.openstack.org/ironic-python-agent/latest/
 
 Configuring PXE
 ~~~~~~~~~~~~~~~
@@ -514,7 +511,9 @@ service. Below is a sample configuration for Apache with module mod_wsgi::
         </Directory>
     </VirtualHost>
 
-You can refer to `ironic installation document <https://docs.openstack.org/ironic/latest/install/install-rdo.html#configuring-ironic-api-behind-mod-wsgi>`_
+You can refer to
+:ironic-doc:`ironic installation document
+<install/install-rdo.html#configuring-ironic-api-behind-mod-wsgi>`
 for more guides.
 
 ironic-inspector conductor can be started with::

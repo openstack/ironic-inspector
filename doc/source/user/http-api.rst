@@ -227,8 +227,10 @@ Ramdisk Callback
 discovered data. Should not be used for anything other than implementing
 the ramdisk. Request body: JSON dictionary with at least these keys:
 
-* ``inventory`` full `hardware inventory`_ from the ironic-python-agent with at
-  least the following keys:
+* ``inventory`` full
+  :ironic-python-agent-doc:`hardware inventory
+  <admin/how_it_works.html#hardware-inventory>`
+  from the ironic-python-agent with at least the following keys:
 
   * ``memory`` memory information containing at least key ``physical_mb`` -
     physical memory size as reported by dmidecode,
@@ -258,8 +260,9 @@ the ramdisk. Request body: JSON dictionary with at least these keys:
   .. note::
     **ironic-inspector** default plugin ``root_disk_selection`` may change
     ``root_disk`` based on root device hints if node specify hints via
-    properties ``root_device`` key. See `Specifying the disk for deployment
-    root device hints`_ for more details.
+    properties ``root_device`` key. See
+    :ironic-doc:`Specifying the disk for deployment root device hints <install/advanced.html#specifying-the-disk-for-deployment-root-device-hints>`
+    for more details.
 
 * ``boot_interface`` MAC address of the NIC that the machine PXE booted from
   either in standard format ``11:22:33:44:55:66`` or in *PXELinux* ``BOOTIF``
@@ -290,10 +293,6 @@ Response:
 * 404 - node cannot be found or multiple nodes found
 
 Response body: JSON dictionary with ``uuid`` key.
-
-.. _hardware inventory: https://docs.openstack.org/ironic-python-agent/latest/admin/how_it_works.html#hardware-inventory
-.. _Specifying the disk for deployment root device hints:
-   https://docs.openstack.org/ironic/latest/install/advanced.html#specifying-the-disk-for-deployment-root-device-hints
 
 Error Response
 ~~~~~~~~~~~~~~

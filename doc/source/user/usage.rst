@@ -4,19 +4,17 @@ Usage
 .. _usage_guide:
 
 Refer to :ref:`api <http_api>` for information on the HTTP API.
-Refer to the `client documentation`_ for information on how to use CLI and
-Python library.
-
-.. _client documentation: https://docs.openstack.org/python-ironic-inspector-client/latest/
+Refer to the :python-ironic-inspector-client-doc:`client documentation <>`
+for information on how to use CLI and Python library.
 
 Using from Ironic API
 ~~~~~~~~~~~~~~~~~~~~~
 
 Ironic Kilo introduced support for hardware introspection under name of
 "inspection". **ironic-inspector** introspection is supported for some generic
-drivers, please refer to `Ironic inspection documentation`_ for details.
-
-.. _Ironic inspection documentation: https://docs.openstack.org/ironic/latest/admin/inspection.html
+drivers, please refer to
+:ironic-doc:`Ironic inspection documentation <admin/inspection.html>`
+for details.
 
 Node States
 ~~~~~~~~~~~

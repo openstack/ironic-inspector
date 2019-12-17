@@ -21,6 +21,16 @@ except ImportError:
 
 repository_name = 'openstack/ironic-inspector'
 use_storyboard = True
+openstack_projects = [
+    'bifrost',
+    'devstack',
+    'ironic',
+    'ironic-python-agent',
+    'oslo.rootwrap',
+    'python-ironicclient',
+    'python-ironic-inspector-client',
+    'tooz',
+]
 
 wsme_protocols = ['restjson']
 

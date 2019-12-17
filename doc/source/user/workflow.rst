@@ -6,7 +6,8 @@ Workflow
 
 Usual hardware introspection flow is as follows:
 
-* Operator enrolls nodes into Ironic_ e.g. via `openstack baremetal CLI`_
+* Operator enrolls nodes into Ironic_ e.g. via
+  :python-ironicclient-doc:`openstack baremetal CLI <cli/osc_plugin_cli.html>`
   command. Power management credentials should be provided to Ironic at this
   step.
 
@@ -50,14 +51,14 @@ Usual hardware introspection flow is as follows:
     Ironic inspection feature by default requires different settings:
     ``add_ports=all``, ``keep_ports=present``, which means that ports will be
     created for all detected NIC's, and all other ports will be deleted.
-    Refer to the `Ironic inspection documentation`_ for details.
+    Refer to the
+    :ironic-doc:`Ironic inspection documentation <admin/inspection.html>`
+    for details.
 
     Ironic inspector can also be configured to not create any ports. This is
     done by setting ``add_ports=disabled``. If setting ``add_ports`` to disabled
     the ``keep_ports`` option should be also set to ``all``. This will ensure
     no manually added ports will be deleted.
-
-.. _Ironic inspection documentation: https://docs.openstack.org/ironic/latest/admin/inspection.html
 
 * Separate API (see :ref:`usage <usage_guide>` and :ref:`api <http_api>`) can
   be used to query introspection results for a given node.
@@ -83,4 +84,3 @@ The diagram also shows events that trigger state transitions.
    :alt: ironic-inspector state machine diagram
 
 .. _Ironic: https://wiki.openstack.org/wiki/Ironic
-.. _openstack baremetal CLI: https://docs.openstack.org/python-ironicclient/latest/cli/osc_plugin_cli.html
