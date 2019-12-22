@@ -1,19 +1,23 @@
 # Andi Chandler <andi@gowling.com>, 2017. #zanata
 # Andi Chandler <andi@gowling.com>, 2018. #zanata
+# Andi Chandler <andi@gowling.com>, 2019. #zanata
 msgid ""
 msgstr ""
 "Project-Id-Version: ironic-inspector VERSION\n"
 "Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
-"POT-Creation-Date: 2018-08-31 23:36+0000\n"
+"POT-Creation-Date: 2019-12-19 20:03+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2018-08-09 08:49+0000\n"
+"PO-Revision-Date: 2019-12-21 02:30+0000\n"
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en_GB\n"
 "X-Generator: Zanata 4.3.3\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgid "... terminating migration tool"
+msgstr "... terminating migration tool"
 
 msgid ""
 "A (shell) command line to start the dnsmasq service upon filter "
@@ -66,17 +70,35 @@ msgid "Authentication required"
 msgstr "Authentication required"
 
 #, python-format
+msgid "BMC addresses %(addr)s correspond to more than one node: %(nodes)s"
+msgstr "BMC addresses %(addr)s correspond to more than one node: %(nodes)s"
+
+#, python-format
 msgid "Bad request: %s"
 msgstr "Bad request: %s"
 
 msgid "Canceled by operator"
 msgstr "Cancelled by operator"
 
+msgid ""
+"Cannot find the bare metal endpoint either in Keystone or in the "
+"configuration"
+msgstr ""
+"Cannot find the bare metal endpoint either in Keystone or in the "
+"configuration"
+
 #, python-format
 msgid "Cannot get node %(node)s: %(exc)s"
 msgstr "Cannot get node %(node)s: %(exc)s"
 
 msgid ""
+"Cannot pass reset_interfaces to set-attribute, requires API 1.46 and "
+"ironicclient >= 2.5.0"
+msgstr ""
+"Cannot pass reset_interfaces to set-attribute, requires API 1.46 and "
+"ironicclient >= 2.5.0"
+
+msgid ""
 "Comma-separated list of default hooks for processing pipeline. Hook "
 "'scheduler' updates the node with the minimum properties required by the "
 "Nova scheduler. Hook 'validate_interfaces' ensures that valid NIC data was "
@@ -104,6 +126,10 @@ msgid ""
 msgstr ""
 "Configuration error: add_ports set to disabled and keep_ports set to added. "
 "Please change keep_ports to all."
+
+#, python-format
+msgid "Could not connect to the object storage service: %s"
+msgstr "Could not connect to the object storage service: %s"
 
 #, python-format
 msgid "Could not find a node for attributes %s"
@@ -130,6 +156,25 @@ msgstr "Delay (in seconds) between two introspections."
 #, python-format
 msgid "Encountered an exception while getting the Ironic client: %s"
 msgstr "Encountered an exception while getting the Ironic client: %s"
+
+msgid ""
+"Existing node cannot be found since neither MAC addresses nor BMC addresses "
+"are present in the inventory"
+msgstr ""
+"Existing node cannot be found since neither MAC addresses nor BMC addresses "
+"are present in the inventory"
+
+#, python-format
+msgid ""
+"Existing node was not found by MAC address(es) %(macs)s and BMC address(es) "
+"%(addr)s"
+msgstr ""
+"Existing node was not found by MAC address(es) %(macs)s and BMC address(es) "
+"%(addr)s"
+
+#, python-format
+msgid "Failed reapply for node %(node)s, Error: %(exc)s"
+msgstr "Failed reapply for node %(node)s, Error: %(exc)s"
 
 #, python-format
 msgid ""
@@ -174,15 +219,43 @@ msgstr "Hardware inventory is empty or missing"
 msgid "IP to listen on."
 msgstr "IP to listen on."
 
+msgid ""
+"IP version of BMC address that will be used when enrolling a new node in "
+"Ironic. Defaults to \"4,6\". Could be \"4\" (use v4 address only), "
+"\"4,6\" (v4 address have higher priority and if both addresses found v6 "
+"version is ignored), \"6,4\" (v6 is desired but fall back to v4 address for "
+"BMCs having v4 address, opposite to \"4,6\"), \"6\" (use v6 address only and "
+"ignore v4 version)."
+msgstr ""
+"IP version of BMC address that will be used when enrolling a new node in "
+"Ironic. Defaults to \"4,6\". Could be \"4\" (use v4 address only), "
+"\"4,6\" (v4 address have higher priority and if both addresses found v6 "
+"version is ignored), \"6,4\" (v6 is desired but fall back to v4 address for "
+"BMCs having v4 address, opposite to \"4,6\"), \"6\" (use v6 address only and "
+"ignore v4 version)."
+
+msgid "IPv4"
+msgstr "IPv4"
+
+msgid "IPv6"
+msgstr "IPv6"
+
 msgid "If set, logs from ramdisk will be stored in this directory."
 msgstr "If set, logs from ramdisk will be stored in this directory."
 
 msgid ""
-"Inspector is not configured to store data. Set the [processing] store_data "
+"Inspector is not configured to store data. Set the [processing]store_data "
 "configuration option to change this."
 msgstr ""
-"Inspector is not configured to store data. Set the [processing] store_data "
+"Inspector is not configured to store data. Set the [processing]store_data "
 "configuration option to change this."
+
+msgid ""
+"Inspector is not configured to store introspection data. Set the "
+"[processing]store_data configuration option to change this."
+msgstr ""
+"Inspector is not configured to store introspection data. Set the "
+"[processing]store_data configuration option to change this."
 
 msgid "Interface on which dnsmasq listens, the default is for VM's."
 msgstr "Interface on which dnsmasq listens, the default is for VM's."
@@ -192,6 +265,11 @@ msgstr "Internal server error"
 
 msgid "Interval between retries in case of conflict error (HTTP 409)."
 msgstr "Interval between retries in case of conflict error (HTTP 409)."
+
+#, python-format
+msgid "Introspection data not found for node %(node)s, processed=%(processed)s"
+msgstr ""
+"Introspection data not found for node %(node)s, processed=%(processed)s"
 
 #, python-format
 msgid "Introspection for node %(node)s already finished on %(finish)s"
@@ -216,10 +294,6 @@ msgstr "Invalid event: %s"
 msgid "Invalid formatting variable key provided in value %(val)s: %(e)s"
 msgstr "Invalid formatting variable key provided in value %(val)s: %(e)s"
 
-#, python-format
-msgid "Invalid hardware inventory: %s key is missing or empty"
-msgstr "Invalid hardware inventory: %s key is missing or empty"
-
 msgid "Invalid index for mau type"
 msgstr "Invalid index for mau type"
 
@@ -239,29 +313,8 @@ msgstr ""
 "Invalid provision state for introspection: \"%(state)s\", valid states are "
 "\"%(valid)s\""
 
-msgid ""
-"Ironic API URL, used to set Ironic API URL when auth_strategy option is "
-"noauth or auth_type is \"none\" to work with standalone Ironic without "
-"keystone."
-msgstr ""
-"Ironic API URL, used to set Ironic API URL when auth_strategy option is "
-"noauth or auth_type is \"none\" to work with standalone Ironic without "
-"Keystone."
-
 msgid "Ironic driver_info fields that are equivalent to ipmi_address."
 msgstr "Ironic driver_info fields that are equivalent to ipmi_address."
-
-msgid "Ironic endpoint type."
-msgstr "Ironic endpoint type."
-
-msgid "Ironic service type."
-msgstr "Ironic service type."
-
-msgid "Keystone region to get endpoint for."
-msgstr "Keystone region to get endpoint for."
-
-msgid "Keystone region used to get Ironic endpoints."
-msgstr "Keystone region used to get Ironic endpoints."
 
 msgid "Limit cannot be negative"
 msgstr "Limit cannot be negative"
@@ -290,8 +343,20 @@ msgstr ""
 msgid "Look up error: %s"
 msgstr "Look up error: %s"
 
-msgid "Malformed API version: expected string in form of X.Y"
-msgstr "Malformed API version: expected string in form of X.Y"
+#, python-format
+msgid ""
+"MAC addresses %(mac)s and BMC addresses %(addr)s correspond to different "
+"nodes: %(node1)s and %(node2)s"
+msgstr ""
+"MAC addresses %(mac)s and BMC addresses %(addr)s correspond to different "
+"nodes: %(node1)s and %(node2)s"
+
+#, python-format
+msgid "MAC addresses %(macs)s correspond to more than one node: %(nodes)s"
+msgstr "MAC addresses %(macs)s correspond to more than one node: %(nodes)s"
+
+msgid "Malformed API version: expected string in form of X.Y or latest"
+msgstr "Malformed API version: expected string in form of X.Y or latest"
 
 msgid ""
 "Managed boot is requested, but this installation cannot manage boot "
@@ -311,29 +376,18 @@ msgstr "Marker not UUID-like"
 msgid "Maximum number of retries in case of conflict error (HTTP 409)."
 msgstr "Maximum number of retries in case of conflict error (HTTP 409)."
 
-msgid "Maximum number of times to retry a Swift request, before failing."
-msgstr "Maximum number of times to retry a Swift request, before failing."
-
-msgid ""
-"Method for storing introspection data. If set to 'none', introspection data "
-"will not be stored."
-msgstr ""
-"Method for storing introspection data. If set to 'none', introspection data "
-"will not be stored."
-
-msgid "Method to use for authentication: noauth or keystone."
-msgstr "Method to use for authentication: noauth or Keystone."
-
 #, python-format
 msgid "Multiple nodes match the same number of attributes %(attr)s: %(found)s"
 msgstr "Multiple nodes match the same number of attributes %(attr)s: %(found)s"
 
 msgid ""
-"Name of the key to store the location of stored data in the extra column of "
-"the Ironic database."
+"Name of this node. This can be an opaque identifier. It is not necessarily a "
+"hostname, FQDN, or IP address. However, the node name must be valid within "
+"an AMQP key, and if using ZeroMQ, a valid hostname, FQDN, or IP address."
 msgstr ""
-"Name of the key to store the location of stored data in the extra column of "
-"the Ironic database."
+"Name of this node. This can be an opaque identifier. It is not necessarily a "
+"hostname, FQDN, or IP address. However, the node name must be valid within "
+"an AMQP key, and if using ZeroMQ, a valid hostname, FQDN, or IP address."
 
 #, python-format
 msgid ""
@@ -356,13 +410,20 @@ msgstr ""
 "No lookup attributes were found, inspector won't be able to find it after "
 "introspection, consider creating Ironic ports or providing an IPMI address"
 
+msgid "No network interfaces provided in the inventory"
+msgstr "No network interfaces provided in the inventory"
+
 #, python-format
 msgid "No suitable interfaces found in %s"
 msgstr "No suitable interfaces found in %s"
 
 #, python-format
-msgid "Node %(uuid)s already has BMC address %(ipmi_address)s, not enrolling"
-msgstr "Node %(uuid)s already has BMC address %(ipmi_address)s, not enrolling"
+msgid "Node %(node)s is not active, its provision state is %(state)s"
+msgstr "Node %(node)s is not active, its provision state is %(state)s"
+
+#, python-format
+msgid "Node %(uuid)s already has BMC address %(addr)s"
+msgstr "Node %(uuid)s already has BMC address %(addr)s"
 
 #, python-format
 msgid "Node %s was not found in Ironic"
@@ -411,12 +472,6 @@ msgstr ""
 "PXE boot filter driver to use, possible filters are: \"iptables\", \"dnsmasq"
 "\" and \"noop\". Set \"noop \" to disable the firewall filtering."
 
-msgid "Path to SSL certificate"
-msgstr "Path to SSL certificate"
-
-msgid "Path to SSL key"
-msgstr "Path to SSL key"
-
 msgid ""
 "Path to the rootwrap configuration file to use for running commands as root"
 msgstr ""
@@ -463,8 +518,8 @@ msgstr "Rule with UUID %s already exists"
 msgid "SSL Enabled/Disabled"
 msgstr "SSL Enabled/Disabled"
 
-msgid "Swift endpoint type."
-msgstr "Swift endpoint type."
+msgid "Source and destination can not be the same."
+msgstr "Source and destination can not be the same."
 
 #, python-format
 msgid "Swift failed to create container %(container)s. Error was: %(error)s"
@@ -486,11 +541,8 @@ msgstr ""
 "Swift failed to get object %(object)s in container %(container)s. Error was: "
 "%(error)s"
 
-msgid "Swift service type."
-msgstr "Swift service type."
-
-msgid "Swift support is disabled"
-msgstr "Swift support is disabled"
+msgid "The IP version that will be used for iptables filter. Defaults to 4."
+msgstr "The IP version that will be used for iptables filter. Defaults to 4."
 
 msgid ""
 "The MAC address cache directory, exposed to dnsmasq.This directory is "
@@ -505,6 +557,15 @@ msgid ""
 msgstr ""
 "The PXE filter driver %(driver)s: my fsm encountered an exception: %(error)s"
 
+msgid "The Swift storage backend"
+msgstr "The Swift storage backend"
+
+msgid "The backend URL to use for distributed coordination. EXPERIMENTAL."
+msgstr "The backend URL to use for distributed coordination. EXPERIMENTAL."
+
+msgid "The database storage backend"
+msgstr "The database storage backend"
+
 #, python-format
 msgid ""
 "The following failures happened during running pre-processing hooks:\n"
@@ -516,10 +577,6 @@ msgstr ""
 #, python-format
 msgid "The following hook(s) are missing or failed to load: %s"
 msgstr "The following hook(s) are missing or failed to load: %s"
-
-#, python-format
-msgid "The following problems encountered: %s"
-msgstr "The following problems encountered: %s"
 
 msgid "The green thread pool size."
 msgstr "The green thread pool size."
@@ -538,10 +595,47 @@ msgstr ""
 "The name of the hook to run when inspector receives inspection information "
 "from a node it isn't already aware of. This hook is ignored by default."
 
+msgid "The source storage where the introspected data will be read from."
+msgstr "The source storage where the introspected data will be read from."
+
+msgid ""
+"The storage backend for storing introspection data. Possible values are: "
+"'none', 'database' and 'swift'. If set to 'none', introspection data will "
+"not be stored."
+msgstr ""
+"The storage backend for storing introspection data. Possible values are: "
+"'none', 'database' and 'swift'. If set to 'none', introspection data will "
+"not be stored."
+
+msgid "The target storage where the introspected data will be saved to."
+msgstr "The target storage where the introspected data will be saved to."
+
+msgid "This option is deprecated and has no effect."
+msgstr "This option is deprecated and has no effect."
+
 msgid ""
 "Timeout after which introspection is considered failed, set to 0 to disable."
 msgstr ""
 "Timeout after which introspection is considered failed, set to 0 to disable."
+
+msgid ""
+"To run ironic-inspector in standalone mode, [DEFAULT]standalone should be "
+"set to True."
+msgstr ""
+"To run ironic-inspector in standalone mode, [DEFAULT]standalone should be "
+"set to True."
+
+msgid ""
+"To run ironic-inspector-api, [DEFAULT]standalone should be set to False."
+msgstr ""
+"To run ironic-inspector-api, [DEFAULT]standalone should be set to False."
+
+msgid ""
+"To run ironic-inspector-conductor, [DEFAULT]standalone should be set to "
+"False."
+msgstr ""
+"To run ironic-inspector-conductor, [DEFAULT]standalone should be set to "
+"False."
 
 #, python-format
 msgid "Unable to parse field JSON path %(field)s: %(error)s"
@@ -561,14 +655,6 @@ msgstr "Unexpected exception %(exc_class)s during processing: %(error)s"
 
 #, python-format
 msgid ""
-"Unexpected exception %(exc_class)s while fetching unprocessed introspection "
-"data from Swift: %(error)s"
-msgstr ""
-"Unexpected exception %(exc_class)s while fetching unprocessed introspection "
-"data from Swift: %(error)s"
-
-#, python-format
-msgid ""
 "Unsupported API version %(requested)s, supported range is %(min)s to %(max)s"
 msgstr ""
 "Unsupported API version %(requested)s, supported range is %(min)s to %(max)s"
@@ -576,38 +662,6 @@ msgstr ""
 #, python-format
 msgid "Unsupported scheme for field: %s, valid values are node:// or data://"
 msgstr "Unsupported scheme for field: %s, valid values are node:// or data://"
-
-msgid ""
-"Use [ironic]/auth_type, for noauth case set [ironic]/auth_type to `none` and "
-"specify ironic API URL via [ironic]/endpoint_override option."
-msgstr ""
-"Use [ironic]/auth_type, for noauth case set [ironic]/auth_type to `none` and "
-"specify ironic API URL via [ironic]/endpoint_override option."
-
-msgid "Use [ironic]/endpoint_override option to set a specific ironic API url."
-msgstr ""
-"Use [ironic]/endpoint_override option to set a specific ironic API URL."
-
-msgid "Use [ironic]/region_name option instead to configure region."
-msgstr "Use [ironic]/region_name option instead to configure region."
-
-msgid "Use [ironic]/service_type option to set a specific type."
-msgstr "Use [ironic]/service_type option to set a specific type."
-
-msgid "Use [ironic]/valid_interfaces option to specify endpoint interfaces."
-msgstr "Use [ironic]/valid_interfaces option to specify endpoint interfaces."
-
-msgid "Use [swift]/region_name option to configure region."
-msgstr "Use [swift]/region_name option to configure region."
-
-msgid "Use [swift]/service_type option to set specific service type"
-msgstr "Use [swift]/service_type option to set specific service type"
-
-msgid "Use [swift]/valid_interfaces option to specify endpoint interfaces."
-msgstr "Use [swift]/valid_interfaces option to specify endpoint interfaces."
-
-msgid "User data processing is not supported yet"
-msgstr "User data processing is not supported yet"
 
 #, python-format
 msgid "Validation failed for actions: %s"
@@ -630,6 +684,13 @@ msgstr ""
 "manage_boot missing or set to True."
 
 msgid ""
+"Whether to enable publishing the ironic-inspector API endpoint via multicast "
+"DNS."
+msgstr ""
+"Whether to enable publishing the Ironic-inspector API endpoint via multicast "
+"DNS."
+
+msgid ""
 "Whether to leave 1 GiB of disk size untouched for partitioning. Only has "
 "effect when used with the IPA as a ramdisk, for older ramdisk local_gb is "
 "calculated on the ramdisk side."
@@ -645,8 +706,24 @@ msgstr ""
 "Whether to overwrite existing values in node database. Disable this option "
 "to make introspection a non-destructive operation."
 
-msgid "Whether to power off a node after introspection."
-msgstr "Whether to power off a node after introspection."
+msgid ""
+"Whether to power off a node after introspection.Nodes in active or rescue "
+"states which submit introspection data will be left on if the feature is "
+"enabled via the 'permit_active_introspection' configuration option."
+msgstr ""
+"Whether to power off a node after introspection.Nodes in active or rescue "
+"states which submit introspection data will be left on if the feature is "
+"enabled via the 'permit_active_introspection' configuration option."
+
+msgid "Whether to process nodes that are in running states."
+msgstr "Whether to process nodes that are in running states."
+
+msgid ""
+"Whether to run ironic-inspector as a standalone service. It's EXPERIMENTAL "
+"to set to False."
+msgstr ""
+"Whether to run Ironic-inspector as a standalone service. It's EXPERIMENTAL "
+"to set to False."
 
 msgid ""
 "Whether to store ramdisk logs even if it did not return an error message "
@@ -695,20 +772,11 @@ msgid "iptables chain name to use."
 msgstr "iptables chain name to use."
 
 #, python-format
-msgid "malformed or missing CPU information: %s"
-msgstr "malformed or missing CPU information: %s"
-
-#, python-format
-msgid ""
-"malformed or missing memory information: %s; introspection requires physical "
-"memory size from dmidecode"
-msgstr ""
-"malformed or missing memory information: %s; introspection requires physical "
-"memory size from dmidecode"
-
-#, python-format
 msgid "missing required parameter(s): %s"
 msgstr "missing required parameter(s): %s"
+
+msgid "missing required parameter(s): value"
+msgstr "missing required parameter(s): value"
 
 msgid "state"
 msgstr "state"
