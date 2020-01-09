@@ -26,6 +26,10 @@ Node States
 
     openstack baremetal node manage <node>
 
+* The introspection can be triggered by using the following command::
+
+    openstack baremetal node inspect <node>
+
 * After successful introspection and before deploying nodes should be made
   available to Nova, by moving them to ``AVAILABLE`` state::
 
@@ -47,6 +51,10 @@ them automatically after running all processing hooks.
 
 A rule consists of conditions to check, and actions to run. If conditions
 evaluate to true on the introspection data, then actions are run on a node.
+
+Please refer to the command below to import introspection rule::
+
+    openstack baremetal introspection rule import <json file>
 
 Available conditions and actions are defined by plugins, and can be extended,
 see :ref:`contributing_link` for details. See :ref:`api <http_api>` for
