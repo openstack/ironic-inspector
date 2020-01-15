@@ -17,6 +17,7 @@ import time
 
 from eventlet import semaphore
 from oslo_config import cfg
+from oslo_utils import strutils
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
@@ -82,6 +83,15 @@ def _background_introspect(node_info, ironic):
     _background_introspect_locked(node_info, ironic)
 
 
+def _persistent_ramdisk_boot(node):
+    """If the ramdisk should be configured as a persistent boot device."""
+    value = node.driver_info.get('force_persistent_boot_device', 'Default')
+    if value in {'Always', 'Default', 'Never'}:
+        return value == 'Always'
+    else:
+        return strutils.bool_from_string(value, False)
+
+
 def _background_introspect_locked(node_info, ironic):
     # TODO(dtantsur): pagination
     macs = list(node_info.ports())
@@ -104,8 +114,9 @@ def _background_introspect_locked(node_info, ironic):
 
     if node_info.manage_boot:
         try:
-            ironic.node.set_boot_device(node_info.uuid, 'pxe',
-                                        persistent=False)
+            ironic.node.set_boot_device(
+                node_info.uuid, 'pxe',
+                persistent=_persistent_ramdisk_boot(node_info.node()))
         except Exception as exc:
             raise utils.Error(_('Failed to set boot device to PXE: %s') % exc,
                               node_info=node_info)

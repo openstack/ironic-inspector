@@ -234,6 +234,58 @@ class TestIntrospect(BaseTest):
         cli.node.set_power_state.assert_called_once_with(self.uuid,
                                                          'reboot')
 
+    def test_forced_persistent_boot(self, client_mock, start_mock):
+        self.node.driver_info['force_persistent_boot_device'] = 'Always'
+        cli = self._prepare(client_mock)
+        start_mock.return_value = self.node_info
+
+        introspect.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+        cli.node.validate.assert_called_once_with(self.uuid)
+
+        start_mock.assert_called_once_with(self.uuid,
+                                           bmc_address=[self.bmc_address],
+                                           manage_boot=True,
+                                           ironic=cli)
+        self.node_info.ports.assert_called_once_with()
+        self.node_info.add_attribute.assert_called_once_with('mac',
+                                                             self.macs)
+        self.sync_filter_mock.assert_called_with(cli)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=True)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        self.node_info.acquire_lock.assert_called_once_with()
+        self.node_info.release_lock.assert_called_once_with()
+
+    def test_forced_persistent_boot_compat(self, client_mock, start_mock):
+        self.node.driver_info['force_persistent_boot_device'] = 'true'
+        cli = self._prepare(client_mock)
+        start_mock.return_value = self.node_info
+
+        introspect.introspect(self.node.uuid)
+
+        cli.node.get.assert_called_once_with(self.uuid)
+        cli.node.validate.assert_called_once_with(self.uuid)
+
+        start_mock.assert_called_once_with(self.uuid,
+                                           bmc_address=[self.bmc_address],
+                                           manage_boot=True,
+                                           ironic=cli)
+        self.node_info.ports.assert_called_once_with()
+        self.node_info.add_attribute.assert_called_once_with('mac',
+                                                             self.macs)
+        self.sync_filter_mock.assert_called_with(cli)
+        cli.node.set_boot_device.assert_called_once_with(self.uuid,
+                                                         'pxe',
+                                                         persistent=True)
+        cli.node.set_power_state.assert_called_once_with(self.uuid,
+                                                         'reboot')
+        self.node_info.acquire_lock.assert_called_once_with()
+        self.node_info.release_lock.assert_called_once_with()
+
     def test_no_lookup_attrs(self, client_mock, start_mock):
         cli = self._prepare(client_mock)
         self.node_info.ports.return_value = []

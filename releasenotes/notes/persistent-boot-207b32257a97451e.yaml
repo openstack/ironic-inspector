@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Introspection now respects the ``force_persistent_boot_device``
+    parameter in a node's ``driver_info``.
