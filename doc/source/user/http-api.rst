@@ -129,11 +129,15 @@ Response:
 * 401, 403 - missing or invalid authentication
 * 404 - data cannot be found or data storage not configured
 
-Response body: JSON dictionary with introspection data
+Response body: JSON dictionary with introspection data. For more
+details about the inventory key, refer to the
+:ironic-python-agent-doc:`ironic-python-agent documentation
+<admin/how_it_works.html#inspection-data>`.
 
 .. note::
     We do not provide any backward compatibility guarantees regarding the
-    format and contents of the stored data. Notably, it depends on the ramdisk
+    format and contents of the stored data, other than the ``inventory``.
+    Notably, it depends on the ramdisk
     used and plugins enabled both in the ramdisk and in inspector itself.
 
 Reapply introspection on stored data
