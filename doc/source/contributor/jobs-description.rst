@@ -19,7 +19,7 @@ The description of each jobs that runs in the CI when you submit a patch for
 
    * - Job name
      - Description
-   * - ironic-inspector-grenade-dsvm
+   * - ironic-inspector-grenade
      - Deploys Ironic and Ironic Inspector in DevStack and runs upgrade for
        all enabled services.
    * - ironic-inspector-tempest
