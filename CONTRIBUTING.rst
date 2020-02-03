@@ -41,16 +41,12 @@ Next checkout and create environments::
     tox
 
 Repeat *tox* command each time you need to run tests. If you don't have Python
-interpreter of one of supported versions (currently 2.7 and 3.4), use
+interpreter of one of supported versions (currently 3.6 and 3.7), use
 ``-e`` flag to select only some environments, e.g.
 
 ::
 
-    tox -e py27
-
-.. note::
-    Support for Python 3 is highly experimental, stay with Python 2 for the
-    production environment for now.
+    tox -e py36
 
 .. note::
     This command also runs tests for database migrations. By default the sqlite
@@ -75,7 +71,7 @@ should regenerate :ref:`State machine diagram <state_machine_diagram>` with::
 
 Run the service with::
 
-    .tox/py27/bin/ironic-inspector --config-file example.conf
+    .tox/py36/bin/ironic-inspector --config-file example.conf
 
 Of course you may have to modify ``example.conf`` to match your OpenStack
 environment. See the `install guide <../install#sample-configuration-files>`_
