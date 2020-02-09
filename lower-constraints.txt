@@ -8,7 +8,7 @@ doc8==0.6.0
 eventlet==0.18.2
 fixtures==3.0.0
 flake8-import-order==0.13
-Flask==0.10
+Flask==1.0
 futurist==1.2.0
 hacking==1.0.0
 ironic-lib==2.17.0
