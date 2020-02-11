@@ -231,30 +231,18 @@ Configuring IPA
 cycle. This is the default ramdisk starting with the Mitaka release.
 
 .. note::
-    You need at least 1.5 GiB of RAM on the machines to use IPA built with
+    You need at least 2 GiB of RAM on the machines to use IPA built with
     diskimage-builder_ and at least 384 MiB to use the *TinyIPA*.
 
-To build an **ironic-python-agent** ramdisk, do the following:
+To build an **ironic-python-agent** ramdisk, use ironic-python-agent-builder_.
+Alternatively, you can download a `prebuild image
+<https://tarballs.openstack.org/ironic-python-agent/dib/files/>`_.
 
-* Get the new enough version of diskimage-builder_::
+For local testing and CI purposes you can use `a TinyIPA image
+<https://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_.
 
-    sudo pip install -U "diskimage-builder>=1.1.2"
-
-* Build the ramdisk::
-
-    disk-image-create ironic-agent fedora -o ironic-agent
-
-  .. note::
-    Replace "fedora" with your distribution of choice.
-
-* Use the resulting files ``ironic-agent.kernel`` and
-  ``ironic-agent.initramfs`` in the following instructions to set PXE or iPXE.
-
-Alternatively, you can download a `prebuilt TinyIPA image
-<https://tarballs.openstack.org/ironic-python-agent/tinyipa/files/>`_ or use
-the :ironic-python-agent-doc:`other builders
-<install/index.html#image-builders>`.
-
+.. NOTE(dtantsur): both projects are branchless, using direct links
+.. _ironic-python-agent-builder: https://docs.openstack.org/ironic-python-agent-builder/latest/admin/dib.html
 .. _diskimage-builder: https://docs.openstack.org/diskimage-builder/latest/
 
 Configuring PXE
@@ -265,16 +253,16 @@ For the PXE boot environment, you'll need:
 * TFTP server running and accessible (see below for using *dnsmasq*).
   Ensure ``pxelinux.0`` is present in the TFTP root.
 
-  Copy ``ironic-agent.kernel`` and ``ironic-agent.initramfs`` to the TFTP
-  root as well.
+  Copy ``ironic-python-agent.kernel`` and ``ironic-python-agent.initramfs``
+  to the TFTP root as well.
 
 * Next, setup ``$TFTPROOT/pxelinux.cfg/default`` as follows::
 
     default introspect
 
     label introspect
-    kernel ironic-agent.kernel
-    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
+    kernel ironic-python-agent.kernel
+    append initrd=ironic-python-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue systemd.journald.forward_to_console=yes
 
     ipappend 3
 
@@ -292,7 +280,7 @@ For the PXE boot environment, you'll need:
   (sending ramdisk logs to **ironic-inspector**), modify the ``append``
   line in ``$TFTPROOT/pxelinux.cfg/default``::
 
-    append initrd=ironic-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default,logs systemd.journald.forward_to_console=yes
+    append initrd=ironic-python-agent.initramfs ipa-inspection-callback-url=http://{IP}:5050/v1/continue ipa-inspection-collectors=default,logs systemd.journald.forward_to_console=yes
 
   .. note::
      You probably want to always keep the ``default`` collector, as it provides
@@ -330,7 +318,8 @@ nodes not supporting iPXE. To use iPXE, you'll need:
   boot with UEFI, you'll also need ``ipxe.efi`` there.
 
 * You also need an HTTP server capable of serving static files.
-  Copy ``ironic-agent.kernel`` and ``ironic-agent.initramfs`` there.
+  Copy ``ironic-python-agent.kernel`` and ``ironic-python-agent.initramfs``
+  there.
 
 * Create a file called ``inspector.ipxe`` in the HTTP root (you can name and
   place it differently, just don't forget to adjust the *dnsmasq.conf* example
@@ -343,8 +332,8 @@ nodes not supporting iPXE. To use iPXE, you'll need:
 
     :retry_boot
     imgfree
-    kernel --timeout 30000 http://{IP}:8088/ironic-agent.kernel ipa-inspection-callback-url=http://{IP}>:5050/v1/continue systemd.journald.forward_to_console=yes BOOTIF=${mac} initrd=agent.ramdisk || goto retry_boot
-    initrd --timeout 30000 http://{IP}:8088/ironic-agent.ramdisk || goto retry_boot
+    kernel --timeout 30000 http://{IP}:8088/ironic-python-agent.kernel ipa-inspection-callback-url=http://{IP}>:5050/v1/continue systemd.journald.forward_to_console=yes BOOTIF=${mac} initrd=agent.ramdisk || goto retry_boot
+    initrd --timeout 30000 http://{IP}:8088/ironic-python-agent.ramdisk || goto retry_boot
     boot
 
   .. note::
