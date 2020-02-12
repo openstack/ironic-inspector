@@ -40,6 +40,8 @@ class BaseTest(test_base.NodeTest):
             'local_gb': 42,
         }
 
+        self.scope = "inner circle"
+
     @staticmethod
     def condition_defaults(condition):
         condition = condition.copy()
@@ -56,7 +58,8 @@ class TestCreateRule(BaseTest):
         self.assertTrue(rule_json.pop('uuid'))
         self.assertEqual({'description': None,
                           'conditions': [],
-                          'actions': self.actions_json},
+                          'actions': self.actions_json,
+                          'scope': None},
                          rule_json)
 
     def test_create_action_none_value(self):
@@ -68,7 +71,8 @@ class TestCreateRule(BaseTest):
         self.assertTrue(rule_json.pop('uuid'))
         self.assertEqual({'description': None,
                           'conditions': [],
-                          'actions': self.actions_json},
+                          'actions': self.actions_json,
+                          'scope': None},
                          rule_json)
 
     def test_duplicate_uuid(self):
@@ -94,7 +98,8 @@ class TestCreateRule(BaseTest):
         self.assertEqual({'description': None,
                           'conditions': [BaseTest.condition_defaults(cond)
                                          for cond in self.conditions_json],
-                          'actions': self.actions_json},
+                          'actions': self.actions_json,
+                          'scope': None},
                          rule_json)
 
     def test_invalid_condition(self):
@@ -157,6 +162,17 @@ class TestCreateRule(BaseTest):
                                rules.create,
                                self.conditions_json, self.actions_json)
 
+    def test_scope(self):
+        rule = rules.create([], self.actions_json, scope=self.scope)
+        rule_json = rule.as_dict()
+
+        self.assertTrue(rule_json.pop('uuid'))
+        self.assertEqual({'description': None,
+                          'conditions': [],
+                          'actions': self.actions_json,
+                          'scope': self.scope},
+                         rule_json)
+
 
 class TestGetRule(BaseTest):
     def setUp(self):
@@ -170,7 +186,8 @@ class TestGetRule(BaseTest):
         self.assertEqual({'description': None,
                           'conditions': [BaseTest.condition_defaults(cond)
                                          for cond in self.conditions_json],
-                          'actions': self.actions_json},
+                          'actions': self.actions_json,
+                          'scope': None},
                          rule_json)
 
     def test_not_found(self):
@@ -558,3 +575,61 @@ class TestApply(BaseTest):
                     self.node_info, data=self.data)
             else:
                 self.assertFalse(rule.apply_actions.called)
+
+
+@mock.patch.object(rules, 'get_all', autospec=True)
+class TestRuleScope(BaseTest):
+    """Test that rules are only applied on the nodes that fall in their scope.
+
+    Check that:
+    - global rule is applied to all nodes
+    - different rules with scopes are applied to different nodes
+    - rule without matching scope is not applied
+    """
+
+    def setUp(self):
+        super(TestRuleScope, self).setUp()
+
+        """
+        rule_global
+        rule_scope_1
+        rule_scope_2
+        rule_out_scope
+        """
+
+        self.rules = [rules.IntrospectionRule("", "", "", "", None),
+                      rules.IntrospectionRule("", "", "", "", "scope_1"),
+                      rules.IntrospectionRule("", "", "", "", "scope_2"),
+                      rules.IntrospectionRule("", "", "", "", "scope_3")]
+        for r in self.rules:
+            r.check_conditions = mock.Mock()
+            r.check_conditions.return_value = True
+            r.apply_actions = mock.Mock()
+            r.apply_actions.return_value = True
+
+    def test_node_no_scope(self, mock_get_all):
+        mock_get_all.return_value = self.rules
+        self.node_info.node().properties['inspection_scope'] = None
+        rules.apply(self.node_info, self.data)
+        self.rules[0].apply_actions.assert_called_once()  # global
+        self.rules[1].apply_actions.assert_not_called()   # scope_1
+        self.rules[2].apply_actions.assert_not_called()   # scope_2
+        self.rules[3].apply_actions.assert_not_called()   # scope_3
+
+    def test_node_scope_1(self, mock_get_all):
+        mock_get_all.return_value = self.rules
+        self.node_info.node().properties['inspection_scope'] = "scope_1"
+        rules.apply(self.node_info, self.data)
+        self.rules[0].apply_actions.assert_called_once()  # global
+        self.rules[1].apply_actions.assert_called_once()   # scope_1
+        self.rules[2].apply_actions.assert_not_called()   # scope_2
+        self.rules[3].apply_actions.assert_not_called()   # scope_3
+
+    def test_node_scope_2(self, mock_get_all):
+        mock_get_all.return_value = self.rules
+        self.node_info.node().properties['inspection_scope'] = "scope_2"
+        rules.apply(self.node_info, self.data)
+        self.rules[0].apply_actions.assert_called_once()  # global
+        self.rules[1].apply_actions.assert_not_called()   # scope_1
+        self.rules[2].apply_actions.assert_called_once()   # scope_2
+        self.rules[3].apply_actions.assert_not_called()   # scope_3

@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Added the capability to define a scope for the inspection process.
+    Previously, all introspection rules were applied when inspecting
+    any node. There was no mechanism to apply only a selected set of
+    rules. This change introduces a ``scope`` field to introspection rules.
+    If a scope is set on an introspection rule, it will only apply to nodes
+    that have a matching ``inspection_scope`` property. If not set, it will
+    apply to all nodes.

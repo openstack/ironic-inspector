@@ -33,6 +33,7 @@ Request
     - conditions: conditions
     - actions: actions
     - description: description
+    - scope: scope
 
 
 **Example creating rule request:**
@@ -54,6 +55,7 @@ section may contain additional default fields, like ``invert``,
     - conditions: conditions
     - actions: actions
     - description: description
+    - scope: scope
 
 **Example JSON representation:**
 
@@ -77,6 +79,7 @@ Response
 
     - uuid: uuid
     - description: description
+    - scope: scope
     - links: links
 
 **Example JSON representation:**
@@ -117,6 +120,7 @@ The response will contain full rule object:
     - conditions: conditions
     - actions: actions
     - description: description
+    - scope: scope
 
 **Example JSON representation:**
 

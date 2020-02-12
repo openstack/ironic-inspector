@@ -41,7 +41,7 @@ _app = flask.Flask(__name__)
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 15)
+CURRENT_API_VERSION = (1, 16)
 DEFAULT_API_VERSION = CURRENT_API_VERSION
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
@@ -413,11 +413,16 @@ def api_rules():
         body = flask.request.get_json(force=True)
         if body.get('uuid') and not uuidutils.is_uuid_like(body['uuid']):
             raise utils.Error(_('Invalid UUID value'), code=400)
+        if body.get('scope') and len(body.get('scope')) > 255:
+            raise utils.Error(
+                _("Invalid scope: the length of the scope should be within "
+                  "255 characters"), code=400)
 
         rule = rules.create(conditions_json=body.get('conditions', []),
                             actions_json=body.get('actions', []),
                             uuid=body.get('uuid'),
-                            description=body.get('description'))
+                            description=body.get('description'),
+                            scope=body.get('scope'))
 
         response_code = (200 if _get_version() < (1, 6) else 201)
         return flask.make_response(

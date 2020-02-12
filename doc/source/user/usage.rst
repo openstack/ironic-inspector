@@ -103,6 +103,32 @@ results (e.g. the field contains a list), available options are:
 All other fields are passed to the condition plugin, e.g. numeric comparison
 operations require a ``value`` field to compare against.
 
+Scope
+^^^^^
+
+By default, introspection rules are applied to all nodes being inspected.
+In order for the rule to be applied only to specific nodes, a matching scope
+variable must be set to both the rule and the node. To set the scope for a
+rule include field ``"scope"`` in JSON file before importing. For example::
+
+    cat <json file>
+      {
+        "description": "...",
+        "actions": [...],
+        "conditions": [...],
+        "scope": "SCOPE"
+      }
+
+Set the property ``inspection_scope`` on the node you want the rule to be
+applied to::
+
+    openstack baremetal node set --property inspection_scope="SCOPE" <node>
+
+Now, when inspecting, the rule will be applied only to nodes with matching
+scope value. It will also ignore nodes that do not have ``inspection_scope``
+property set. Note that if a rule has no scope set, it will be applied to all
+nodes, regardless if they have ``inspection_scope`` set or not.
+
 Actions
 ^^^^^^^
 

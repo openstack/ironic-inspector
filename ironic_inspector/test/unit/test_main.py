@@ -465,7 +465,8 @@ class TestApiRules(BaseAPITest):
         create_mock.assert_called_once_with(conditions_json='cond',
                                             actions_json='act',
                                             uuid=self.uuid,
-                                            description=None)
+                                            description=None,
+                                            scope=None)
         self.assertEqual(exp, json.loads(res.data.decode('utf-8')))
 
     @mock.patch.object(rules, 'create', autospec=True)
@@ -487,7 +488,8 @@ class TestApiRules(BaseAPITest):
         create_mock.assert_called_once_with(conditions_json='cond',
                                             actions_json='act',
                                             uuid=self.uuid,
-                                            description=None)
+                                            description=None,
+                                            scope=None)
         self.assertEqual(exp, json.loads(res.data.decode('utf-8')))
 
     @mock.patch.object(rules, 'create', autospec=True)
