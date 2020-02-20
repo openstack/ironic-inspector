@@ -1,0 +1,6 @@
+---
+other:
+  - |
+    The devstack plugin for ``ironic-inspector`` has been changed to
+    utilize pre-built ``ironic-python-agent`` images based on Centos8
+    instead of legacy CoreOS based images.
