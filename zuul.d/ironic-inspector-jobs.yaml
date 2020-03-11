@@ -21,8 +21,6 @@
       tempest_test_regex: Inspector
       tempest_concurrency: 1
       devstack_localrc:
-        IRONIC_RAMDISK_TYPE: tinyipa
-        IRONIC_VM_SPECS_RAM: 384
         IRONIC_VM_EPHEMERAL_DISK: 0
         IRONIC_AUTOMATED_CLEAN_ENABLED: False
         IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: enroll
@@ -47,9 +45,13 @@
     description: Execute python3 tempest tests for ironic-inspector running in non-standalone mode
     parent: ironic-inspector-base
     vars:
+      tempest_test_timeout: 3600
       devstack_localrc:
+        BUILD_TIMEOUT: 3600
         IRONIC_DEFAULT_BOOT_OPTION: netboot
         IRONIC_INSPECTOR_STANDALONE: False
+        IRONIC_TEMPEST_BUILD_TIMEOUT: 3600
+        IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT: 600
       devstack_services:
         s-account: True
         s-container: True
@@ -67,13 +69,17 @@
     parent: ironic-inspector-base
     vars:
       tempest_test_regex: InspectorDiscoveryTest
+      tempest_test_timeout: 2400
       devstack_localrc:
+        BUILD_TIMEOUT: 2400
         IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA: True
         IRONIC_DEFAULT_DEPLOY_INTERFACE: direct
         IRONIC_TEMPEST_WHOLE_DISK_IMAGE: True
         IRONIC_IPXE_ENABLED: True
         IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
         IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE: database
+        IRONIC_TEMPEST_BUILD_TIMEOUT: 2400
+        IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT: 600
 
 - job:
     name: ironic-inspector-tempest-managed
