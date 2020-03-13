@@ -21,6 +21,7 @@
       tempest_test_regex: Inspector
       tempest_concurrency: 1
       devstack_localrc:
+        IRONIC_RAMDISK_TYPE: tinyipa
         IRONIC_VM_EPHEMERAL_DISK: 0
         IRONIC_AUTOMATED_CLEAN_ENABLED: False
         IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: enroll
