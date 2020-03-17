@@ -421,6 +421,31 @@ x86_64, you'll need:
     dhcp-sequential-ip
 
 
+Configuring PXE for Multi-arch
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the environment consists of bare metals with different architectures,
+normally different ramdisks are required for each architecture. The grub
+built-in variable `grub_cpu`_ could be used to locate the correct config
+file for each of them.
+
+.. _grub_cpu: https://www.gnu.org/software/grub/manual/grub/html_node/grub_005fcpu.html
+
+For example, setup ``$TFTPROOT/EFI/BOOT/grub.cfg`` as following::
+
+    set default=master
+    set timeout=5
+    set hidden_timeout_quiet=false
+
+    menuentry "master"  {
+    configfile /tftpboot/grub-${grub_cpu}.cfg
+    }
+
+Prepare specific grub config for each existing architectures, e.g.
+``grub-arm64.cfg`` for ARM64 and ``grub-i386.cfg`` for x86.
+
+Update dnsmasq configuration to contain options for supported architectures.
+
 Managing the **ironic-inspector** Database
 ------------------------------------------
 
