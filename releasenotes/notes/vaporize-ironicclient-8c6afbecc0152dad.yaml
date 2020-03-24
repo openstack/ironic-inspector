@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    The python-ironicclient package has been removed as a dependency in favor
+    of openstacksdk.
+    Third party modules and plugins will require an update if they previously
+    invoked ironicclient.

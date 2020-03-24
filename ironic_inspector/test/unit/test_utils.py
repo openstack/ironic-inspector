@@ -11,9 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ironicclient.v1 import node
 from keystonemiddleware import auth_token
 import mock
+from openstack.baremetal.v1 import node
 from oslo_config import cfg
 
 from ironic_inspector.common import context
@@ -87,7 +87,7 @@ class TestProcessingLogger(base.BaseTest):
                          utils.processing_logger_prefix())
 
     def test_prefix_only_uuid(self):
-        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
+        node_info = mock.Mock(uuid='NNN', spec=node.Node)
         self.assertEqual('[node: NNN]',
                          utils.processing_logger_prefix(node_info=node_info))
 
@@ -102,7 +102,7 @@ class TestProcessingLogger(base.BaseTest):
                          utils.processing_logger_prefix(data=data))
 
     def test_prefix_everything(self):
-        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
+        node_info = mock.Mock(uuid='NNN', spec=node.Node)
         data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
                 'inventory': {'bmc_address': '1.2.3.4'}}
         self.assertEqual('[node: NNN MAC aa:bb:cc:dd:ee:ff BMC 1.2.3.4]',
@@ -110,7 +110,7 @@ class TestProcessingLogger(base.BaseTest):
                                                         data=data))
 
     def test_prefix_uuid_not_str(self):
-        node_info = node.Node(mock.Mock(), dict(uuid=None))
+        node_info = mock.Mock(uuid=None, spec=node.Node)
         self.assertEqual('[node: None]',
                          utils.processing_logger_prefix(node_info=node_info))
 
@@ -125,7 +125,7 @@ class TestProcessingLogger(base.BaseTest):
                          utils.processing_logger_prefix(node_info=node_info))
 
     def test_adapter_with_bmc(self):
-        node_info = node.Node(mock.Mock(), dict(uuid='NNN'))
+        node_info = mock.Mock(uuid='NNN', spec=node.Node)
         data = {'boot_interface': '01-aa-bb-cc-dd-ee-ff',
                 'inventory': {'bmc_address': '1.2.3.4'}}
         logger = utils.getProcessingLogger(__name__)

@@ -37,7 +37,6 @@ oslotest==3.2.0
 oslo.utils==3.33.0
 pbr==2.0.0
 pymemcache==1.2.9
-python-ironicclient==2.3.0
 pytz==2013.6
 reno==2.5.0
 retrying==1.2.3

@@ -15,8 +15,8 @@ import datetime
 import logging as pylog
 
 import futurist
-from ironicclient.v1 import node
 from keystonemiddleware import auth_token
+from openstack.baremetal.v1 import node
 from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
@@ -203,6 +203,7 @@ def check_auth(request, rule=None, target=None):
 
     :param request: Flask request
     :param rule: policy rule to check the request against
+    :param target: dict-like structure to check rule against
     :raises: utils.Error if access is denied
     """
     if CONF.auth_strategy == 'noauth':

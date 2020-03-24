@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ironicclient import exceptions
 import mock
+from openstack import exceptions
 from oslo_config import cfg
 
 from ironic_inspector import node_cache
@@ -224,8 +224,8 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
                      }
         }
 
-        mock_patch.side_effect = exceptions.BadRequest('invalid data')
+        mock_patch.side_effect = exceptions.BadRequestException('invalid data')
         self.hook.before_update(self.data, self.node_info)
-        log_msg = ("Failed to update port %(uuid)s: %(error)s")
+        log_msg = "Failed to update port %(uuid)s: %(error)s"
         mock_log.warning.assert_called_with(log_msg, mock.ANY,
                                             node_info=mock.ANY)
