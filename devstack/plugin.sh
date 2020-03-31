@@ -125,6 +125,10 @@ function install_inspector {
 
     if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
         install_apache_wsgi
+        # NOTE(rpittau) since devstack doesn't install test-requirements
+        # anymore we need to install dependencies for drivers before
+        # starting inspector services
+        pip_install_gr pymemcache
     fi
 }
 
