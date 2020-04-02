@@ -394,7 +394,8 @@ class Test(Base):
                 {'op': 'eq', 'field': 'memory_mb', 'value': 1024},
             ],
             'actions': [{'action': 'fail', 'message': 'boom'}],
-            'description': 'Cool actions'
+            'description': 'Cool actions',
+            'scope': "sniper's scope"
         }
 
         res = self.call_add_rule(rule)
@@ -412,7 +413,8 @@ class Test(Base):
         res = self.call_list_rules()
         self.assertEqual(rule['links'], res[0].pop('links'))
         self.assertEqual([{'uuid': rule['uuid'],
-                           'description': 'Cool actions'}],
+                           'description': rule['description'],
+                           'scope': rule['scope']}],
                          res)
 
         res = self.call_get_rule(rule['uuid'])
@@ -467,7 +469,7 @@ class Test(Base):
                      'value': 'foo'},
                     {'action': 'fail', 'message': 'boom'}
                 ]
-            }
+            },
         ]
         for rule in rules:
             self.call_add_rule(rule)

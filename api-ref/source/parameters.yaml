@@ -214,6 +214,13 @@ root_disk:
   in: body
   required: true
   type: string
+scope:
+  description: |
+    Scope of an introspection rule. If set, the rule is only applied to nodes
+    that have matching ``inspection_scope`` property.
+  in: body
+  required: false
+  type: string
 started_at:
   description: |
     UTC ISO8601 timestamp of introspection start.

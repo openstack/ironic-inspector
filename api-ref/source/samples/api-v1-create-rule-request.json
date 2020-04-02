@@ -22,5 +22,6 @@
          "op":"is-empty",
          "field":"node://driver_info.deploy_kernel"
       }
-   ]
+   ],
+   "scope":"Delivery_1"
 }

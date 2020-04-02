@@ -402,3 +402,4 @@ Version History
 * **1.14** allows formatting to be applied to strings nested in dicts and lists
   in the actions of introspection rules.
 * **1.15** allows reapply with provided introspection data from request.
+* **1.16** adds ``scope`` field to introspection rule.

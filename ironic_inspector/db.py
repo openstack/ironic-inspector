@@ -91,6 +91,7 @@ class Rule(Base):
     description = Column(Text)
     # NOTE(dtantsur): in the future we might need to temporary disable a rule
     disabled = Column(Boolean, default=False)
+    scope = Column(String(255), nullable=True)
 
     conditions = orm.relationship('RuleCondition', lazy='joined',
                                   order_by='RuleCondition.id',
