@@ -20,6 +20,7 @@ from ironic_inspector.conf import dnsmasq_pxe_filter
 from ironic_inspector.conf import iptables
 from ironic_inspector.conf import ironic
 from ironic_inspector.conf import pci_devices
+from ironic_inspector.conf import port_physnet
 from ironic_inspector.conf import processing
 from ironic_inspector.conf import pxe_filter
 from ironic_inspector.conf import service_catalog
@@ -37,6 +38,7 @@ dnsmasq_pxe_filter.register_opts(CONF)
 iptables.register_opts(CONF)
 ironic.register_opts(CONF)
 pci_devices.register_opts(CONF)
+port_physnet.register_opts(CONF)
 processing.register_opts(CONF)
 pxe_filter.register_opts(CONF)
 service_catalog.register_opts(CONF)

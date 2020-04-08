@@ -1,0 +1,6 @@
+---
+features:
+  - Added ``physnet_cidr_map`` processing plugin, the plugin uses the IP
+    address of interfaces returned during inspection and set the port
+    ``physical_network`` via lookup from a CIDR to physical network mapping in
+    config option ``[port_physnet]/cidr_map``.
