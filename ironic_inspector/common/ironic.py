@@ -123,6 +123,7 @@ def get_client(token=None,
         IRONIC_SESSION = keystone.get_session('ironic')
 
     args = {
+        'session': IRONIC_SESSION,
         'os_ironic_api_version': api_version,
         'max_retries': CONF.ironic.max_retries,
         'retry_interval': CONF.ironic.retry_interval}
@@ -130,11 +131,8 @@ def get_client(token=None,
     adapter_opts = dict()
 
     # TODO(pas-ha) use service auth with incoming token
-    if CONF.ironic.auth_type != 'none':
-        if token is None:
-            args['session'] = IRONIC_SESSION
-        else:
-            args['token'] = token
+    if CONF.ironic.auth_type != 'none' and token is not None:
+        args['token'] = token
 
     # TODO(pas-ha): remove handling of deprecated options in Rocky
     if CONF.ironic.os_region and not CONF.ironic.region_name:
@@ -147,7 +145,11 @@ def get_client(token=None,
     adapter = keystone.get_adapter('ironic', session=IRONIC_SESSION,
                                    **adapter_opts)
     endpoint = adapter.get_endpoint()
-    return client.Client(1, endpoint, **args)
+    if not endpoint:
+        raise utils.Error(
+            _('Cannot find the bare metal endpoint either in Keystone or '
+              'in the configuration'), code=500)
+    return client.get_client(1, endpoint=endpoint, **args)
 
 
 def check_provision_state(node):

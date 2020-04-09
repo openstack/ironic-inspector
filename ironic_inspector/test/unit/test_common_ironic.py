@@ -40,11 +40,13 @@ class TestGetClientBase(object):
         mock_adapter.assert_called_once_with(
             'ironic', region_name='somewhere', session=mock_sess)
         mock_adapter.return_value.get_endpoint.assert_called_once_with()
-        args = {'token': fake_token,
+        args = {'session': mock_sess,
+                'token': fake_token,
                 'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, fake_ironic_url, **args)
+        mock_client.assert_called_once_with(1, endpoint=fake_ironic_url,
+                                            **args)
 
     def test_get_client_without_auth_token(self, mock_client, mock_load,
                                            mock_opts, mock_adapter):
@@ -57,13 +59,14 @@ class TestGetClientBase(object):
                 'os_ironic_api_version': ir_utils.DEFAULT_IRONIC_API_VERSION,
                 'max_retries': CONF.ironic.max_retries,
                 'retry_interval': CONF.ironic.retry_interval}
-        mock_client.assert_called_once_with(1, fake_ironic_url, **args)
+        mock_client.assert_called_once_with(1, endpoint=fake_ironic_url,
+                                            **args)
 
 
 @mock.patch.object(keystone, 'get_adapter')
 @mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'Client')
+@mock.patch.object(client, 'get_client', autospec=True)
 class TestGetClientAuth(TestGetClientBase, base.BaseTest):
     def setUp(self):
         super(TestGetClientAuth, self).setUp()
@@ -76,7 +79,7 @@ class TestGetClientAuth(TestGetClientBase, base.BaseTest):
 @mock.patch.object(keystone, 'get_adapter')
 @mock.patch.object(keystone, 'register_auth_opts')
 @mock.patch.object(keystone, 'get_session')
-@mock.patch.object(client, 'Client')
+@mock.patch.object(client, 'get_client', autospec=True)
 class TestGetClientNoAuth(TestGetClientBase, base.BaseTest):
     def setUp(self):
         super(TestGetClientNoAuth, self).setUp()

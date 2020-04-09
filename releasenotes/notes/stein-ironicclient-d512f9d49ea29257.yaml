@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Makes the way ironic-inspector creates an ironic client compatible with
+    future (post-Stein) versions of ironicclient.
