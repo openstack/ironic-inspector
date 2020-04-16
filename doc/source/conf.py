@@ -5,7 +5,7 @@
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc',
+extensions = ['sphinxcontrib.apidoc',
               'sphinx.ext.viewcode',
               'sphinxcontrib.rsvgconverter',
               'oslo_policy.sphinxext',
@@ -120,3 +120,13 @@ latex_documents = [
 # -- Options for seqdiag ------------------------------------------------------
 
 seqdiag_html_image_format = "SVG"
+
+# -- sphinxcontrib.apidoc configuration --------------------------------------
+
+apidoc_module_dir = '../../ironic_inspector'
+apidoc_output_dir = 'contributor/api'
+apidoc_excluded_paths = [
+    'migrations',
+    'test',
+    'common/i18n*'
+]
