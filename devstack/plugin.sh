@@ -101,6 +101,9 @@ if [[ "$IRONIC_ENABLED_INSPECT_INTERFACES" != *inspector* ]]; then
     IRONIC_ENABLED_INSPECT_INTERFACES="inspector,$IRONIC_ENABLED_INSPECT_INTERFACES"
 fi
 
+# Ironic Inspector tempest variables
+IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT=${IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT:-}
+
 ### Utilities
 
 function mkdir_chown_stack {
@@ -545,6 +548,9 @@ elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_feature True
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_default_driver fake-hardware
             iniset $TEMPEST_CONFIG baremetal_introspection auto_discovery_target_driver ipmi
+        fi
+        if [[ -n "${IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT}" ]]; then
+            iniset $TEMPEST_CONFIG baremetal_introspection discovery_timeout $IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT
         fi
         iniset $TEMPEST_CONFIG baremetal_introspection data_store $IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE
     fi
