@@ -16,9 +16,9 @@ import datetime
 import functools
 import json
 import unittest
+from unittest import mock
 
 import automaton
-import mock
 from oslo_config import cfg
 import oslo_db
 from oslo_utils import timeutils

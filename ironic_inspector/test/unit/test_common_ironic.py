@@ -13,8 +13,8 @@
 
 import socket
 import unittest
+from unittest import mock
 
-import mock
 import openstack
 from openstack import exceptions as os_exc
 

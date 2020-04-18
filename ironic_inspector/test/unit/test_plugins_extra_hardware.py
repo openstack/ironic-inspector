@@ -12,8 +12,8 @@
 # limitations under the License.
 
 import json
+from unittest import mock
 
-import mock
 
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import extra_hardware

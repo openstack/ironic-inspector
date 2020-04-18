@@ -17,10 +17,10 @@ import json
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 import eventlet
 import fixtures
-import mock
 from openstack import exceptions as os_exc
 from oslo_config import cfg
 from oslo_serialization import base64

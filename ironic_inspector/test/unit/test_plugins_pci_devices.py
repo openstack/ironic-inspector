@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
+from unittest import mock
 
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base

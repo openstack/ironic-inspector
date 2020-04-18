@@ -25,10 +25,10 @@ The test will then use that db and u/p combo to run the tests.
 
 import contextlib
 import datetime
+from unittest import mock
 
 import alembic
 from alembic import script
-import mock
 from oslo_config import cfg
 from oslo_db.sqlalchemy import enginefacade
 from oslo_db.sqlalchemy.migration_cli import ext_alembic

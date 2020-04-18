@@ -11,7 +11,7 @@
 # under the License.
 
 
-import mock
+from unittest import mock
 
 from ironic_inspector import db
 from ironic_inspector.test import base as test_base

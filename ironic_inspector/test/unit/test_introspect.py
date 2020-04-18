@@ -13,9 +13,9 @@
 
 import collections
 import time
+from unittest import mock
 
 import fixtures
-import mock
 from openstack import exceptions as os_exc
 from oslo_config import cfg
 

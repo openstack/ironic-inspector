@@ -12,9 +12,9 @@
 # limitations under the License.
 
 import functools
+from unittest import mock
 
 import flask
-import mock
 from oslo_config import cfg
 from oslo_utils import uuidutils
 

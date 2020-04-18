@@ -21,11 +21,11 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 import urllib
 
 import eventlet
 import fixtures
-import mock
 from oslo_config import cfg
 from oslo_config import fixture as config_fixture
 from oslo_utils import timeutils

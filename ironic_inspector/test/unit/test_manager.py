@@ -12,10 +12,10 @@
 # limitations under the License.
 
 import json
+from unittest import mock
 
 import fixtures
 from ironic_lib import mdns
-import mock
 import oslo_messaging as messaging
 import tooz
 

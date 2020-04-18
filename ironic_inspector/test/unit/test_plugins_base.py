@@ -12,8 +12,8 @@
 # limitations under the License.
 
 import collections
+from unittest import mock
 
-import mock
 
 from ironic_inspector.plugins import base
 from ironic_inspector.test import base as test_base

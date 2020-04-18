@@ -14,9 +14,9 @@
 import datetime
 import json
 import unittest
+from unittest import mock
 
 import fixtures
-import mock
 import oslo_messaging as messaging
 from oslo_utils import uuidutils
 

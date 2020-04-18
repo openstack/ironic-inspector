@@ -11,11 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
+
 from automaton import exceptions as automaton_errors
 from eventlet import semaphore
 import fixtures
 from futurist import periodics
-import mock
 from oslo_config import cfg
 import stevedore
 

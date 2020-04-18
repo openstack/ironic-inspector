@@ -11,8 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
+
 from keystonemiddleware import auth_token
-import mock
 from openstack.baremetal.v1 import node
 from oslo_config import cfg
 

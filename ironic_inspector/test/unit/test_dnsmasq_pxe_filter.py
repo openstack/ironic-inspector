@@ -18,9 +18,9 @@ except ImportError:
     import os.errno as errno
 import datetime
 import os
+from unittest import mock
 
 import fixtures
-import mock
 from openstack import exceptions as os_exc
 from oslo_config import cfg
 

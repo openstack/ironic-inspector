@@ -14,8 +14,9 @@
 
 # Mostly copied from ironic/tests/test_swift.py
 
+from unittest import mock
+
 from keystoneauth1 import exceptions as ks_exc
-import mock
 import openstack
 from openstack import exceptions as os_exc
 

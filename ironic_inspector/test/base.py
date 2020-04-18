@@ -13,10 +13,10 @@
 
 import datetime
 import time
+from unittest import mock
 
 import fixtures
 import futurist
-import mock
 from oslo_concurrency import lockutils
 from oslo_config import fixture as config_fixture
 from oslo_log import log

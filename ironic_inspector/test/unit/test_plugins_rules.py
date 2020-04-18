@@ -14,7 +14,8 @@
 
 """Tests for introspection rules plugins."""
 
-import mock
+from unittest import mock
+
 from openstack import exceptions as os_exc
 
 from ironic_inspector.common import ironic as ir_utils

@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
+from unittest import mock
 
 from ironic_inspector.common import lldp_parsers as nv
 from ironic_inspector.plugins import lldp_basic

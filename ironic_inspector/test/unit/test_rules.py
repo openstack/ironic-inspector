@@ -13,7 +13,8 @@
 # under the License.
 
 """Tests for introspection rules."""
-import mock
+from unittest import mock
+
 from oslo_utils import uuidutils
 
 from ironic_inspector import db

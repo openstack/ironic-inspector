@@ -11,8 +11,8 @@
 # under the License.
 
 import copy
+from unittest import mock
 
-import mock
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache

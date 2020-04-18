@@ -12,9 +12,9 @@
 # limitations under the License.
 
 import json
+from unittest import mock
 
 import fixtures
-import mock
 from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
