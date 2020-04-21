@@ -12,8 +12,6 @@
 
 """Migrate introspected data between Swift and database."""
 
-from __future__ import print_function
-
 import sys
 
 from oslo_config import cfg
