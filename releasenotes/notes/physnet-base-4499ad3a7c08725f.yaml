@@ -1,4 +1,4 @@
 ---
-features:
+other:
   - Added base class (``BasePhysnetHook``) for plugins that assign a physical
     network to ports.

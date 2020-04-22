@@ -53,17 +53,14 @@ class BasePhysnetHook(base.ProcessingHook):
         :param port: The ironic port to patch.
         :returns: A dict to be used as a patch for the port, or None.
         """
-        # Bug is here.
-        if (not CONF.processing.overwrite_existing or
-                port.physical_network == physnet):
+        if (not CONF.processing.overwrite_existing
+                or port.physical_network == physnet):
             return
         return {'op': 'add', 'path': '/physical_network', 'value': physnet}
 
     def before_update(self, introspection_data, node_info, **kwargs):
         """Process introspection data and patch port physical network."""
         inventory = utils.get_inventory(introspection_data)
-
-        LOG.info("Plugin: %s", type(self))
 
         ironic_ports = node_info.ports()
 
