@@ -54,8 +54,8 @@ class TestBasePortPhysnetHook(test_base.NodeTest):
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node, ports=ports)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
-    @mock.patch.object(FakePortPhysnetHook, 'get_physnet')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
+    @mock.patch.object(FakePortPhysnetHook, 'get_physnet', autospec=True)
     def test_expected_data(self, mock_get, mock_patch):
         patches = [
             {'path': '/physical_network',
@@ -64,29 +64,29 @@ class TestBasePortPhysnetHook(test_base.NodeTest):
         mock_get.return_value = 'physnet2'
         self.hook.before_update(self.data, self.node_info)
         port = list(self.node_info.ports().values())[0]
-        mock_get.assert_called_once_with(port, 'em1', self.data)
+        mock_get.assert_called_once_with(self.hook, port, 'em1', self.data)
         self.assertCalledWithPatch(patches, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
-    @mock.patch.object(FakePortPhysnetHook, 'get_physnet')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
+    @mock.patch.object(FakePortPhysnetHook, 'get_physnet', autospec=True)
     def test_noop(self, mock_get, mock_patch):
         mock_get.return_value = 'physnet1'
         self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_patch.called)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_mapping(self, mock_patch):
         self.hook.physnet = None
         self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_patch.called)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_interface_not_in_all_interfaces(self, mock_patch):
         self.data['all_interfaces'] = {}
         self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_patch.called)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_interface_not_in_ironic(self, mock_patch):
         self.node_info._ports = {}
         self.hook.before_update(self.data, self.node_info)
@@ -97,7 +97,7 @@ class TestBasePortPhysnetHook(test_base.NodeTest):
         self.assertRaises(utils.Error, self.hook.before_update,
                           self.data, self.node_info)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_overwrite(self, mock_patch):
         cfg.CONF.set_override('overwrite_existing', False, group='processing')
         self.hook.before_update(self.data, self.node_info)

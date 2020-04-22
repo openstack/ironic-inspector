@@ -452,7 +452,8 @@ class TestProcessNode(BaseTest):
         ret_val = process._process_node(self.node_info, self.node, self.data)
         self.assertEqual(self.uuid, ret_val.get('uuid'))
 
-    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
+    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update',
+                       autospec=True)
     def test_wrong_provision_state(self, post_hook_mock):
         self.node.provision_state = 'active'
 
@@ -460,7 +461,8 @@ class TestProcessNode(BaseTest):
                           self.node_info, self.node, self.data)
         self.assertFalse(post_hook_mock.called)
 
-    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
+    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update',
+                       autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_ok(self, finished_mock, post_hook_mock):
         process._process_node(self.node_info, self.node, self.data)
@@ -477,7 +479,8 @@ class TestProcessNode(BaseTest):
                                                               'power off')
         self.assertFalse(self.cli.validate_node.called)
 
-        post_hook_mock.assert_called_once_with(self.data, self.node_info)
+        post_hook_mock.assert_called_once_with(mock.ANY, self.data,
+                                               self.node_info)
         finished_mock.assert_called_once_with(mock.ANY, istate.Events.finish)
 
     @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update',
@@ -531,7 +534,8 @@ class TestProcessNode(BaseTest):
             'management configuration: boom' % self.uuid
         )
 
-    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
+    @mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update',
+                       autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
     def test_power_off_enroll_state(self, finished_mock, post_hook_mock):
         self.node.provision_state = 'enroll'
@@ -665,7 +669,8 @@ class TestReapply(BaseTest):
                                              introspection_data=self.data)
 
 
-@mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update')
+@mock.patch.object(example_plugin.ExampleProcessingHook, 'before_update',
+                   autospec=True)
 @mock.patch.object(process.rules, 'apply', autospec=True)
 @mock.patch.object(swift, 'SwiftAPI', autospec=True)
 @mock.patch.object(node_cache.NodeInfo, 'finished', autospec=True)
@@ -717,7 +722,8 @@ class TestReapplyNode(BaseTest):
 
         self.commit_fixture.mock.assert_called_once_with(self.node_info)
 
-        post_hook_mock.assert_called_once_with(mock.ANY, self.node_info)
+        post_hook_mock.assert_called_once_with(mock.ANY, mock.ANY,
+                                               self.node_info)
 
         self.node_info.invalidate_cache.assert_called_once_with()
         apply_mock.assert_called_once_with(self.node_info, self.data)

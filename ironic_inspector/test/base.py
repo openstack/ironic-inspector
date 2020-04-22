@@ -80,7 +80,7 @@ class BaseTest(test_base.BaseTestCase):
                     return call[0][1]
             except IndexError:
                 pass
-            return call[0][0]
+            return call[0][2]
 
         actual = sum(map(_get_patch_param, mock_call.call_args_list), [])
         self.assertPatchEqual(actual, expected)

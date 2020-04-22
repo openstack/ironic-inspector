@@ -22,7 +22,7 @@ from ironic_inspector import utils
 
 
 @mock.patch.object(extra_hardware.swift, 'SwiftAPI', autospec=True)
-@mock.patch.object(node_cache.NodeInfo, 'patch')
+@mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
 class TestExtraHardware(test_base.NodeTest):
     hook = extra_hardware.ExtraHardwareHook()
 
@@ -39,6 +39,7 @@ class TestExtraHardware(test_base.NodeTest):
         name = 'extra_hardware-%s' % self.uuid
         swift_conn.create_object.assert_called_once_with(name, data)
         patch_mock.assert_called_once_with(
+            self.node_info,
             [{'op': 'add', 'path': '/extra/hardware_swift_object',
               'value': name}])
 
@@ -73,6 +74,7 @@ class TestExtraHardware(test_base.NodeTest):
         name = 'extra_hardware-%s' % self.uuid
         swift_conn.create_object.assert_called_once_with(name, data)
         patch_mock.assert_called_once_with(
+            self.node_info,
             [{'op': 'add', 'path': '/extra/hardware_swift_object',
               'value': name}])
 

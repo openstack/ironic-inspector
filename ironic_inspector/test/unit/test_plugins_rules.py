@@ -162,32 +162,32 @@ class TestSetAttributeAction(test_base.NodeTest):
         self.params['value'] = None
         self.act.validate(self.params)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply(self, mock_patch):
         self.act.apply(self.node_info, self.params)
-        mock_patch.assert_called_once_with([{'op': 'add',
-                                             'path': '/extra/value',
-                                             'value': 42}])
+        mock_patch.assert_called_once_with(
+            self.node_info,
+            [{'op': 'add', 'path': '/extra/value', 'value': 42}])
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply_driver(self, mock_patch):
         params = {'path': '/driver', 'value': 'ipmi'}
         self.act.apply(self.node_info, params)
-        mock_patch.assert_called_once_with([{'op': 'add',
-                                             'path': '/driver',
-                                             'value': 'ipmi'}],
-                                           reset_interfaces=True)
+        mock_patch.assert_called_once_with(
+            self.node_info,
+            [{'op': 'add', 'path': '/driver', 'value': 'ipmi'}],
+            reset_interfaces=True)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply_driver_no_reset_interfaces(self, mock_patch):
         params = {'path': '/driver', 'value': 'ipmi',
                   'reset_interfaces': False}
         self.act.apply(self.node_info, params)
-        mock_patch.assert_called_once_with([{'op': 'add',
-                                             'path': '/driver',
-                                             'value': 'ipmi'}])
+        mock_patch.assert_called_once_with(
+            self.node_info,
+            [{'op': 'add', 'path': '/driver', 'value': 'ipmi'}])
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply_driver_not_supported(self, mock_patch):
         for exc in (TypeError, os_exc.SDKException):
             mock_patch.reset_mock()
@@ -195,9 +195,11 @@ class TestSetAttributeAction(test_base.NodeTest):
             params = {'path': '/driver', 'value': 'ipmi'}
             self.act.apply(self.node_info, params)
             mock_patch.assert_has_calls([
-                mock.call([{'op': 'add', 'path': '/driver', 'value': 'ipmi'}],
+                mock.call(self.node_info,
+                          [{'op': 'add', 'path': '/driver', 'value': 'ipmi'}],
                           reset_interfaces=True),
-                mock.call([{'op': 'add', 'path': '/driver', 'value': 'ipmi'}])
+                mock.call(self.node_info,
+                          [{'op': 'add', 'path': '/driver', 'value': 'ipmi'}])
             ])
 
 
@@ -210,19 +212,20 @@ class TestSetCapabilityAction(test_base.NodeTest):
         self.act.validate(self.params)
         self.assertRaises(ValueError, self.act.validate, {'value': 42})
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply(self, mock_patch):
         self.act.apply(self.node_info, self.params)
         mock_patch.assert_called_once_with(
+            self.node_info,
             [{'op': 'add', 'path': '/properties/capabilities',
               'value': 'cap1:val'}], mock.ANY)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply_with_existing(self, mock_patch):
         self.node.properties['capabilities'] = 'x:y,cap1:old_val,answer:42'
         self.act.apply(self.node_info, self.params)
 
-        patch = mock_patch.call_args[0][0]
+        patch = mock_patch.call_args[0][1]
         new_caps = ir_utils.capabilities_to_dict(patch[0]['value'])
         self.assertEqual({'cap1': 'val', 'x': 'y', 'answer': '42'}, new_caps)
 
@@ -236,22 +239,24 @@ class TestExtendAttributeAction(test_base.NodeTest):
         self.act.validate(self.params)
         self.assertRaises(ValueError, self.act.validate, {'value': 42})
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply(self, mock_patch):
         self.act.apply(self.node_info, self.params)
         mock_patch.assert_called_once_with(
+            self.node_info,
             [{'op': 'add', 'path': '/extra/value', 'value': [42]}], mock.ANY)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply_non_empty(self, mock_patch):
         self.node.extra['value'] = [0]
         self.act.apply(self.node_info, self.params)
 
         mock_patch.assert_called_once_with(
+            self.node_info,
             [{'op': 'replace', 'path': '/extra/value', 'value': [0, 42]}],
             mock.ANY)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_apply_unique_with_existing(self, mock_patch):
         params = dict(unique=True, **self.params)
         self.node.extra['value'] = [42]

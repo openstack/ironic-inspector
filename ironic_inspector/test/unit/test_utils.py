@@ -30,7 +30,7 @@ class TestCheckAuth(base.BaseTest):
         super(TestCheckAuth, self).setUp()
         self.cfg.config(auth_strategy='keystone')
 
-    @mock.patch.object(auth_token, 'AuthProtocol')
+    @mock.patch.object(auth_token, 'AuthProtocol', autospec=True)
     def test_middleware(self, mock_auth):
         self.cfg.config(group='keystone_authtoken',
                         admin_user='admin',

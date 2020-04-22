@@ -47,7 +47,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node, ports=ports)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_expected_data(self, mock_patch):
         cfg.CONF.set_override('cidr_map', '1.1.1.0/24:physnet_a',
                               group='port_physnet')
@@ -57,14 +57,14 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_matching_mapping_config(self, mock_patch):
         cfg.CONF.set_override('cidr_map', '2.2.2.0/24:physnet_b',
                               group='port_physnet')
         self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_patch.called)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_expected_data_ipv6_lowercase(self, mock_patch):
         self.data['inventory']['interfaces'][0].pop('ipv4_address')
         self.data['inventory']['interfaces'][0]['ipv6_address'] = '2001:db8::1'
@@ -76,7 +76,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_expected_data_ipv6_uppercase(self, mock_patch):
         self.data['inventory']['interfaces'][0].pop('ipv4_address')
         self.data['inventory']['interfaces'][0]['ipv6_address'] = '2001:db8::1'
@@ -88,7 +88,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_mapping_in_config(self, mock_patch):
         self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_patch.called)
@@ -101,7 +101,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
                           self.data, self.node_info)
 
     @mock.patch('ironic_inspector.plugins.base_physnet.LOG')
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_interface_not_in_ironic(self, mock_patch, mock_log):
         cfg.CONF.set_override('cidr_map', '1.1.1.0/24:physnet_a',
                               group='port_physnet')
@@ -109,7 +109,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertTrue(mock_log.debug.called)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_overwrite(self, mock_patch):
         ports = [mock.Mock(spec=['address', 'uuid', 'physical_network'],
                            address=a, physical_network='foo')
@@ -123,7 +123,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.assertFalse(mock_patch.called)
 
     @mock.patch('ironic_inspector.plugins.base_physnet.LOG')
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_patch_port_exception(self, mock_patch, mock_log):
         cfg.CONF.set_override('cidr_map', '1.1.1.0/24:physnet_a',
                               group='port_physnet')
@@ -133,7 +133,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         mock_log.warning.assert_called_with(log_msg, mock.ANY,
                                             node_info=mock.ANY)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch_port')
+    @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_ip_address_on_interface(self, mock_patch):
         cfg.CONF.set_override('cidr_map', '1.1.1.0/24:physnet_a',
                               group='port_physnet')

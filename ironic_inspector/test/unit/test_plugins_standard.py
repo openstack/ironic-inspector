@@ -39,7 +39,7 @@ class TestSchedulerHook(test_base.NodeTest):
         ext = base.processing_hooks_manager()['scheduler']
         self.assertIsInstance(ext.obj, std_plugins.SchedulerHook)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_ok(self, mock_patch):
         patch = [
             {'path': '/properties/cpus', 'value': '4', 'op': 'add'},
@@ -50,7 +50,7 @@ class TestSchedulerHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_no_overwrite(self, mock_patch):
         CONF.set_override('overwrite_existing', False, 'processing')
         self.node.properties = {
@@ -64,7 +64,7 @@ class TestSchedulerHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_missing_cpu(self, mock_patch):
         self.data['inventory']['cpu'] = {'count': 'none'}
         patch = [
@@ -74,7 +74,7 @@ class TestSchedulerHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_missing_memory(self, mock_patch):
         # We require physical_mb, not total
         self.data['inventory']['memory'] = {'total': 42}
@@ -86,7 +86,7 @@ class TestSchedulerHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patch, mock_patch)
 
-    @mock.patch.object(node_cache.NodeInfo, 'patch')
+    @mock.patch.object(node_cache.NodeInfo, 'patch', autospec=True)
     def test_no_data(self, mock_patch):
         self.data['inventory']['cpu'] = {}
         self.data['inventory']['memory'] = {}
