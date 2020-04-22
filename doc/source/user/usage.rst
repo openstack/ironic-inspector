@@ -249,6 +249,14 @@ Here are some plugins that can be additionally enabled:
     Processes LLDP data returned from inspection and parses TLVs from the
     Basic Management (802.1AB), 802.1Q, and 802.3 sets and stores the
     processed data back to the Ironic inspector data in Swift.
+``physnet_cidr_map``
+    Configures the ``physical_network`` property of the nodes Ironic port when
+    the IP address is in a configured CIDR mapping. CIDR to physical network
+    mappings is set in configuration using the ``[port_physnet]/cidr_map``
+    option, for example::
+
+      [port_physnet]
+      cidr_map = 10.10.10.0/24:physnet_a, 2001:db8::/64:physnet_b
 
 Refer to :ref:`contributing_link` for information on how to write your
 own plugin.

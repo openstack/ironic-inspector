@@ -68,6 +68,7 @@ def list_opts():
         ('swift', ironic_inspector.conf.swift.list_opts()),
         ('ironic', ironic_inspector.conf.ironic.list_opts()),
         ('iptables', ironic_inspector.conf.iptables.list_opts()),
+        ('port_physnet', ironic_inspector.conf.port_physnet.list_opts()),
         ('processing', ironic_inspector.conf.processing.list_opts()),
         ('pci_devices', ironic_inspector.conf.pci_devices.list_opts()),
         ('pxe_filter', ironic_inspector.conf.pxe_filter.list_opts()),
