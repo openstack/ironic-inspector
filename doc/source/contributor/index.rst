@@ -8,7 +8,7 @@ Python API
 .. toctree::
   :maxdepth: 1
 
-  api/autoindex
+  api/modules
 
 Ironic Inspector CI
 ~~~~~~~~~~~~~~~~~~~
