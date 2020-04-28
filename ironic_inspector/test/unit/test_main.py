@@ -417,7 +417,7 @@ class TestApiReapply(BaseAPITest):
 
 
 class TestApiRules(BaseAPITest):
-    @mock.patch.object(rules, 'get_all')
+    @mock.patch.object(rules, 'get_all', autospec=True)
     def test_get_all(self, get_all_mock):
         get_all_mock.return_value = [
             mock.Mock(spec=rules.IntrospectionRule,
@@ -444,7 +444,7 @@ class TestApiRules(BaseAPITest):
         for m in get_all_mock.return_value:
             m.as_dict.assert_called_with(short=True)
 
-    @mock.patch.object(rules, 'delete_all')
+    @mock.patch.object(rules, 'delete_all', autospec=True)
     def test_delete_all(self, delete_all_mock):
         res = self.app.delete('/v1/rules')
         self.assertEqual(204, res.status_code)
@@ -501,7 +501,7 @@ class TestApiRules(BaseAPITest):
         res = self.app.post('/v1/rules', data=json.dumps(data))
         self.assertEqual(400, res.status_code)
 
-    @mock.patch.object(rules, 'get')
+    @mock.patch.object(rules, 'get', autospec=True)
     def test_get_one(self, get_mock):
         get_mock.return_value = mock.Mock(spec=rules.IntrospectionRule,
                                           **{'as_dict.return_value':
@@ -517,7 +517,7 @@ class TestApiRules(BaseAPITest):
         get_mock.assert_called_once_with(self.uuid)
         get_mock.return_value.as_dict.assert_called_once_with(short=False)
 
-    @mock.patch.object(rules, 'delete')
+    @mock.patch.object(rules, 'delete', autospec=True)
     def test_delete_one(self, delete_mock):
         res = self.app.delete('/v1/rules/' + self.uuid)
         self.assertEqual(204, res.status_code)
@@ -697,7 +697,7 @@ class TestTopic(test_base.BaseTest):
         self.target_mock.assert_called_with(
             topic='hello', version=mock.ANY)
 
-    @mock.patch.object(coordination, 'get_coordinator')
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     def test_get_random_topic(self, mock_get_coordinator):
         mock_coordinator = mock.Mock(spec=['get_members'])
         members = [('ironic_inspector.conductor.host%s' % i).encode('ascii')
@@ -709,7 +709,7 @@ class TestTopic(test_base.BaseTest):
             topic = main.get_random_topic()
             self.assertIn(topic, topics)
 
-    @mock.patch.object(coordination, 'get_coordinator')
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     def test_get_random_topic_host_with_domain(self, mock_get_coordinator):
         mock_coordinator = mock.Mock(spec=['get_members'])
         members = ['ironic_inspector.conductor.'
@@ -719,7 +719,7 @@ class TestTopic(test_base.BaseTest):
         topic = main.get_random_topic()
         self.assertEqual(topic, 'ironic_inspector.conductor.local.domain')
 
-    @mock.patch.object(coordination, 'get_coordinator')
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     def test_get_random_topic_host_bypass_invalid(self, mock_get_coordinator):
         mock_coordinator = mock.Mock(spec=['get_members'])
         members = ['this_should_not_happen'.encode('ascii')]
@@ -729,7 +729,7 @@ class TestTopic(test_base.BaseTest):
                                'No available conductor',
                                main.get_random_topic)
 
-    @mock.patch.object(coordination, 'get_coordinator')
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     def test_get_random_topic_no_member(self, mock_get_coordinator):
         mock_coordinator = mock.Mock(spec=['get_members'])
         mock_coordinator.get_members.return_value = set()

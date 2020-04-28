@@ -240,7 +240,7 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
 
-    @mock.patch('ironic_inspector.common.lldp_parsers.LOG')
+    @mock.patch.object(nv.LOG, 'warning', autospec=True)
     def test_null_strings(self, mock_log):
         self.data['inventory']['interfaces'] = [{
             'name': 'em1',
@@ -260,9 +260,9 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
 
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
-        self.assertEqual(2, mock_log.warning.call_count)
+        self.assertEqual(2, mock_log.call_count)
 
-    @mock.patch('ironic_inspector.common.lldp_parsers.LOG')
+    @mock.patch.object(nv.LOG, 'warning', autospec=True)
     def test_truncated_int(self, mock_log):
         self.data['inventory']['interfaces'] = [{
             'name': 'em1',
@@ -275,9 +275,9 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
         # nothing should be written to lldp_processed
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
-        self.assertEqual(3, mock_log.warning.call_count)
+        self.assertEqual(3, mock_log.call_count)
 
-    @mock.patch('ironic_inspector.common.lldp_parsers.LOG')
+    @mock.patch.object(nv.LOG, 'warning', autospec=True)
     def test_invalid_ip(self, mock_log):
         self.data['inventory']['interfaces'] = [{
             'name': 'em1',
@@ -287,9 +287,9 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
         }]
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
-        self.assertEqual(2, mock_log.warning.call_count)
+        self.assertEqual(2, mock_log.call_count)
 
-    @mock.patch('ironic_inspector.common.lldp_parsers.LOG')
+    @mock.patch.object(nv.LOG, 'warning', autospec=True)
     def test_truncated_mac(self, mock_log):
         self.data['inventory']['interfaces'] = [{
             'name': 'em1',
@@ -299,9 +299,9 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
 
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
-        self.assertEqual(1, mock_log.warning.call_count)
+        self.assertEqual(1, mock_log.call_count)
 
-    @mock.patch('ironic_inspector.common.lldp_parsers.LOG')
+    @mock.patch.object(nv.LOG, 'warning', autospec=True)
     def test_bad_value_macphy(self, mock_log):
         self.data['inventory']['interfaces'] = [{
             'name': 'em1',
@@ -313,9 +313,9 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
 
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
-        self.assertEqual(3, mock_log.warning.call_count)
+        self.assertEqual(3, mock_log.call_count)
 
-    @mock.patch('ironic_inspector.common.lldp_parsers.LOG')
+    @mock.patch.object(nv.LOG, 'warning', autospec=True)
     def test_bad_value_linkagg(self, mock_log):
         self.data['inventory']['interfaces'] = [{
             'name': 'em1',
@@ -326,4 +326,4 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
 
         self.hook.before_update(self.data, self.node_info)
         self.assertEqual(self.expected, self.data['all_interfaces'])
-        self.assertEqual(2, mock_log.warning.call_count)
+        self.assertEqual(2, mock_log.call_count)

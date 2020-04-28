@@ -358,7 +358,7 @@ class TestIBMapping(test_base.BaseTest):
 
     def test_open_no_such_file(self):
         with mock.patch('builtins.open',
-                        side_effect=IOError()) as mock_open:
+                        side_effect=IOError(), autospec=True) as mock_open:
             iptables._ib_mac_to_rmac_mapping(self.ports)
 
         self.assertEqual(self.ib_address, self.ib_port.address)
