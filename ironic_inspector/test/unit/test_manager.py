@@ -154,7 +154,7 @@ class TestManagerInitHost(BaseManagerTest):
         mock_get_coord.assert_called_once_with(prefix='conductor')
         mock_coordinator.start.assert_called_once_with(heartbeat=True)
 
-    @mock.patch.object(manager.ConductorManager, 'del_host')
+    @mock.patch.object(manager.ConductorManager, 'del_host', autospec=True)
     @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     @mock.patch.object(keystone, 'get_endpoint', autospec=True)
     def test_init_host_with_coordinator_failed(self, mock_endpoint,
@@ -169,7 +169,7 @@ class TestManagerInitHost(BaseManagerTest):
         self.mock_filter.init_filter.assert_called_once_with()
         self.assert_periodics()
         mock_get_coord.assert_called_once_with(prefix='conductor')
-        mock_del_host.assert_called_once_with()
+        mock_del_host.assert_called_once_with(self.manager)
 
 
 class TestManagerDelHost(BaseManagerTest):

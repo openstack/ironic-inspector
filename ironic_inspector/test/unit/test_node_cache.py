@@ -104,8 +104,8 @@ class TestNodeCache(test_base.NodeTest):
         self.assertIsNone(row_option)
 
     @mock.patch.object(locking, 'get_lock', autospec=True)
-    @mock.patch.object(node_cache, '_list_node_uuids')
-    @mock.patch.object(node_cache, '_delete_node')
+    @mock.patch.object(node_cache, '_list_node_uuids', autospec=True)
+    @mock.patch.object(node_cache, '_delete_node', autospec=True)
     def test_delete_nodes_not_in_list(self, mock__delete_node,
                                       mock__list_node_uuids,
                                       mock_get_lock):
@@ -354,7 +354,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual(1, db.model_query(db.Option).count())
 
     @mock.patch.object(locking, 'get_lock', autospec=True)
-    @mock.patch.object(timeutils, 'utcnow')
+    @mock.patch.object(timeutils, 'utcnow', autospec=True)
     def test_ok(self, time_mock, get_lock_mock):
         time_mock.return_value = datetime.datetime.utcnow()
 
@@ -370,7 +370,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertFalse(get_lock_mock.called)
 
     @mock.patch.object(node_cache.NodeInfo, 'acquire_lock', autospec=True)
-    @mock.patch.object(timeutils, 'utcnow')
+    @mock.patch.object(timeutils, 'utcnow', autospec=True)
     def test_timeout(self, time_mock, lock_mock):
         # Add a finished node to confirm we don't try to timeout it
         time_mock.return_value = self.started_at
@@ -400,7 +400,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         lock_mock.assert_called_once_with(mock.ANY, blocking=False)
 
     @mock.patch.object(locking, 'get_lock', autospec=True)
-    @mock.patch.object(timeutils, 'utcnow')
+    @mock.patch.object(timeutils, 'utcnow', autospec=True)
     def test_timeout_active_state(self, time_mock, lock_mock):
         time_mock.return_value = self.started_at
         session = db.get_writer_session()
@@ -422,7 +422,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
                 res)
 
     @mock.patch.object(node_cache.NodeInfo, 'acquire_lock', autospec=True)
-    @mock.patch.object(timeutils, 'utcnow')
+    @mock.patch.object(timeutils, 'utcnow', autospec=True)
     def test_timeout_lock_failed(self, time_mock, get_lock_mock):
         time_mock.return_value = self.started_at
         CONF.set_override('timeout', 1)

@@ -214,7 +214,8 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
         self.hook.before_update(self.data, self.node_info)
         self.assertCalledWithPatch(patches, mock_patch)
 
-    @mock.patch('ironic_inspector.plugins.local_link_connection.LOG')
+    @mock.patch('ironic_inspector.plugins.local_link_connection.LOG',
+                autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_patch_port_exception(self, mock_patch, mock_log):
         self.data['all_interfaces'] = {

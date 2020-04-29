@@ -176,7 +176,7 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
                          sorted(self.data['macs']))
         self.assertEqual(self.all_interfaces, self.data['all_interfaces'])
 
-    @mock.patch.object(node_cache.NodeInfo, 'create_ports')
+    @mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
     def test_disabled_bad_conf(self, mock_create_port):
         CONF.set_override('add_ports', 'disabled', 'processing')
         CONF.set_override('keep_ports', 'added', 'processing')
@@ -185,7 +185,7 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
                                self.hook.__init__)
         mock_create_port.assert_not_called()
 
-    @mock.patch.object(node_cache.NodeInfo, 'create_ports')
+    @mock.patch.object(node_cache.NodeInfo, 'create_ports', autospec=True)
     def test_disabled(self, mock_create_port):
         CONF.set_override('add_ports', 'disabled', 'processing')
         CONF.set_override('keep_ports', 'all', 'processing')

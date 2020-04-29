@@ -234,7 +234,8 @@ class TestProcess(BaseProcessTest):
     def test_hook_unexpected_exceptions(self):
         for ext in plugins_base.processing_hooks_manager():
             patcher = mock.patch.object(ext.obj, 'before_processing',
-                                        side_effect=RuntimeError('boom'))
+                                        side_effect=RuntimeError('boom'),
+                                        autospec=True)
             patcher.start()
             self.addCleanup(lambda p=patcher: p.stop())
 
@@ -252,7 +253,8 @@ class TestProcess(BaseProcessTest):
         self.find_mock.side_effect = utils.Error('not found')
         for ext in plugins_base.processing_hooks_manager():
             patcher = mock.patch.object(ext.obj, 'before_processing',
-                                        side_effect=RuntimeError('boom'))
+                                        side_effect=RuntimeError('boom'),
+                                        autospec=True)
             patcher.start()
             self.addCleanup(lambda p=patcher: p.stop())
 
@@ -756,7 +758,8 @@ class TestReapplyNode(BaseTest):
         swift_mock.get_object.return_value = json.dumps(self.data)
 
         with mock.patch.object(example_plugin.ExampleProcessingHook,
-                               'before_processing') as before_processing_mock:
+                               'before_processing',
+                               autospec=True) as before_processing_mock:
             before_processing_mock.side_effect = exc
             self.call()
 

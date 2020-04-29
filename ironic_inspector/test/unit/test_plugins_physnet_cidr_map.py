@@ -100,14 +100,15 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.assertRaises(utils.Error, self.hook.before_update,
                           self.data, self.node_info)
 
-    @mock.patch('ironic_inspector.plugins.base_physnet.LOG')
+    @mock.patch('ironic_inspector.plugins.base_physnet.LOG.debug',
+                autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_interface_not_in_ironic(self, mock_patch, mock_log):
         cfg.CONF.set_override('cidr_map', '1.1.1.0/24:physnet_a',
                               group='port_physnet')
         self.node_info._ports = {}
         self.hook.before_update(self.data, self.node_info)
-        self.assertTrue(mock_log.debug.called)
+        self.assertTrue(mock_log.called)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_overwrite(self, mock_patch):
@@ -122,7 +123,8 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         self.hook.before_update(self.data, node_info)
         self.assertFalse(mock_patch.called)
 
-    @mock.patch('ironic_inspector.plugins.base_physnet.LOG')
+    @mock.patch('ironic_inspector.plugins.base_physnet.LOG.warning',
+                autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_patch_port_exception(self, mock_patch, mock_log):
         cfg.CONF.set_override('cidr_map', '1.1.1.0/24:physnet_a',
@@ -130,8 +132,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
         mock_patch.side_effect = exceptions.BadRequestException('invalid data')
         self.hook.before_update(self.data, self.node_info)
         log_msg = "Failed to update port %(uuid)s: %(error)s"
-        mock_log.warning.assert_called_with(log_msg, mock.ANY,
-                                            node_info=mock.ANY)
+        mock_log.assert_called_with(log_msg, mock.ANY, node_info=mock.ANY)
 
     @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_ip_address_on_interface(self, mock_patch):

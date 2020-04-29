@@ -380,7 +380,7 @@ class TestIntrospect(BaseTest):
 
         self.assertTrue(start_mock.called)
 
-    @mock.patch.object(time, 'time')
+    @mock.patch.object(time, 'time', autospec=True)
     def test_introspection_delay(self, time_mock, client_mock, start_mock):
         time_mock.return_value = 42
         introspect._LAST_INTROSPECTION_TIME = 40
@@ -400,7 +400,7 @@ class TestIntrospect(BaseTest):
         # updated to the current time.time()
         self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
 
-    @mock.patch.object(time, 'time')
+    @mock.patch.object(time, 'time', autospec=True)
     def test_introspection_delay_not_needed(self, time_mock, client_mock,
                                             start_mock):
 

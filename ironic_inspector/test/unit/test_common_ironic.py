@@ -24,7 +24,7 @@ from ironic_inspector.test import base
 from ironic_inspector import utils
 
 
-@mock.patch.object(keystone, 'get_session')
+@mock.patch.object(keystone, 'get_session', autospec=True)
 @mock.patch.object(openstack.connection, 'Connection', autospec=True)
 class TestGetClientBase(base.BaseTest):
     def setUp(self):
@@ -55,7 +55,7 @@ class TestGetIpmiAddress(base.BaseTest):
         self.assertEqual((self.ipmi_ipv6, None, self.ipmi_ipv6),
                          ir_utils.get_ipmi_address(node))
 
-    @mock.patch('socket.getaddrinfo')
+    @mock.patch('socket.getaddrinfo', autospec=True)
     def test_good_hostname_resolves(self, mock_socket):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': self.ipmi_address})
@@ -67,7 +67,7 @@ class TestGetIpmiAddress(base.BaseTest):
         mock_socket.assert_called_once_with(self.ipmi_address, None, 0, 0,
                                             socket.SOL_TCP)
 
-    @mock.patch('socket.getaddrinfo')
+    @mock.patch('socket.getaddrinfo', autospec=True)
     def test_bad_hostname_errors(self, mock_socket):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': 'meow'},

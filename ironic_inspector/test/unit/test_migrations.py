@@ -52,8 +52,10 @@ LOG = logging.getLogger(__name__)
 
 @contextlib.contextmanager
 def patch_with_engine(engine):
-    with mock.patch.object(db, 'get_writer_session') as patch_w_sess, \
-            mock.patch.object(db, 'get_reader_session') as patch_r_sess:
+    with mock.patch.object(db, 'get_writer_session',
+                           autospec=True) as patch_w_sess, \
+            mock.patch.object(db, 'get_reader_session',
+                              autospec=True) as patch_r_sess:
         patch_w_sess.return_value = patch_r_sess.return_value = (
             orm.get_maker(engine)())
         yield
@@ -134,10 +136,10 @@ class TestWalkVersions(base.BaseTest, WalkVersionsMixin):
         self._pre_upgrade_141.assert_called_with(self.engine)
         self._check_141.assert_called_with(self.engine, test_value)
 
-    @mock.patch.object(script, 'ScriptDirectory')
-    @mock.patch.object(WalkVersionsMixin, '_migrate_up')
+    @mock.patch.object(script, 'ScriptDirectory', autospec=True)
+    @mock.patch.object(WalkVersionsMixin, '_migrate_up', autospec=True)
     def test_walk_versions_all_default(self, _migrate_up, script_directory):
-        fc = script_directory.from_config()
+        fc = script_directory.from_config.return_value
         fc.walk_revisions.return_value = self.versions
         self.migration_ext.version.return_value = None
 
@@ -145,20 +147,20 @@ class TestWalkVersions(base.BaseTest, WalkVersionsMixin):
 
         self.migration_ext.version.assert_called_with()
 
-        upgraded = [mock.call(self.engine, self.config, v.revision,
+        upgraded = [mock.call(self, self.engine, self.config, v.revision,
                     with_data=True) for v in reversed(self.versions)]
         self.assertEqual(self._migrate_up.call_args_list, upgraded)
 
-    @mock.patch.object(script, 'ScriptDirectory')
-    @mock.patch.object(WalkVersionsMixin, '_migrate_up')
+    @mock.patch.object(script, 'ScriptDirectory', autospec=True)
+    @mock.patch.object(WalkVersionsMixin, '_migrate_up', autospec=True)
     def test_walk_versions_all_false(self, _migrate_up, script_directory):
-        fc = script_directory.from_config()
+        fc = script_directory.from_config.return_value
         fc.walk_revisions.return_value = self.versions
         self.migration_ext.version.return_value = None
 
         self._walk_versions(self.engine, self.config)
 
-        upgraded = [mock.call(self.engine, self.config, v.revision,
+        upgraded = [mock.call(self, self.engine, self.config, v.revision,
                     with_data=True) for v in reversed(self.versions)]
         self.assertEqual(upgraded, self._migrate_up.call_args_list)
 

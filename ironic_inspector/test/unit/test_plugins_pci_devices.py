@@ -38,7 +38,7 @@ class TestPciDevicesHook(test_base.NodeTest):
         parsed_pci_alias = pci_devices._parse_pci_alias_entry()
         self.assertFalse(parsed_pci_alias)
 
-    @mock.patch('ironic_inspector.plugins.pci_devices.LOG')
+    @mock.patch.object(pci_devices.LOG, 'error', autospec=True)
     def test_parse_pci_alias_entry_invalid_json(self, mock_oslo_log):
         pci_alias = ['{"vendor_id": "foo1", "product_id": "bar1",'
                      ' "name": "baz1"}', '{"invalid" = "entry"}']
@@ -46,9 +46,9 @@ class TestPciDevicesHook(test_base.NodeTest):
         valid_pci_alias = {("foo1", "bar1"): "baz1"}
         parsed_pci_alias = pci_devices._parse_pci_alias_entry()
         self.assertEqual(valid_pci_alias, parsed_pci_alias)
-        mock_oslo_log.error.assert_called_once()
+        mock_oslo_log.assert_called_once()
 
-    @mock.patch('ironic_inspector.plugins.pci_devices.LOG')
+    @mock.patch.object(pci_devices.LOG, 'error', autospec=True)
     def test_parse_pci_alias_entry_invalid_keys(self, mock_oslo_log):
         pci_alias = ['{"vendor_id": "foo1", "product_id": "bar1",'
                      ' "name": "baz1"}', '{"invalid": "keys"}']
@@ -56,7 +56,7 @@ class TestPciDevicesHook(test_base.NodeTest):
         valid_pci_alias = {("foo1", "bar1"): "baz1"}
         parsed_pci_alias = pci_devices._parse_pci_alias_entry()
         self.assertEqual(valid_pci_alias, parsed_pci_alias)
-        mock_oslo_log.error.assert_called_once()
+        mock_oslo_log.assert_called_once()
 
     @mock.patch.object(hook, 'aliases', {("1234", "5678"): "pci_dev1",
                                          ("9876", "5432"): "pci_dev2"})
@@ -74,7 +74,7 @@ class TestPciDevicesHook(test_base.NodeTest):
         mock_update_props.assert_called_once_with(self.node_info,
                                                   **expected_pci_devices_count)
 
-    @mock.patch('ironic_inspector.plugins.pci_devices.LOG')
+    @mock.patch.object(pci_devices.LOG, 'warning', autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'update_capabilities',
                        autospec=True)
     def test_before_update_no_pci_info_from_ipa(self, mock_update_props,
@@ -83,11 +83,11 @@ class TestPciDevicesHook(test_base.NodeTest):
                      ' "name": "baz1"}']
         base.CONF.set_override('alias', pci_alias, 'pci_devices')
         self.hook.before_update(self.data, self.node_info)
-        mock_oslo_log.warning.assert_called_once()
+        mock_oslo_log.assert_called_once()
         self.assertFalse(mock_update_props.called)
 
-    @mock.patch.object(pci_devices, '_parse_pci_alias_entry')
-    @mock.patch('ironic_inspector.plugins.pci_devices.LOG')
+    @mock.patch.object(pci_devices, '_parse_pci_alias_entry', autospec=True)
+    @mock.patch.object(pci_devices.LOG, 'info', autospec=True)
     @mock.patch.object(node_cache.NodeInfo, 'update_capabilities',
                        autospec=True)
     def test_before_update_no_match(self, mock_update_props, mock_oslo_log,
@@ -99,4 +99,4 @@ class TestPciDevicesHook(test_base.NodeTest):
         mock_parse_pci_alias.return_value = {("9876", "5432"): "pci_dev"}
         self.hook.before_update(self.data, self.node_info)
         self.assertFalse(mock_update_props.called)
-        self.assertFalse(mock_oslo_log.info.called)
+        self.assertFalse(mock_oslo_log.called)
