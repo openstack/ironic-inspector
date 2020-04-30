@@ -80,7 +80,6 @@ class TestLLDPBasicProcessingHook(test_base.NodeTest):
                                         '2001:db8:85a3::8a2e:370:7334',
                                         'aa:11:bb:22:cc:33'],
             nv.LLDP_PORT_LINK_AUTONEG_ENABLED_NM: True,
-            nv.LLDP_PORT_LINK_AUTONEG_ENABLED_NM: True,
             nv.LLDP_PORT_DESC_NM: 'host02.lab.eng port 3 (Bond)',
             nv.LLDP_PORT_ID_NM: '734',
             nv.LLDP_PORT_LINK_AGG_ENABLED_NM: True,
