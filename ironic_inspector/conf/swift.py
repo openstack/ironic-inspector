@@ -22,9 +22,6 @@ SERVICE_TYPE = 'object-store'
 
 
 _OPTS = [
-    cfg.IntOpt('max_retries',
-               help=_('This option is deprecated and has no effect.'),
-               deprecated_for_removal=True),
     cfg.IntOpt('delete_after',
                default=0,
                help=_('Number of seconds that the Swift object will last '
