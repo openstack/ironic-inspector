@@ -107,11 +107,11 @@ IANA_ADDRESS_FAMILY_ID_MAPPING = {
     ('mac', 6): MACAddress,
 }
 
-IANAAddress = core.Embedded(core.Struct(
+IANAAddress = core.Struct(
     'family' / core.Enum(core.Int8ub, **mapping_for_enum(
         IANA_ADDRESS_FAMILY_ID_MAPPING)),
     'value' / core.Switch(construct.this.family, mapping_for_switch(
-        IANA_ADDRESS_FAMILY_ID_MAPPING))))
+        IANA_ADDRESS_FAMILY_ID_MAPPING)))
 
 # Note that 'GreedyString()' is used in cases where string len is not defined
 CHASSIS_ID_MAPPING = {
@@ -132,9 +132,8 @@ CHASSIS_ID_MAPPING = {
 ChassisId = core.Struct(
     'subtype' / core.Enum(core.Byte, **mapping_for_enum(
         CHASSIS_ID_MAPPING)),
-    'value' /
-    core.Embedded(core.Switch(construct.this.subtype,
-                              mapping_for_switch(CHASSIS_ID_MAPPING)))
+    'value' / core.Switch(construct.this.subtype,
+                          mapping_for_switch(CHASSIS_ID_MAPPING))
 )
 
 PORT_ID_MAPPING = {
@@ -150,9 +149,8 @@ PORT_ID_MAPPING = {
 PortId = core.Struct(
     'subtype' / core.Enum(core.Byte, **mapping_for_enum(
         PORT_ID_MAPPING)),
-    'value' /
-    core.Embedded(core.Switch(construct.this.subtype,
-                              mapping_for_switch(PORT_ID_MAPPING)))
+    'value' / core.Switch(construct.this.subtype,
+                          mapping_for_switch(PORT_ID_MAPPING))
 )
 
 PortDesc = core.Struct('value' / core.GreedyString("utf8"))
@@ -215,7 +213,7 @@ Dot1_VlanName = core.Struct(
     'vlanid' / core.Int16ub,
     'name_len' / core.Rebuild(core.Int8ub,
                               construct.len_(construct.this.value)),
-    'vlan_name' / core.String(construct.this.name_len, "utf8")
+    'vlan_name' / core.PaddedString(construct.this.name_len, "utf8")
 )
 
 Dot1_ProtocolIdentity = core.Struct(

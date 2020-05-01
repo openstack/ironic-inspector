@@ -69,7 +69,6 @@ class LLDPBasicProcessingHook(base.ProcessingHook):
 
         for iface in inventory['interfaces']:
             if_name = iface['name']
-
             tlvs = iface.get('lldp')
             if tlvs is None:
                 LOG.warning("No LLDP Data found for interface %s",

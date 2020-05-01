@@ -67,7 +67,7 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                 return
 
             item = PORT_ID_ITEM_NAME
-            value = port_id.value
+            value = port_id.value.value if port_id.value else None
         elif tlv_type == tlv.LLDP_TLV_CHASSIS_ID:
             try:
                 chassis_id = tlv.ChassisId.parse(data)
@@ -79,7 +79,7 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
             # Only accept mac address for chassis ID
             if 'mac_address' in chassis_id.subtype:
                 item = SWITCH_ID_ITEM_NAME
-                value = chassis_id.value
+                value = chassis_id.value.value
 
         if item and value:
             if (not CONF.processing.overwrite_existing and
@@ -98,7 +98,6 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
         value = lldp_proc_data['lldp_processed'].get(name)
 
         if value:
-
             # Only accept mac address for chassis ID
             if (item == SWITCH_ID_ITEM_NAME and
                     not netutils.is_valid_mac(value)):

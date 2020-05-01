@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    Remove upper constraint for python construct library and use the latest
+    version available.
+    The minimum compatible version for python construct is now 2.9.39

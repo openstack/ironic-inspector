@@ -102,6 +102,10 @@ class LLDPParser(object):
         """Add a single name/value pair to the nv dict"""
         self.set_value(name, struct.value)
 
+    def add_nested_value(self, struct, name, data):
+        """Add a single nested name/value pair to the dict"""
+        self.set_value(name, struct.value.value)
+
     def parse_tlv(self, tlv_type, data):
         """Parse TLVs from mapping table
 
@@ -193,10 +197,10 @@ class LLDPBasicMgmtParser(LLDPParser):
 
         self.parser_map = {
             tlv.LLDP_TLV_CHASSIS_ID:
-                (self.add_single_value, tlv.ChassisId,
-                 LLDP_CHASSIS_ID_NM, False),
+                (self.add_nested_value, tlv.ChassisId, LLDP_CHASSIS_ID_NM,
+                 False),
             tlv.LLDP_TLV_PORT_ID:
-                (self.add_single_value, tlv.PortId, LLDP_PORT_ID_NM, False),
+                (self.add_nested_value, tlv.PortId, LLDP_PORT_ID_NM, False),
             tlv.LLDP_TLV_TTL: (None, None, None, False),
             tlv.LLDP_TLV_PORT_DESCRIPTION:
                 (self.add_single_value, tlv.PortDesc, LLDP_PORT_DESC_NM,
@@ -221,7 +225,8 @@ class LLDPBasicMgmtParser(LLDPParser):
 
         There can be multiple Mgmt Address TLVs, store in list.
         """
-        self.append_value(name, struct.address)
+        if struct.address:
+            self.append_value(name, struct.address)
 
     def _get_capabilities_list(self, caps):
         """Get capabilities from bit map"""
