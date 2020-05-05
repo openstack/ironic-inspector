@@ -1,0 +1,4 @@
+---
+fixes:
+  - |
+    No longer aborts the whole process if one periodic task fails.
