@@ -14,7 +14,6 @@
 import sys
 import traceback as traceback_mod
 
-import eventlet
 from eventlet import semaphore
 from futurist import periodics
 from ironic_lib import mdns
@@ -85,9 +84,14 @@ class ConductorManager(object):
             spacing=CONF.clean_up_period
         )(periodic_clean_up)
 
+        sync_with_ironic_ = periodics.periodic(
+            spacing=CONF.clean_up_period
+        )(sync_with_ironic)
+
         self._periodics_worker = periodics.PeriodicWorker(
             callables=[(driver.get_periodic_sync_task(), None, None),
-                       (periodic_clean_up_, None, None)],
+                       (periodic_clean_up_, None, None),
+                       (sync_with_ironic_, None, None)],
             executor_factory=periodics.ExistingExecutor(utils.executor()),
             on_failure=self._periodics_watchdog)
 
@@ -154,8 +158,6 @@ class ConductorManager(object):
         LOG.exception("The periodic %(callable)s failed with: %(exception)s", {
             'exception': ''.join(traceback_mod.format_exception(*exc_info)),
             'callable': reflection.get_callable_name(callable_)})
-        # NOTE(milan): spawn new thread otherwise waiting would block
-        eventlet.spawn(self.del_host)
 
     @messaging.expected_exceptions(utils.Error)
     def do_introspection(self, context, node_id, token=None,
@@ -189,16 +191,8 @@ class ConductorManager(object):
 
 
 def periodic_clean_up():  # pragma: no cover
-    try:
-        if node_cache.clean_up():
-            pxe_filter.driver().sync(ir_utils.get_client())
-    except Exception:
-        LOG.exception('Periodic clean up of node cache failed')
-
-    try:
-        sync_with_ironic()
-    except Exception:
-        LOG.exception('Periodic sync of node list with ironic failed')
+    if node_cache.clean_up():
+        pxe_filter.driver().sync(ir_utils.get_client())
 
 
 def sync_with_ironic():

@@ -55,8 +55,6 @@ class TestManagerInitHost(BaseManagerTest):
                                      'validate_processing_hooks')).mock
         self.mock_filter = self.useFixture(fixtures.MockPatchObject(
             manager.pxe_filter, 'driver')).mock.return_value
-        self.mock_periodic = self.useFixture(fixtures.MockPatchObject(
-            manager.periodics, 'periodic')).mock
         self.mock_PeriodicWorker = self.useFixture(fixtures.MockPatchObject(
             manager.periodics, 'PeriodicWorker')).mock
         self.mock_executor = self.useFixture(fixtures.MockPatchObject(
@@ -67,27 +65,13 @@ class TestManagerInitHost(BaseManagerTest):
             manager.sys, 'exit')).mock
 
     def assert_periodics(self):
-        outer_cleanup_decorator_call = mock.call(
-            spacing=CONF.clean_up_period)
-        self.mock_periodic.assert_has_calls([
-            outer_cleanup_decorator_call,
-            mock.call()(manager.periodic_clean_up)])
-
-        inner_decorator = self.mock_periodic.return_value
-        inner_cleanup_decorator_call = mock.call(
-            manager.periodic_clean_up)
-        inner_decorator.assert_has_calls([inner_cleanup_decorator_call])
-
         self.mock_ExistingExecutor.assert_called_once_with(
             self.mock_executor.return_value)
 
         periodic_worker = self.mock_PeriodicWorker.return_value
 
-        periodic_sync = self.mock_filter.get_periodic_sync_task.return_value
-        callables = [(periodic_sync, None, None),
-                     (inner_decorator.return_value, None, None)]
         self.mock_PeriodicWorker.assert_called_once_with(
-            callables=callables,
+            callables=mock.ANY,
             executor_factory=self.mock_ExistingExecutor.return_value,
             on_failure=self.manager._periodics_watchdog)
         self.assertIs(periodic_worker, self.manager._periodics_worker)
@@ -302,25 +286,6 @@ class TestManagerDelHost(BaseManagerTest):
         self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
         mock_coordinator.stop.called_once_with()
-
-
-class TestManagerPeriodicWatchDog(BaseManagerTest):
-    def setUp(self):
-        super(TestManagerPeriodicWatchDog, self).setUp()
-        self.mock_get_callable_name = self.useFixture(fixtures.MockPatchObject(
-            manager.reflection, 'get_callable_name')).mock
-        self.mock_spawn = self.useFixture(fixtures.MockPatchObject(
-            manager.eventlet, 'spawn')).mock
-
-    def test__periodics_watchdog(self):
-        error = RuntimeError('Oops!')
-
-        self.manager._periodics_watchdog(
-            callable_=None, activity=None, spacing=None,
-            exc_info=(None, error, None), traceback=None)
-
-        self.mock_get_callable_name.assert_called_once_with(None)
-        self.mock_spawn.assert_called_once_with(self.manager.del_host)
 
 
 class TestManagerIntrospect(BaseManagerTest):
