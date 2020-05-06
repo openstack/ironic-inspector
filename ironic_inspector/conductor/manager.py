@@ -88,10 +88,14 @@ class ConductorManager(object):
             spacing=CONF.clean_up_period
         )(sync_with_ironic)
 
+        callables = [(periodic_clean_up_, None, None),
+                     (sync_with_ironic_, None, None)]
+        driver_task = driver.get_periodic_sync_task()
+        if driver_task is not None:
+            callables.append((driver_task, None, None))
+
         self._periodics_worker = periodics.PeriodicWorker(
-            callables=[(driver.get_periodic_sync_task(), None, None),
-                       (periodic_clean_up_, None, None),
-                       (sync_with_ironic_, None, None)],
+            callables=callables,
             executor_factory=periodics.ExistingExecutor(utils.executor()),
             on_failure=self._periodics_watchdog)
 
