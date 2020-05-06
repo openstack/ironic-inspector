@@ -202,6 +202,9 @@ class BaseFilter(interface.FilterDriver):
 class NoopFilter(BaseFilter):
     """A trivial PXE boot filter."""
 
+    def get_periodic_sync_task(self):
+        return None
+
 
 _DRIVER_MANAGER = None
 
