@@ -103,6 +103,7 @@ fi
 
 # Ironic Inspector tempest variables
 IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT=${IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT:-}
+IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT=${IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT:-}
 
 ### Utilities
 
@@ -551,6 +552,9 @@ elif [[ "$1" == "stack" && "$2" == "test-config" ]]; then
         fi
         if [[ -n "${IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT}" ]]; then
             iniset $TEMPEST_CONFIG baremetal_introspection discovery_timeout $IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT
+        fi
+        if [[ -n "${IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT}" ]]; then
+            iniset $TEMPEST_CONFIG baremetal_introspection introspection_timeout $IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT
         fi
         iniset $TEMPEST_CONFIG baremetal_introspection data_store $IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE
     fi
