@@ -28,6 +28,10 @@ from ironic_inspector.test import base as test_base
 CONF = cfg.CONF
 
 
+class TestFilter(pxe_filter.BaseFilter):
+    pass
+
+
 class TestDriverManager(test_base.BaseTest):
     def setUp(self):
         super(TestDriverManager, self).setUp()
@@ -90,7 +94,7 @@ class BaseFilterBaseTest(test_base.BaseTest):
         self.mock_bounded_semaphore = self.useFixture(
             fixtures.MockPatchObject(semaphore, 'BoundedSemaphore')).mock
         self.mock_bounded_semaphore.return_value = self.mock_lock
-        self.driver = pxe_filter.NoopFilter()
+        self.driver = TestFilter()
 
     def assert_driver_is_locked(self):
         """Assert the driver is currently locked and wasn't locked before."""
@@ -142,10 +146,10 @@ class TestBaseFilterFsmPrecautions(BaseFilterBaseTest):
     def setUp(self):
         super(TestBaseFilterFsmPrecautions, self).setUp()
         self.mock_fsm = self.useFixture(
-            fixtures.MockPatchObject(pxe_filter.NoopFilter, 'fsm')).mock
+            fixtures.MockPatchObject(TestFilter, 'fsm')).mock
         # NOTE(milan): overriding driver so that the patch ^ is applied
         self.mock_bounded_semaphore.reset_mock()
-        self.driver = pxe_filter.NoopFilter()
+        self.driver = TestFilter()
         self.mock_reset = self.useFixture(
             fixtures.MockPatchObject(self.driver, 'reset')).mock
 
@@ -168,7 +172,7 @@ class TestBaseFilterFsmPrecautions(BaseFilterBaseTest):
                 raise automaton_errors.NotFound('Oops!')
 
         self.assertRaisesRegex(pxe_filter.InvalidFilterDriverState,
-                               '.*NoopFilter.*Oops!', fun)
+                               '.*TestFilter.*Oops!', fun)
         self.mock_reset.assert_not_called()
 
     def test_fsm_reset_on_error_ctx_custom_error(self):
