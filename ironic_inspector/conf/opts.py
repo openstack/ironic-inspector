@@ -34,7 +34,10 @@ def set_config_defaults():
                                          'keystoneauth=WARNING',
                                          'ironicclient=WARNING',
                                          'amqp=WARNING',
-                                         'amqplib=WARNING'])
+                                         'amqplib=WARNING',
+                                         # This comes in two flavors
+                                         'oslo.messaging=WARNING',
+                                         'oslo_messaging=WARNING'])
     set_cors_middleware_defaults()
 
 
