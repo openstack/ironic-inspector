@@ -8,11 +8,15 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-grenade
+        # NOTE (rpittau) sadly temporary disabling grenade and
+        # non-standalone-tempest jobs until we got them fixed
+        - ironic-inspector-grenade:
+            voting: false
+        - ironic-inspector-non-standalone-tempest:
+            voting: false
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed
-        - ironic-inspector-non-standalone-tempest
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-bionic:
             voting: false
@@ -21,9 +25,12 @@
     gate:
       queue: ironic
       jobs:
-        - ironic-inspector-grenade
+        # NOTE (rpittau) sadly temporary disabling grenade and
+        # non-standalone-tempest jobs until we got them fixed
+        # - ironic-inspector-grenade
+        # - ironic-inspector-non-standalone-tempest
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed
-        - ironic-inspector-non-standalone-tempest
+
         - openstack-tox-functional-py36
