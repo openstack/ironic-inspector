@@ -24,35 +24,6 @@ installing **ironic-inspector** manually.
     Please beware of :ref:`possible DNS issues <ubuntu-dns>` when installing
     **ironic-inspector** on Ubuntu.
 
-Version Support Matrix
-----------------------
-
-**ironic-inspector** currently requires the Bare Metal API version
-``1.11`` to be provided by **ironic**. This version is available starting
-with the Liberty release of **ironic**.
-
-Here is a mapping between the ironic versions and the supported
-ironic-inspector versions. The Standalone column shows which
-ironic-inspector versions can be used in standalone mode with each
-ironic version. The Inspection Interface column shows which
-ironic-inspector versions can be used with the inspection interface in
-each version of **ironic**.
-
-============== ============ ====================
-Ironic Version Standalone   Inspection Interface
-============== ============ ====================
-Juno           1.0          N/A
-Kilo           1.0 - 2.2    1.0 - 1.1
-Liberty        1.1 - 2.2.7  2.0 - 2.2.7
-Mitaka         2.3 - 3.X    2.3 - 3.X
-Newton         3.3 - 4.X    3.3 - 4.X
-Ocata+         5.0 - 5.X    5.0 - 5.X
-============== ============ ====================
-
-.. note::
-    ``3.X`` means there are no specific plans to deprecate support for this
-    ironic version. This does not imply that it will be supported forever.
-
 Sample Configuration Files
 --------------------------
 
