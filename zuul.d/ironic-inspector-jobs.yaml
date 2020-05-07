@@ -46,8 +46,8 @@
         ironic-inspector-dhcp: True
 
 - job:
-    name: ironic-inspector-non-standalone-tempest
-    description: Execute python3 tempest tests for ironic-inspector running in non-standalone mode
+    name: ironic-inspector-tempest-managed-non-standalone
+    description: The boot is managed by ironic, ironic-inspector runs in non-standalone mode.
     parent: ironic-inspector-base
     vars:
       tempest_test_timeout: 3600
@@ -56,6 +56,9 @@
         IRONIC_DEFAULT_BOOT_OPTION: netboot
         IRONIC_INSPECTOR_STANDALONE: False
         IRONIC_TEMPEST_BUILD_TIMEOUT: 3600
+        IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT: 1200
+        IRONIC_INSPECTOR_MANAGED_BOOT: True
+        IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: ''
       devstack_services:
         s-account: True
         s-container: True
@@ -80,16 +83,6 @@
         IRONIC_IPXE_ENABLED: True
         IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
         IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE: database
-
-- job:
-    name: ironic-inspector-tempest-managed
-    description: A job with boot managed by ironic
-    parent: ironic-inspector-base
-    vars:
-      devstack_localrc:
-        IRONIC_DEFAULT_BOOT_OPTION: netboot
-        IRONIC_INSPECTOR_MANAGED_BOOT: True
-        IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: ''
 
 - job:
     # Security testing for known issues
@@ -186,3 +179,7 @@
       - ^setup.cfg$
       - ^tools/.*$
       - ^tox.ini$
+
+- job:
+    name: ironic-inspector-tempest-managed
+    parent: ironic-inspector-tempest-managed-non-standalone
