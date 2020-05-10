@@ -1,0 +1,4 @@
+---
+deprecations:
+  - |
+    The deprecated ``[swift]max_retries`` parameter has been removed.
