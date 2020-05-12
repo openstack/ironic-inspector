@@ -61,7 +61,10 @@ def introspect(node_id, manage_boot=True, token=None):
                                                manage_boot=manage_boot,
                                                ironic=ironic)
 
-    utils.executor().submit(_background_introspect, node_info, ironic)
+    if manage_boot:
+        utils.executor().submit(_do_introspect, node_info, ironic)
+    else:
+        _do_introspect(node_info, ironic)
 
 
 def _persistent_ramdisk_boot(node):
@@ -91,7 +94,7 @@ def _wait_for_turn(node_info):
 
 @node_cache.release_lock
 @node_cache.fsm_transition(istate.Events.wait)
-def _background_introspect(node_info, ironic):
+def _do_introspect(node_info, ironic):
     node_info.acquire_lock()
 
     # TODO(dtantsur): pagination
