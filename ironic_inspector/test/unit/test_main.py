@@ -582,8 +582,8 @@ class TestApiVersions(BaseAPITest):
     @mock.patch.object(main._app.url_map, "iter_rules", autospec=True)
     def test_version_endpoint(self, mock_rules):
         mock_rules.return_value = ["/v1/endpoint1", "/v1/endpoint2/<uuid>",
-                                   "/v1/endpoint1/<name>",
-                                   "/v2/endpoint1", "/v1/endpoint3",
+                                   "/v1/endpoint1/<name>/",
+                                   "/v2/endpoint1", "/v1/endpoint3/",
                                    "/v1/endpoint2/<uuid>/subpoint"]
         endpoint = "/v1"
         res = self.app.get(endpoint)
@@ -605,6 +605,12 @@ class TestApiVersions(BaseAPITest):
             },
         ]}
         self.assertEqual(expected, json_data)
+
+    def test_version_endpoint_with_slash(self):
+        endpoint = "/v1/"
+        res = self.app.get(endpoint)
+        self.assertEqual(200, res.status_code)
+        self._check_version_present(res)
 
     def test_version_endpoint_invalid(self):
         endpoint = "/v-1"

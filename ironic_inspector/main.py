@@ -172,8 +172,9 @@ def add_version_headers(res):
 def create_link_object(urls):
     links = []
     for url in urls:
-        links.append({"rel": "self",
-                      "href": os.path.join(flask.request.url_root, url)})
+        links.append({
+            "rel": "self",
+            "href": os.path.join(flask.request.url_root, url).rstrip('/')})
     return links
 
 
@@ -181,7 +182,7 @@ def generate_resource_data(resources):
     data = []
     for resource in resources:
         item = {}
-        item['name'] = str(resource).split('/')[-1]
+        item['name'] = str(resource).rstrip('/').split('/')[-1]
         item['links'] = create_link_object([str(resource)[1:]])
         data.append(item)
     return data
@@ -226,6 +227,11 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
                              and strings to format the 'rule' string with
     :param kwargs: all the rest kwargs are passed to flask app.route
     """
+    # Force uniform behavior with regards to trailing slashes
+    if not path.endswith('/'):
+        path = path + '/'
+    flask_kwargs['strict_slashes'] = False
+
     def outer(func):
         @_app.route(path, **flask_kwargs)
         @convert_exceptions
@@ -264,7 +270,7 @@ def api_root():
 @api('/<version>', rule='introspection:version', is_public_api=True,
      methods=['GET'])
 def version_root(version):
-    pat = re.compile(r'^\/%s\/[^\/]*?$' % version)
+    pat = re.compile(r'^\/%s\/[^\/]*?/?$' % version)
 
     resources = []
     for url in _app.url_map.iter_rules():
@@ -272,7 +278,7 @@ def version_root(version):
             resources.append(url)
 
     if not resources:
-        raise utils.Error(_('Version not found.'), code=404)
+        raise utils.Error(_('Version %s not found.') % version, code=404)
 
     return flask.jsonify(resources=generate_resource_data(resources))
 
@@ -392,7 +398,7 @@ def api_introspection_reapply(node_id):
 def rule_repr(rule, short):
     result = rule.as_dict(short=short)
     result['links'] = [{
-        'href': flask.url_for('api_rule', uuid=result['uuid']),
+        'href': flask.url_for('api_rule', uuid=result['uuid']).rstrip('/'),
         'rel': 'self'
     }]
     return result
