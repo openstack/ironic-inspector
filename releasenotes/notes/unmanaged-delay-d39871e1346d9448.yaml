@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    No longer uses introspection delay for nodes with ``manage_boot==False``
+    (i.e. boot is managed by ironic). It is useless and may actually break
+    introspection if a node boots before it gets whitelisted in the PXE filter.
