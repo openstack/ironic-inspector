@@ -58,7 +58,9 @@ _OPTS = [
                help=_('The green thread pool size.')),
     cfg.IntOpt('introspection_delay',
                default=5,
-               help=_('Delay (in seconds) between two introspections.')),
+               help=_('Delay (in seconds) between two introspections. Only '
+                      'applies when boot is managed by ironic-inspector (i.e. '
+                      'manage_boot==True).')),
     cfg.ListOpt('ipmi_address_fields',
                 default=['ilo_address', 'drac_host', 'drac_address',
                          'cimc_address'],

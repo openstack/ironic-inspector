@@ -64,25 +64,6 @@ def introspect(node_id, manage_boot=True, token=None):
     utils.executor().submit(_background_introspect, node_info, ironic)
 
 
-@node_cache.release_lock
-@node_cache.fsm_transition(istate.Events.wait)
-def _background_introspect(node_info, ironic):
-    global _LAST_INTROSPECTION_TIME
-
-    LOG.debug('Attempting to acquire lock on last introspection time')
-    with _LAST_INTROSPECTION_LOCK:
-        delay = (_LAST_INTROSPECTION_TIME - time.time()
-                 + CONF.introspection_delay)
-        if delay > 0:
-            LOG.debug('Waiting %d seconds before sending the next '
-                      'node on introspection', delay)
-            time.sleep(delay)
-        _LAST_INTROSPECTION_TIME = time.time()
-
-    node_info.acquire_lock()
-    _background_introspect_locked(node_info, ironic)
-
-
 def _persistent_ramdisk_boot(node):
     """If the ramdisk should be configured as a persistent boot device."""
     value = node.driver_info.get('force_persistent_boot_device', 'Default')
@@ -92,7 +73,27 @@ def _persistent_ramdisk_boot(node):
         return strutils.bool_from_string(value, False)
 
 
-def _background_introspect_locked(node_info, ironic):
+def _wait_for_turn(node_info):
+    """Wait for the node's turn to be introspected."""
+    global _LAST_INTROSPECTION_TIME
+
+    LOG.debug('Attempting to acquire lock on last introspection time',
+              node_info=node_info)
+    with _LAST_INTROSPECTION_LOCK:
+        delay = (_LAST_INTROSPECTION_TIME - time.time()
+                 + CONF.introspection_delay)
+        if delay > 0:
+            LOG.debug('Waiting %d seconds before sending the next '
+                      'node on introspection', delay, node_info=node_info)
+            time.sleep(delay)
+        _LAST_INTROSPECTION_TIME = time.time()
+
+
+@node_cache.release_lock
+@node_cache.fsm_transition(istate.Events.wait)
+def _background_introspect(node_info, ironic):
+    node_info.acquire_lock()
+
     # TODO(dtantsur): pagination
     macs = list(node_info.ports())
     if macs:
@@ -120,6 +121,8 @@ def _background_introspect_locked(node_info, ironic):
         except Exception as exc:
             raise utils.Error(_('Failed to set boot device to PXE: %s') % exc,
                               node_info=node_info)
+
+        _wait_for_turn(node_info)
 
         try:
             ironic.node.set_power_state(node_info.uuid, 'reboot')

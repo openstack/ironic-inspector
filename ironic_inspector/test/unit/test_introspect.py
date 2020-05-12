@@ -401,6 +401,24 @@ class TestIntrospect(BaseTest):
         # updated to the current time.time()
         self.assertEqual(42, introspect._LAST_INTROSPECTION_TIME)
 
+    @mock.patch.object(time, 'time', autospec=True)
+    def test_introspection_no_delay_without_manage_boot(self, time_mock,
+                                                        client_mock,
+                                                        start_mock):
+        time_mock.return_value = 42
+        introspect._LAST_INTROSPECTION_TIME = 40
+        CONF.set_override('introspection_delay', 10)
+
+        self._prepare(client_mock)
+        start_mock.return_value = self.node_info
+        self.node_info.manage_boot = False
+
+        introspect.introspect(self.uuid, manage_boot=False)
+
+        self.assertFalse(self.sleep_fixture.mock.called)
+        # not updated
+        self.assertEqual(40, introspect._LAST_INTROSPECTION_TIME)
+
     @mock.patch.object(time, 'time')
     def test_introspection_delay_not_needed(self, time_mock, client_mock,
                                             start_mock):
