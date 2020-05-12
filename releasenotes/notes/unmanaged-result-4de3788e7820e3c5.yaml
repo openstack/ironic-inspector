@@ -1,0 +1,6 @@
+---
+fixes:
+  - |
+    The introspection start API is now synchronous when ``manage_boot==False``.
+    This means that any failures will be propagated to ironic, preventing it
+    from powering a node on and booting it without the PXE filter updated.
