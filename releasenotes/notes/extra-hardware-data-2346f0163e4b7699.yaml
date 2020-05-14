@@ -1,0 +1,7 @@
+---
+upgrade:
+  - |
+    The raw data from the ``extra_hardware`` processing hook is no longer
+    stored in Swift in an object named ``extra_hardware-<node UUID>``.
+    The same information is already available as part of the unprocessed
+    introspection data without a hard dependency on Swift.

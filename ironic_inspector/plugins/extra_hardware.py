@@ -18,9 +18,6 @@ string in a Swift object. The object is named 'extra_hardware-<node uuid>' and
 is stored in the 'inspector' container.
 """
 
-import json
-
-from ironic_inspector.common import swift
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
@@ -30,11 +27,6 @@ EDEPLOY_ITEM_SIZE = 4
 
 class ExtraHardwareHook(base.ProcessingHook):
     """Processing hook for saving extra hardware information in Swift."""
-
-    def _store_extra_hardware(self, name, data):
-        """Handles storing the extra hardware data from the ramdisk"""
-        swift_api = swift.SwiftAPI()
-        swift_api.create_object(name, data)
 
     def before_update(self, introspection_data, node_info, **kwargs):
         """Stores the 'data' key from introspection_data in Swift.
@@ -51,17 +43,6 @@ class ExtraHardwareHook(base.ProcessingHook):
                         data=introspection_data)
             return
         data = introspection_data['data']
-
-        name = 'extra_hardware-%s' % node_info.uuid
-        try:
-            self._store_extra_hardware(name, json.dumps(data))
-        except utils.Error as e:
-            LOG.error("Failed to save extra hardware information in "
-                      "Swift: %s", e, node_info=node_info)
-        else:
-            node_info.patch([{'op': 'add',
-                              'path': '/extra/hardware_swift_object',
-                              'value': name}])
 
         # NOTE(sambetts) If data is edeploy format, convert to dicts for rules
         # processing, store converted data in introspection_data['extra'].
