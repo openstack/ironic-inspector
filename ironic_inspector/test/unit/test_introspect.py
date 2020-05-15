@@ -46,11 +46,23 @@ class BaseTest(test_base.NodeTest):
         driver_mock = driver_fixture.mock.return_value
         self.sync_filter_mock = driver_mock.sync
 
+        self.async_exc = None
+        executor_fixture = self.useFixture(fixtures.MockPatchObject(
+            utils, 'executor', autospec=True))
+        self.submit_mock = executor_fixture.mock.return_value.submit
+        self.submit_mock.side_effect = self._submit
+
     def _prepare(self, client_mock):
         cli = client_mock.return_value
         cli.get_node.return_value = self.node
         cli.validate_node.return_value = mock.Mock(power={'result': True})
         return cli
+
+    def _submit(self, func, *args, **kwargs):
+        if self.async_exc:
+            self.assertRaisesRegex(*self.async_exc, func, *args, **kwargs)
+        else:
+            return func(*args, **kwargs)
 
 
 @mock.patch.object(node_cache, 'start_introspection', autospec=True)
@@ -153,6 +165,7 @@ class TestIntrospect(BaseTest):
         cli.set_node_power_state.side_effect = os_exc.BadRequestException()
         start_mock.return_value = self.node_info
 
+        self.async_exc = (utils.Error, 'Failed to power on')
         introspect.introspect(self.node.uuid)
 
         cli.get_node.assert_called_once_with(self.uuid)
@@ -176,6 +189,7 @@ class TestIntrospect(BaseTest):
         start_mock.return_value = self.node_info
         self.sync_filter_mock.side_effect = RuntimeError()
 
+        self.async_exc = (RuntimeError, '.*')
         introspect.introspect(self.node.uuid)
 
         cli.get_node.assert_called_once_with(self.uuid)
@@ -195,6 +209,7 @@ class TestIntrospect(BaseTest):
         cli.set_node_boot_device.side_effect = os_exc.BadRequestException()
         start_mock.return_value = self.node_info
 
+        self.async_exc = (utils.Error, 'Failed to set boot device')
         introspect.introspect(self.node.uuid)
 
         cli.get_node.assert_called_once_with(self.uuid)
@@ -293,6 +308,7 @@ class TestIntrospect(BaseTest):
         start_mock.return_value = self.node_info
         self.node_info.attributes = {}
 
+        self.async_exc = (utils.Error, 'No lookup attributes')
         introspect.introspect(self.uuid)
 
         self.node_info.ports.assert_called_once_with()
