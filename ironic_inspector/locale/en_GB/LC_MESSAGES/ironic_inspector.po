@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ironic-inspector VERSION\n"
 "Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
-"POT-Creation-Date: 2020-04-27 23:04+0000\n"
+"POT-Creation-Date: 2020-05-15 14:11+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -143,9 +143,6 @@ msgstr ""
 
 msgid "Default Swift container to use when creating objects."
 msgstr "Default Swift container to use when creating objects."
-
-msgid "Delay (in seconds) between two introspections."
-msgstr "Delay (in seconds) between two introspections."
 
 #, python-format
 msgid "Encountered an exception while getting the Ironic client: %s"
@@ -615,9 +612,6 @@ msgstr ""
 
 msgid "The target storage where the introspected data will be saved to."
 msgstr "The target storage where the introspected data will be saved to."
-
-msgid "This option is deprecated and has no effect."
-msgstr "This option is deprecated and has no effect."
 
 msgid ""
 "Timeout after which introspection is considered failed, set to 0 to disable."
