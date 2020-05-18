@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Fixes accessing API endpoints with trailing slashes. Now they're treated
+    the same way as without slashes, although the latter remain canonical URLs.
