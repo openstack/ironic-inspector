@@ -19,9 +19,10 @@ try:
 except ImportError:
     openstackdocstheme = None
 
-repository_name = 'openstack/ironic-inspector'
-use_storyboard = True
-openstack_projects = [
+openstackdocs_repo_name = 'openstack/ironic-inspector'
+openstackdocs_pdf_link = True
+openstackdocs_use_storyboard = True
+openstackdocs_projects = [
     'bifrost',
     'devstack',
     'ironic',
@@ -78,7 +79,7 @@ add_function_parentheses = True
 add_module_names = True
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'native'
 
 # NOTE(cinerama): mock out nova modules so docs can build without warnings
 #import mock

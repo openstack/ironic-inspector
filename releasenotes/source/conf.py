@@ -47,10 +47,9 @@ try:
 except ImportError:
     openstackdocstheme = None
 
-repository_name = 'openstack/ironic-inspector'
-bug_project = 'ironic-inspector'
-bug_tag = ''
-html_last_updated_fmt = '%Y-%m-%d %H:%M'
+openstackdocs_repo_name = 'openstack/ironic-inspector'
+openstackdocs_use_storyboard = True
+openstackdocs_auto_name = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -104,7 +103,7 @@ exclude_patterns = []
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = 'native'
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
