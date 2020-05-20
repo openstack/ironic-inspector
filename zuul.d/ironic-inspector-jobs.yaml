@@ -90,6 +90,7 @@
         IRONIC_DEFAULT_BOOT_OPTION: netboot
         IRONIC_INSPECTOR_MANAGED_BOOT: True
         IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: ''
+        IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT: 1200
 
 - job:
     # Security testing for known issues
