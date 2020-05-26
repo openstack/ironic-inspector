@@ -10,7 +10,7 @@ fixtures==3.0.0
 flake8-import-order==0.17.1
 Flask==1.0
 futurist==1.2.0
-hacking==3.0.0
+hacking==3.0.1
 ironic-lib==2.17.0
 jsonpath-rw==1.2.0
 jsonschema==2.6.0
