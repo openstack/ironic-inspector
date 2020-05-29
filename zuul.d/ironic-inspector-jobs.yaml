@@ -20,12 +20,17 @@
       tox_envlist: all
       tempest_test_regex: Inspector
       tempest_concurrency: 1
+      tempest_test_timeout: 2400
       devstack_localrc:
+        BUILD_TIMEOUT: 2400
         IRONIC_VM_EPHEMERAL_DISK: 0
         IRONIC_AUTOMATED_CLEAN_ENABLED: False
         IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: enroll
         IRONIC_INSPECTOR_CLEAN_UP_PERIOD: 5
         IRONIC_INSPECTOR_DHCP_FILTER: iptables
+        IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT: 600
+        IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT: 1200
+        IRONIC_TEMPEST_BUILD_TIMEOUT: 2400
         SWIFT_ENABLE_TEMPURLS: True
         SWIFT_TEMPURL_KEY: secretkey
       devstack_plugins:
@@ -51,7 +56,6 @@
         IRONIC_DEFAULT_BOOT_OPTION: netboot
         IRONIC_INSPECTOR_STANDALONE: False
         IRONIC_TEMPEST_BUILD_TIMEOUT: 3600
-        IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT: 600
       devstack_services:
         s-account: True
         s-container: True
@@ -69,29 +73,23 @@
     parent: ironic-inspector-base
     vars:
       tempest_test_regex: InspectorDiscoveryTest
-      tempest_test_timeout: 2400
       devstack_localrc:
-        BUILD_TIMEOUT: 2400
         IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA: True
         IRONIC_DEFAULT_DEPLOY_INTERFACE: direct
         IRONIC_TEMPEST_WHOLE_DISK_IMAGE: True
         IRONIC_IPXE_ENABLED: True
         IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
         IRONIC_INSPECTOR_INTROSPECTION_DATA_STORE: database
-        IRONIC_TEMPEST_BUILD_TIMEOUT: 2400
-        IRONIC_INSPECTOR_TEMPEST_DISCOVERY_TIMEOUT: 600
 
 - job:
     name: ironic-inspector-tempest-managed
     description: A job with boot managed by ironic
     parent: ironic-inspector-base
     vars:
-      tempest_test_timeout: 2400
       devstack_localrc:
         IRONIC_DEFAULT_BOOT_OPTION: netboot
         IRONIC_INSPECTOR_MANAGED_BOOT: True
         IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: ''
-        IRONIC_INSPECTOR_TEMPEST_INTROSPECTION_TIMEOUT: 1200
 
 - job:
     # Security testing for known issues
