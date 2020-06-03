@@ -76,6 +76,11 @@ class TestCheckAuth(base.BaseTest):
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         utils.check_auth(request)
 
+    def test_basic(self):
+        self.cfg.config(auth_strategy='http_basic')
+        request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
+        utils.check_auth(request)
+
     def test_public_api(self):
         request = mock.Mock(headers={'X-Identity-Status': 'Invalid'})
         request.context = context.RequestContext(is_public_api=True)

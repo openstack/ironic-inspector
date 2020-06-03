@@ -35,10 +35,17 @@ _OPTS = [
                       'hostname, FQDN, or IP address.')),
     cfg.StrOpt('auth_strategy',
                default='keystone',
-               choices=('keystone', 'noauth'),
+               choices=[('noauth', _('no authentication')),
+                        ('keystone', _('use the Identity service for '
+                                       'authentication')),
+                        ('http_basic', _('HTTP basic authentication'))],
                help=_('Authentication method used on the ironic-inspector '
-                      'API. Either "noauth" or "keystone" are currently valid '
+                      'API. "noauth", "keystone" or "http_basic" are valid '
                       'options. "noauth" will disable all authentication.')),
+    cfg.StrOpt('http_basic_auth_user_file',
+               default='/etc/ironic-inspector/htpasswd',
+               help=_('Path to Apache format user authentication file used '
+                      'when auth_strategy=http_basic')),
     cfg.IntOpt('timeout',
                default=3600,
                # We're using timedelta which can overflow if somebody sets this

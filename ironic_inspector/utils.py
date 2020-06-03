@@ -15,6 +15,7 @@ import datetime
 import logging as pylog
 
 import futurist
+from ironic_lib import auth_basic
 from keystonemiddleware import auth_token
 from openstack.baremetal.v1 import node
 from oslo_config import cfg
@@ -187,6 +188,15 @@ def add_auth_middleware(app):
     app.wsgi_app = auth_token.AuthProtocol(app.wsgi_app, auth_conf)
 
 
+def add_basic_auth_middleware(app):
+    """Add HTTP Basic authentication middleware to Flask application.
+
+    :param app: application.
+    """
+    app.wsgi_app = auth_basic.BasicAuthMiddleware(
+        app.wsgi_app, CONF.http_basic_auth_user_file)
+
+
 def add_cors_middleware(app):
     """Create a CORS wrapper
 
@@ -206,7 +216,7 @@ def check_auth(request, rule=None, target=None):
     :param target: dict-like structure to check rule against
     :raises: utils.Error if access is denied
     """
-    if CONF.auth_strategy == 'noauth':
+    if CONF.auth_strategy != 'keystone':
         return
     if not request.context.is_public_api:
         if request.headers.get('X-Identity-Status', '').lower() == 'invalid':
