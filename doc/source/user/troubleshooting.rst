@@ -46,6 +46,17 @@ option is set, **ironic-inspector** will store logs received from the ramdisk
 to the ``ramdisk_logs_dir`` directory. This depends, however, on the ramdisk
 implementation.
 
+A local cache miss during data processing would leave a message like:
+
+.. code-block:: bash
+
+    ERROR ironic_python_agent.inspector [-] inspectorerror 400: {"error":{"message":"The following failures happened during running pre-processing hooks:\nLook up error: Could not find a node for attributes {'bmc_address': u'10.x.y.z', 'mac': [u'00:aa:bb:cc:dd:ee', u'00:aa:bb:cc:dd:ef']}"}}
+
+One potential explanation for such an error is a misconfiguration in the BMC
+where a channel with the wrong IP address is active (and hence detected and
+reported back by the Ironic Python Agent), but can then not be matched to the
+IP address Ironic has in its cache for this node.
+
 Troubleshooting PXE boot
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
