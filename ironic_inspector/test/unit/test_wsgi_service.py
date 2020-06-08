@@ -38,6 +38,8 @@ class TestWSGIServiceInitMiddleware(BaseWSGITest):
         super(TestWSGIServiceInitMiddleware, self).setUp()
         self.mock_add_auth_middleware = self.useFixture(
             fixtures.MockPatchObject(utils, 'add_auth_middleware')).mock
+        self.mock_add_basic_auth_middleware = self.useFixture(
+            fixtures.MockPatchObject(utils, 'add_basic_auth_middleware')).mock
         self.mock_add_cors_middleware = self.useFixture(
             fixtures.MockPatchObject(utils, 'add_cors_middleware')).mock
         self.mock_log = self.useFixture(fixtures.MockPatchObject(
@@ -49,6 +51,14 @@ class TestWSGIServiceInitMiddleware(BaseWSGITest):
     def test_init_middleware(self):
         wsgi_service.WSGIService()
         self.mock_add_auth_middleware.assert_called_once_with(self.app)
+        self.mock_add_cors_middleware.assert_called_once_with(self.app)
+
+    def test_init_middleware_basic(self):
+        CONF.set_override('auth_strategy', 'http_basic')
+        wsgi_service.WSGIService()
+
+        self.mock_add_auth_middleware.assert_not_called()
+        self.mock_add_basic_auth_middleware.assert_called_once_with(self.app)
         self.mock_add_cors_middleware.assert_called_once_with(self.app)
 
     def test_init_middleware_noauth(self):

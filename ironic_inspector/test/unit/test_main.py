@@ -13,6 +13,8 @@
 
 import datetime
 import json
+import os
+import tempfile
 import unittest
 from unittest import mock
 
@@ -44,11 +46,16 @@ def _get_error(res):
 
 
 class BaseAPITest(test_base.BaseTest):
+
+    def init_app(self):
+        CONF.set_override('auth_strategy', 'noauth')
+        main._app.testing = True
+        self.app = main.get_app().test_client()
+        self.headers = {}
+
     def setUp(self):
         super(BaseAPITest, self).setUp()
-        main._app.config['TESTING'] = True
-        self.app = main._app.test_client()
-        CONF.set_override('auth_strategy', 'noauth')
+        self.init_app()
         self.uuid = uuidutils.generate_uuid()
         self.rpc_get_client_mock = self.useFixture(
             fixtures.MockPatchObject(rpc, 'get_client', autospec=True)).mock
@@ -57,10 +64,11 @@ class BaseAPITest(test_base.BaseTest):
 
 
 class TestApiIntrospect(BaseAPITest):
-    def test_introspect_no_authentication(self):
-        CONF.set_override('auth_strategy', 'noauth')
 
-        res = self.app.post('/v1/introspection/%s' % self.uuid)
+    def test_introspect(self):
+
+        res = self.app.post('/v1/introspection/%s' % self.uuid,
+                            headers=self.headers)
 
         self.assertEqual(202, res.status_code)
         self.client_mock.call.assert_called_once_with({}, 'do_introspection',
@@ -70,7 +78,8 @@ class TestApiIntrospect(BaseAPITest):
 
     def test_intospect_failed(self):
         self.client_mock.call.side_effect = utils.Error("boom")
-        res = self.app.post('/v1/introspection/%s' % self.uuid)
+        res = self.app.post('/v1/introspection/%s' % self.uuid,
+                            headers=self.headers)
 
         self.assertEqual(400, res.status_code)
         self.assertEqual(
@@ -82,7 +91,8 @@ class TestApiIntrospect(BaseAPITest):
                                                       token=None)
 
     def test_introspect_no_manage_boot(self):
-        res = self.app.post('/v1/introspection/%s?manage_boot=0' % self.uuid)
+        res = self.app.post('/v1/introspection/%s?manage_boot=0' % self.uuid,
+                            headers=self.headers)
         self.assertEqual(202, res.status_code)
         self.client_mock.call.assert_called_once_with({}, 'do_introspection',
                                                       node_id=self.uuid,
@@ -91,7 +101,8 @@ class TestApiIntrospect(BaseAPITest):
 
     def test_introspect_can_manage_boot_false(self):
         CONF.set_override('can_manage_boot', False)
-        res = self.app.post('/v1/introspection/%s?manage_boot=0' % self.uuid)
+        res = self.app.post('/v1/introspection/%s?manage_boot=0' % self.uuid,
+                            headers=self.headers)
         self.assertEqual(202, res.status_code)
         self.client_mock.call.assert_called_once_with({}, 'do_introspection',
                                                       node_id=self.uuid,
@@ -100,12 +111,14 @@ class TestApiIntrospect(BaseAPITest):
 
     def test_introspect_can_manage_boot_false_failed(self):
         CONF.set_override('can_manage_boot', False)
-        res = self.app.post('/v1/introspection/%s' % self.uuid)
+        res = self.app.post('/v1/introspection/%s' % self.uuid,
+                            headers=self.headers)
         self.assertEqual(400, res.status_code)
         self.assertFalse(self.client_mock.call.called)
 
     def test_introspect_wrong_manage_boot(self):
-        res = self.app.post('/v1/introspection/%s?manage_boot=foo' % self.uuid)
+        res = self.app.post('/v1/introspection/%s?manage_boot=foo' % self.uuid,
+                            headers=self.headers)
         self.assertEqual(400, res.status_code)
         self.assertFalse(self.client_mock.call.called)
         self.assertEqual(
@@ -120,6 +133,30 @@ class TestApiIntrospect(BaseAPITest):
                             headers={'X-Auth-Token': 'token'})
         self.assertEqual(403, res.status_code)
         self.assertFalse(self.client_mock.call.called)
+
+
+class TestBasicAuthApiIntrospect(TestApiIntrospect):
+
+    def init_app(self):
+        CONF.set_override('auth_strategy', 'http_basic')
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            f.write('myName:$2y$05$lE3eGtyj41jZwrzS87KTqe6.'
+                    'JETVCWBkc32C63UP2aYrGoYOEpbJm\n\n\n')
+            self.addCleanup(os.remove, f.name)
+            CONF.set_override('http_basic_auth_user_file', f.name)
+        main._app.config['TESTING'] = True
+        self.app = main.get_app().test_client()
+
+        # base64 encode myName:myPassword
+        self.headers = {'Authorization': 'Basic bXlOYW1lOm15UGFzc3dvcmQ='}
+
+    def test_introspect_failed_authentication(self):
+        # base64 encode myName:yourPassword
+        self.headers = {'Authorization': 'Basic bXlOYW1lOnlvdXJQYXNzd29yZA=='}
+
+        res = self.app.post('/v1/introspection/%s' % self.uuid,
+                            headers=self.headers)
+        self.assertEqual(401, res.status_code)
 
 
 class TestApiContinue(BaseAPITest):

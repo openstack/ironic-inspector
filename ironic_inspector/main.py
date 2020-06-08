@@ -38,6 +38,8 @@ CONF = ironic_inspector.conf.CONF
 
 
 _app = flask.Flask(__name__)
+_wsgi_app = _app.wsgi_app
+
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
@@ -51,8 +53,13 @@ def _init_middleware():
 
     :returns: None
     """
-    if CONF.auth_strategy != 'noauth':
+
+    # ensure original root app is restored before wrapping it
+    _app.wsgi_app = _wsgi_app
+    if CONF.auth_strategy == 'keystone':
         utils.add_auth_middleware(_app)
+    elif CONF.auth_strategy == 'http_basic':
+        utils.add_basic_auth_middleware(_app)
     else:
         LOG.warning('Starting unauthenticated, please check'
                     ' configuration')
