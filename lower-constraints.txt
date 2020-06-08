@@ -49,7 +49,6 @@ kombu==4.6.8
 linecache2==1.0.0
 Mako==1.1.2
 MarkupSafe==1.1.1
-mock==3.0.0
 monotonic==1.5
 mox3==1.0.0
 msgpack==1.0.0
