@@ -413,7 +413,7 @@ For example, setup ``$TFTPROOT/EFI/BOOT/grub.cfg`` as following::
     }
 
 Prepare specific grub config for each existing architectures, e.g.
-``grub-arm64.cfg`` for ARM64 and ``grub-i386.cfg`` for x86.
+``grub-arm64.cfg`` for ARM64 and ``grub-x86_64.cfg`` for x86_64.
 
 Update dnsmasq configuration to contain options for supported architectures.
 
