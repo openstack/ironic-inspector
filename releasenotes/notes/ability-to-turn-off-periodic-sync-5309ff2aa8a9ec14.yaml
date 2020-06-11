@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Adds the ability for periodic clean-up and synchronization tasks with
+    ``ironic`` to be able to be disabled by setting the
+    ``[DEFAULT]clean_up_period`` to a value of ``0``. This is intended for
+    "stand-alone" operators only as it may result in unexpected behaviors if
+    used in a non-standalone environment.

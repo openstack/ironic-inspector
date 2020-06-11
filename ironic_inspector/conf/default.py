@@ -55,8 +55,15 @@ _OPTS = [
                       'failed, set to 0 to disable.')),
     cfg.IntOpt('clean_up_period',
                default=60,
+               min=0,
                help=_('Amount of time in seconds, after which repeat clean up '
-                      'of timed out nodes and old nodes status information.')),
+                      'of timed out nodes and old nodes status information. '
+                      'WARNING: If set to a value of 0, then the periodic '
+                      'task is disabled and inspector will not sync with '
+                      'ironic to complete the internal clean-up process. '
+                      'Not advisable if the deployment uses a PXE filter, '
+                      'and will result in the ironic-inspector ceasing '
+                      'periodic cleanup activities.')),
     cfg.BoolOpt('use_ssl',
                 default=False,
                 help=_('SSL Enabled/Disabled')),
@@ -90,7 +97,7 @@ _OPTS = [
                        'endpoint via multicast DNS.')),
     cfg.BoolOpt('standalone', default=True,
                 help=_('Whether to run ironic-inspector as a standalone '
-                       'service. It\'s EXPERIMENTAL to set to False.'))
+                       'service. It\'s EXPERIMENTAL to set to False.')),
 ]
 
 
