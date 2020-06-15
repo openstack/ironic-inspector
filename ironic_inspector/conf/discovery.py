@@ -21,6 +21,8 @@ _OPTS = [
                default='fake-hardware',
                help=_('The name of the Ironic driver used by the enroll '
                       'hook when creating a new node in Ironic.')),
+    cfg.DictOpt('enroll_node_fields', default={},
+                help=_('Additional fields to set on newly discovered nodes.')),
     cfg.ListOpt('enabled_bmc_address_version',
                 default=['4', '6'],
                 help=_('IP version of BMC address that will be '
