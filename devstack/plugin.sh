@@ -153,7 +153,7 @@ function start_inspector {
     if [[ "$IRONIC_INSPECTOR_STANDALONE" == "True" ]]; then
         run_process ironic-inspector "$IRONIC_INSPECTOR_CMD"
     else
-      run_process ironic-inspector-api "$IRONIC_INSPECTOR_BIN_DIR/uwsgi --procname-prefix ironic-inspector-api --ini $IRONIC_INSPECTOR_UWSGI_CONF --pyargv \"--config-file $IRONIC_INSPECTOR_CONF_FILE\""
+      run_process ironic-inspector-api "$(which uwsgi) --procname-prefix ironic-inspector-api --ini $IRONIC_INSPECTOR_UWSGI_CONF --pyargv \"--config-file $IRONIC_INSPECTOR_CONF_FILE\""
       run_process ironic-inspector-conductor "$IRONIC_INSPECTOR_CMD_CONDUCTOR"
     fi
 
