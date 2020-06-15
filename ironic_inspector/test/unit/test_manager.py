@@ -79,15 +79,21 @@ class TestManagerInitHost(BaseManagerTest):
         self.mock_executor.return_value.submit.assert_called_once_with(
             self.manager._periodics_worker.start)
 
-    def test_no_introspection_data_store(self):
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
+    def test_no_introspection_data_store(self, mock_get_coord):
         CONF.set_override('store_data', 'none', 'processing')
+        mock_coordinator = mock.MagicMock()
+        mock_get_coord.return_value = mock_coordinator
         self.manager.init_host()
         self.mock_log.warning.assert_called_once_with(
             'Introspection data will not be stored. Change "[processing] '
             'store_data" option if this is not the desired behavior')
 
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     @mock.patch.object(mdns, 'Zeroconf', autospec=True)
-    def test_init_host(self, mock_zc):
+    def test_init_host(self, mock_zc, mock_get_coord):
+        mock_coordinator = mock.MagicMock()
+        mock_get_coord.return_value = mock_coordinator
         self.manager.init_host()
         self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
@@ -112,10 +118,13 @@ class TestManagerInitHost(BaseManagerTest):
         self.mock_exit.assert_called_once_with(1)
         self.mock_filter.init_filter.assert_not_called()
 
+    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
     @mock.patch.object(mdns, 'Zeroconf', autospec=True)
     @mock.patch.object(keystone, 'get_endpoint', autospec=True)
-    def test_init_host_with_mdns(self, mock_endpoint, mock_zc):
+    def test_init_host_with_mdns(self, mock_endpoint, mock_zc, mock_get_coord):
         CONF.set_override('enable_mdns', True)
+        mock_coordinator = mock.MagicMock()
+        mock_get_coord.return_value = mock_coordinator
         self.manager.init_host()
         self.mock_db_init.assert_called_once_with()
         self.mock_validate_processing_hooks.assert_called_once_with()
@@ -149,9 +158,9 @@ class TestManagerInitHost(BaseManagerTest):
                                       None)
         self.assertRaises(tooz.ToozError, self.manager.init_host)
         self.mock_db_init.assert_called_once_with()
-        self.mock_validate_processing_hooks.assert_called_once_with()
-        self.mock_filter.init_filter.assert_called_once_with()
-        self.assert_periodics()
+        self.mock_validate_processing_hooks.assert_not_called()
+        self.mock_filter.init_filter.assert_not_called()
+        self.assertIsNone(self.manager._periodics_worker)
         mock_get_coord.assert_called_once_with(prefix='conductor')
         mock_del_host.assert_called_once_with(self.manager)
 

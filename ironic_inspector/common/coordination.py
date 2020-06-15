@@ -14,6 +14,7 @@
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log
+import tooz
 from tooz import coordination
 
 from ironic_inspector import utils
@@ -42,6 +43,8 @@ class Coordinator(object):
         self.coordinator = None
         self.started = False
         self.prefix = prefix if prefix else 'default'
+        self.is_leader = False
+        self.supports_election = True
 
     def start(self, heartbeat=True):
         """Start coordinator.
@@ -85,6 +88,24 @@ class Coordinator(object):
         except coordination.GroupAlreadyExist:
             LOG.debug('Group %s already exists.', self.group_name)
 
+    def _join_election(self):
+        self.is_leader = False
+
+        def _when_elected(event):
+            LOG.info('This conductor instance is a group leader now.')
+            self.is_leader = True
+
+        try:
+            self.coordinator.watch_elected_as_leader(
+                self.group_name, _when_elected)
+            self.coordinator.run_elect_coordinator()
+        except tooz.NotImplemented:
+            LOG.warning('The coordination backend does not support leader '
+                        'elections, assuming we are a leader. This is '
+                        'deprecated, please use a supported backend.')
+            self.is_leader = True
+            self.supports_election = False
+
     def join_group(self):
         """Join service group."""
         self._validate_state()
@@ -97,6 +118,8 @@ class Coordinator(object):
             request.get()
         except coordination.MemberAlreadyExist:
             pass
+
+        self._join_election()
         LOG.debug('Joined group %s', self.group_name)
 
     def leave_group(self):
@@ -124,6 +147,18 @@ class Coordinator(object):
         self._validate_state()
         lock_name = (self.lock_prefix + uuid).encode('ascii')
         return self.coordinator.get_lock(lock_name)
+
+    def run_elect_coordinator(self):
+        """Trigger a new leader election."""
+        if self.supports_election:
+            LOG.debug('Starting leader election')
+            self.coordinator.run_elect_coordinator()
+            LOG.debug('Finished leader election')
+        else:
+            LOG.warning('The coordination backend does not support leader '
+                        'elections, assuming we are a leader. This is '
+                        'deprecated, please use a supported backend.')
+            self.is_leader = True
 
 
 _COORDINATOR = None
