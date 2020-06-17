@@ -220,8 +220,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                 LOG.debug('Skipping interface %s as it was not PXE booting',
                           name, data=data)
                 continue
-            elif CONF.processing.add_ports != 'all' and (
-                        not ip or netaddr.IPAddress(ip).is_link_local()):
+            elif CONF.processing.add_ports != 'all' and not ip:
                 LOG.debug('Skipping interface %s as it did not have '
                           'an IP address assigned during the ramdisk run',
                           name, data=data)
