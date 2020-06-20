@@ -103,6 +103,11 @@ _OPTS = [
                 default=False,
                 help=_('Whether to process nodes that are in running '
                        'states.')),
+    cfg.BoolOpt('update_pxe_enabled',
+                default=True,
+                help=_('Whether to update the pxe_enabled value according '
+                       'to the introspection data. This option has no effect '
+                       'if [processing]overwrite_existing is set to False')),
 ]
 
 

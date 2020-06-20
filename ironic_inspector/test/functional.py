@@ -310,9 +310,46 @@ class Test(Base):
         ]
         self.cli.create_port.assert_has_calls(calls, any_order=True)
         self.cli.delete_port.assert_called_once_with(uuid_to_delete)
-        self.cli.patch_port.assert_called_once_with(
-            uuid_to_update,
-            [{'op': 'replace', 'path': '/pxe_enabled', 'value': False}])
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=True, state=istate.States.finished)
+
+    def test_port_not_update_pxe_enabled(self):
+        cfg.CONF.set_override('add_ports', 'active', 'processing')
+        cfg.CONF.set_override('keep_ports', 'added', 'processing')
+        cfg.CONF.set_override('update_pxe_enabled', False, 'processing')
+
+        uuid_to_update = uuidutils.generate_uuid()
+        # One port with incorrect pxe_enabled.
+        self.cli.ports.return_value = [
+            mock.Mock(address=self.macs[0], id=uuid_to_update,
+                      node_id=self.uuid, extra={}, is_pxe_enabled=False)
+        ]
+        # Two more ports are created, one with client_id. Make sure the
+        # returned object has the same properties as requested in create().
+        self.cli.create_port.side_effect = mock.Mock
+
+        self.call_introspect(self.uuid)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+        self.cli.set_node_power_state.assert_called_once_with(self.uuid,
+                                                              'rebooting')
+
+        status = self.call_get_status(self.uuid)
+        self.check_status(status, finished=False, state=istate.States.waiting)
+
+        res = self.call_continue(self.data)
+        self.assertEqual({'uuid': self.uuid}, res)
+        eventlet.greenthread.sleep(DEFAULT_SLEEP)
+
+        self.cli.patch_node.assert_called_with(self.uuid, mock.ANY)
+        self.assertCalledWithPatch(self.patch, self.cli.patch_node)
+        calls = [
+            mock.call(node_uuid=self.uuid, address=self.macs[2],
+                      extra={'client-id': self.client_id},
+                      is_pxe_enabled=False),
+        ]
+        self.assertFalse(self.cli.patch_port.called)
+        self.cli.create_port.assert_has_calls(calls, any_order=True)
 
         status = self.call_get_status(self.uuid)
         self.check_status(status, finished=True, state=istate.States.finished)
