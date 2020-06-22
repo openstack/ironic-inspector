@@ -222,25 +222,6 @@ class TestValidateInterfacesHookBeforeProcessing(test_base.NodeTest):
         self.assertRaisesRegex(utils.Error, 'No suitable interfaces found',
                                self.hook.before_processing, self.data)
 
-    def test_skipped_interfaces_with_local_address(self):
-        CONF.set_override('add_ports', 'active', 'processing')
-        self.inventory['interfaces'] = [
-            # local interface (by IPv4 address)
-            {'name': 'em1', 'mac_address': '22:22:22:22:22:22',
-             'ipv4_address': '127.0.0.1'},
-            # local interface (by IPv6 address)
-            {'name': 'em2', 'mac_address': '33:33:33:33:33:33',
-             'ipv6_address': '::1'},
-            # interface only with local-link address
-            {'name': 'em3', 'mac_address': '44:44:44:44:44:44',
-             'ipv6_address': 'fe80::4644:44ff:fe44:4444'},
-            # interface only with local-link address with suffix
-            {'name': 'em4', 'mac_address': '55:55:55:55:55:55',
-             'ipv6_address': 'fe80::5755:55ff:fe55:5555%em4'},
-        ]
-        self.assertRaisesRegex(utils.Error, 'No suitable interfaces found',
-                               self.hook.before_processing, self.data)
-
     def test_interfaces_with_ipv6_addresses_only(self):
         CONF.set_override('add_ports', 'all', 'processing')
         self.inventory['interfaces'] = [
