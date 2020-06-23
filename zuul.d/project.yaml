@@ -11,11 +11,7 @@
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
-        - ironic-inspector-tempest-managed
-        # NOTE (rpittau) sadly temporary disabling the non-standalone-tempest
-        # job until we got it fixed
-        - ironic-inspector-non-standalone-tempest:
-            voting: false
+        - ironic-inspector-tempest-managed-non-standalone
         - openstack-tox-functional-py36
         - bifrost-integration-tinyipa-ubuntu-bionic:
             voting: false
@@ -27,5 +23,5 @@
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
-        - ironic-inspector-tempest-managed
+        - ironic-inspector-tempest-managed-non-standalone
         - openstack-tox-functional-py36
