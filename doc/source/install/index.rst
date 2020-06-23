@@ -81,7 +81,19 @@ Fill in these minimum configuration values:
   authentication.
 
 * The ``ironic`` section - credentials to use when accessing **ironic**
-  API.
+  API. When **ironic** is deployed standalone with no authentication, specify
+  the following::
+
+   [ironic]
+   auth_type=none
+
+  When **ironic** is deployed standalone with HTTP Basic authentication, valid
+  credentials are also required::
+
+   [ironic]
+   auth_type=http_basic
+   username=myName
+   password=myPassword
 
 * ``connection`` in the ``database`` section - SQLAlchemy connection string
   for the database. By default ironic-inspector uses sqlite as the database
