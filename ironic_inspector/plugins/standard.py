@@ -294,7 +294,8 @@ class ValidateInterfacesHook(base.ProcessingHook):
                              node_info=node_info, data=introspection_data)
                     node_info.delete_port(port)
 
-        if CONF.processing.overwrite_existing:
+        if (CONF.processing.overwrite_existing
+                and CONF.processing.update_pxe_enabled):
             # Make sure is_pxe_enabled is up-to-date
             ports = node_info.ports()
             for iface in introspection_data['interfaces'].values():

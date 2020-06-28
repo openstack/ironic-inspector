@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Adds a configuration option ``[processing]update_pxe_enabled`` to control
+    whether the pxe_enabled should be updated according to introspection data
+    for ports. The default value is True which is backwards compatible.
