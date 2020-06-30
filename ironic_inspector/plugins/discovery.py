@@ -62,7 +62,7 @@ def _check_existing_nodes(introspection_data, node_driver_info, ironic):
 
 
 def enroll_node_not_found_hook(introspection_data, **kwargs):
-    node_attr = {}
+    node_attr = CONF.discovery.enroll_node_fields.copy()
     ironic = ir_utils.get_client()
 
     node_driver_info = _extract_node_driver_info(introspection_data)

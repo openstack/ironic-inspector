@@ -274,9 +274,16 @@ Ironic first.
 
 For discovery, the configuration file option ``node_not_found_hook`` should be
 set to load the hook called ``enroll``. This hook will enroll the unidentified
-node into Ironic using the ``fake-hardware`` hardware type. (This is
-a configurable option; set ``enroll_node_driver``, in the **ironic-inspector**
-configuration file, to the Ironic hardware type or classic driver you want.)
+node into Ironic using the ``fake-hardware`` hardware type. This is
+a configurable option: set ``enroll_node_driver`` in the **ironic-inspector**
+configuration file to the hardware type you want. You can also configure
+arbitrary fields to set on discovery, for example:
+
+.. code-block:: ini
+
+    [discovery]
+    enroll_node_driver = ipmi
+    enroll_node_fields = management_interface:noop,resource_class:baremetal
 
 The ``enroll`` hook will also set the ``ipmi_address`` property on the new
 node, if its available in the introspection data we received,

@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    Adds a new configuration option ``[discovery]enroll_node_fields`` that
+    specifies additional fields to set on a node (e.g. driver interfaces).

@@ -117,6 +117,29 @@ class TestEnrollNodeNotFoundHook(test_base.NodeTest):
             {}, {}, self.ironic)
         self.assertEqual({'auto_discovered': True}, introspection_data)
 
+    @mock.patch.object(node_cache, 'create_node', autospec=True)
+    @mock.patch.object(ir_utils, 'get_client', autospec=True)
+    @mock.patch.object(discovery, '_check_existing_nodes', autospec=True)
+    def test_enroll_with_fields(self, mock_check_existing,
+                                mock_client, mock_create_node):
+        mock_client.return_value = self.ironic
+        discovery.CONF.set_override('enroll_node_fields',
+                                    {'power_interface': 'other'},
+                                    'discovery')
+        mock_check_existing = copy_call_args(mock_check_existing)
+        introspection_data = {}
+
+        discovery.enroll_node_not_found_hook(introspection_data)
+
+        mock_create_node.assert_called_once_with('fake-hardware',
+                                                 ironic=self.ironic,
+                                                 driver_info={},
+                                                 provision_state='enroll',
+                                                 power_interface='other')
+        mock_check_existing.assert_called_once_with(
+            {}, {}, self.ironic)
+        self.assertEqual({'auto_discovered': True}, introspection_data)
+
     def test__check_existing_nodes_new_mac(self):
         self.ironic.ports.return_value = []
         introspection_data = {'macs': self.macs}
