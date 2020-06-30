@@ -81,11 +81,13 @@ class ConductorManager(object):
         driver.init_filter()
 
         periodic_clean_up_ = periodics.periodic(
-            spacing=CONF.clean_up_period
+            spacing=CONF.clean_up_period,
+            enabled=(CONF.clean_up_period != 0)
         )(periodic_clean_up)
 
         sync_with_ironic_ = periodics.periodic(
-            spacing=CONF.clean_up_period
+            spacing=CONF.clean_up_period,
+            enabled=(CONF.clean_up_period != 0)
         )(sync_with_ironic)
 
         callables = [(periodic_clean_up_, None, None),
