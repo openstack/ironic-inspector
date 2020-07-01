@@ -345,7 +345,8 @@ class NodeInfo(object):
                 client_id = port.get('client_id')
                 if client_id:
                     extra = {'client-id': client_id}
-                is_pxe_enabled = port.get('pxe', True)
+                if CONF.processing.update_pxe_enabled:
+                    is_pxe_enabled = port.get('pxe', True)
 
             if mac not in self.ports():
                 self._create_port(mac, ironic=ironic, extra=extra,

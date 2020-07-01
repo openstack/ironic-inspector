@@ -346,7 +346,7 @@ class Test(Base):
         calls = [
             mock.call(node_uuid=self.uuid, address=self.macs[2],
                       extra={'client-id': self.client_id},
-                      is_pxe_enabled=False),
+                      is_pxe_enabled=True),
         ]
         self.assertFalse(self.cli.patch_port.called)
         self.cli.create_port.assert_has_calls(calls, any_order=True)

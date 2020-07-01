@@ -791,6 +791,32 @@ class TestUpdate(test_base.NodeTest):
         self.assertFalse(mock_warn.called)
         self.assertFalse(self.ironic.port.list.called)
 
+    @mock.patch.object(node_cache.LOG, 'warning', autospec=True)
+    def test_create_ports_not_update_pxe(self, mock_warn):
+        CONF.set_override('update_pxe_enabled', False, 'processing')
+        ports = [
+            'mac2',
+            {'mac': 'mac3', 'client_id': '42', 'pxe': False},
+            {'mac': 'mac4', 'pxe': True}
+        ]
+
+        self.node_info.create_ports(ports)
+        self.assertEqual({'mac0', 'mac1', 'mac2', 'mac3', 'mac4'},
+                         set(self.node_info.ports()))
+
+        create_calls = [
+            mock.call(node_uuid=self.uuid, address='mac2', extra={},
+                      is_pxe_enabled=True),
+            mock.call(node_uuid=self.uuid, address='mac3',
+                      extra={'client-id': '42'}, is_pxe_enabled=True),
+            mock.call(node_uuid=self.uuid, address='mac4', extra={},
+                      is_pxe_enabled=True),
+        ]
+        self.assertEqual(create_calls, self.ironic.create_port.call_args_list)
+        # No conflicts - cache was not cleared - no calls to port.list
+        self.assertFalse(mock_warn.called)
+        self.assertFalse(self.ironic.port.list.called)
+
     @mock.patch.object(node_cache.LOG, 'info', autospec=True)
     def test__create_port(self, mock_info):
         uuid = uuidutils.generate_uuid()
