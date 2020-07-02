@@ -3,10 +3,11 @@ features:
   - |
     Enable Basic HTTP authentication middleware.
 
-    When the config option ``auth_strategy`` is set to ``http_basic`` then
-    non-public API calls require a valid HTTP Basic authentication header to be
-    set. The config option ``http_basic_auth_user_file`` defaults to
-    ``/etc/ironic-inspector/htpasswd`` and points to a file which supports the
+    When the config option ``[DEFAULT]auth_strategy`` is set to ``http_basic``
+    then non-public API calls require a valid HTTP Basic authentication header
+    to be set.
+    The config option ``[DEFAULT]http_basic_auth_user_file`` defaults to
+    ``/etc/ironic-inspector/htpasswd`` and points to a file that supports the
     Apache htpasswd syntax[1]. This file is read for every request, so no
     service restart is required when changes are made.
 
@@ -16,7 +17,7 @@ features:
 
     To try basic authentication, the following can be done:
 
-    * Set ``/etc/ironic-inspector/inspector.conf`` ``DEFAULT`` ``auth_strategy``
+    * Set ``/etc/ironic-inspector/inspector.conf`` ``[DEFAULT]auth_strategy``
       to ``http_basic``
     * Populate the htpasswd file with entries, for example:
       ``htpasswd -nbB myName myPassword >> /etc/ironic-inspector/htpasswd``
