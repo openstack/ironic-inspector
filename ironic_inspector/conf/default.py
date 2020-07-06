@@ -64,6 +64,9 @@ _OPTS = [
                       'Not advisable if the deployment uses a PXE filter, '
                       'and will result in the ironic-inspector ceasing '
                       'periodic cleanup activities.')),
+    cfg.IntOpt('leader_election_interval',
+               default=10,
+               help=_('Interval (in seconds) between leader elections.')),
     cfg.BoolOpt('use_ssl',
                 default=False,
                 help=_('SSL Enabled/Disabled')),

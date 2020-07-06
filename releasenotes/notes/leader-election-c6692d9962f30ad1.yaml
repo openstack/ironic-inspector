@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    Adds periodic leader election for the cleanup sync with Ironic.
+    The election interval is configured by the new
+    ``leader_election_interval`` config option.
