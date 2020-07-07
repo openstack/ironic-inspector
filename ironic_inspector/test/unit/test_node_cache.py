@@ -1337,6 +1337,7 @@ class TestRecordNode(test_base.NodeTest):
         super(TestRecordNode, self).setUp()
         self.node.provision_state = 'active'
         self.ironic = mock.Mock(spec=['get_node'])
+        del self.node.uuid  # no compatibility shim here
         self.ironic.get_node.return_value = self.node
 
     def test_no_lookup_data(self, mock_lookup):

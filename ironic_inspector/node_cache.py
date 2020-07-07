@@ -958,10 +958,9 @@ def record_node(ironic=None, bmc_addresses=None, macs=None):
     if node.provision_state not in ir_utils.VALID_ACTIVE_STATES:
         raise utils.Error(_("Node %(node)s is not active, its provision "
                             "state is %(state)s") %
-                          {'node': node.uuid,
-                           'state': node.provision_state})
+                          {'node': node.id, 'state': node.provision_state})
 
-    return add_node(node.uuid, istate.States.waiting,
+    return add_node(node.id, istate.States.waiting,
                     manage_boot=False, mac=macs, bmc_address=bmc_addresses)
 
 
