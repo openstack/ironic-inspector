@@ -1,6 +1,6 @@
-==========================
-Train Series Release Notes
-==========================
+==========================================
+Train Series (9.0.0 - 9.2.x) Release Notes
+==========================================
 
 .. release-notes::
    :branch: stable/train
