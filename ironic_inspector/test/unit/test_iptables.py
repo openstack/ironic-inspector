@@ -44,9 +44,9 @@ class TestIptablesDriver(test_base.NodeTest):
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
         self.mock_should_enable_dhcp = self.useFixture(
             fixtures.MockPatchObject(iptables, '_should_enable_dhcp')).mock
-        self.mock__get_blacklist = self.useFixture(
-            fixtures.MockPatchObject(iptables, '_get_blacklist')).mock
-        self.mock__get_blacklist.return_value = []
+        self.mock__get_denylist = self.useFixture(
+            fixtures.MockPatchObject(iptables, '_get_denylist')).mock
+        self.mock__get_denylist.return_value = []
         self.mock_ironic = mock.Mock()
 
     def check_fsm(self, events):
@@ -143,7 +143,7 @@ class TestIptablesDriver(test_base.NodeTest):
         for (args, call) in zip(_iptables_expected_args,
                                 call_args_list):
             self.assertEqual(args, call[0])
-        self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
+        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync])
 
     def test__iptables_args_ipv4(self):
@@ -175,11 +175,11 @@ class TestIptablesDriver(test_base.NodeTest):
             self.assertEqual(kwargs, call[1])
         self.check_fsm([pxe_filter.Events.sync])
 
-    def _test_sync_with_blacklist(self, expected_port):
+    def _test_sync_with_denylist(self, expected_port):
         self.driver = iptables.IptablesFilter()
         self.mock_iptables = self.useFixture(
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
-        self.mock__get_blacklist.return_value = ['AA:BB:CC:DD:EE:FF']
+        self.mock__get_denylist.return_value = ['AA:BB:CC:DD:EE:FF']
         self.mock_should_enable_dhcp.return_value = True
 
         _iptables_expected_args = [
@@ -188,9 +188,9 @@ class TestIptablesDriver(test_base.NodeTest):
             ('-F', self.driver.new_chain),
             ('-X', self.driver.new_chain),
             ('-N', self.driver.new_chain),
-            # Blacklist
+            # deny
             ('-A', self.driver.new_chain, '-m', 'mac', '--mac-source',
-             self.mock__get_blacklist.return_value[0], '-j', 'DROP'),
+             self.mock__get_denylist.return_value[0], '-j', 'DROP'),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
              expected_port, '-j', self.driver.new_chain),
@@ -208,36 +208,36 @@ class TestIptablesDriver(test_base.NodeTest):
         for (args, call) in zip(_iptables_expected_args,
                                 call_args_list):
             self.assertEqual(args, call[0])
-        self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
+        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
 
         # check caching
 
         self.mock_iptables.reset_mock()
-        self.mock__get_blacklist.reset_mock()
+        self.mock__get_denylist.reset_mock()
         self.driver.sync(self.mock_ironic)
-        self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
+        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
         self.assertFalse(self.mock_iptables.called)
 
-    def test_sync_with_blacklist_ipv4(self):
+    def test_sync_with_denylist_ipv4(self):
         CONF.set_override('ip_version', '4', 'iptables')
-        self._test_sync_with_blacklist('67')
+        self._test_sync_with_denylist('67')
 
-    def test_sync_with_blacklist_ipv6(self):
+    def test_sync_with_denylist_ipv6(self):
         CONF.set_override('ip_version', '6', 'iptables')
-        self._test_sync_with_blacklist('547')
+        self._test_sync_with_denylist('547')
 
     def _test__iptables_clean_cache_on_error(self, expected_port):
         self.driver = iptables.IptablesFilter()
         self.mock_iptables = self.useFixture(
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
-        self.mock__get_blacklist.return_value = ['AA:BB:CC:DD:EE:FF']
+        self.mock__get_denylist.return_value = ['AA:BB:CC:DD:EE:FF']
         self.mock_should_enable_dhcp.return_value = True
 
         self.mock_iptables.side_effect = [None, None, RuntimeError('Oops!'),
                                           None, None, None, None, None, None]
         self.assertRaises(RuntimeError, self.driver.sync, self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync, pxe_filter.Events.reset])
-        self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
+        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
 
         # check caching
         syncs_expected_args = [
@@ -247,9 +247,9 @@ class TestIptablesDriver(test_base.NodeTest):
             ('-F', self.driver.new_chain),
             ('-X', self.driver.new_chain),
             ('-N', self.driver.new_chain),
-            # Blacklist
+            # deny
             ('-A', self.driver.new_chain, '-m', 'mac', '--mac-source',
-             self.mock__get_blacklist.return_value[0], '-j', 'DROP'),
+             self.mock__get_denylist.return_value[0], '-j', 'DROP'),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
              expected_port, '-j', self.driver.new_chain),
@@ -262,7 +262,7 @@ class TestIptablesDriver(test_base.NodeTest):
 
         self.mock_iptables.reset_mock()
         self.mock_iptables.side_effect = None
-        self.mock__get_blacklist.reset_mock()
+        self.mock__get_denylist.reset_mock()
         self.mock_fsm.reset_mock()
         self.driver.sync(self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync])
@@ -271,7 +271,7 @@ class TestIptablesDriver(test_base.NodeTest):
         for (idx, (args, call)) in enumerate(zip(syncs_expected_args,
                                                  call_args_list)):
             self.assertEqual(args, call[0], 'idx: %s' % idx)
-        self.mock__get_blacklist.assert_called_once_with(self.mock_ironic)
+        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
 
     def test__iptables_clean_cache_on_error_ipv4(self):
         CONF.set_override('ip_version', '4', 'iptables')
@@ -377,9 +377,9 @@ class TestIBMapping(test_base.BaseTest):
         mock_open.assert_not_called()
 
 
-class TestGetBlacklist(test_base.BaseTest):
+class TestGetDenylist(test_base.BaseTest):
     def setUp(self):
-        super(TestGetBlacklist, self).setUp()
+        super(TestGetDenylist, self).setUp()
         self.mock__ib_mac_to_rmac_mapping = self.useFixture(
             fixtures.MockPatchObject(iptables, '_ib_mac_to_rmac_mapping')).mock
         self.mock_active_macs = self.useFixture(
@@ -394,8 +394,8 @@ class TestGetBlacklist(test_base.BaseTest):
         self.mock_ironic.ports.return_value = mock_ports_list
         self.mock_active_macs.return_value = {'foo'}
 
-        ports = iptables._get_blacklist(self.mock_ironic)
-        # foo is an active address so we expect the blacklist contains only bar
+        ports = iptables._get_denylist(self.mock_ironic)
+        # foo is an active address so we expect the denylist contain only bar
         self.assertEqual(['bar'], ports)
         self.mock_ironic.ports.assert_called_once_with(
             limit=None, fields=['address', 'extra'])
@@ -414,8 +414,8 @@ class TestGetBlacklist(test_base.BaseTest):
         ]
         self.mock_active_macs.return_value = {'foo'}
 
-        ports = iptables._get_blacklist(self.mock_ironic)
-        # foo is an active address so we expect the blacklist contains only bar
+        ports = iptables._get_denylist(self.mock_ironic)
+        # foo is an active address so we expect the denylist contain only bar
         self.assertEqual(['bar'], ports)
         self.mock_ironic.ports.assert_called_with(
             limit=None, fields=['address', 'extra'])

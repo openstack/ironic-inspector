@@ -24,7 +24,7 @@ file parsing. The content of the file determines the MAC address access policy.
 
 Thanks to the ``inotify`` facility, **dnsmasq** is notified once a new file is
 *created* or an existing file is *modified* in the DHCP hosts directory. Thus,
-to white-list a MAC address, the filter removes the ``ignore`` directive::
+to allow a MAC address, the filter removes the ``ignore`` directive::
 
     $ cat /etc/dnsmasq.d/de-ad-be-ef-de-ad
     de:ad:be:ef:de:ad
@@ -121,5 +121,5 @@ start-up.
 Although the filter driver tries its best to always stop the **dnsmasq**
 service, it is recommended that the operator configures the **dnsmasq**
 service in such a way that it terminates upon **ironic-inspector**
-(unexpected) exit to prevent a stale blacklist from being used by the
+(unexpected) exit to prevent a stale deny list from being used by the
 **dnsmasq** service.

@@ -349,8 +349,7 @@ The contract between **inspector** and a PXE filter driver is described in the
   internal driver state
 
 * :meth:`~FilterDriver.sync` called both periodically and when a node starts or
-  finishes introspection to white or blacklist its ports MAC addresses in the
-  driver
+  finishes introspection to allow or deny its ports MAC addresses in the driver
 
 * :meth:`~FilterDriver.tear_down_filter` called on service exit to reset the
   internal driver state

@@ -45,7 +45,7 @@ class IptablesFilter(pxe_filter.BaseFilter):
 
     def __init__(self):
         super(IptablesFilter, self).__init__()
-        self.blacklist_cache = None
+        self.denylist_cache = None
         self.enabled = True
         self.interface = CONF.iptables.dnsmasq_interface
         self.chain = CONF.iptables.firewall_chain
@@ -65,7 +65,7 @@ class IptablesFilter(pxe_filter.BaseFilter):
 
     def reset(self):
         self.enabled = True
-        self.blacklist_cache = None
+        self.denylist_cache = None
         for chain in (self.chain, self.new_chain):
             try:
                 self._clean_up(chain)
@@ -114,26 +114,26 @@ class IptablesFilter(pxe_filter.BaseFilter):
             self._disable_dhcp()
             return
 
-        to_blacklist = _get_blacklist(ironic)
-        if to_blacklist == self.blacklist_cache:
+        to_deny = _get_denylist(ironic)
+        if to_deny == self.denylist_cache:
             LOG.debug('Not updating iptables - no changes in MAC list %s',
-                      to_blacklist)
+                      to_deny)
             return
 
-        LOG.debug('Blacklisting active MAC\'s %s', to_blacklist)
+        LOG.debug('Adding active MAC\'s %s to the deny list', to_deny)
         with self._temporary_chain(self.new_chain, self.chain):
             # Force update on the next iteration if this attempt fails
-            self.blacklist_cache = None
-            # - Blacklist active macs, so that nova can boot them
-            for mac in to_blacklist:
+            self.denylist_cache = None
+            # - Add active macs to the deny list, so that nova can boot them
+            for mac in to_deny:
                 self._iptables('-A', self.new_chain, '-m', 'mac',
                                '--mac-source', mac, '-j', 'DROP')
-            # - Whitelist everything else
+            # - Add everything else to the allow list
             self._iptables('-A', self.new_chain, '-j', 'ACCEPT')
 
         # Cache result of successful iptables update
         self.enabled = True
-        self.blacklist_cache = to_blacklist
+        self.denylist_cache = to_deny
         LOG.debug('The iptables filter was synchronized')
 
     @contextlib.contextmanager
@@ -185,9 +185,9 @@ class IptablesFilter(pxe_filter.BaseFilter):
 
         LOG.debug('No nodes on introspection and node_not_found_hook is '
                   'not set - disabling DHCP')
-        self.blacklist_cache = None
+        self.denylist_cache = None
         with self._temporary_chain(self.new_chain, self.chain):
-            # Blacklist everything
+            # deny everything
             self._iptables('-A', self.new_chain, '-j', 'REJECT')
             self.enabled = False
 
@@ -230,7 +230,7 @@ def _ib_mac_to_rmac_mapping(ports):
                     port.address = match.group(1)
 
 
-def _get_blacklist(ironic):
+def _get_denylist(ironic):
     ports = [port for port in
              ir_utils.call_with_retries(ironic.ports, limit=None,
                                         fields=['address', 'extra'])

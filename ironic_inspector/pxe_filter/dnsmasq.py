@@ -44,18 +44,18 @@ _EXCLUSIVE_WRITE_ATTEMPTS = 10
 _EXCLUSIVE_WRITE_ATTEMPTS_DELAY = 0.01
 
 _ROOTWRAP_COMMAND = 'sudo ironic-inspector-rootwrap {rootwrap_config!s}'
-_MACBL_LEN = len('ff:ff:ff:ff:ff:ff,ignore\n')
-_MACWL_LEN = len('ff:ff:ff:ff:ff:ff\n')
+_MAC_DENY_LEN = len('ff:ff:ff:ff:ff:ff,ignore\n')
+_MAC_ALLOW_LEN = len('ff:ff:ff:ff:ff:ff\n')
 _UNKNOWN_HOSTS_FILE = 'unknown_hosts_filter'
-_BLACKLIST_UNKNOWN_HOSTS = '*:*:*:*:*:*,ignore\n'
-_WHITELIST_UNKNOWN_HOSTS = '*:*:*:*:*:*\n'
+_DENY_UNKNOWN_HOSTS = '*:*:*:*:*:*,ignore\n'
+_ALLOW_UNKNOWN_HOSTS = '*:*:*:*:*:*\n'
 
 
 def _should_enable_unknown_hosts():
     """Check whether we should enable DHCP for unknown hosts
 
-    We blacklist unknown hosts unless one or more nodes are on introspection
-    and node_not_found_hook is not set.
+    We add unknown hosts to the deny list unless one or more nodes are on
+    introspection and node_not_found_hook is not set.
     """
     return (node_cache.introspection_active() or
             CONF.processing.node_not_found_hook is not None)
@@ -89,24 +89,24 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         ironic_macs = set(port.address for port in
                           ir_utils.call_with_retries(ironic.ports, limit=None,
                                                      fields=['address']))
-        blacklist, whitelist = _get_black_white_lists()
-        # removedlist are the MACs that are in either blacklist or whitelist,
+        denylist, allowlist = _get_deny_allow_lists()
+        # removedlist are the MACs that are in either in allow or denylist,
         # but not kept in ironic (ironic_macs) any more
-        removedlist = blacklist.union(whitelist).difference(ironic_macs)
+        removedlist = denylist.union(allowlist).difference(ironic_macs)
 
-        # Whitelist active MACs that are not already whitelisted
-        for mac in active_macs.difference(whitelist):
-            _whitelist_mac(mac)
-        # Blacklist any ironic MACs that is not active for introspection unless
-        # it is already blacklisted
-        for mac in ironic_macs.difference(blacklist.union(active_macs)):
-            _blacklist_mac(mac)
+        # Add active MACs that are not already in the allowlist
+        for mac in active_macs.difference(allowlist):
+            _add_mac_to_allowlist(mac)
+        # Add any ironic MACs that is not active for introspection to the
+        # deny list unless it is already present
+        for mac in ironic_macs.difference(denylist.union(active_macs)):
+            _add_mac_to_denylist(mac)
 
-        # Whitelist or Blacklist unknown hosts and MACs not kept in ironic
+        # Allow or deny unknown hosts and MACs not kept in ironic
         # NOTE(hjensas): Treat unknown hosts and MACs not kept in ironic the
         # same. Neither should boot the inspection image unless introspection
-        # is active. Deleted MACs must be whitelisted when introspection is
-        # active in case the host is re-enrolled.
+        # is active. Deleted MACs must be added to the allow list when
+        # introspection is active in case the host is re-enrolled.
         _configure_unknown_hosts()
         _configure_removedlist(removedlist)
 
@@ -119,8 +119,8 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         """Sync dnsmasq configuration with current Ironic&Inspector state.
 
         Polls all ironic ports. Those being inspected, the active ones, are
-        whitelisted while the rest are blacklisted in the dnsmasq
-        configuration.
+        added to the allow list while the rest are added to the deny list in
+        the dnsmasq configuration.
 
         :param ironic: an ironic client instance.
         :raises: OSError, IOError.
@@ -133,8 +133,8 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         """Performs an initial sync with ironic and starts dnsmasq.
 
         The initial _sync() call reduces the chances dnsmasq might lose
-        some inotify blacklist events by prefetching the blacklist before
-        the dnsmasq is started.
+        some inotify deny list events by prefetching the list before dnsmasq
+        is started.
 
         :raises: OSError, IOError.
         :returns: None.
@@ -166,23 +166,23 @@ def _purge_dhcp_hostsdir():
         LOG.debug('Removed %s', path)
 
 
-def _get_black_white_lists():
-    """Get addresses currently blacklisted in dnsmasq.
+def _get_deny_allow_lists():
+    """Get addresses currently denied by dnsmasq.
 
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid.
-    :returns: a set of MACs currently blacklisted in dnsmasq.
+    :returns: a set of MACs currently denied by dnsmasq.
     """
     hostsdir = CONF.dnsmasq_pxe_filter.dhcp_hostsdir
-    # whitelisted MACs lack the ,ignore directive
-    blacklist = set()
-    whitelist = set()
+    # MACs in the allow list lack the ,ignore directive
+    denylist = set()
+    allowlist = set()
     for mac in os.listdir(hostsdir):
-        if os.stat(os.path.join(hostsdir, mac)).st_size == _MACBL_LEN:
-            blacklist.add(mac)
-        if os.stat(os.path.join(hostsdir, mac)).st_size == _MACWL_LEN:
-            whitelist.add(mac)
+        if os.stat(os.path.join(hostsdir, mac)).st_size == _MAC_DENY_LEN:
+            denylist.add(mac)
+        if os.stat(os.path.join(hostsdir, mac)).st_size == _MAC_ALLOW_LEN:
+            allowlist.add(mac)
 
-    return blacklist, whitelist
+    return denylist, allowlist
 
 
 def _exclusive_write_or_pass(path, buf):
@@ -225,7 +225,7 @@ def _exclusive_write_or_pass(path, buf):
 
 
 def _configure_removedlist(macs):
-    """Manages a dhcp_hostsdir ignore/not-ignore record for removed macs
+    """Manages a dhcp_hostsdir allow/deny record for removed macs
 
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
     :returns: None.
@@ -235,16 +235,16 @@ def _configure_removedlist(macs):
 
     if _should_enable_unknown_hosts():
         for mac in macs:
-            if os.stat(os.path.join(hostsdir, mac)).st_size != _MACWL_LEN:
-                _whitelist_mac(mac)
+            if os.stat(os.path.join(hostsdir, mac)).st_size != _MAC_ALLOW_LEN:
+                _add_mac_to_allowlist(mac)
     else:
         for mac in macs:
-            if os.stat(os.path.join(hostsdir, mac)).st_size != _MACBL_LEN:
-                _blacklist_mac(mac)
+            if os.stat(os.path.join(hostsdir, mac)).st_size != _MAC_DENY_LEN:
+                _add_mac_to_denylist(mac)
 
 
 def _configure_unknown_hosts():
-    """Manages a dhcp_hostsdir ignore/not-ignore record for unknown macs.
+    """Manages a dhcp_hostsdir allow/deny record for unknown macs.
 
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
              IOError in case the dhcp host unknown file isn't writable.
@@ -254,13 +254,13 @@ def _configure_unknown_hosts():
                         _UNKNOWN_HOSTS_FILE)
 
     if _should_enable_unknown_hosts():
-        wildcard_filter = _WHITELIST_UNKNOWN_HOSTS
-        log_wildcard_filter = 'whitelist'
+        wildcard_filter = _ALLOW_UNKNOWN_HOSTS
+        log_wildcard_filter = 'allow'
     else:
-        wildcard_filter = _BLACKLIST_UNKNOWN_HOSTS
-        log_wildcard_filter = 'blacklist'
+        wildcard_filter = _DENY_UNKNOWN_HOSTS
+        log_wildcard_filter = 'deny'
 
-    # Don't update if unknown hosts are already black/white-listed
+    # Don't update if unknown hosts are already in the deny/allow-list
     try:
         if os.stat(path).st_size == len(wildcard_filter):
             return
@@ -276,8 +276,8 @@ def _configure_unknown_hosts():
                     'retrying next periodic sync time', log_wildcard_filter)
 
 
-def _blacklist_mac(mac):
-    """Creates a dhcp_hostsdir ignore record for the MAC.
+def _add_mac_to_denylist(mac):
+    """Creates a dhcp_hostsdir deny record for the MAC.
 
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
              IOError in case the dhcp host MAC file isn't writable.
@@ -285,14 +285,14 @@ def _blacklist_mac(mac):
     """
     path = os.path.join(CONF.dnsmasq_pxe_filter.dhcp_hostsdir, mac)
     if _exclusive_write_or_pass(path, '%s,ignore\n' % mac):
-        LOG.debug('Blacklisted %s', mac)
+        LOG.debug('MAC %s added to the deny list', mac)
     else:
-        LOG.warning('Failed to blacklist %s; retrying next periodic sync '
-                    'time', mac)
+        LOG.warning('Failed to add MAC %s to the deny list; retrying next '
+                    'periodic sync time', mac)
 
 
-def _whitelist_mac(mac):
-    """Un-ignores the dhcp_hostsdir record for the MAC.
+def _add_mac_to_allowlist(mac):
+    """Update the dhcp_hostsdir record for the MAC adding it to allow list
 
     :raises: FileNotFoundError in case the dhcp_hostsdir is invalid,
              IOError in case the dhcp host MAC file isn't writable.
@@ -301,10 +301,10 @@ def _whitelist_mac(mac):
     path = os.path.join(CONF.dnsmasq_pxe_filter.dhcp_hostsdir, mac)
     # remove the ,ignore directive
     if _exclusive_write_or_pass(path, '%s\n' % mac):
-        LOG.debug('Whitelisted %s', mac)
+        LOG.debug('MAC %s removed from the deny list', mac)
     else:
-        LOG.warning('Failed to whitelist %s; retrying next periodic sync '
-                    'time', mac)
+        LOG.warning('Failed to remove MAC %s from the deny list; retrying '
+                    'next periodic sync time', mac)
 
 
 def _execute(cmd=None, ignore_errors=False):

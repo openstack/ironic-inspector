@@ -221,7 +221,7 @@ class TestMACHandlers(test_base.BaseTest):
         self.mock_introspection_active = self.useFixture(
             fixtures.MockPatchObject(node_cache, 'introspection_active')).mock
 
-    def test__whitelist_unknown_hosts(self):
+    def test__allowlist_unknown_hosts(self):
         self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir,
                                                  dnsmasq._UNKNOWN_HOSTS_FILE)
         self.mock_introspection_active.return_value = True
@@ -231,12 +231,12 @@ class TestMACHandlers(test_base.BaseTest):
                                                dnsmasq._UNKNOWN_HOSTS_FILE)
         self.mock__exclusive_write_or_pass.assert_called_once_with(
             self.mock_join.return_value,
-            '%s' % dnsmasq._WHITELIST_UNKNOWN_HOSTS)
+            '%s' % dnsmasq._ALLOW_UNKNOWN_HOSTS)
         self.mock_log.debug.assert_called_once_with(
             'A %s record for all unknown hosts using wildcard mac '
-            'created', 'whitelist')
+            'created', 'allow')
 
-    def test__blacklist_unknown_hosts(self):
+    def test__denylist_unknown_hosts(self):
         self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir,
                                                  dnsmasq._UNKNOWN_HOSTS_FILE)
         self.mock_introspection_active.return_value = False
@@ -246,14 +246,14 @@ class TestMACHandlers(test_base.BaseTest):
                                                dnsmasq._UNKNOWN_HOSTS_FILE)
         self.mock__exclusive_write_or_pass.assert_called_once_with(
             self.mock_join.return_value,
-            '%s' % dnsmasq._BLACKLIST_UNKNOWN_HOSTS)
+            '%s' % dnsmasq._DENY_UNKNOWN_HOSTS)
         self.mock_log.debug.assert_called_once_with(
             'A %s record for all unknown hosts using wildcard mac '
-            'created', 'blacklist')
+            'created', 'deny')
 
-    def test__configure_removedlist_whitelist(self):
+    def test__configure_removedlist_allowlist(self):
         self.mock_introspection_active.return_value = True
-        self.mock_stat.return_value.st_size = dnsmasq._MACBL_LEN
+        self.mock_stat.return_value.st_size = dnsmasq._MAC_DENY_LEN
 
         dnsmasq._configure_removedlist({self.mac})
 
@@ -261,9 +261,9 @@ class TestMACHandlers(test_base.BaseTest):
         self.mock__exclusive_write_or_pass.assert_called_once_with(
             self.mock_join.return_value, '%s\n' % self.mac)
 
-    def test__configure_removedlist_blacklist(self):
+    def test__configure_removedlist_denylist(self):
         self.mock_introspection_active.return_value = False
-        self.mock_stat.return_value.st_size = dnsmasq._MACWL_LEN
+        self.mock_stat.return_value.st_size = dnsmasq._MAC_ALLOW_LEN
 
         dnsmasq._configure_removedlist({self.mac})
 
@@ -271,56 +271,56 @@ class TestMACHandlers(test_base.BaseTest):
         self.mock__exclusive_write_or_pass.assert_called_once_with(
             self.mock_join.return_value, '%s,ignore\n' % self.mac)
 
-    def test__whitelist_mac(self):
-        dnsmasq._whitelist_mac(self.mac)
+    def test__allowlist_mac(self):
+        dnsmasq._add_mac_to_allowlist(self.mac)
 
         self.mock_join.assert_called_once_with(self.dhcp_hostsdir, self.mac)
         self.mock__exclusive_write_or_pass.assert_called_once_with(
             self.mock_join.return_value, '%s\n' % self.mac)
 
-    def test__blacklist_mac(self):
-        dnsmasq._blacklist_mac(self.mac)
+    def test__denylist_mac(self):
+        dnsmasq._add_mac_to_denylist(self.mac)
 
         self.mock_join.assert_called_once_with(self.dhcp_hostsdir, self.mac)
         self.mock__exclusive_write_or_pass.assert_called_once_with(
             self.mock_join.return_value, '%s,ignore\n' % self.mac)
 
-    def test__get_blacklist(self):
+    def test__get_denylist(self):
         self.mock_listdir.return_value = [self.mac]
         self.mock_stat.return_value.st_size = len('%s,ignore\n' % self.mac)
-        blacklist, whitelist = dnsmasq._get_black_white_lists()
+        denylist, allowlist = dnsmasq._get_deny_allow_lists()
 
-        self.assertEqual({self.mac}, blacklist)
+        self.assertEqual({self.mac}, denylist)
         self.mock_listdir.assert_called_once_with(self.dhcp_hostsdir)
         self.mock_join.assert_called_with(self.dhcp_hostsdir, self.mac)
         self.mock_stat.assert_called_with(self.mock_join.return_value)
 
-    def test__get_whitelist(self):
+    def test__get_allowlist(self):
         self.mock_listdir.return_value = [self.mac]
         self.mock_stat.return_value.st_size = len('%s\n' % self.mac)
-        blacklist, whitelist = dnsmasq._get_black_white_lists()
+        denylist, allowlist = dnsmasq._get_deny_allow_lists()
 
-        self.assertEqual({self.mac}, whitelist)
+        self.assertEqual({self.mac}, allowlist)
         self.mock_listdir.assert_called_once_with(self.dhcp_hostsdir)
         self.mock_join.assert_called_with(self.dhcp_hostsdir, self.mac)
         self.mock_stat.assert_called_with(self.mock_join.return_value)
 
-    def test__get_no_blacklist(self):
+    def test__get_no_denylist(self):
         self.mock_listdir.return_value = [self.mac]
         self.mock_stat.return_value.st_size = len('%s\n' % self.mac)
-        blacklist, whitelist = dnsmasq._get_black_white_lists()
+        denylist, allowlist = dnsmasq._get_deny_allow_lists()
 
-        self.assertEqual(set(), blacklist)
+        self.assertEqual(set(), denylist)
         self.mock_listdir.assert_called_once_with(self.dhcp_hostsdir)
         self.mock_join.assert_called_with(self.dhcp_hostsdir, self.mac)
         self.mock_stat.assert_called_with(self.mock_join.return_value)
 
-    def test__get_no_whitelist(self):
+    def test__get_no_allowlist(self):
         self.mock_listdir.return_value = [self.mac]
         self.mock_stat.return_value.st_size = len('%s,ignore\n' % self.mac)
-        blacklist, whitelist = dnsmasq._get_black_white_lists()
+        denylist, allowlist = dnsmasq._get_deny_allow_lists()
 
-        self.assertEqual(set(), whitelist)
+        self.assertEqual(set(), allowlist)
         self.mock_listdir.assert_called_once_with(self.dhcp_hostsdir)
         self.mock_join.assert_called_with(self.dhcp_hostsdir, self.mac)
         self.mock_stat.assert_called_with(self.mock_join.return_value)
@@ -348,12 +348,12 @@ class TestMACHandlers(test_base.BaseTest):
 class TestSync(DnsmasqTestBase):
     def setUp(self):
         super(TestSync, self).setUp()
-        self.mock__get_black_white_lists = self.useFixture(
-            fixtures.MockPatchObject(dnsmasq, '_get_black_white_lists')).mock
-        self.mock__whitelist_mac = self.useFixture(
-            fixtures.MockPatchObject(dnsmasq, '_whitelist_mac')).mock
-        self.mock__blacklist_mac = self.useFixture(
-            fixtures.MockPatchObject(dnsmasq, '_blacklist_mac')).mock
+        self.mock__get_deny_allow_lists = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq, '_get_deny_allow_lists')).mock
+        self.mock__add_mac_to_allowlist = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq, '_add_mac_to_allowlist')).mock
+        self.mock__add_mac_to_denylist = self.useFixture(
+            fixtures.MockPatchObject(dnsmasq, '_add_mac_to_denylist')).mock
         self.mock__configure_unknown_hosts = self.useFixture(
             fixtures.MockPatchObject(dnsmasq, '_configure_unknown_hosts')).mock
         self.mock__configure_removedlist = self.useFixture(
@@ -376,10 +376,10 @@ class TestSync(DnsmasqTestBase):
             fixtures.MockPatchObject(node_cache, 'active_macs')).mock
         self.ironic_macs = {'new_mac', 'active_mac'}
         self.active_macs = {'active_mac'}
-        self.blacklist = {'gone_mac', 'active_mac'}
-        self.whitelist = {}
-        self.mock__get_black_white_lists.return_value = (self.blacklist,
-                                                         self.whitelist)
+        self.denylist = {'gone_mac', 'active_mac'}
+        self.allowlist = {}
+        self.mock__get_deny_allow_lists.return_value = (self.denylist,
+                                                        self.allowlist)
         self.mock_ironic.ports.return_value = [
             mock.Mock(address=address) for address in self.ironic_macs]
         self.mock_active_macs.return_value = self.active_macs
@@ -403,13 +403,13 @@ class TestSync(DnsmasqTestBase):
     def test__sync(self):
         self.driver._sync(self.mock_ironic)
 
-        self.mock__whitelist_mac.assert_called_once_with('active_mac')
-        self.mock__blacklist_mac.assert_called_once_with('new_mac')
+        self.mock__add_mac_to_allowlist.assert_called_once_with('active_mac')
+        self.mock__add_mac_to_denylist.assert_called_once_with('new_mac')
 
         self.mock_ironic.ports.assert_called_once_with(
             limit=None, fields=['address'])
         self.mock_active_macs.assert_called_once_with()
-        self.mock__get_black_white_lists.assert_called_once_with()
+        self.mock__get_deny_allow_lists.assert_called_once_with()
         self.mock__configure_unknown_hosts.assert_called_once_with()
         self.mock__configure_removedlist.assert_called_once_with({'gone_mac'})
         self.mock_log.debug.assert_has_calls([
@@ -426,13 +426,13 @@ class TestSync(DnsmasqTestBase):
         ]
         self.driver._sync(self.mock_ironic)
 
-        self.mock__whitelist_mac.assert_called_once_with('active_mac')
-        self.mock__blacklist_mac.assert_called_once_with('new_mac')
+        self.mock__add_mac_to_allowlist.assert_called_once_with('active_mac')
+        self.mock__add_mac_to_denylist.assert_called_once_with('new_mac')
 
         self.mock_ironic.ports.assert_called_with(
             limit=None, fields=['address'])
         self.mock_active_macs.assert_called_once_with()
-        self.mock__get_black_white_lists.assert_called_once_with()
+        self.mock__get_deny_allow_lists.assert_called_once_with()
         self.mock__configure_removedlist.assert_called_once_with({'gone_mac'})
         self.mock_log.debug.assert_has_calls([
             mock.call('Syncing the driver'),
