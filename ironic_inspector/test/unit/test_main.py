@@ -75,6 +75,9 @@ class TestApiIntrospect(BaseAPITest):
                                                       node_id=self.uuid,
                                                       manage_boot=True,
                                                       token=None)
+        self.assertEqual('application/json',
+                         res.headers['content-type'])
+        self.assertEqual(b'{}\n', res.data)
 
     def test_intospect_failed(self):
         self.client_mock.call.side_effect = utils.Error("boom")
@@ -98,6 +101,9 @@ class TestApiIntrospect(BaseAPITest):
                                                       node_id=self.uuid,
                                                       manage_boot=False,
                                                       token=None)
+        self.assertEqual('application/json',
+                         res.headers['content-type'])
+        self.assertEqual(b'{}\n', res.data)
 
     def test_introspect_can_manage_boot_false(self):
         CONF.set_override('can_manage_boot', False)
@@ -196,7 +202,9 @@ class TestApiAbort(BaseAPITest):
                                                       node_id=self.uuid,
                                                       token='token')
         self.assertEqual(202, res.status_code)
-        self.assertEqual(b'', res.data)
+        self.assertEqual(b'{}\n', res.data)
+        self.assertEqual('application/json',
+                         res.headers['content-type'])
 
     def test_no_authentication(self):
 
@@ -206,7 +214,9 @@ class TestApiAbort(BaseAPITest):
                                                       node_id=self.uuid,
                                                       token=None)
         self.assertEqual(202, res.status_code)
-        self.assertEqual(b'', res.data)
+        self.assertEqual(b'{}\n', res.data)
+        self.assertEqual('application/json',
+                         res.headers['content-type'])
 
     def test_node_not_found(self):
         exc = utils.Error("Not Found.", code=404)
@@ -559,6 +569,8 @@ class TestApiRules(BaseAPITest):
         res = self.app.delete('/v1/rules/' + self.uuid)
         self.assertEqual(204, res.status_code)
         delete_mock.assert_called_once_with(self.uuid)
+        self.assertEqual('text/plain; charset=utf-8',
+                         res.headers['content-type'])
 
 
 class TestApiMisc(BaseAPITest):

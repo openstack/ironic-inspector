@@ -100,6 +100,8 @@ class NodeInfo(object):
         :returns: boolean value, whether lock was acquired successfully
         """
         if self._lock.is_locked():
+            LOG.debug('Attempting to acquire lock already held',
+                      node_info=self)
             return True
 
         LOG.debug('Attempting to acquire lock', node_info=self)

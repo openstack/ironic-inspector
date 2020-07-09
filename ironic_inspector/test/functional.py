@@ -629,7 +629,7 @@ class Test(Base):
 
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
-        self.assertEqual('', res.text)
+        self.assertEqual('{}\n', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         status = self.call_get_status(self.uuid)
@@ -642,7 +642,7 @@ class Test(Base):
         # second reapply call
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
-        self.assertEqual('', res.text)
+        self.assertEqual('{}\n', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         # Reapply with provided data
@@ -650,7 +650,7 @@ class Test(Base):
         new_data['inventory']['cpu']['count'] = 42
         res = self.call_reapply(self.uuid, data=new_data)
         self.assertEqual(202, res.status_code)
-        self.assertEqual('', res.text)
+        self.assertEqual('{}\n', res.text)
         eventlet.greenthread.sleep(DEFAULT_SLEEP)
 
         self.check_status(status, finished=True, state=istate.States.finished)

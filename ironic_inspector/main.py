@@ -130,6 +130,31 @@ def error_response(exc, code=500):
     return res
 
 
+def _generate_empty_response(code):
+    """Change the content mime type to text/plain.
+
+    :param code: The HTTP response code as an integer.
+    :returns: An empty flask response object with the
+              requested return code.
+    """
+    # NOTE(TheJulia): Explicitly set a mime type and body on the
+    # response as some proxies view the lack of a mime type as a
+    # failure when the request was actually successful.
+    # Strictly speaking, 204s should have no body, where as 202's
+    # don't strictly require or expect content, but content can
+    # be included for user friendly response bodies.
+    if code == 204:
+        response = flask.make_response('', code)
+        response.mimetype = 'text/plain'
+    else:
+        # Send an empty dictionary to set a mimetype, and ultimately
+        # with this being a rest API we can, at some point, choose to
+        # convey some sort of status response back in the message
+        # body.
+        response = flask.make_response({}, code)
+    return response
+
+
 def convert_exceptions(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -333,7 +358,7 @@ def api_introspection(node_id):
         client.call({}, 'do_introspection', node_id=node_id,
                     manage_boot=manage_boot,
                     token=flask.request.headers.get('X-Auth-Token'))
-        return '', 202
+        return _generate_empty_response(202)
     else:
         node_info = node_cache.get_node(node_id)
         return flask.json.jsonify(generate_introspection_status(node_info))
@@ -358,7 +383,7 @@ def api_introspection_abort(node_id):
     client = get_client_compat()
     client.call({}, 'do_abort', node_id=node_id,
                 token=flask.request.headers.get('X-Auth-Token'))
-    return '', 202
+    return _generate_empty_response(202)
 
 
 @api('/v1/introspection/<node_id>/data', rule="introspection:data",
@@ -399,7 +424,7 @@ def api_introspection_reapply(node_id):
 
     client = get_client_compat()
     client.call({}, 'do_reapply', node_uuid=node_id, data=data)
-    return '', 202
+    return _generate_empty_response(202)
 
 
 def rule_repr(rule, short):
@@ -421,7 +446,7 @@ def api_rules():
         return flask.jsonify(rules=res)
     elif flask.request.method == 'DELETE':
         rules.delete_all()
-        return '', 204
+        return _generate_empty_response(204)
     else:
         body = flask.request.get_json(force=True)
         if body.get('uuid') and not uuidutils.is_uuid_like(body['uuid']):
@@ -452,7 +477,7 @@ def api_rule(uuid):
         return flask.jsonify(rule_repr(rule, short=False))
     else:
         rules.delete(uuid)
-        return '', 204
+        return _generate_empty_response(204)
 
 
 @_app.errorhandler(404)
