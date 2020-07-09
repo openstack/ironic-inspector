@@ -76,11 +76,17 @@ class RootDiskSelectionHook(base.ProcessingHook):
         root_disk = introspection_data.get('root_disk')
         if root_disk:
             local_gb = root_disk['size'] // units.Gi
-            if CONF.processing.disk_partitioning_spacing:
-                local_gb -= 1
-            LOG.info('Root disk %(disk)s, local_gb %(local_gb)s GiB',
-                     {'disk': root_disk, 'local_gb': local_gb},
-                     node_info=node_info, data=introspection_data)
+            if not local_gb:
+                LOG.warning('The requested root disk is too small (smaller '
+                            'than 1 GiB) or its size cannot be detected: %s',
+                            root_disk,
+                            node_info=node_info, data=introspection_data)
+            else:
+                if CONF.processing.disk_partitioning_spacing:
+                    local_gb -= 1
+                LOG.info('Root disk %(disk)s, local_gb %(local_gb)s GiB',
+                         {'disk': root_disk, 'local_gb': local_gb},
+                         node_info=node_info, data=introspection_data)
         else:
             local_gb = 0
             LOG.info('No root device found, assuming a diskless node',
