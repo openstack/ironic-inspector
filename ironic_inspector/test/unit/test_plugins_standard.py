@@ -363,6 +363,7 @@ class TestRootDiskSelection(test_base.NodeTest):
             {'model': 'Model 3', 'size': 10 * units.Gi, 'name': '/dev/sdc'},
             {'model': 'Model 4', 'size': 4 * units.Gi, 'name': '/dev/sdd'},
             {'model': 'Too Small', 'size': 1 * units.Gi, 'name': '/dev/sde'},
+            {'model': 'Floppy', 'size': 0, 'name': '/dev/sdf'},
         ]
         self.matched = self.inventory['disks'][2].copy()
         self.node_info = mock.Mock(spec=node_cache.NodeInfo,
@@ -433,6 +434,15 @@ class TestRootDiskSelection(test_base.NodeTest):
         self.assertEqual(self.matched, self.data['root_disk'])
         self.assertEqual(10, self.data['local_gb'])
         self.node_info.update_properties.assert_called_once_with(local_gb='10')
+
+    def test_zero_size(self):
+        self.node.properties['root_device'] = {'name': '/dev/sdf'}
+
+        self.hook.before_update(self.data, self.node_info)
+
+        self.assertEqual(self.inventory['disks'][5], self.data['root_disk'])
+        self.assertEqual(0, self.data['local_gb'])
+        self.node_info.update_properties.assert_called_once_with(local_gb='0')
 
     def test_all_match(self):
         self.node.properties['root_device'] = {'size': 10,
