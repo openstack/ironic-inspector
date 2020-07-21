@@ -16,12 +16,14 @@ import logging as pylog
 
 import futurist
 from ironic_lib import auth_basic
+from ironic_lib import exception
 from keystonemiddleware import auth_token
 from openstack.baremetal.v1 import node
 from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 import pytz
+import webob
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector import policy
@@ -169,6 +171,42 @@ class NoAvailableConductor(Error):
         super(NoAvailableConductor, self).__init__(msg, code=503, **kwargs)
 
 
+class DeferredBasicAuthMiddleware(object):
+    """Middleware which sets X-Identity-Status header based on authentication
+
+    """
+    def __init__(self, app, auth_file):
+        self.app = app
+        self.auth_file = auth_file
+        auth_basic.validate_auth_file(auth_file)
+
+    @webob.dec.wsgify()
+    def __call__(self, req):
+
+        headers = req.headers
+        try:
+            if 'Authorization' not in headers:
+                auth_basic.unauthorized()
+
+            token = auth_basic.parse_header({
+                'HTTP_AUTHORIZATION': headers.get('Authorization')
+            })
+            username, password = auth_basic.parse_token(token)
+            headers.update(
+                auth_basic.authenticate(self.auth_file, username, password))
+            headers['X-Identity-Status'] = 'Confirmed'
+
+        except exception.Unauthorized:
+            headers['X-Identity-Status'] = 'Invalid'
+        except exception.IronicException as e:
+            status = '%s %s' % (int(e.code), str(e))
+            resp = webob.Response(status=status)
+            resp.headers.update(e.headers)
+            return resp
+
+        return req.get_response(self.app)
+
+
 def executor():
     """Return the current futures executor."""
     global _EXECUTOR
@@ -193,7 +231,7 @@ def add_basic_auth_middleware(app):
 
     :param app: application.
     """
-    app.wsgi_app = auth_basic.BasicAuthMiddleware(
+    app.wsgi_app = DeferredBasicAuthMiddleware(
         app.wsgi_app, CONF.http_basic_auth_user_file)
 
 
@@ -216,11 +254,13 @@ def check_auth(request, rule=None, target=None):
     :param target: dict-like structure to check rule against
     :raises: utils.Error if access is denied
     """
-    if CONF.auth_strategy != 'keystone':
+    if CONF.auth_strategy not in ('keystone', 'http_basic'):
         return
     if not request.context.is_public_api:
         if request.headers.get('X-Identity-Status', '').lower() == 'invalid':
             raise Error(_('Authentication required'), code=401)
+    if CONF.auth_strategy != 'keystone':
+        return
     target = {} if target is None else target
     if not policy.authorize(rule, target, request.context.to_policy_values()):
         raise Error(_("Access denied by policy"), code=403)
