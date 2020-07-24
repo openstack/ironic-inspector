@@ -1,0 +1,9 @@
+---
+fixes:
+  - |
+    Fixes an issue which may occur with Apache httpd webservers acting as a
+    proxy where the server may report ``Bad Gateway``, however inspector
+    continues operating as if there was no problem. This was due to a
+    lack of a ``Content-Type`` header on HTTP 202 and 204 replies,
+    and lack of message body with HTTP 202 messages which Apache httpd
+    can error upon.

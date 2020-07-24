@@ -63,7 +63,11 @@ def introspect(node_id, manage_boot=True, token=None):
                                                ironic=ironic)
 
     if manage_boot:
-        utils.executor().submit(_do_introspect, node_info, ironic)
+        try:
+            utils.executor().submit(_do_introspect, node_info, ironic)
+        except Exception as exc:
+            msg = _('Failed to submit introspection job: %s')
+            raise utils.Error(msg % exc, node_info=node)
     else:
         _do_introspect(node_info, ironic)
 
