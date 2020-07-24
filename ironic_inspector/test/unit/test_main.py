@@ -164,6 +164,14 @@ class TestBasicAuthApiIntrospect(TestApiIntrospect):
                             headers=self.headers)
         self.assertEqual(401, res.status_code)
 
+    def test_unauthenticated_public_api(self):
+        res = self.app.get('/')
+        self.assertEqual(200, res.status_code)
+        res = self.app.get('/v1')
+        self.assertEqual(200, res.status_code)
+        res = self.app.get('/v1/introspection')
+        self.assertEqual(401, res.status_code)
+
 
 class TestApiContinue(BaseAPITest):
     def test_continue(self):

@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Using auth_strategy=http_basic incorrectly required authentication for
+    public paths such as / and /v1. These paths are now public.
