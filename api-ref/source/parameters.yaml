@@ -1,20 +1,20 @@
 # variables in header
-x-auth-token:
-  description: |
-    The client token being passed into Ironic Inspector API to make
-    authentication.
-  in: header
-  required: true
-  type: string
-x-openstack-ironic-inspector-api-maximum-version:
+api-maximum-version:
   description: |
     Maximum API microversion supported by this endpoint, eg. "1.10"
   in: header
   required: true
   type: string
-x-openstack-ironic-inspector-api-minimum-version:
+api-minimum-version:
   description: |
     Minimum API microversion supported by this endpoint, eg. "1.1"
+  in: header
+  required: true
+  type: string
+x-auth-token:
+  description: |
+    The client token being passed into Ironic Inspector API to make
+    authentication.
   in: header
   required: true
   type: string
