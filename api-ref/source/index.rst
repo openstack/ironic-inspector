@@ -1,8 +1,11 @@
 :tocdepth: 2
 
-============================================
-API of Hardware Introspection for Bare Metal
-============================================
+============================
+Bare Metal Introspection API
+============================
+
+By default **ironic-inspector** listens on ``0.0.0.0:5050``, port
+can be changed in configuration. Protocol is JSON over HTTP.
 
 .. rest_expand_all::
 

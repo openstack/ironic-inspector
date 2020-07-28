@@ -20,10 +20,8 @@ How to use Ironic Inspector
 HTTP API Reference
 ------------------
 
-.. toctree::
-  :maxdepth: 2
-
-  http-api
+* `Bare Metal Introspection API Reference
+  <https://docs.openstack.org/api-ref/baremetal-introspection/>`_.
 
 Troubleshooting
 ---------------
@@ -32,3 +30,9 @@ Troubleshooting
   :maxdepth: 2
 
   troubleshooting
+
+
+.. toctree::
+  :hidden:
+
+  http-api

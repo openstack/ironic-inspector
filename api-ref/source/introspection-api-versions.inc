@@ -79,3 +79,29 @@ Response Example
 
 .. literalinclude:: samples/api-v1-root-response.json
    :language: javascript
+
+Version History
+===============
+
+* **1.0** version of API at the moment of introducing versioning.
+* **1.1** adds endpoint to retrieve stored introspection data.
+* **1.2** endpoints for manipulating introspection rules.
+* **1.3** endpoint for canceling running introspection
+* **1.4** endpoint for reapplying the introspection over stored data.
+* **1.5** support for Ironic node names.
+* **1.6** endpoint for rules creating returns 201 instead of 200 on success.
+* **1.7** UUID, started_at, finished_at in the introspection status API.
+* **1.8** support for listing all introspection statuses.
+* **1.9** de-activate setting IPMI credentials, if IPMI credentials
+          are requested, API gets HTTP 400 response.
+* **1.10** adds node state to the GET /v1/introspection/<Node ID> and
+          GET /v1/introspection API response data.
+* **1.11** adds invert&multiple fields into rules response data
+* **1.12** this version indicates that support for setting IPMI credentials
+  was completely removed from API (all versions).
+* **1.13** adds ``manage_boot`` parameter for the introspection API.
+* **1.14** allows formatting to be applied to strings nested in dicts and lists
+  in the actions of introspection rules.
+* **1.15** allows reapply with provided introspection data from request.
+* **1.16** adds ``scope`` field to introspection rule.
+* **1.17** adds ``GET /v1/introspection/<node>/data/unprocessed``.

@@ -3,9 +3,11 @@ Usage
 
 .. _usage_guide:
 
-Refer to :ref:`api <http_api>` for information on the HTTP API.
+Refer to the `API reference`_ for information on the HTTP API.
 Refer to the :python-ironic-inspector-client-doc:`client documentation <>`
 for information on how to use CLI and Python library.
+
+.. _API reference: https://docs.openstack.org/api-ref/baremetal-introspection/
 
 Using from Ironic API
 ~~~~~~~~~~~~~~~~~~~~~
@@ -57,7 +59,7 @@ Please refer to the command below to import introspection rule::
     openstack baremetal introspection rule import <json file>
 
 Available conditions and actions are defined by plugins, and can be extended,
-see :ref:`contributing_link` for details. See :ref:`api <http_api>` for
+see :ref:`contributing_link` for details. See the `API reference`_ for
 specific calls to define introspection rules.
 
 Conditions
@@ -212,7 +214,7 @@ needed:
 
 ``ramdisk_error``
     reports error, if ``error`` field is set by the ramdisk, also optionally
-    stores logs from ``logs`` field, see :ref:`api <http_api>` for details.
+    stores logs from ``logs`` field, see the `API reference`_ for details.
 ``capabilities``
     detect node capabilities: CPU, boot mode, etc. See `Capabilities
     Detection`_ for more details.
@@ -287,7 +289,9 @@ arbitrary fields to set on discovery, for example:
 
 The ``enroll`` hook will also set the ``ipmi_address`` property on the new
 node, if its available in the introspection data we received,
-see :ref:`ramdisk_callback <ramdisk_callback>`.
+see `ramdisk callback`_.
+
+.. _ramdisk callback: https://docs.openstack.org/api-ref/baremetal-introspection/?expanded=ramdisk-callback-detail#ramdisk-callback
 
 Once the ``enroll`` hook is finished, **ironic-inspector** will process the
 introspection data in the same way it would for an identified node. It runs
