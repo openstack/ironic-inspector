@@ -43,7 +43,7 @@ _wsgi_app = _app.wsgi_app
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 16)
+CURRENT_API_VERSION = (1, 17)
 DEFAULT_API_VERSION = CURRENT_API_VERSION
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
@@ -386,20 +386,30 @@ def api_introspection_abort(node_id):
     return _generate_empty_response(202)
 
 
-@api('/v1/introspection/<node_id>/data', rule="introspection:data",
-     methods=['GET'])
-def api_introspection_data(node_id):
+def _get_data(node_id, processed):
     try:
         if not uuidutils.is_uuid_like(node_id):
             node = ir_utils.get_node(node_id, fields=['uuid'])
             node_id = node.uuid
-        res = process.get_introspection_data(node_id)
+        res = process.get_introspection_data(node_id, processed=processed)
         return res, 200, {'Content-Type': 'application/json'}
     except utils.IntrospectionDataStoreDisabled:
         return error_response(_('Inspector is not configured to store data. '
                                 'Set the [processing]store_data '
                                 'configuration option to change this.'),
                               code=404)
+
+
+@api('/v1/introspection/<node_id>/data', rule="introspection:data",
+     methods=['GET'])
+def api_introspection_data(node_id):
+    return _get_data(node_id, True)
+
+
+@api('/v1/introspection/<node_id>/data/unprocessed', rule="introspection:data",
+     methods=['GET'])
+def api_introspection_unprocessed_data(node_id):
+    return _get_data(node_id, False)
 
 
 @api('/v1/introspection/<node_id>/data/unprocessed',

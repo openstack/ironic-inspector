@@ -371,6 +371,19 @@ class TestApiGetData(BaseAPITest):
         self.assertEqual(self.introspection_data,
                          json.loads(res.data.decode('utf-8')))
 
+    @mock.patch.object(swift, 'SwiftAPI', autospec=True)
+    def test_get_unprocessed_data_from_swift(self, swift_mock):
+        CONF.set_override('store_data', 'swift', 'processing')
+        swift_conn = swift_mock.return_value
+        swift_conn.get_object.return_value = json.dumps(
+            self.introspection_data)
+        res = self.app.get('/v1/introspection/%s/data/unprocessed' % self.uuid)
+        name = 'inspector_data-%s-UNPROCESSED' % self.uuid
+        swift_conn.get_object.assert_called_once_with(name)
+        self.assertEqual(200, res.status_code)
+        self.assertEqual(self.introspection_data,
+                         json.loads(res.data.decode('utf-8')))
+
     @mock.patch.object(intros_data_plugin, 'DatabaseStore',
                        autospec=True)
     def test_get_introspection_data_from_db(self, db_mock):
@@ -387,6 +400,11 @@ class TestApiGetData(BaseAPITest):
     def test_introspection_data_not_stored(self):
         CONF.set_override('store_data', 'none', 'processing')
         res = self.app.get('/v1/introspection/%s/data' % self.uuid)
+        self.assertEqual(404, res.status_code)
+
+    def test_unprocessed_data_not_stored(self):
+        CONF.set_override('store_data', 'none', 'processing')
+        res = self.app.get('/v1/introspection/%s/data/unprocessed' % self.uuid)
         self.assertEqual(404, res.status_code)
 
     @mock.patch.object(ir_utils, 'get_node', autospec=True)
