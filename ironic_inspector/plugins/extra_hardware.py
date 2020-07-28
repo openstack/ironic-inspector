@@ -18,11 +18,14 @@ string in a Swift object. The object is named 'extra_hardware-<node uuid>' and
 is stored in the 'inspector' container.
 """
 
+from oslo_config import cfg
+
 from ironic_inspector.plugins import base
 from ironic_inspector import utils
 
 LOG = utils.getProcessingLogger(__name__)
 EDEPLOY_ITEM_SIZE = 4
+CONF = cfg.CONF
 
 
 class ExtraHardwareHook(base.ProcessingHook):
@@ -42,43 +45,54 @@ class ExtraHardwareHook(base.ProcessingHook):
                         'the ramdisk', node_info=node_info,
                         data=introspection_data)
             return
+
         data = introspection_data['data']
+        if not self._is_edeploy_data(data):
+            LOG.warning('Extra hardware data was not in a recognised '
+                        'format (eDeploy), and will not be forwarded to '
+                        'introspection rules', node_info=node_info,
+                        data=introspection_data)
+            if CONF.extra_hardware.strict:
+                LOG.debug('Deleting \"data\" key from introspection data as '
+                          'it is malformed and strict mode is on.',
+                          node_info=node_info, data=introspection_data)
+                del introspection_data['data']
+            return
 
         # NOTE(sambetts) If data is edeploy format, convert to dicts for rules
         # processing, store converted data in introspection_data['extra'].
         # Delete introspection_data['data'], it is assumed unusable
         # by rules.
-        if self._is_edeploy_data(data):
-            LOG.debug('Extra hardware data is in eDeploy format, '
-                      'converting to usable format',
-                      node_info=node_info, data=introspection_data)
-            introspection_data['extra'] = self._convert_edeploy_data(data)
-        else:
-            LOG.warning('Extra hardware data was not in a recognised '
-                        'format (eDeploy), and will not be forwarded to '
-                        'introspection rules', node_info=node_info,
-                        data=introspection_data)
+
+        converted = {}
+        for item in data:
+            if not item:
+                continue
+
+            try:
+                converted_0 = converted.setdefault(item[0], {})
+                converted_1 = converted_0.setdefault(item[1], {})
+
+                try:
+                    item[3] = int(item[3])
+                except (ValueError, TypeError):
+                    pass
+
+                converted_1[item[2]] = item[3]
+            except IndexError:
+                LOG.warning('Ignoring invalid extra data item %s', item,
+                            node_info=node_info, data=introspection_data)
+
+        introspection_data['extra'] = converted
 
         LOG.debug('Deleting \"data\" key from introspection data as it is '
-                  'assumed unusable by introspection rules. Raw data is '
-                  'stored in swift',
+                  'assumed unusable by introspection rules.',
                   node_info=node_info, data=introspection_data)
         del introspection_data['data']
 
     def _is_edeploy_data(self, data):
-        return all(isinstance(item, list) and len(item) == EDEPLOY_ITEM_SIZE
-                   for item in data)
-
-    def _convert_edeploy_data(self, data):
-        converted = {}
-        for item in data:
-            converted_0 = converted.setdefault(item[0], {})
-            converted_1 = converted_0.setdefault(item[1], {})
-
-            try:
-                item[3] = int(item[3])
-            except (ValueError, TypeError):
-                pass
-
-            converted_1[item[2]] = item[3]
-        return converted
+        return isinstance(data, list) and all(
+            isinstance(item, list)
+            and (not CONF.extra_hardware.strict
+                 or len(item) == EDEPLOY_ITEM_SIZE)
+            for item in data)

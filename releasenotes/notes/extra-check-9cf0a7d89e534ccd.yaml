@@ -1,0 +1,16 @@
+---
+fixes:
+  - |
+    The ``extra_hardware`` processing hook no longer refuses to parse extra
+    data if some records are empty or have unexpected length. These records
+    are now discared.
+
+    The previous behavior can be returned by setting the new option
+    ``[extra_hardware]strict`` to ``True``.
+  - |
+    The ``extra_hardware`` processing hook no longer removes the incoming
+    ``data`` object if it has unexpected data format, assuming that this
+    object is used for something else.
+
+    The previous behavior can be returned by setting the new option
+    ``[extra_hardware]strict`` to ``True``.
