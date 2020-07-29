@@ -140,6 +140,32 @@ details about the inventory key, refer to the
     Notably, it depends on the ramdisk
     used and plugins enabled both in the ramdisk and in inspector itself.
 
+Get Unprocessed Introspection Data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``GET /v1/introspection/<Node ID>/data/unprocessed`` get raw (unprocessed) data
+from introspection.
+
+Requires X-Auth-Token header with Keystone token for authentication.
+
+Response:
+
+* 200 - OK
+* 400 - bad request
+* 401, 403 - missing or invalid authentication
+* 404 - data cannot be found or data storage not configured
+
+Response body: JSON dictionary with introspection data. For more
+details about the inventory key, refer to the
+:ironic-python-agent-doc:`ironic-python-agent documentation
+<admin/how_it_works.html#inspection-data>`.
+
+.. note::
+    We do not provide any backward compatibility guarantees regarding the
+    format and contents of the stored data, other than the ``inventory``.
+    Notably, it depends on the ramdisk
+    used and plugins enabled both in the ramdisk and in inspector itself.
+
 Reapply introspection on stored data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -403,3 +429,4 @@ Version History
   in the actions of introspection rules.
 * **1.15** allows reapply with provided introspection data from request.
 * **1.16** adds ``scope`` field to introspection rule.
+* **1.17** adds ``GET /v1/introspection/<node>/data/unprocessed``.

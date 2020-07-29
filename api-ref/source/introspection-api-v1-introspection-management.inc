@@ -70,6 +70,48 @@ The response will contain introspection data in the form of json string.
    :language: javascript
 
 
+Get Unprocessed Introspection data
+==================================
+
+.. rest_method::  GET /v1/introspection/{node_id}/data/unprocessed
+
+Return stored raw (unprocessed) data from introspection.
+
+.. versionadded:: 1.17
+  Unprocessed introspection data can now be retrieved.
+
+.. note::
+    We do not provide any backward compatibility guarantees regarding the
+    format and contents of the stored data. Notably, it depends on the ramdisk
+    used and plugins enabled both in the ramdisk and in inspector itself.
+
+Normal response codes: 200
+
+Error codes:
+
+* 400 - bad request
+* 401, 403 - missing or invalid authentication
+* 404 - data cannot be found or data storage not configured
+
+Request
+-------
+
+.. rest_parameters:: parameters.yaml
+
+   - node_id: node_id
+
+
+Response
+--------
+
+The response will contain introspection data in the form of json string.
+
+**Example JSON representation of an introspection data:**
+
+.. literalinclude:: samples/api-v1-data-introspection-response.json
+   :language: javascript
+
+
 Reapply Introspection on data
 =============================
 

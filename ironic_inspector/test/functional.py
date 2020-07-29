@@ -177,8 +177,9 @@ class Base(base.NodeTest):
     def call_get_status(self, uuid, **kwargs):
         return self.call('get', '/v1/introspection/%s' % uuid, **kwargs).json()
 
-    def call_get_data(self, uuid, **kwargs):
-        return self.call('get', '/v1/introspection/%s/data' % uuid,
+    def call_get_data(self, uuid, processed=True, **kwargs):
+        return self.call('get', '/v1/introspection/%s/data%s'
+                         % (uuid, '' if processed else '/unprocessed'),
                          **kwargs).json()
 
     @_query_string('marker', 'limit')
@@ -626,6 +627,10 @@ class Test(Base):
 
         data = self.call_get_data(self.uuid)
         self.assertEqual(self.data['inventory'], data['inventory'])
+        self.assertIn('all_interfaces', data)
+        raw = self.call_get_data(self.uuid, processed=False)
+        self.assertEqual(self.data['inventory'], raw['inventory'])
+        self.assertNotIn('all_interfaces', raw)
 
         res = self.call_reapply(self.uuid)
         self.assertEqual(202, res.status_code)
