@@ -39,11 +39,13 @@ List of mandatory hardware keys:
    - inventory: inventory
    - memory: memory
    - cpu: cpu
-   - bmc_address: bmc_address
    - interfaces: interfaces
    - disks: disks
    - root_disk: root_disk
+   - bmc_address: bmc_address
    - boot_interface: boot_interface
+   - error: ramdisk_error
+   - logs: logs
 
 **Example node introspection continue request:**
 

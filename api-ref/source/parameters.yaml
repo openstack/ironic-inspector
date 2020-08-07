@@ -156,7 +156,14 @@ id:
 interfaces:
   description: |
     List of dictionaries with interfaces info, contains following keys:
-    ``name``,  ``ipv4_address``, ``mac_address``, ``client_id``.
+
+    * ``name`` interface name,
+
+    * ``ipv4_address`` IPv4 address of the interface,
+
+    * ``mac_address`` MAC (physical) address of the interface.
+
+    * ``client_id`` InfiniBand Client-ID, for Ethernet is None.
   in: body
   required: true
   type: array
@@ -195,6 +202,13 @@ node_uuid:
   in: body
   required: true
   type: string
+ramdisk_error:
+  description: |
+    An error that happened during ramdisk run, interpreted by the
+    ``ramdisk_error`` processing hook.
+  in: body
+  required: false
+  type: string
 rel:
   description: |
     The relationship between the version and the href.
@@ -211,6 +225,12 @@ root_disk:
   description: |
     Default deployment root disk as calculated by the **ironic-python-agent**
     algorithm.
+
+    .. note::
+      The default processing hook ``root_disk_selection`` may change
+      ``root_disk`` based on root device hints if node specify hints via
+      properties ``root_device`` key. See the `root device hints docs
+      <https://docs.openstack.org/ironic/latest/install/advanced.html#specifying-the-disk-for-deployment-root-device-hints>`_.
   in: body
   required: true
   type: string

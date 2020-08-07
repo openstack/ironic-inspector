@@ -60,7 +60,7 @@ Usual hardware introspection flow is as follows:
     the ``keep_ports`` option should be also set to ``all``. This will ensure
     no manually added ports will be deleted.
 
-* Separate API (see :ref:`usage <usage_guide>` and :ref:`api <http_api>`) can
+* Separate API (see :ref:`usage <usage_guide>` and `API reference`_) can
   be used to query introspection results for a given node.
 
 * Nodes are put in the correct state for deploying as described in
@@ -68,6 +68,8 @@ Usual hardware introspection flow is as follows:
 
 Starting DHCP server and configuring PXE boot environment is not part of this
 package and should be done separately.
+
+.. _API reference: https://docs.openstack.org/api-ref/baremetal-introspection/
 
 State machine diagram
 ---------------------
