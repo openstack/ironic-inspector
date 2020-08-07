@@ -1,0 +1,10 @@
+---
+features:
+  - |
+    Adds an ``accelerators`` plugin to identify acclerator devices and update
+    the bare metal node for future scheduling. The accelerator devices will be
+    saved to node properties under the key ``accelerators``. Introduces a
+    configuration option ``[accelerators]known_devices`` to specify a
+    configuration file which contains required information to identify
+    accelerator devices, by default it uses the in-tree configuration file
+    named ``known_accelerators.yaml``.

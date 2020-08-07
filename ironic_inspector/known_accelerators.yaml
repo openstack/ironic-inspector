@@ -1,0 +1,5 @@
+pci_devices:
+  - vendor_id: "10de"
+    device_id: "1eb8"
+    type: GPU
+    device_info: NVIDIA Corporation Tesla T4
