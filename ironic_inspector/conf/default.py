@@ -20,7 +20,7 @@ from ironic_inspector.common.i18n import _
 
 _OPTS = [
     cfg.StrOpt('listen_address',
-               default='0.0.0.0',
+               default='::',
                help=_('IP to listen on.')),
     cfg.PortOpt('listen_port',
                 default=5050,
