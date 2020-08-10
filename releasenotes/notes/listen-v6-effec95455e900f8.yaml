@@ -1,0 +1,5 @@
+---
+upgrade:
+  - |
+    API now listens on ``::`` by default, change the ``listen_address``
+    configuration option to modify.

@@ -319,7 +319,6 @@ function configure_inspector {
     configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
 
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT
-    inspector_iniset DEFAULT listen_address 0.0.0.0  # do not change
 
     inspector_iniset pxe_filter driver $IRONIC_INSPECTOR_DHCP_FILTER
     inspector_iniset iptables dnsmasq_interface $IRONIC_INSPECTOR_INTERFACE
