@@ -18,7 +18,7 @@ import netaddr
 import openstack
 from openstack import exceptions as os_exc
 from oslo_config import cfg
-import retrying
+import tenacity
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import keystone
@@ -187,9 +187,11 @@ def get_node(node_id, ironic=None, **kwargs):
     return node
 
 
-@retrying.retry(
-    retry_on_exception=lambda exc: isinstance(exc, os_exc.SDKException),
-    stop_max_attempt_number=5, wait_fixed=1000)
+@tenacity.retry(
+    retry=tenacity.retry_if_exception_type(os_exc.SDKException),
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_fixed(1),
+    reraise=True)
 def call_with_retries(func, *args, **kwargs):
     """Call an ironic client function retrying all errors.
 

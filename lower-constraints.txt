@@ -100,7 +100,6 @@ repoze.lru==0.7
 requests==2.23.0
 requestsexceptions==1.4.0
 restructuredtext-lint==1.3.0
-retrying==1.2.3
 rfc3986==1.4.0
 Routes==2.4.1
 six==1.14.0
