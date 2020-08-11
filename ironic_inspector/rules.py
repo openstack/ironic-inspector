@@ -220,9 +220,18 @@ class IntrospectionRule(object):
         :returns: True if conditions match, otherwise False
         """
         if not self._scope:
+            LOG.debug('Rule "%s" is global and will be applied if conditions '
+                      'are met.', self._description)
             return True
-        return self._scope == \
-            node_info.node().properties.get('inspection_scope')
+        if self._scope == node_info.node().properties.get('inspection_scope'):
+            LOG.debug('Rule "%s" and node have a matching scope "%s and will '
+                      'be applied if conditions are met.', self._description,
+                      self._scope)
+            return True
+        else:
+            LOG.debug('Rule\'s "%s" scope "%s" does not match node\'s scope. '
+                      'Rule will be ignored', self._description, self._scope)
+            return False
 
 
 def _format_value(value, data):
