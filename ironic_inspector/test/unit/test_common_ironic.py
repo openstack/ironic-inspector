@@ -98,6 +98,43 @@ class TestGetIpmiAddress(base.BaseTest):
         self.assertEqual((None, None, None),
                          ir_utils.get_ipmi_address(node))
 
+    @mock.patch.object(socket, 'getaddrinfo', autospec=True)
+    def test_redfish_bmc_address(self, mock_socket):
+        self.cfg.config(ipmi_address_fields=['redfish_address'])
+        url = 'http://{}/path'.format(self.ipmi_address)
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'redfish_address': url})
+        mock_socket.return_value = [
+            (socket.AF_INET, None, None, None, (self.ipmi_ipv4,)),
+            (socket.AF_INET6, None, None, None, (self.ipmi_ipv6,))]
+        self.assertEqual((self.ipmi_address, self.ipmi_ipv4, self.ipmi_ipv6),
+                         ir_utils.get_ipmi_address(node))
+        mock_socket.assert_called_once_with(self.ipmi_address, None, 0, 0, 6)
+
+    @mock.patch.object(socket, 'getaddrinfo', autospec=True)
+    def test_redfish_bmc_address_ipv4(self, mock_socket):
+        self.cfg.config(ipmi_address_fields=['redfish_address'])
+        url = 'http://{}:8080/path'.format(self.ipmi_ipv4)
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'redfish_address': url})
+        mock_socket.return_value = [
+            (socket.AF_INET, None, None, None, (self.ipmi_ipv4,))]
+        self.assertEqual((self.ipmi_ipv4, self.ipmi_ipv4, None),
+                         ir_utils.get_ipmi_address(node))
+        mock_socket.assert_called_once_with(self.ipmi_ipv4, None, 0, 0, 6)
+
+    @mock.patch.object(socket, 'getaddrinfo', autospec=True)
+    def test_redfish_bmc_address_ipv6(self, mock_socket):
+        self.cfg.config(ipmi_address_fields=['redfish_address'])
+        url = 'https://[{}]::443/path'.format(self.ipmi_ipv6)
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'redfish_address': url})
+        mock_socket.return_value = [
+            (socket.AF_INET6, None, None, None, (self.ipmi_ipv6,))]
+        self.assertEqual((self.ipmi_ipv6, None, self.ipmi_ipv6),
+                         ir_utils.get_ipmi_address(node))
+        mock_socket.assert_called_once_with(self.ipmi_ipv6, None, 0, 0, 6)
+
 
 class TestCapabilities(unittest.TestCase):
 

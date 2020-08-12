@@ -1,0 +1,8 @@
+---
+fixes:
+  - |
+    Fixes the node identification logic to enable a user to list
+    the ``redfish_address`` label for ``driver_info`` field values for
+    identification of a machine using the ``[DEFAULT]ipmi_address_fields``
+    configuration option. Previously the host would just not be matched as
+    the full URL would be evaluated instead of what the URL may resolve to.
