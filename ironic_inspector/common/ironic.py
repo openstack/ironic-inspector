@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import socket
+import urllib
 
 import netaddr
 import openstack
@@ -101,6 +102,9 @@ def get_ipmi_address(node):
 
         ipv4 = None
         ipv6 = None
+        if '//' in value:
+            url = urllib.parse.urlparse(value)
+            value = url.hostname
         try:
             addrinfo = socket.getaddrinfo(value, None, 0, 0, socket.SOL_TCP)
             for family, socket_type, proto, canon_name, sockaddr in addrinfo:
@@ -234,6 +238,10 @@ def lookup_node_by_bmc_addresses(addresses, introspection_data=None,
 
     # FIXME(aarefiev): it's not effective to fetch all nodes, and may
     #                  impact on performance on big clusters
+    # TODO(TheJulia): We should likely first loop through nodes being
+    #                 inspected, i.e. inspect wait, and then fallback
+    #                 to the rest of the physical nodes so we limit
+    #                 overall-impact of the operation.
     nodes = ironic.nodes(fields=('id', 'driver_info'), limit=None)
     found = set()
     for node in nodes:
