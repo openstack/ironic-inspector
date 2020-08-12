@@ -14,11 +14,12 @@ Inspector API supports versioning. There are two kinds of versions:
 - ``microversions``, which can be requested through the use of the
   ``X-OpenStack-Ironic-Inspector-API-Version`` header.
 
-The Version APIs work differently from other APIs as they *do not* require authentication.
+The Version APIs work differently from other APIs as they *do not* require
+authentication.
 
-All API requests support the ``X-OpenStack-Ironic-Inspector-API-Version`` header.
-This header SHOULD be supplied with every request; in the absence of this header,
-server will default to current supported version in all responses.
+All API requests support the ``X-OpenStack-Ironic-Inspector-API-Version``
+header.  This header SHOULD be supplied with every request; in the absence of
+this header, server will default to current supported version in all responses.
 
 List API versions
 =================
@@ -44,8 +45,8 @@ Response Example
     - links: links
     - status: status
 
-    - x-openstack-ironic-api-min-version: x-openstack-ironic-inspector-api-minimum-version
-    - x-openstack-ironic-api-max-version: x-openstack-ironic-inspector-api-maximum-version
+    - x-openstack-ironic-inspector-api-min-version: api-minimum-version
+    - x-openstack-ironic-inspector-api-max-version: api-maximum-version
 
 .. literalinclude:: samples/api-root-response.json
    :language: javascript
@@ -74,8 +75,8 @@ Response Example
     - rel: rel
     - name: name
 
-    - x-openstack-ironic-api-min-version: x-openstack-ironic-inspector-api-minimum-version
-    - x-openstack-ironic-api-max-version: x-openstack-ironic-inspector-api-maximum-version
+    - x-openstack-ironic-inspector-api-min-version: api-minimum-version
+    - x-openstack-ironic-inspector-api-max-version: api-maximum-version
 
 .. literalinclude:: samples/api-v1-root-response.json
    :language: javascript
