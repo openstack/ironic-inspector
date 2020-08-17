@@ -79,7 +79,8 @@ _OPTS = [
                       'applies when boot is managed by ironic-inspector (i.e. '
                       'manage_boot==True).')),
     cfg.ListOpt('ipmi_address_fields',
-                default=['ilo_address', 'drac_host', 'drac_address'],
+                default=['redfish_address', 'ilo_address', 'drac_host',
+                         'drac_address'],
                 help=_('Ironic driver_info fields that are equivalent '
                        'to ipmi_address.')),
     cfg.StrOpt('rootwrap_config',
