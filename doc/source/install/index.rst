@@ -324,7 +324,7 @@ nodes not supporting iPXE. To use iPXE, you'll need:
      connection, thus we use the timeout option with retries.
 
   Just like with PXE, you can customize the list of collectors by appending
-  the ``ipa-inspector-collectors`` kernel option. For example::
+  the ``ipa-inspection-collectors`` kernel option. For example::
 
     ipa-inspection-collectors=default,logs,extra_hardware
 
