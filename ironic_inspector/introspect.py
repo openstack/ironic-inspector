@@ -64,12 +64,13 @@ def introspect(node_id, manage_boot=True, token=None):
 
     if manage_boot:
         try:
-            utils.executor().submit(_do_introspect, node_info, ironic)
+            utils.executor().submit(_do_introspect, node_info, ironic,
+                                    ironic_node=node)
         except Exception as exc:
             msg = _('Failed to submit introspection job: %s')
             raise utils.Error(msg % exc, node_info=node)
     else:
-        _do_introspect(node_info, ironic)
+        _do_introspect(node_info, ironic, ironic_node=node)
 
 
 def _persistent_ramdisk_boot(node):
@@ -99,7 +100,7 @@ def _wait_for_turn(node_info):
 
 @node_cache.release_lock
 @node_cache.fsm_transition(istate.Events.wait)
-def _do_introspect(node_info, ironic):
+def _do_introspect(node_info, ironic, ironic_node):
     node_info.acquire_lock()
 
     # TODO(dtantsur): pagination
@@ -122,6 +123,8 @@ def _do_introspect(node_info, ironic):
              attrs, node_info=node_info)
 
     if node_info.manage_boot:
+        if ironic_node.power_state == 'power on':
+            ir_utils.set_power_state(node_info.uuid, 'power off')
         try:
             ironic.set_node_boot_device(
                 node_info.uuid, 'pxe',
