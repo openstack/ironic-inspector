@@ -260,6 +260,19 @@ Here are some plugins that can be additionally enabled:
       [port_physnet]
       cidr_map = 10.10.10.0/24:physnet_a, 2001:db8::/64:physnet_b
 
+``accelerators``
+    Processes PCI data returned from inspection and compares with the
+    accelerator inventory, it will update accelerator device information to
+    the properties field of the ironic node if any accelerator device is
+    found, for example::
+
+      {'local_gb': '1115', 'cpus': '40', 'cpu_arch': 'x86_64', 'memory_mb': '32768',
+       'capabilities': 'boot_mode:bios,cpu_vt:true,cpu_aes:true,cpu_hugepages:true,cpu_hugepages_1g:true,cpu_txt:true',
+       'accel': [{'vendor_id': '10de', 'device_id': '1eb8', 'type': 'GPU',
+                  'pci_address': '0000:82:00.0',
+                  'device_info': 'NVIDIA Corporation Tesla T4'}]
+      }
+
 Refer to :ref:`contributing_link` for information on how to write your
 own plugin.
 

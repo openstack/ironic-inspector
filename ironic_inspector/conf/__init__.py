@@ -12,6 +12,7 @@
 
 from oslo_config import cfg
 
+from ironic_inspector.conf import accelerators
 from ironic_inspector.conf import capabilities
 from ironic_inspector.conf import coordination
 from ironic_inspector.conf import default
@@ -31,6 +32,7 @@ from ironic_inspector.conf import swift
 CONF = cfg.CONF
 
 
+accelerators.register_opts(CONF)
 capabilities.register_opts(CONF)
 coordination.register_opts(CONF)
 discovery.register_opts(CONF)
