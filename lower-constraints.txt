@@ -1,5 +1,5 @@
 alabaster==0.7.12
-alembic==0.9.6
+alembic==1.4.2
 amqp==2.5.2
 appdirs==1.4.4
 automaton==1.9.0
@@ -29,7 +29,7 @@ futurist==1.2.0
 gitdb==4.0.5
 GitPython==3.1.2
 greenlet==0.4.15
-grpcio==1.15.0
+grpcio==1.18.0
 idna==2.9
 ifaddr==0.1.6
 imagesize==1.2.0
@@ -64,7 +64,7 @@ os-service-types==1.7.0
 oslo.concurrency==3.26.0
 oslo.config==5.2.0
 oslo.context==2.19.2
-oslo.db==4.40.0
+oslo.db==6.0.0
 oslo.i18n==3.15.3
 oslo.log==3.36.0
 oslo.messaging==5.32.0
@@ -109,7 +109,7 @@ Sphinx==2.0.0
 sphinxcontrib-apidoc==0.2.0
 sphinxcontrib-svg2pdfconverter==0.1.0
 sphinxcontrib-websupport==1.2.2
-SQLAlchemy==1.0.10
+SQLAlchemy==1.2.19
 sqlalchemy-migrate==0.13.0
 sqlparse==0.3.1
 statsd==3.3.0
@@ -121,7 +121,7 @@ testrepository==0.0.20
 testresources==2.0.0
 testscenarios==0.4
 testtools==2.4.0
-tooz==1.64.0
+tooz==2.5.1
 traceback2==1.4.0
 unittest2==1.1.0
 urllib3==1.25.9
