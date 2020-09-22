@@ -17,10 +17,12 @@ from automaton import exceptions as automaton_errors
 from eventlet import semaphore
 import fixtures
 from futurist import periodics
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 import stevedore
 
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import node_cache
 from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.pxe_filter import interface
 from ironic_inspector.test import base as test_base
@@ -292,3 +294,198 @@ class TestDriver(test_base.BaseTest):
 
         self.assertIs(self.mock_driver, ret)
         self.mock__driver_manager.assert_called_once_with()
+
+
+class TestIBMapping(test_base.BaseTest):
+    def setUp(self):
+        super(TestIBMapping, self).setUp()
+        CONF.set_override('ethoib_interfaces', ['eth0'], 'iptables')
+        self.ib_data = (
+            'EMAC=02:00:02:97:00:01 IMAC=97:fe:80:00:00:00:00:00:00:7c:fe:90:'
+            '03:00:29:26:52\n'
+            'EMAC=02:00:00:61:00:02 IMAC=61:fe:80:00:00:00:00:00:00:7c:fe:90:'
+            '03:00:29:24:4f\n'
+        )
+        self.client_id = ('ff:00:00:00:00:00:02:00:00:02:c9:00:7c:fe:90:03:00:'
+                          '29:24:4f')
+        self.ib_address = '7c:fe:90:29:24:4f'
+        self.ib_port = mock.Mock(address=self.ib_address,
+                                 extra={'client-id': self.client_id},
+                                 spec=['address', 'extra'])
+        self.port = mock.Mock(address='aa:bb:cc:dd:ee:ff',
+                              extra={}, spec=['address', 'extra'])
+        self.ports = [self.ib_port, self.port]
+        self.expected_rmac = '02:00:00:61:00:02'
+        self.fileobj = mock.mock_open(read_data=self.ib_data)
+
+    def test_matching_ib(self):
+        with mock.patch('builtins.open', self.fileobj,
+                        create=True) as mock_open:
+            pxe_filter._ib_mac_to_rmac_mapping(self.ports)
+
+        self.assertEqual(self.expected_rmac, self.ib_port.address)
+        self.assertEqual(self.ports, [self.ib_port, self.port])
+        mock_open.assert_called_once_with('/sys/class/net/eth0/eth/neighs',
+                                          'r')
+
+    def test_ib_not_match(self):
+        self.ports[0].extra['client-id'] = 'foo'
+        with mock.patch('builtins.open', self.fileobj,
+                        create=True) as mock_open:
+            pxe_filter._ib_mac_to_rmac_mapping(self.ports)
+
+        self.assertEqual(self.ib_address, self.ib_port.address)
+        self.assertEqual(self.ports, [self.ib_port, self.port])
+        mock_open.assert_called_once_with('/sys/class/net/eth0/eth/neighs',
+                                          'r')
+
+    def test_open_no_such_file(self):
+        with mock.patch('builtins.open',
+                        side_effect=IOError(), autospec=True) as mock_open:
+            pxe_filter._ib_mac_to_rmac_mapping(self.ports)
+
+        self.assertEqual(self.ib_address, self.ib_port.address)
+        self.assertEqual(self.ports, [self.ib_port, self.port])
+        mock_open.assert_called_once_with('/sys/class/net/eth0/eth/neighs',
+                                          'r')
+
+    def test_no_interfaces(self):
+        CONF.set_override('ethoib_interfaces', [], 'iptables')
+        with mock.patch('builtins.open', self.fileobj,
+                        create=True) as mock_open:
+            pxe_filter._ib_mac_to_rmac_mapping(self.ports)
+
+        self.assertEqual(self.ib_address, self.ib_port.address)
+        self.assertEqual(self.ports, [self.ib_port, self.port])
+        mock_open.assert_not_called()
+
+
+class TestGetInactiveMacs(test_base.BaseTest):
+    def setUp(self):
+        super(TestGetInactiveMacs, self).setUp()
+        self.mock__ib_mac_to_rmac_mapping = self.useFixture(
+            fixtures.MockPatchObject(pxe_filter,
+                                     '_ib_mac_to_rmac_mapping')).mock
+        self.mock_active_macs = self.useFixture(
+            fixtures.MockPatchObject(node_cache, 'active_macs')).mock
+        self.mock_ironic = mock.Mock()
+
+    def test_inactive_port(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
+        self.mock_ironic.ports.return_value = mock_ports_list
+        self.mock_active_macs.return_value = {'foo'}
+
+        ports = pxe_filter.get_inactive_macs(self.mock_ironic)
+        self.assertEqual({'bar'}, ports)
+        self.mock_ironic.ports.assert_called_once_with(
+            limit=None, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            [mock_ports_list[1]])
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test_retry_on_port_list_failure(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
+        self.mock_ironic.ports.side_effect = [
+            os_exc.SDKException('boom'),
+            mock_ports_list
+        ]
+        self.mock_active_macs.return_value = {'foo'}
+
+        ports = pxe_filter.get_inactive_macs(self.mock_ironic)
+        self.assertEqual({'bar'}, ports)
+        self.mock_ironic.ports.assert_called_with(
+            limit=None, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            [mock_ports_list[1]])
+
+
+class TestGetActiveMacs(test_base.BaseTest):
+    def setUp(self):
+        super(TestGetActiveMacs, self).setUp()
+        self.mock__ib_mac_to_rmac_mapping = self.useFixture(
+            fixtures.MockPatchObject(pxe_filter,
+                                     '_ib_mac_to_rmac_mapping')).mock
+        self.mock_active_macs = self.useFixture(
+            fixtures.MockPatchObject(node_cache, 'active_macs')).mock
+        self.mock_ironic = mock.Mock()
+
+    def test_active_port(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
+        self.mock_ironic.ports.return_value = mock_ports_list
+        self.mock_active_macs.return_value = {'foo'}
+
+        ports = pxe_filter.get_active_macs(self.mock_ironic)
+        self.assertEqual({'foo'}, ports)
+        self.mock_ironic.ports.assert_called_once_with(
+            limit=None, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            [mock_ports_list[0]])
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test_retry_on_port_list_failure(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
+        self.mock_ironic.ports.side_effect = [
+            os_exc.SDKException('boom'),
+            mock_ports_list
+        ]
+        self.mock_active_macs.return_value = {'foo'}
+
+        ports = pxe_filter.get_active_macs(self.mock_ironic)
+        self.assertEqual({'foo'}, ports)
+        self.mock_ironic.ports.assert_called_with(
+            limit=None, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            [mock_ports_list[0]])
+
+
+class TestGetIronicMacs(test_base.BaseTest):
+    def setUp(self):
+        super(TestGetIronicMacs, self).setUp()
+        self.mock__ib_mac_to_rmac_mapping = self.useFixture(
+            fixtures.MockPatchObject(pxe_filter,
+                                     '_ib_mac_to_rmac_mapping')).mock
+        self.mock_ironic = mock.Mock()
+
+    def test_active_port(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
+        self.mock_ironic.ports.return_value = mock_ports_list
+
+        ports = pxe_filter.get_ironic_macs(self.mock_ironic)
+        self.assertEqual({'foo', 'bar'}, ports)
+        self.mock_ironic.ports.assert_called_once_with(
+            limit=None, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            mock_ports_list)
+
+    @mock.patch('time.sleep', lambda _x: None)
+    def test_retry_on_port_list_failure(self):
+        mock_ports_list = [
+            mock.Mock(address='foo'),
+            mock.Mock(address='bar'),
+        ]
+        self.mock_ironic.ports.side_effect = [
+            os_exc.SDKException('boom'),
+            mock_ports_list
+        ]
+
+        ports = pxe_filter.get_ironic_macs(self.mock_ironic)
+        self.assertEqual({'foo', 'bar'}, ports)
+        self.mock_ironic.ports.assert_called_with(
+            limit=None, fields=['address', 'extra'])
+        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
+            mock_ports_list)

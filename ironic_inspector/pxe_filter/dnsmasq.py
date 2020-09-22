@@ -84,11 +84,11 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         timestamp_start = timeutils.utcnow()
 
         # active_macs are the MACs for which introspection is active
-        active_macs = node_cache.active_macs()
+        active_macs = pxe_filter.get_active_macs(ironic)
+
         # ironic_macs are all the MACs know to ironic (all ironic ports)
-        ironic_macs = set(port.address for port in
-                          ir_utils.call_with_retries(ironic.ports, limit=None,
-                                                     fields=['address']))
+        ironic_macs = pxe_filter.get_ironic_macs(ironic)
+
         denylist, allowlist = _get_deny_allow_lists()
         # removedlist are the MACs that are in either in allow or denylist,
         # but not kept in ironic (ironic_macs) any more
@@ -233,7 +233,8 @@ def _configure_removedlist(macs):
 
     hostsdir = CONF.dnsmasq_pxe_filter.dhcp_hostsdir
 
-    if _should_enable_unknown_hosts():
+    if (_should_enable_unknown_hosts()
+            and not CONF.pxe_filter.deny_unknown_macs):
         for mac in macs:
             if os.stat(os.path.join(hostsdir, mac)).st_size != _MAC_ALLOW_LEN:
                 _add_mac_to_allowlist(mac)
@@ -253,7 +254,8 @@ def _configure_unknown_hosts():
     path = os.path.join(CONF.dnsmasq_pxe_filter.dhcp_hostsdir,
                         _UNKNOWN_HOSTS_FILE)
 
-    if _should_enable_unknown_hosts():
+    if (_should_enable_unknown_hosts()
+            and not CONF.pxe_filter.deny_unknown_macs):
         wildcard_filter = _ALLOW_UNKNOWN_HOSTS
         log_wildcard_filter = 'allow'
     else:

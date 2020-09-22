@@ -26,7 +26,7 @@ _OPTS = [
                help=_('iptables chain name to use.')),
     cfg.ListOpt('ethoib_interfaces',
                 default=[],
-                help=_('List of Etherent Over InfiniBand interfaces '
+                help=_('List of Ethernet Over InfiniBand interfaces '
                        'on the Inspector host which are used for physical '
                        'access to the DHCP network. Multiple interfaces would '
                        'be attached to a bond or bridge specified in '

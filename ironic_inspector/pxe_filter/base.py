@@ -15,6 +15,8 @@
 
 import contextlib
 import functools
+import os
+import re
 
 from automaton import exceptions as automaton_errors
 from automaton import machines
@@ -27,12 +29,16 @@ import stevedore
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
+from ironic_inspector import node_cache
 from ironic_inspector.pxe_filter import interface
+from ironic_inspector import utils
 
 CONF = cfg.CONF
 LOG = log.getLogger(__name__)
 
 _STEVEDORE_DRIVER_NAMESPACE = 'ironic_inspector.pxe_filter'
+
+_EMAC_REGEX = 'EMAC=([0-9a-f]{2}(:[0-9a-f]{2}){5}) IMAC=.*'
 
 
 class InvalidFilterDriverState(RuntimeError):
@@ -96,6 +102,14 @@ class BaseFilter(interface.FilterDriver):
 
     def __init__(self):
         super(BaseFilter, self).__init__()
+        # Configuration check
+        if (CONF.pxe_filter.deny_unknown_macs
+                and CONF.processing.node_not_found_hook):
+            msg = _('Configuration error: [pxe_filter]deny_unknown_macs is'
+                    'enabled and [processing]node_not_found_hook is enabled.'
+                    'These options cannot both be enabled simultaneously.')
+            raise utils.Error(msg)
+
         self.lock = semaphore.BoundedSemaphore()
         self.fsm.initialize(start_state=States.uninitialized)
 
@@ -235,3 +249,66 @@ def driver():
     :returns: the singleton PXE filter driver object.
     """
     return _driver_manager().driver
+
+
+def _ib_mac_to_rmac_mapping(ports):
+    """Update port InfiniBand MAC address to EthernetOverInfiniBand MAC
+
+    On InfiniBand deployment we need to map between the baremetal host
+    InfiniBand MAC to the EoIB MAC. The EoIB MAC addresses are learned
+    automatically by the EoIB interfaces and those MACs are recorded to the
+    /sys/class/net/<ethoib_interface>/eth/neighs file. The InfiniBand GUID is
+    taken from the ironic port client-id extra attribute. The InfiniBand GUID
+    is the last 8 bytes of the client-id. The file format allows to map the
+    GUID to EoIB MAC. The filter rules based on those MACs get applied during a
+    driver.update() call
+
+    :param ports: list of ironic ports
+    :returns: Nothing.
+    """
+    ethoib_interfaces = CONF.iptables.ethoib_interfaces
+    for iface in ethoib_interfaces:
+        neighs_file = (os.path.join('/sys/class/net', iface, 'eth/neighs'))
+        try:
+            with open(neighs_file, 'r') as fd:
+                data = fd.read()
+        except IOError:
+            LOG.error('Interface %s is not Ethernet Over InfiniBand; '
+                      'Skipping ...', iface)
+            continue
+        for port in ports:
+            client_id = port.extra.get('client-id')
+            if client_id:
+                # Note(moshele): The last 8 bytes in the client-id is
+                # the baremetal node InfiniBand GUID
+                guid = client_id[-23:]
+                p = re.compile(_EMAC_REGEX + guid)
+                match = p.search(data)
+                if match:
+                    port.address = match.group(1)
+
+
+def get_ironic_macs(ironic):
+    ports = [port for port in
+             ir_utils.call_with_retries(ironic.ports, limit=None,
+                                        fields=['address', 'extra'])]
+    _ib_mac_to_rmac_mapping(ports)
+    return {port.address for port in ports}
+
+
+def get_inactive_macs(ironic):
+    ports = [port for port in
+             ir_utils.call_with_retries(ironic.ports, limit=None,
+                                        fields=['address', 'extra'])
+             if port.address not in node_cache.active_macs()]
+    _ib_mac_to_rmac_mapping(ports)
+    return {port.address for port in ports}
+
+
+def get_active_macs(ironic):
+    ports = [port for port in
+             ir_utils.call_with_retries(ironic.ports, limit=None,
+                                        fields=['address', 'extra'])
+             if port.address in node_cache.active_macs()]
+    _ib_mac_to_rmac_mapping(ports)
+    return {port.address for port in ports}

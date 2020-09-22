@@ -16,14 +16,13 @@
 from unittest import mock
 
 import fixtures
-from openstack import exceptions as os_exc
 from oslo_config import cfg
 
 from ironic_inspector import node_cache
 from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.pxe_filter import iptables
 from ironic_inspector.test import base as test_base
-
+from ironic_inspector import utils
 
 CONF = cfg.CONF
 
@@ -44,10 +43,14 @@ class TestIptablesDriver(test_base.NodeTest):
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
         self.mock_should_enable_dhcp = self.useFixture(
             fixtures.MockPatchObject(iptables, '_should_enable_dhcp')).mock
-        self.mock__get_denylist = self.useFixture(
-            fixtures.MockPatchObject(iptables, '_get_denylist')).mock
-        self.mock__get_denylist.return_value = []
+        self.mock_get_inactive_macs = self.useFixture(
+            fixtures.MockPatchObject(pxe_filter, 'get_inactive_macs')).mock
+        self.mock_get_inactive_macs.return_value = set()
+        self.mock_get_active_macs = self.useFixture(
+            fixtures.MockPatchObject(pxe_filter, 'get_active_macs')).mock
+        self.mock_get_active_macs.return_value = set()
         self.mock_ironic = mock.Mock()
+        self.mock_ironic.ports.return_value = []
 
     def check_fsm(self, events):
         # assert the iptables.fsm.process_event() was called with the events
@@ -143,7 +146,7 @@ class TestIptablesDriver(test_base.NodeTest):
         for (args, call) in zip(_iptables_expected_args,
                                 call_args_list):
             self.assertEqual(args, call[0])
-        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
+        self.mock_get_inactive_macs.assert_called_once_with(self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync])
 
     def test__iptables_args_ipv4(self):
@@ -179,7 +182,8 @@ class TestIptablesDriver(test_base.NodeTest):
         self.driver = iptables.IptablesFilter()
         self.mock_iptables = self.useFixture(
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
-        self.mock__get_denylist.return_value = ['AA:BB:CC:DD:EE:FF']
+        self.mock_get_active_macs.return_value = ['AA:BB:CC:DD:EE:FF']
+        self.mock_get_inactive_macs.return_value = ['FF:EE:DD:CC:BB:AA']
         self.mock_should_enable_dhcp.return_value = True
 
         _iptables_expected_args = [
@@ -190,7 +194,7 @@ class TestIptablesDriver(test_base.NodeTest):
             ('-N', self.driver.new_chain),
             # deny
             ('-A', self.driver.new_chain, '-m', 'mac', '--mac-source',
-             self.mock__get_denylist.return_value[0], '-j', 'DROP'),
+             self.mock_get_inactive_macs.return_value[0], '-j', 'DROP'),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
              expected_port, '-j', self.driver.new_chain),
@@ -208,14 +212,14 @@ class TestIptablesDriver(test_base.NodeTest):
         for (args, call) in zip(_iptables_expected_args,
                                 call_args_list):
             self.assertEqual(args, call[0])
-        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
+        self.mock_get_inactive_macs.assert_called_once_with(self.mock_ironic)
 
         # check caching
 
         self.mock_iptables.reset_mock()
-        self.mock__get_denylist.reset_mock()
+        self.mock_get_inactive_macs.reset_mock()
         self.driver.sync(self.mock_ironic)
-        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
+        self.mock_get_inactive_macs.assert_called_once_with(self.mock_ironic)
         self.assertFalse(self.mock_iptables.called)
 
     def test_sync_with_denylist_ipv4(self):
@@ -226,18 +230,71 @@ class TestIptablesDriver(test_base.NodeTest):
         CONF.set_override('ip_version', '6', 'iptables')
         self._test_sync_with_denylist('547')
 
+    def _test_sync_with_allowlist(self, expected_port):
+        CONF.set_override('deny_unknown_macs', True, 'pxe_filter')
+        self.driver = iptables.IptablesFilter()
+        self.mock_iptables = self.useFixture(
+            fixtures.MockPatchObject(self.driver, '_iptables')).mock
+        self.mock_get_active_macs.return_value = ['AA:BB:CC:DD:EE:FF']
+        self.mock_get_inactive_macs.return_value = ['FF:EE:DD:CC:BB:AA']
+        self.mock_should_enable_dhcp.return_value = True
+
+        _iptables_expected_args = [
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             expected_port, '-j', self.driver.new_chain),
+            ('-F', self.driver.new_chain),
+            ('-X', self.driver.new_chain),
+            ('-N', self.driver.new_chain),
+            # deny
+            ('-A', self.driver.new_chain, '-m', 'mac', '--mac-source',
+             self.mock_get_active_macs.return_value[0], '-j', 'ACCEPT'),
+            ('-A', self.driver.new_chain, '-j', 'DROP'),
+            ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             expected_port, '-j', self.driver.new_chain),
+            ('-D', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
+             expected_port, '-j', self.driver.chain),
+            ('-F', self.driver.chain),
+            ('-X', self.driver.chain),
+            ('-E', self.driver.new_chain, self.driver.chain)
+        ]
+
+        self.driver.sync(self.mock_ironic)
+        self.check_fsm([pxe_filter.Events.sync])
+        call_args_list = self.mock_iptables.call_args_list
+
+        for (args, call) in zip(_iptables_expected_args,
+                                call_args_list):
+            self.assertEqual(args, call[0])
+        self.mock_get_active_macs.assert_called_once_with(self.mock_ironic)
+
+        # check caching
+
+        self.mock_iptables.reset_mock()
+        self.mock_get_active_macs.reset_mock()
+        self.driver.sync(self.mock_ironic)
+        self.mock_get_active_macs.assert_called_once_with(self.mock_ironic)
+        self.assertFalse(self.mock_iptables.called)
+
+    def test_sync_with_allowlist_ipv4(self):
+        CONF.set_override('ip_version', '4', 'iptables')
+        self._test_sync_with_allowlist('67')
+
+    def test_sync_with_allowlist_ipv6(self):
+        CONF.set_override('ip_version', '6', 'iptables')
+        self._test_sync_with_allowlist('547')
+
     def _test__iptables_clean_cache_on_error(self, expected_port):
         self.driver = iptables.IptablesFilter()
         self.mock_iptables = self.useFixture(
             fixtures.MockPatchObject(self.driver, '_iptables')).mock
-        self.mock__get_denylist.return_value = ['AA:BB:CC:DD:EE:FF']
+        self.mock_get_inactive_macs.return_value = ['AA:BB:CC:DD:EE:FF']
         self.mock_should_enable_dhcp.return_value = True
 
         self.mock_iptables.side_effect = [None, None, RuntimeError('Oops!'),
                                           None, None, None, None, None, None]
         self.assertRaises(RuntimeError, self.driver.sync, self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync, pxe_filter.Events.reset])
-        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
+        self.mock_get_inactive_macs.assert_called_once_with(self.mock_ironic)
 
         # check caching
         syncs_expected_args = [
@@ -249,7 +306,7 @@ class TestIptablesDriver(test_base.NodeTest):
             ('-N', self.driver.new_chain),
             # deny
             ('-A', self.driver.new_chain, '-m', 'mac', '--mac-source',
-             self.mock__get_denylist.return_value[0], '-j', 'DROP'),
+             self.mock_get_inactive_macs.return_value[0], '-j', 'DROP'),
             ('-A', self.driver.new_chain, '-j', 'ACCEPT'),
             ('-I', 'INPUT', '-i', 'br-ctlplane', '-p', 'udp', '--dport',
              expected_port, '-j', self.driver.new_chain),
@@ -262,7 +319,7 @@ class TestIptablesDriver(test_base.NodeTest):
 
         self.mock_iptables.reset_mock()
         self.mock_iptables.side_effect = None
-        self.mock__get_denylist.reset_mock()
+        self.mock_get_inactive_macs.reset_mock()
         self.mock_fsm.reset_mock()
         self.driver.sync(self.mock_ironic)
         self.check_fsm([pxe_filter.Events.sync])
@@ -271,7 +328,7 @@ class TestIptablesDriver(test_base.NodeTest):
         for (idx, (args, call)) in enumerate(zip(syncs_expected_args,
                                                  call_args_list)):
             self.assertEqual(args, call[0], 'idx: %s' % idx)
-        self.mock__get_denylist.assert_called_once_with(self.mock_ironic)
+        self.mock_get_inactive_macs.assert_called_once_with(self.mock_ironic)
 
     def test__iptables_clean_cache_on_error_ipv4(self):
         CONF.set_override('ip_version', '4', 'iptables')
@@ -290,6 +347,12 @@ class TestIptablesDriver(test_base.NodeTest):
         CONF.set_override('ip_version', '6', 'iptables')
         driver = iptables.IptablesFilter()
         self.assertEqual(driver._cmd_iptables, 'ip6tables')
+
+    def test_deny_unknown_macs_and_node_not_found_hook_bad(self):
+        CONF.set_override('deny_unknown_macs', True, 'pxe_filter')
+        CONF.set_override('node_not_found_hook', True, 'processing')
+        self.assertRaisesRegex(utils.Error, 'Configuration error:',
+                               self.driver.__init__)
 
 
 class Test_ShouldEnableDhcp(test_base.BaseTest):
@@ -311,113 +374,3 @@ class Test_ShouldEnableDhcp(test_base.BaseTest):
     def test__should_enable_dhcp_false(self):
         self.mock_introspection_active.return_value = False
         self.assertIs(False, iptables._should_enable_dhcp())
-
-
-class TestIBMapping(test_base.BaseTest):
-    def setUp(self):
-        super(TestIBMapping, self).setUp()
-        CONF.set_override('ethoib_interfaces', ['eth0'], 'iptables')
-        self.ib_data = (
-            'EMAC=02:00:02:97:00:01 IMAC=97:fe:80:00:00:00:00:00:00:7c:fe:90:'
-            '03:00:29:26:52\n'
-            'EMAC=02:00:00:61:00:02 IMAC=61:fe:80:00:00:00:00:00:00:7c:fe:90:'
-            '03:00:29:24:4f\n'
-        )
-        self.client_id = ('ff:00:00:00:00:00:02:00:00:02:c9:00:7c:fe:90:03:00:'
-                          '29:24:4f')
-        self.ib_address = '7c:fe:90:29:24:4f'
-        self.ib_port = mock.Mock(address=self.ib_address,
-                                 extra={'client-id': self.client_id},
-                                 spec=['address', 'extra'])
-        self.port = mock.Mock(address='aa:bb:cc:dd:ee:ff',
-                              extra={}, spec=['address', 'extra'])
-        self.ports = [self.ib_port, self.port]
-        self.expected_rmac = '02:00:00:61:00:02'
-        self.fileobj = mock.mock_open(read_data=self.ib_data)
-
-    def test_matching_ib(self):
-        with mock.patch('builtins.open', self.fileobj,
-                        create=True) as mock_open:
-            iptables._ib_mac_to_rmac_mapping(self.ports)
-
-        self.assertEqual(self.expected_rmac, self.ib_port.address)
-        self.assertEqual(self.ports, [self.ib_port, self.port])
-        mock_open.assert_called_once_with('/sys/class/net/eth0/eth/neighs',
-                                          'r')
-
-    def test_ib_not_match(self):
-        self.ports[0].extra['client-id'] = 'foo'
-        with mock.patch('builtins.open', self.fileobj,
-                        create=True) as mock_open:
-            iptables._ib_mac_to_rmac_mapping(self.ports)
-
-        self.assertEqual(self.ib_address, self.ib_port.address)
-        self.assertEqual(self.ports, [self.ib_port, self.port])
-        mock_open.assert_called_once_with('/sys/class/net/eth0/eth/neighs',
-                                          'r')
-
-    def test_open_no_such_file(self):
-        with mock.patch('builtins.open',
-                        side_effect=IOError(), autospec=True) as mock_open:
-            iptables._ib_mac_to_rmac_mapping(self.ports)
-
-        self.assertEqual(self.ib_address, self.ib_port.address)
-        self.assertEqual(self.ports, [self.ib_port, self.port])
-        mock_open.assert_called_once_with('/sys/class/net/eth0/eth/neighs',
-                                          'r')
-
-    def test_no_interfaces(self):
-        CONF.set_override('ethoib_interfaces', [], 'iptables')
-        with mock.patch('builtins.open', self.fileobj,
-                        create=True) as mock_open:
-            iptables._ib_mac_to_rmac_mapping(self.ports)
-
-        self.assertEqual(self.ib_address, self.ib_port.address)
-        self.assertEqual(self.ports, [self.ib_port, self.port])
-        mock_open.assert_not_called()
-
-
-class TestGetDenylist(test_base.BaseTest):
-    def setUp(self):
-        super(TestGetDenylist, self).setUp()
-        self.mock__ib_mac_to_rmac_mapping = self.useFixture(
-            fixtures.MockPatchObject(iptables, '_ib_mac_to_rmac_mapping')).mock
-        self.mock_active_macs = self.useFixture(
-            fixtures.MockPatchObject(node_cache, 'active_macs')).mock
-        self.mock_ironic = mock.Mock()
-
-    def test_active_port(self):
-        mock_ports_list = [
-            mock.Mock(address='foo'),
-            mock.Mock(address='bar'),
-        ]
-        self.mock_ironic.ports.return_value = mock_ports_list
-        self.mock_active_macs.return_value = {'foo'}
-
-        ports = iptables._get_denylist(self.mock_ironic)
-        # foo is an active address so we expect the denylist contain only bar
-        self.assertEqual(['bar'], ports)
-        self.mock_ironic.ports.assert_called_once_with(
-            limit=None, fields=['address', 'extra'])
-        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
-            [mock_ports_list[1]])
-
-    @mock.patch('time.sleep', lambda _x: None)
-    def test_retry_on_port_list_failure(self):
-        mock_ports_list = [
-            mock.Mock(address='foo'),
-            mock.Mock(address='bar'),
-        ]
-        self.mock_ironic.ports.side_effect = [
-            os_exc.SDKException('boom'),
-            mock_ports_list
-        ]
-        self.mock_active_macs.return_value = {'foo'}
-
-        ports = iptables._get_denylist(self.mock_ironic)
-        # foo is an active address so we expect the denylist contain only bar
-        self.assertEqual(['bar'], ports)
-        self.mock_ironic.ports.assert_called_with(
-            limit=None, fields=['address', 'extra'])
-        self.mock__ib_mac_to_rmac_mapping.assert_called_once_with(
-            [mock_ports_list[1]])
