@@ -55,7 +55,7 @@ def _should_enable_unknown_hosts():
     """Check whether we should enable DHCP for unknown hosts
 
     We add unknown hosts to the deny list unless one or more nodes are on
-    introspection and node_not_found_hook is not set.
+    introspection, or the node_not_found_hook is not set.
     """
     return (node_cache.introspection_active() or
             CONF.processing.node_not_found_hook is not None)
