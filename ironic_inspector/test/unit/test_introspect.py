@@ -477,39 +477,6 @@ class TestIntrospect(BaseTest):
         self.assertFalse(cli.set_node_boot_device.called)
         self.assertFalse(cli.set_node_power_state.called)
 
-    @mock.patch.object(ir_utils, 'set_power_state', autospec=True)
-    def test_ok_power_on(self, mock_set_power, client_mock, start_mock):
-        cli = self._prepare(client_mock)
-        new_node = self.node
-        new_node.power_state = 'power on'
-        cli.get_node.side_effect = iter([new_node,
-                                         new_node,
-                                         new_node,
-                                         new_node,
-                                         self.node])
-        start_mock.return_value = self.node_info
-
-        introspect.introspect(self.node.uuid)
-
-        cli.get_node.assert_called_once_with(self.uuid)
-        cli.validate_node.assert_called_once_with(self.uuid, required='power')
-
-        start_mock.assert_called_once_with(self.uuid,
-                                           bmc_address=[self.bmc_address],
-                                           manage_boot=True,
-                                           ironic=cli)
-        self.node_info.ports.assert_called_once_with()
-        self.node_info.add_attribute.assert_called_once_with(
-            'mac', self.macs)
-        self.sync_filter_mock.assert_called_with(cli)
-        cli.set_node_boot_device.assert_called_once_with(
-            self.uuid, 'pxe', persistent=False)
-        cli.set_node_power_state.assert_called_once_with(self.uuid,
-                                                         'rebooting')
-        self.node_info.acquire_lock.assert_called_once_with()
-        self.node_info.release_lock.assert_called_once_with()
-        mock_set_power.assert_called_once_with(self.node.uuid, 'power off')
-
 
 @mock.patch.object(node_cache, 'get_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)

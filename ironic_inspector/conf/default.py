@@ -101,9 +101,6 @@ _OPTS = [
     cfg.BoolOpt('standalone', default=True,
                 help=_('Whether to run ironic-inspector as a standalone '
                        'service. It\'s EXPERIMENTAL to set to False.')),
-    cfg.IntOpt('power_timeout',
-               default=60,
-               help=_('Time in seconds to wait for a node to power-off.')),
 ]
 
 
