@@ -288,28 +288,3 @@ def lookup_node(macs=None, bmc_addresses=None, introspection_data=None,
                            'node1': node, 'node2': node2})
 
     return node or node2
-
-
-def _wait_for_power_state(node, state, ironic):
-    timeout = CONF.power_timeout
-    for count in openstack.utils.iterate_timeout(
-            timeout,
-            "Timed out waiting for node %(node)s to reach power "
-            "state %(state)s." % {'node': node, 'state': state}):
-        latest_node = ironic.get_node(node)
-        if latest_node.power_state == state:
-            return
-
-
-def set_power_state(node, state, ironic=None, wait=True):
-    if ironic is None:
-        ironic = get_client()
-
-    try:
-        ironic.set_node_power_state(node, state)
-        if wait:
-            _wait_for_power_state(node, state, ironic)
-    except os_exc.SDKException as exc:
-        raise utils.Error(
-            'Failed to set power state for node %(node)s '
-            'Error: %(error)s' % {'node': node, 'error': exc})

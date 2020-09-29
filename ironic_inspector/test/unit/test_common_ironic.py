@@ -273,32 +273,3 @@ class TestLookupNode(base.NodeTest):
                       fields=['uuid', 'node_uuid']) for mac in self.macs
         ])
         self.assertEqual(1, self.ironic.nodes.call_count)
-
-
-class TestSetPower(base.NodeTest):
-
-    @mock.patch.object(ir_utils, '_wait_for_power_state', autospec=True)
-    def test_set_power_state(self, mock_wait):
-        cli = mock.Mock()
-        cli.set_node_power_state.return_value = None
-        ir_utils.set_power_state('cat_node', 'meow', cli)
-        mock_wait.assert_called_once_with('cat_node', 'meow', mock.ANY)
-        cli.set_node_power_state.assert_called_once_with('cat_node', 'meow')
-
-    @mock.patch.object(ir_utils, '_wait_for_power_state', autospec=True)
-    def test_set_power_state_nowait(self, mock_wait):
-        cli = mock.Mock()
-        cli.set_node_power_state.return_value = None
-        ir_utils.set_power_state('cat_node', 'meow', cli, wait=False)
-        mock_wait.assert_not_called()
-        cli.set_node_power_state.assert_called_once_with('cat_node', 'meow')
-
-    def test__wait_for_power_state(self):
-        cli = mock.Mock()
-        purr_node = mock.Mock()
-        purr_node.power_state = 'purring'
-        meow_node = mock.Mock()
-        meow_node.power_state = 'meow'
-        cli.get_node.side_effect = iter([purr_node, meow_node])
-        ir_utils._wait_for_power_state('cat', 'meow', cli)
-        self.assertEqual(2, cli.get_node.call_count)
