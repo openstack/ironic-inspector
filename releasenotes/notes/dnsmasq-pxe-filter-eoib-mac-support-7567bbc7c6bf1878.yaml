@@ -1,0 +1,6 @@
+---
+features:
+  - |
+    The dnsmasq pxe-filter now supports mapping between host InfiniBand MAC to
+    EthernetOverInfiniBand MAC. (This was previously only supported by the
+    iptables pxe-filter.)

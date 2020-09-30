@@ -26,8 +26,10 @@ from oslo_config import cfg
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
+from ironic_inspector.pxe_filter import base as pxe_filter
 from ironic_inspector.pxe_filter import dnsmasq
 from ironic_inspector.test import base as test_base
+from ironic_inspector import utils
 
 CONF = cfg.CONF
 
@@ -36,6 +38,15 @@ class DnsmasqTestBase(test_base.BaseTest):
     def setUp(self):
         super(DnsmasqTestBase, self).setUp()
         self.driver = dnsmasq.DnsmasqFilter()
+
+
+class TestConfiguration(DnsmasqTestBase):
+
+    def test_deny_unknown_macs_and_node_not_found_hook_bad(self):
+        CONF.set_override('deny_unknown_macs', True, 'pxe_filter')
+        CONF.set_override('node_not_found_hook', True, 'processing')
+        self.assertRaisesRegex(utils.Error, 'Configuration error:',
+                               self.driver.__init__)
 
 
 class TestShouldEnableUnknownHosts(DnsmasqTestBase):
@@ -251,6 +262,23 @@ class TestMACHandlers(test_base.BaseTest):
             'A %s record for all unknown hosts using wildcard mac '
             'created', 'deny')
 
+    def test__macs_unknown_hosts_deny_unknown(self):
+        self.mock_join.return_value = "%s/%s" % (self.dhcp_hostsdir,
+                                                 dnsmasq._UNKNOWN_HOSTS_FILE)
+        self.mock_introspection_active.return_value = True
+        CONF.set_override('deny_unknown_macs', True, 'pxe_filter')
+
+        dnsmasq._configure_unknown_hosts()
+
+        self.mock_join.assert_called_once_with(self.dhcp_hostsdir,
+                                               dnsmasq._UNKNOWN_HOSTS_FILE)
+        self.mock__exclusive_write_or_pass.assert_called_once_with(
+            self.mock_join.return_value,
+            '%s' % dnsmasq._DENY_UNKNOWN_HOSTS)
+        self.mock_log.debug.assert_called_once_with(
+            'A %s record for all unknown hosts using wildcard mac '
+            'created', 'deny')
+
     def test__configure_removedlist_allowlist(self):
         self.mock_introspection_active.return_value = True
         self.mock_stat.return_value.st_size = dnsmasq._MAC_DENY_LEN
@@ -264,6 +292,17 @@ class TestMACHandlers(test_base.BaseTest):
     def test__configure_removedlist_denylist(self):
         self.mock_introspection_active.return_value = False
         self.mock_stat.return_value.st_size = dnsmasq._MAC_ALLOW_LEN
+
+        dnsmasq._configure_removedlist({self.mac})
+
+        self.mock_join.assert_called_with(self.dhcp_hostsdir, self.mac)
+        self.mock__exclusive_write_or_pass.assert_called_once_with(
+            self.mock_join.return_value, '%s,ignore\n' % self.mac)
+
+    def test__configure_removedlist_denylist_deny_unknown(self):
+        self.mock_introspection_active.return_value = True
+        self.mock_stat.return_value.st_size = dnsmasq._MAC_ALLOW_LEN
+        CONF.set_override('deny_unknown_macs', True, 'pxe_filter')
 
         dnsmasq._configure_removedlist({self.mac})
 
@@ -372,6 +411,9 @@ class TestSync(DnsmasqTestBase):
         get_client_mock = self.useFixture(
             fixtures.MockPatchObject(ir_utils, 'get_client')).mock
         get_client_mock.return_value = self.mock_ironic
+        self.mock_get_active_macs = self.useFixture(
+            fixtures.MockPatchObject(pxe_filter, 'get_active_macs')).mock
+        self.mock_get_active_macs.return_value = set()
         self.mock_active_macs = self.useFixture(
             fixtures.MockPatchObject(node_cache, 'active_macs')).mock
         self.ironic_macs = {'new_mac', 'active_mac'}
@@ -401,14 +443,15 @@ class TestSync(DnsmasqTestBase):
         self.mock__configure_unknown_hosts.assert_called_once_with()
 
     def test__sync(self):
+        self.mock_get_active_macs.return_value = {'active_mac'}
         self.driver._sync(self.mock_ironic)
 
+        self.mock_get_active_macs.assert_called_once_with(self.mock_ironic)
         self.mock__add_mac_to_allowlist.assert_called_once_with('active_mac')
         self.mock__add_mac_to_denylist.assert_called_once_with('new_mac')
 
         self.mock_ironic.ports.assert_called_once_with(
-            limit=None, fields=['address'])
-        self.mock_active_macs.assert_called_once_with()
+            fields=['address', 'extra'], limit=None)
         self.mock__get_deny_allow_lists.assert_called_once_with()
         self.mock__configure_unknown_hosts.assert_called_once_with()
         self.mock__configure_removedlist.assert_called_once_with({'gone_mac'})
@@ -424,14 +467,15 @@ class TestSync(DnsmasqTestBase):
             os_exc.SDKException('boom'),
             [mock.Mock(address=address) for address in self.ironic_macs]
         ]
+        self.mock_get_active_macs.return_value = {'active_mac'}
         self.driver._sync(self.mock_ironic)
 
         self.mock__add_mac_to_allowlist.assert_called_once_with('active_mac')
         self.mock__add_mac_to_denylist.assert_called_once_with('new_mac')
 
-        self.mock_ironic.ports.assert_called_with(
-            limit=None, fields=['address'])
-        self.mock_active_macs.assert_called_once_with()
+        self.mock_ironic.ports.assert_called_with(fields=['address', 'extra'],
+                                                  limit=None)
+        self.mock_get_active_macs.assert_called_once_with(self.mock_ironic)
         self.mock__get_deny_allow_lists.assert_called_once_with()
         self.mock__configure_removedlist.assert_called_once_with({'gone_mac'})
         self.mock_log.debug.assert_has_calls([

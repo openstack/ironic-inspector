@@ -24,6 +24,15 @@ _OPTS = [
     cfg.IntOpt('sync_period', default=15, min=0,
                help=_('Amount of time in seconds, after which repeat periodic '
                       'update of the filter.')),
+    cfg.BoolOpt('deny_unknown_macs', default=False,
+                help=_('By default inspector will open the DHCP server for '
+                       'any node when introspection is active. Opening DHCP '
+                       'for unknown MAC addresses when introspection is '
+                       'active allow for users to add nodes with no ports to '
+                       'ironic and have ironic-inspector enroll ports based '
+                       'on node introspection results. NOTE: If this option '
+                       'is True, nodes must have at least one enrolled port '
+                       'prior to introspection.'))
 ]
 
 

@@ -12,22 +12,16 @@
 # limitations under the License.
 
 import contextlib
-import os
-import re
 
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log
 
-from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector import node_cache
 from ironic_inspector.pxe_filter import base as pxe_filter
 
-
 CONF = cfg.CONF
 LOG = log.getLogger(__name__)
-
-_EMAC_REGEX = 'EMAC=([0-9a-f]{2}(:[0-9a-f]{2}){5}) IMAC=.*'
 
 
 def _should_enable_dhcp():
@@ -46,6 +40,7 @@ class IptablesFilter(pxe_filter.BaseFilter):
     def __init__(self):
         super(IptablesFilter, self).__init__()
         self.denylist_cache = None
+        self.allowlist_cache = None
         self.enabled = True
         self.interface = CONF.iptables.dnsmasq_interface
         self.chain = CONF.iptables.firewall_chain
@@ -66,6 +61,7 @@ class IptablesFilter(pxe_filter.BaseFilter):
     def reset(self):
         self.enabled = True
         self.denylist_cache = None
+        self.allowlist_cache = None
         for chain in (self.chain, self.new_chain):
             try:
                 self._clean_up(chain)
@@ -114,26 +110,44 @@ class IptablesFilter(pxe_filter.BaseFilter):
             self._disable_dhcp()
             return
 
-        to_deny = _get_denylist(ironic)
-        if to_deny == self.denylist_cache:
-            LOG.debug('Not updating iptables - no changes in MAC list %s',
-                      to_deny)
+        if CONF.pxe_filter.deny_unknown_macs:
+            to_allow = pxe_filter.get_active_macs(ironic)
+            to_deny = None
+        else:
+            to_deny = pxe_filter.get_inactive_macs(ironic)
+            to_allow = None
+
+        if to_deny == self.denylist_cache and to_allow == self.allowlist_cache:
+            LOG.debug('Not updating iptables - no changes in MAC lists %s %s',
+                      to_deny, to_allow)
             return
 
-        LOG.debug('Adding active MAC\'s %s to the deny list', to_deny)
+        if CONF.pxe_filter.deny_unknown_macs:
+            LOG.debug('Adding MAC\'s %s to the allow list', to_allow)
+        else:
+            LOG.debug('Adding MAC\'s %s to the deny list', to_deny)
         with self._temporary_chain(self.new_chain, self.chain):
             # Force update on the next iteration if this attempt fails
             self.denylist_cache = None
-            # - Add active macs to the deny list, so that nova can boot them
-            for mac in to_deny:
-                self._iptables('-A', self.new_chain, '-m', 'mac',
-                               '--mac-source', mac, '-j', 'DROP')
-            # - Add everything else to the allow list
-            self._iptables('-A', self.new_chain, '-j', 'ACCEPT')
+            self.allowlist_cache = None
+            # - Add active macs to allow list, so that they are introspected
+            if CONF.pxe_filter.deny_unknown_macs:
+                for mac in to_allow:
+                    self._iptables('-A', self.new_chain, '-m', 'mac',
+                                   '--mac-source', mac, '-j', 'ACCEPT')
+            # - Add inactive macs to the deny list, so that nova can boot them
+            if not CONF.pxe_filter.deny_unknown_macs:
+                for mac in to_deny:
+                    self._iptables('-A', self.new_chain, '-m', 'mac',
+                                   '--mac-source', mac, '-j', 'DROP')
+            # - Add everything else to the unknown list
+            policy = 'DROP' if CONF.pxe_filter.deny_unknown_macs else 'ACCEPT'
+            self._iptables('-A', self.new_chain, '-j', policy)
 
         # Cache result of successful iptables update
         self.enabled = True
         self.denylist_cache = to_deny
+        self.allowlist_cache = to_allow
         LOG.debug('The iptables filter was synchronized')
 
     @contextlib.contextmanager
@@ -190,50 +204,3 @@ class IptablesFilter(pxe_filter.BaseFilter):
             # deny everything
             self._iptables('-A', self.new_chain, '-j', 'REJECT')
             self.enabled = False
-
-
-def _ib_mac_to_rmac_mapping(ports):
-    """Update port InfiniBand MAC address to EthernetOverInfiniBand MAC
-
-    On InfiniBand deployment we need to map between the baremetal host
-    InfiniBand MAC to the EoIB MAC. The EoIB MAC addresses are learned
-    automatically by the EoIB interfaces and those MACs are recorded to the
-    /sys/class/net/<ethoib_interface>/eth/neighs file. The InfiniBand GUID is
-    taken from the ironic port client-id extra attribute. The InfiniBand GUID
-    is the last 8 bytes of the client-id. The file format allows to map the
-    GUID to EoIB MAC. The filter rules based on those MACs get applied during a
-    driver.update() call
-
-    :param ports: list of ironic ports
-    :returns: Nothing.
-    """
-    ethoib_interfaces = CONF.iptables.ethoib_interfaces
-    for interface in ethoib_interfaces:
-        neighs_file = (
-            os.path.join('/sys/class/net', interface, 'eth/neighs'))
-        try:
-            with open(neighs_file, 'r') as fd:
-                data = fd.read()
-        except IOError:
-            LOG.error('Interface %s is not Ethernet Over InfiniBand; '
-                      'Skipping ...', interface)
-            continue
-        for port in ports:
-            client_id = port.extra.get('client-id')
-            if client_id:
-                # Note(moshele): The last 8 bytes in the client-id is
-                # the baremetal node InfiniBand GUID
-                guid = client_id[-23:]
-                p = re.compile(_EMAC_REGEX + guid)
-                match = p.search(data)
-                if match:
-                    port.address = match.group(1)
-
-
-def _get_denylist(ironic):
-    ports = [port for port in
-             ir_utils.call_with_retries(ironic.ports, limit=None,
-                                        fields=['address', 'extra'])
-             if port.address not in node_cache.active_macs()]
-    _ib_mac_to_rmac_mapping(ports)
-    return [port.address for port in ports]

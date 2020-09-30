@@ -1,0 +1,17 @@
+---
+features:
+  - |
+    By default the DHCP filtering will open the DHCP server for any node when
+    introspection is active. It will only block DHCP for enrolled nodes that
+    are not being introspected. Doing so is required to support interface
+    discovery (which by default will enroll the pxe port to ironic if not
+    present). This behaviour is not always wanted, as nodes not managed by
+    ironic may boot the inspection image.
+
+    A new option was added ``[pxe_filter]deny_unknown_macs`` which allow
+    changeing this behaviour so that the DHCP server only allow enrolled nodes
+    being introspected and deny everything else.
+
+    .. Note:: If this option is ``True``, nodes must have at least one
+              enrolled port prior to introspection.
+
