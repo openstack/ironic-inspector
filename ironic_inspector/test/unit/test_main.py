@@ -65,6 +65,20 @@ class BaseAPITest(test_base.BaseTest):
 
 class TestApiIntrospect(BaseAPITest):
 
+    def test_root_endpoint_with_prefix(self):
+        res = self.app.get(
+            '/', headers={'X-Forwarded-Proto': 'https',
+                          'X-Forwarded-Host': 'myhost',
+                          'X-Forwarded-Prefix': '/ironic_inspector'})
+
+        self.assertEqual(200, res.status_code)
+        self.assertEqual('application/json',
+                         res.headers['content-type'])
+        cur_version = res.json['versions'][0]
+        hrefs = [link['href'] for link in cur_version['links']]
+        for href in hrefs:
+            self.assertTrue(href.startswith('https://myhost/ironic_inspector'))
+
     def test_introspect(self):
 
         res = self.app.post('/v1/introspection/%s' % self.uuid,

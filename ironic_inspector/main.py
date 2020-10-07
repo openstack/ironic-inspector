@@ -19,6 +19,7 @@ import re
 import flask
 from oslo_utils import strutils
 from oslo_utils import uuidutils
+from werkzeug.middleware import proxy_fix
 
 from ironic_inspector import api_tools
 from ironic_inspector.common import context
@@ -54,8 +55,14 @@ def _init_middleware():
     :returns: None
     """
 
-    # ensure original root app is restored before wrapping it
-    _app.wsgi_app = _wsgi_app
+    # Ensure original root app is restored and wrap it with ProxyFix,
+    # respecting only the last entry in each header if it contains a list of
+    # values. The following headers are respected: X-Forwarded-For,
+    # X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Port,
+    # X-Forwarded-Prefix (the last one sets SCRIPT_NAME environment variable
+    # that is used to construct links).
+    _app.wsgi_app = proxy_fix.ProxyFix(
+        _wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
     if CONF.auth_strategy == 'keystone':
         utils.add_auth_middleware(_app)
     elif CONF.auth_strategy == 'http_basic':
@@ -206,7 +213,10 @@ def create_link_object(urls):
     for url in urls:
         links.append({
             "rel": "self",
-            "href": os.path.join(flask.request.url_root, url).rstrip('/')})
+            "href": os.path.join(
+                os.path.join(flask.request.url_root,
+                             os.environ.get('SCRIPT_NAME', '/').lstrip('/')),
+                url).rstrip('/')})
     return links
 
 

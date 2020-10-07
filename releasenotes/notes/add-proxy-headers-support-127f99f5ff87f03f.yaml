@@ -1,0 +1,12 @@
+---
+features:
+  - |
+    Adds a possibility to setup ironic inspector behind a proxy, while
+    allowing the links of the resources API returns to remain correct.
+    Inspector now respects the following headers that are passed with
+    API requests: ``X-Forwarded-For``, ``X-Forwarded-Proto``,
+    ``X-Forwarded-Host``, ``X-Forwarded-Port``, ``X-Forwarded-Prefix``.
+    If the API is run providing ``SCRIPT_NAME`` environment variable,
+    it is now also respected, and it allows to return the correct links
+    in response to requests, even if inspector API is not placed at the
+    web server root resource.
