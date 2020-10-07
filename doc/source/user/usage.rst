@@ -209,6 +209,15 @@ unless you understand what you're doing:
     unsets it for all the other ports to avoid **nova** picking a random port
     to boot the node.
 
+    .. note::
+
+      When the ``pxe_filter`` is configured to only open the DHCP server for
+      known MAC addresses, i.e the ``[pxe_filter]deny_unknown_macs``
+      configuration option is enabled, it is not possible to rely on the
+      ``validate_interfaces`` processing plug-in to create the PXE-booting port
+      in ironic. Nodes must have at least one enrolled port prior to
+      introspection in this case.
+
 The following plugins are enabled by default, but can be disabled if not
 needed:
 
