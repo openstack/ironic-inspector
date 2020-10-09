@@ -79,7 +79,6 @@
       tempest_test_regex: InspectorDiscoveryTest
       devstack_localrc:
         IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA: True
-        IRONIC_DEFAULT_DEPLOY_INTERFACE: direct
         IRONIC_TEMPEST_WHOLE_DISK_IMAGE: True
         IRONIC_IPXE_ENABLED: True
         IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
@@ -125,7 +124,6 @@
           INSTALL_TEMPEST: False
           VIRT_DRIVER: ironic
           BUILD_TIMEOUT: 1200
-          IRONIC_DEFAULT_DEPLOY_INTERFACE: iscsi
           IRONIC_BAREMETAL_BASIC_OPS: True
           IRONIC_BUILD_DEPLOY_RAMDISK: False
           IRONIC_CALLBACK_TIMEOUT: 600
@@ -136,7 +134,7 @@
           IRONIC_TEMPEST_WHOLE_DISK_IMAGE: False
           IRONIC_VM_COUNT: 3
           IRONIC_VM_EPHEMERAL_DISK: 1
-          IRONIC_VM_SPECS_RAM: 384
+          IRONIC_VM_SPECS_RAM: 512
           IRONIC_AUTOMATED_CLEAN_ENABLED: False
           IRONIC_INSPECTOR_DHCP_FILTER: iptables
           Q_AGENT: openvswitch
