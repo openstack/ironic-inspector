@@ -14,7 +14,7 @@
         - ironic-inspector-tempest-managed-non-standalone:
             voting: false
         - openstack-tox-functional-py38
-        - bifrost-integration-tinyipa-ubuntu-bionic:
+        - bifrost-integration-tinyipa-ubuntu-focal:
             voting: false
         - ironic-inspector-tox-bandit:
             voting: false
