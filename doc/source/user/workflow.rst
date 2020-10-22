@@ -7,7 +7,7 @@ Workflow
 Usual hardware introspection flow is as follows:
 
 * Operator enrolls nodes into Ironic_ e.g. via
-  :python-ironicclient-doc:`openstack baremetal CLI <cli/osc_plugin_cli.html>`
+  :python-ironicclient-doc:`baremetal CLI <cli/index.html>`
   command. Power management credentials should be provided to Ironic at this
   step.
 

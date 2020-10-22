@@ -26,16 +26,16 @@ Node States
 * The nodes should be moved to ``MANAGEABLE`` provision state before
   introspection (requires *python-ironicclient* of version 0.5.0 or newer)::
 
-    openstack baremetal node manage <node>
+    baremetal node manage <node>
 
 * The introspection can be triggered by using the following command::
 
-    openstack baremetal node inspect <node>
+    baremetal node inspect <node>
 
 * After successful introspection and before deploying nodes should be made
   available to Nova, by moving them to ``AVAILABLE`` state::
 
-    openstack baremetal node provide <node>
+    baremetal node provide <node>
 
   .. note::
     Due to how Nova interacts with Ironic driver, you should wait 1 minute
@@ -56,7 +56,7 @@ evaluate to true on the introspection data, then actions are run on a node.
 
 Please refer to the command below to import introspection rule::
 
-    openstack baremetal introspection rule import <json file>
+    baremetal introspection rule import <json file>
 
 Available conditions and actions are defined by plugins, and can be extended,
 see :ref:`contributing_link` for details. See the `API reference`_ for
@@ -124,7 +124,7 @@ rule include field ``"scope"`` in JSON file before importing. For example::
 Set the property ``inspection_scope`` on the node you want the rule to be
 applied to::
 
-    openstack baremetal node set --property inspection_scope="SCOPE" <node>
+    baremetal node set --property inspection_scope="SCOPE" <node>
 
 Now, when inspecting, the rule will be applied only to nodes with matching
 scope value. It will also ignore nodes that do not have ``inspection_scope``

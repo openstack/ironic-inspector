@@ -143,15 +143,15 @@ To exit screen, hit ``CTRL-a d``.
 
 List baremetal nodes::
 
-    openstack baremetal node list
+    baremetal node list
 
 Bring the node to manageable state::
 
-    openstack baremetal node manage <NodeID>
+    baremetal node manage <NodeID>
 
 Inspect the node::
 
-    openstack baremetal node inspect <NodeID>
+    baremetal node inspect <NodeID>
 
 .. note::
     The deploy driver used must support the inspect interface. See also the
@@ -161,15 +161,15 @@ Inspect the node::
 A node can also be inspected using the following command. However, this will
 not affect the provision state of the node::
 
-    openstack baremetal introspection start <NodeID>
+    baremetal introspection start <NodeID>
 
 Check inspection status::
 
-    openstack baremetal introspection status <NodeID>
+    baremetal introspection status <NodeID>
 
 Optionally, get the inspection data::
 
-    openstack baremetal introspection data save <NodeID>
+    baremetal introspection data save <NodeID>
 
 
 Writing a Plugin
