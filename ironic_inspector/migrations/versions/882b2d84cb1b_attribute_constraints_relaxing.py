@@ -63,7 +63,8 @@ def upgrade():
     node_uuid_column = sa.Column(NODE_UUID, sa.String(36))
     op.add_column(ATTRIBUTES, node_uuid_column)
 
-    attributes = sa.table(ATTRIBUTES, node_uuid_column,
+    attributes = sa.table(ATTRIBUTES,
+                          sa.Column(NODE_UUID, sa.String(36)),
                           sa.Column(UUID, sa.String(36)))
 
     with op.batch_alter_table(ATTRIBUTES,
