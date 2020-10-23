@@ -32,17 +32,22 @@ depends_on = None
 
 
 def upgrade():
-    started_at = sa.Column('started_at', sa.types.Float, nullable=True)
-    finished_at = sa.Column('finished_at', sa.types.Float, nullable=True)
     temp_started_at = sa.Column("temp_started_at", sa.types.DateTime,
                                 nullable=True)
     temp_finished_at = sa.Column("temp_finished_at", sa.types.DateTime,
                                  nullable=True)
-    uuid = sa.Column("uuid", sa.String(36), primary_key=True)
 
     op.add_column("nodes", temp_started_at)
     op.add_column("nodes", temp_finished_at)
 
+    uuid = sa.Column("uuid", sa.String(36), primary_key=True)
+    started_at = sa.Column('started_at', sa.types.Float, nullable=True)
+    finished_at = sa.Column('finished_at', sa.types.Float, nullable=True)
+    # NOTE(dtantsur): do not reuse the column objects from add_column
+    temp_started_at = sa.Column("temp_started_at", sa.types.DateTime,
+                                nullable=True)
+    temp_finished_at = sa.Column("temp_finished_at", sa.types.DateTime,
+                                 nullable=True)
     t = sa.table('nodes', started_at, finished_at,
                  temp_started_at, temp_finished_at, uuid)
 
