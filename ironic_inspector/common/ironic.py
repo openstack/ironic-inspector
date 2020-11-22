@@ -120,7 +120,7 @@ def get_ipmi_address(node):
             msg = _('Failed to resolve the hostname (%(value)s)'
                     ' for node %(uuid)s')
             raise utils.Error(msg % {'value': value,
-                                     'uuid': node.uuid},
+                                     'uuid': node.id},
                               node_info=node)
 
         return (value, ipv4, ipv6) if ipv4 or ipv6 else none_address
@@ -178,7 +178,6 @@ def get_node(node_id, ironic=None, **kwargs):
 
     try:
         node = ironic.get_node(node_id, **kwargs)
-        node.uuid = node.id
     except os_exc.ResourceNotFound:
         raise NotFound(node_id)
     except os_exc.BadRequestException as exc:
@@ -244,7 +243,7 @@ def lookup_node_by_bmc_addresses(addresses, introspection_data=None,
     #                 inspected, i.e. inspect wait, and then fallback
     #                 to the rest of the physical nodes so we limit
     #                 overall-impact of the operation.
-    nodes = ironic.nodes(fields=('id', 'driver_info'), limit=None)
+    nodes = ironic.nodes(fields=('uuid', 'driver_info'), limit=None)
     found = set()
     for node in nodes:
         bmc_address, bmc_ipv4, bmc_ipv6 = get_ipmi_address(node)
