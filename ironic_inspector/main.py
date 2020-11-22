@@ -400,7 +400,7 @@ def _get_data(node_id, processed):
     try:
         if not uuidutils.is_uuid_like(node_id):
             node = ir_utils.get_node(node_id, fields=['uuid'])
-            node_id = node.uuid
+            node_id = node.id
         res = process.get_introspection_data(node_id, processed=processed)
         return res, 200, {'Content-Type': 'application/json'}
     except utils.IntrospectionDataStoreDisabled:
@@ -440,7 +440,7 @@ def api_introspection_reapply(node_id):
 
     if not uuidutils.is_uuid_like(node_id):
         node = ir_utils.get_node(node_id, fields=['uuid'])
-        node_id = node.uuid
+        node_id = node.id
 
     client = get_client_compat()
     client.call({}, 'do_reapply', node_uuid=node_id, data=data)

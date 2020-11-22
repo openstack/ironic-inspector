@@ -778,7 +778,7 @@ def get_node(node_id, ironic=None):
         uuid = node_id
     else:
         node = ir_utils.get_node(node_id, ironic=ironic)
-        uuid = node.uuid
+        uuid = node.id
 
     row = db.model_query(db.Node).filter_by(uuid=uuid).first()
     if row is None:

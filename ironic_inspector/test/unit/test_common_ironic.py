@@ -71,7 +71,7 @@ class TestGetIpmiAddress(base.BaseTest):
     def test_bad_hostname_errors(self, mock_socket):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'ipmi_address': 'meow'},
-                         uuid='uuid1')
+                         id='uuid1')
         mock_socket.side_effect = socket.gaierror('Boom')
         self.assertRaises(utils.Error, ir_utils.get_ipmi_address, node)
 

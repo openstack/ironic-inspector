@@ -494,7 +494,7 @@ class TestApiReapply(BaseAPITest):
 
     @mock.patch.object(ir_utils, 'get_node', autospec=True)
     def test_reapply_with_node_name(self, get_mock):
-        get_mock.return_value = mock.Mock(uuid=self.uuid)
+        get_mock.return_value = mock.Mock(id=self.uuid)
         self.app.post('/v1/introspection/%s/data/unprocessed' %
                       'fake-node')
         self.client_mock.call.assert_called_once_with({}, 'do_reapply',
