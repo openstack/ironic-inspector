@@ -80,7 +80,7 @@ _OPTS = [
                       'manage_boot==True).')),
     cfg.ListOpt('ipmi_address_fields',
                 default=['redfish_address', 'ilo_address', 'drac_host',
-                         'drac_address'],
+                         'drac_address', 'ibmc_address'],
                 help=_('Ironic driver_info fields that are equivalent '
                        'to ipmi_address.')),
     cfg.StrOpt('rootwrap_config',
