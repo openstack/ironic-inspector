@@ -1,0 +1,19 @@
+---
+features:
+  - |
+    The default policy will been replaced with one which aligns with the
+    Secure-RBAC scopes and roles. Since ironic-inspector is a tool used only
+    by system-level admins, only the ``system`` scope is supported, and the
+    only roles in the policy rules are ``admin`` and ``reader``.
+upgrade:
+  - |
+    The new policy is only enforced when ``[oslo_policy]`` config is changed to
+    ``enforce_new_defaults=True`` and ``enforce_scope=True``, otherwise the
+    existing deprecated policy is used. User accounts which rely on having
+    the ``baremetal_admin`` or ``baremetal_observer`` roles will need to
+    have system-scoped ``admin`` or ``reader`` roles to use the API when the
+    new policy is enforced.
+deprecations:
+  - |
+    The previous policy is still enforced by default, but is now deprecated
+    and will be removed in a future release.

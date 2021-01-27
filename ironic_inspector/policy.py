@@ -16,6 +16,7 @@ import sys
 
 from oslo_concurrency import lockutils
 from oslo_config import cfg
+from oslo_log import versionutils
 from oslo_policy import opts
 from oslo_policy import policy
 
@@ -23,23 +24,52 @@ CONF = cfg.CONF
 
 _ENFORCER = None
 
-
 # TODO(gmann): Remove setting the default value of config policy_file
 # once oslo_policy change the default value to 'policy.yaml'.
 # https://github.com/openstack/oslo.policy/blob/a626ad12fe5a3abd49d70e3e5b95589d279ab578/oslo_policy/opts.py#L49
 DEFAULT_POLICY_FILE = 'policy.yaml'
 opts.set_defaults(cfg.CONF, DEFAULT_POLICY_FILE)
 
+# Generic policy check string for system administrators. These are the people
+# who need the highest level of authorization to operate the deployment.
+# They're allowed to create, read, update, or delete any system-specific
+# resource. They can also operate on project-specific resources where
+# applicable (e.g., cleaning up baremetal hosts)
+SYSTEM_ADMIN = 'role:admin and system_scope:all'
+
+# Generic policy check string for system users who don't require all the
+# authorization that system administrators typically have. This persona, or
+# check string, typically isn't used by default, but it's existence it useful
+# in the event a deployment wants to offload some administrative action from
+# system administrator to system members
+SYSTEM_MEMBER = 'role:member and system_scope:all'
+
+# Generic policy check string for read-only access to system-level resources.
+# This persona is useful for someone who needs access for auditing or even
+# support. These uses are also able to view project-specific resources where
+# applicable (e.g., listing all volumes in the deployment, regardless of the
+# project they belong to).
+SYSTEM_READER = 'role:reader and system_scope:all'
+
+deprecated_node_reason = """
+The inspector API is now aware of system scope and default roles.
+"""
 
 default_policies = [
     policy.RuleDefault(
         'is_admin',
         'role:admin or role:administrator or role:baremetal_admin',
-        description='Full read/write API access'),
+        description='Full read/write API access',
+        deprecated_for_removal=True,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY),
     policy.RuleDefault(
         'is_observer',
         'role:baremetal_observer',
-        description='Read-only API access'),
+        description='Read-only API access',
+        deprecated_for_removal=True,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY),
     policy.RuleDefault(
         'public_api',
         'is_public_api:True',
@@ -66,67 +96,126 @@ api_version_policies = [
 ]
 
 
+deprecated_introspection_status = policy.DeprecatedRule(
+    name='introspection:status',
+    check_str='rule:is_admin or rule:is_observer'
+)
+deprecated_introspection_start = policy.DeprecatedRule(
+    name='introspection:start',
+    check_str='rule:is_admin'
+)
+deprecated_introspection_abort = policy.DeprecatedRule(
+    name='introspection:abort',
+    check_str='rule:is_admin'
+)
+deprecated_introspection_data = policy.DeprecatedRule(
+    name='introspection:data',
+    check_str='rule:is_admin'
+)
+deprecated_introspection_reapply = policy.DeprecatedRule(
+    name='introspection:reapply',
+    check_str='rule:is_admin'
+)
+deprecated_introspection_rule_get = policy.DeprecatedRule(
+    name='introspection:rule:get',
+    check_str='rule:is_admin'
+)
+deprecated_introspection_rule_delete = policy.DeprecatedRule(
+    name='introspection:rule:delete',
+    check_str='rule:is_admin'
+)
+deprecated_introspection_rule_create = policy.DeprecatedRule(
+    name='introspection:rule:create',
+    check_str='rule:is_admin'
+)
+
 introspection_policies = [
     policy.DocumentedRuleDefault(
-        'introspection:continue',
-        'rule:public_api',
-        'Ramdisk callback to continue introspection',
-        [{'path': '/continue', 'method': 'POST'}]
+        name='introspection:continue',
+        check_str='rule:public_api',
+        description='Ramdisk callback to continue introspection',
+        operations=[{'path': '/continue', 'method': 'POST'}],
     ),
     policy.DocumentedRuleDefault(
-        'introspection:status',
-        'rule:is_admin or rule:is_observer',
-        'Get introspection status',
-        [{'path': '/introspection', 'method': 'GET'},
-         {'path': '/introspection/{node_id}', 'method': 'GET'}]
+        name='introspection:status',
+        check_str=SYSTEM_READER,
+        description='Get introspection status',
+        operations=[{'path': '/introspection', 'method': 'GET'},
+                    {'path': '/introspection/{node_id}', 'method': 'GET'}],
+        deprecated_rule=deprecated_introspection_status,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
     policy.DocumentedRuleDefault(
-        'introspection:start',
-        'rule:is_admin',
-        'Start introspection',
-        [{'path': '/introspection/{node_id}', 'method': 'POST'}]
+        name='introspection:start',
+        check_str=SYSTEM_ADMIN,
+        description='Start introspection',
+        operations=[{'path': '/introspection/{node_id}', 'method': 'POST'}],
+        deprecated_rule=deprecated_introspection_start,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
     policy.DocumentedRuleDefault(
-        'introspection:abort',
-        'rule:is_admin',
-        'Abort introspection',
-        [{'path': '/introspection/{node_id}/abort', 'method': 'POST'}]
+        name='introspection:abort',
+        check_str=SYSTEM_ADMIN,
+        description='Abort introspection',
+        operations=[{'path': '/introspection/{node_id}/abort',
+                     'method': 'POST'}],
+        deprecated_rule=deprecated_introspection_abort,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
     policy.DocumentedRuleDefault(
-        'introspection:data',
-        'rule:is_admin',
-        'Get introspection data',
-        [{'path': '/introspection/{node_id}/data', 'method': 'GET'}]
+        name='introspection:data',
+        check_str=SYSTEM_ADMIN,
+        description='Get introspection data',
+        operations=[{'path': '/introspection/{node_id}/data',
+                     'method': 'GET'}],
+        deprecated_rule=deprecated_introspection_data,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
     policy.DocumentedRuleDefault(
-        'introspection:reapply',
-        'rule:is_admin',
-        'Reapply introspection on stored data',
-        [{'path': '/introspection/{node_id}/data/unprocessed',
-          'method': 'POST'}]
+        name='introspection:reapply',
+        check_str=SYSTEM_ADMIN,
+        description='Reapply introspection on stored data',
+        operations=[{'path': '/introspection/{node_id}/data/unprocessed',
+                     'method': 'POST'}],
+        deprecated_rule=deprecated_introspection_reapply,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
 ]
 
 rule_policies = [
     policy.DocumentedRuleDefault(
-        'introspection:rule:get',
-        'rule:is_admin',
-        'Get introspection rule(s)',
-        [{'path': '/rules', 'method': 'GET'},
-         {'path': '/rules/{rule_id}', 'method': 'GET'}]
+        name='introspection:rule:get',
+        check_str=SYSTEM_ADMIN,
+        description='Get introspection rule(s)',
+        operations=[{'path': '/rules', 'method': 'GET'},
+                    {'path': '/rules/{rule_id}', 'method': 'GET'}],
+        deprecated_rule=deprecated_introspection_rule_get,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
     policy.DocumentedRuleDefault(
-        'introspection:rule:delete',
-        'rule:is_admin',
-        'Delete introspection rule(s)',
-        [{'path': '/rules', 'method': 'DELETE'},
-         {'path': '/rules/{rule_id}', 'method': 'DELETE'}]
+        name='introspection:rule:delete',
+        check_str=SYSTEM_ADMIN,
+        description='Delete introspection rule(s)',
+        operations=[{'path': '/rules', 'method': 'DELETE'},
+                    {'path': '/rules/{rule_id}', 'method': 'DELETE'}],
+        deprecated_rule=deprecated_introspection_rule_delete,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
     policy.DocumentedRuleDefault(
-        'introspection:rule:create',
-        'rule:is_admin',
-        'Create introspection rule',
-        [{'path': '/rules', 'method': 'POST'}]
+        name='introspection:rule:create',
+        check_str=SYSTEM_ADMIN,
+        description='Create introspection rule',
+        operations=[{'path': '/rules', 'method': 'POST'}],
+        deprecated_rule=deprecated_introspection_rule_create,
+        deprecated_reason=deprecated_node_reason,
+        deprecated_since=versionutils.deprecated.WALLABY
     ),
 ]
 
