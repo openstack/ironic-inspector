@@ -2,14 +2,12 @@
     templates:
       - check-requirements
       - openstack-cover-jobs
-      - openstack-lower-constraints-jobs
       - openstack-python-jobs
       - openstack-python3-train-jobs
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-python3
@@ -17,16 +15,15 @@
             voting: false
         - openstack-tox-functional
         - openstack-tox-functional-py36
-        - bifrost-integration-tinyipa-ubuntu-xenial
+        - bifrost-integration-tinyipa-ubuntu-xenial:
+            voting: false
         - ironic-inspector-tox-bandit:
             voting: false
     gate:
       queue: ironic
       jobs:
-        - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-python3
         - openstack-tox-functional
         - openstack-tox-functional-py36
-        - bifrost-integration-tinyipa-ubuntu-xenial
