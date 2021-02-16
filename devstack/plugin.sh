@@ -327,7 +327,7 @@ function configure_inspector {
     if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
       # memcached listens localhost instead of $SERVICE_HOST, which is exactly the default value,
       # but set explicitly in case that changed.
-      inspector_iniset coordination backend_url "memcached://localhost:11211"
+      inspector_iniset coordination backend_url "memcached://127.0.0.1:11211"
     fi
 
     if is_service_enabled swift; then

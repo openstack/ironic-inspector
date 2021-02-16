@@ -57,6 +57,7 @@
       devstack_localrc:
         USE_PYTHON3: True
         IRONIC_INSPECTOR_STANDALONE: False
+        MEMCACHE_SERVERS: 127.0.0.1:11211
       devstack_services:
         s-account: True
         s-container: True
