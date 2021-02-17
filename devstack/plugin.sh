@@ -126,7 +126,8 @@ function inspector_iniset {
 
 function install_inspector {
     setup_develop $IRONIC_INSPECTOR_DIR
-
+    # Check if things look okay
+    ironic-inspector-status upgrade check
     if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
         install_apache_wsgi
         # NOTE(rpittau) since devstack doesn't install test-requirements

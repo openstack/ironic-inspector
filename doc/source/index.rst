@@ -7,6 +7,7 @@ Using Ironic Inspector
   :maxdepth: 2
 
   install/index
+  cli/index
   configuration/index
   user/index
   admin/index
