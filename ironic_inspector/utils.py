@@ -86,7 +86,7 @@ def processing_logger_prefix(data=None, node_info=None):
 
     if node_info is not None:
         if isinstance(node_info, node.Node):
-            parts.append(str(node_info.uuid))
+            parts.append(str(node_info.id))
         else:
             parts.append(str(node_info))
 
