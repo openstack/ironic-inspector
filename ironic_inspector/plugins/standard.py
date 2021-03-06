@@ -294,7 +294,7 @@ class ValidateInterfacesHook(base.ProcessingHook):
                 if port.address not in expected_macs:
                     LOG.info("Deleting port %(port)s as its MAC %(mac)s is "
                              "not in expected MAC list %(expected)s",
-                             {'port': port.uuid,
+                             {'port': port.id,
                               'mac': port.address,
                               'expected': list(sorted(expected_macs))},
                              node_info=node_info, data=introspection_data)
