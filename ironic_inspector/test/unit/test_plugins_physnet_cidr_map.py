@@ -43,7 +43,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
             }
         }
 
-        ports = [mock.Mock(spec=['address', 'uuid', 'physical_network'],
+        ports = [mock.Mock(spec=['address', 'id', 'physical_network'],
                            address=a) for a in ('11:11:11:11:11:11',)]
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,
                                              node=self.node, ports=ports)
@@ -113,7 +113,7 @@ class TestPhysnetCidrMapHook(test_base.NodeTest):
 
     @mock.patch.object(node_cache.NodeInfo, 'patch_port', autospec=True)
     def test_no_overwrite(self, mock_patch):
-        ports = [mock.Mock(spec=['address', 'uuid', 'physical_network'],
+        ports = [mock.Mock(spec=['address', 'id', 'physical_network'],
                            address=a, physical_network='foo')
                  for a in ('11:11:11:11:11:11',)]
         node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,

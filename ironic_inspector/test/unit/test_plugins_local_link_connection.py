@@ -51,7 +51,7 @@ class TestGenericLocalLinkConnectionHook(test_base.NodeTest):
             'port_id': '56'
         }
 
-        ports = [mock.Mock(spec=['address', 'uuid', 'local_link_connection'],
+        ports = [mock.Mock(spec=['address', 'id', 'local_link_connection'],
                            address=a, local_link_connection=llc)
                  for a in ('11:11:11:11:11:11',)]
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=0,

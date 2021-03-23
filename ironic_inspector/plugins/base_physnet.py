@@ -99,5 +99,5 @@ class BasePhysnetHook(base.ProcessingHook):
                 node_info.patch_port(port, [patch])
             except exceptions.BadRequestException as e:
                 LOG.warning("Failed to update port %(uuid)s: %(error)s",
-                            {'uuid': port.uuid, 'error': e},
+                            {'uuid': port.id, 'error': e},
                             node_info=node_info)
