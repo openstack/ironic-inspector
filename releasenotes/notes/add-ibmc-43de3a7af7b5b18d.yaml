@@ -1,0 +1,6 @@
+---
+upgrade:
+  - |
+    ``[DEFAULT]/ipmi_address_fields`` now has ``ibmc_address`` in the default
+    configuration, allowing introspection to try and match the BMC address if
+    no ports are defined when using the `ibmc` driver.
