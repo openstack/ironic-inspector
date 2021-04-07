@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    Fixes an issue where a failed inspection due to a transient failure can
+    prevent retry attempts to inspect to be perceived as a failure. If a prior
+    inspection fails and is in ``error`` state, when a new introspection is
+    requested, the state is now appropriately set to ``starting``.
