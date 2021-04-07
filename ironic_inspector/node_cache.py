@@ -682,7 +682,13 @@ def start_introspection(uuid, **kwargs):
                       node_info=node_info)
             state = istate.States.starting
         else:
-            state = node_info.state
+            recorded_state = node_info.state
+            if istate.States.error == recorded_state:
+                # If there was a failure, return to starting state to avoid
+                # letting the cache block new runs from occuring.
+                state = istate.States.starting
+            else:
+                state = recorded_state
         return add_node(uuid, state, **kwargs)
 
 

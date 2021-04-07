@@ -1311,6 +1311,17 @@ class TestStartIntrospection(test_base.NodeTest):
                                self.node_info.uuid)
         self.assertFalse(add_node_mock.called)
 
+    @prepare_mocks
+    def test_ensure_start_on_error(self, fsm_event_mock,
+                                   add_node_mock):
+        def side_effect(*args):
+            self.node_info._state = istate.States.error
+
+        fsm_event_mock.side_effect = side_effect
+        node_cache.start_introspection(self.node.uuid)
+        add_node_mock.assert_called_once_with(self.node_info.uuid,
+                                              istate.States.starting)
+
 
 class TestIntrospectionDataDbStore(test_base.NodeTest):
     def setUp(self):
