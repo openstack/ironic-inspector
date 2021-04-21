@@ -7,7 +7,6 @@
       - release-notes-jobs
     check:
       jobs:
-        - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest-dsvm-discovery
         - ironic-inspector-tempest-dsvm-python3
         - openstack-tox-functional
@@ -17,7 +16,6 @@
     gate:
       queue: ironic
       jobs:
-        - ironic-inspector-grenade-dsvm
         - ironic-inspector-tempest-dsvm-discovery
         - ironic-inspector-tempest-dsvm-python3
         - openstack-tox-functional
