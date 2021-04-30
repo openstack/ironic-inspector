@@ -13,6 +13,7 @@
 
 import contextlib
 
+from openstack import exceptions as os_exc
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log
@@ -110,12 +111,18 @@ class IptablesFilter(pxe_filter.BaseFilter):
             self._disable_dhcp()
             return
 
-        if CONF.pxe_filter.deny_unknown_macs:
-            to_allow = pxe_filter.get_active_macs(ironic)
-            to_deny = None
-        else:
-            to_deny = pxe_filter.get_inactive_macs(ironic)
-            to_allow = None
+        try:
+            if CONF.pxe_filter.deny_unknown_macs:
+                to_allow = pxe_filter.get_active_macs(ironic)
+                to_deny = None
+            else:
+                to_deny = pxe_filter.get_inactive_macs(ironic)
+                to_allow = None
+        except os_exc.SDKException:
+            LOG.exception(
+                "Could not list ironic ports, iptables PXE filter can not "
+                "be synced")
+            return
 
         if to_deny == self.denylist_cache and to_allow == self.allowlist_cache:
             LOG.debug('Not updating iptables - no changes in MAC lists %s %s',

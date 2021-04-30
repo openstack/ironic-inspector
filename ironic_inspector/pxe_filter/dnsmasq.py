@@ -28,6 +28,7 @@ import fcntl
 import os
 import time
 
+from openstack import exceptions as os_exc
 from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log
@@ -83,11 +84,16 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
         LOG.debug('Syncing the driver')
         timestamp_start = timeutils.utcnow()
 
-        # active_macs are the MACs for which introspection is active
-        active_macs = pxe_filter.get_active_macs(ironic)
+        try:
+            # active_macs are the MACs for which introspection is active
+            active_macs = pxe_filter.get_active_macs(ironic)
 
-        # ironic_macs are all the MACs know to ironic (all ironic ports)
-        ironic_macs = pxe_filter.get_ironic_macs(ironic)
+            # ironic_macs are all the MACs know to ironic (all ironic ports)
+            ironic_macs = pxe_filter.get_ironic_macs(ironic)
+        except os_exc.SDKException:
+            LOG.exception(
+                "Could not list ironic ports, can not sync dnsmasq PXE filter")
+            return
 
         denylist, allowlist = _get_deny_allow_lists()
         # removedlist are the MACs that are in either in allow or denylist,

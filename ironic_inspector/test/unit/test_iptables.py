@@ -16,6 +16,7 @@
 from unittest import mock
 
 import fixtures
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 
 from ironic_inspector import node_cache
@@ -353,6 +354,21 @@ class TestIptablesDriver(test_base.NodeTest):
         CONF.set_override('node_not_found_hook', True, 'processing')
         self.assertRaisesRegex(utils.Error, 'Configuration error:',
                                self.driver.__init__)
+
+    def test_sync_ironic_unavailable_allowlist(self):
+        self.driver = iptables.IptablesFilter()
+        self.mock_ironic.ports.side_effect = os_exc.SDKException('boom')
+        self.driver.sync(self.mock_ironic)
+        self.mock_get_inactive_macs.assert_called_once_with(self.mock_ironic)
+        self.mock_iptables.assert_not_called()
+
+    def test_sync_ironic_unavailable_denylist(self):
+        CONF.set_override('deny_unknown_macs', True, 'pxe_filter')
+        self.driver = iptables.IptablesFilter()
+        self.mock_ironic.ports.side_effect = os_exc.SDKException('boom')
+        self.driver.sync(self.mock_ironic)
+        self.mock_get_active_macs.assert_called_once_with(self.mock_ironic)
+        self.mock_iptables.assert_not_called()
 
 
 class Test_ShouldEnableDhcp(test_base.BaseTest):

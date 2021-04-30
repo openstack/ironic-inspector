@@ -1,0 +1,9 @@
+---
+
+fixes:
+  - |
+    Inspector now ignores failures to list ironic ports during
+    pxe filter driver sync, and just skips the sync in this case.
+    Previously such errors resulted in pxe filter driver being stuck
+    in an uninitialized state until ironic inspector was restarted.
+    See bug `2008971 <https://storyboard.openstack.org/#!/story/2008971>`_.
