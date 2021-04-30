@@ -79,7 +79,6 @@
     vars:
       tempest_test_regex: InspectorDiscoveryTest
       devstack_localrc:
-        IRONIC_DEPLOY_DRIVER_ISCSI_WITH_IPA: True
         IRONIC_TEMPEST_WHOLE_DISK_IMAGE: True
         IRONIC_IPXE_ENABLED: True
         IRONIC_INSPECTOR_DHCP_FILTER: dnsmasq
