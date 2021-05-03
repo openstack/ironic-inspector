@@ -79,8 +79,8 @@ class ExtraHardwareHook(base.ProcessingHook):
                     pass
 
                 converted_1[item[2]] = item[3]
-            except IndexError:
-                LOG.warning('Ignoring invalid extra data item %s', item,
+            except Exception as e:
+                LOG.warning('Ignoring invalid extra data item %s: %s', item, e,
                             node_info=node_info, data=introspection_data)
 
         introspection_data['extra'] = converted
