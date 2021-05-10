@@ -116,7 +116,8 @@
       - openstack/ironic
       - openstack/ironic-inspector
       - openstack/ironic-tempest-plugin
-      - openstack/ironic-python-agent-builder
+      - name: openstack/ironic-python-agent-builder
+        override-checkout: stable/wallaby
       - openstack/virtualbmc
     vars:
       grenade_devstack_localrc:
