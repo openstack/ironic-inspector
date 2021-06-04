@@ -186,7 +186,7 @@ Plugins
 **ironic-inspector** heavily relies on plugins for data processing. Even the
 standard functionality is largely based on plugins. Set ``processing_hooks``
 option in the configuration file to change the set of plugins to be run on
-introspection data. Note that order does matter in this option, especially
+introspection data. Note that order **does** matter in this option, especially
 for hooks that have dependencies on other hooks.
 
 These are plugins that are enabled by default and should not be disabled,
@@ -248,18 +248,20 @@ Here are some plugins that can be additionally enabled:
     then the new format will be stored in the 'extra' key. The 'data' key is
     then deleted from the introspection data, as unless converted it's assumed
     unusable by introspection rules.
+``lldp_basic``
+    Processes LLDP data returned from inspection, parses TLVs from the
+    Basic Management (802.1AB), 802.1Q, and 802.3 sets and stores the
+    processed data back in the Ironic inspector database. To enable LLDP in the
+    inventory from IPA, ``ipa-collect-lldp=1`` should be passed as a kernel
+    parameter to the IPA ramdisk.
 ``local_link_connection``
-    Processes LLDP data returned from inspection specifically looking for the
-    port ID and chassis ID, if found it configures the local link connection
-    information on the nodes Ironic ports with that data. To enable LLDP in the
-    inventory from IPA ``ipa-collect-lldp=1`` should be passed as a kernel
-    parameter to the IPA ramdisk.  In order to avoid processing the raw LLDP
+    Processes LLDP data returned from inspection, specifically looking for the
+    port ID and chassis ID. If found, it configures the local link connection
+    information on the Ironic ports with that data. To enable LLDP in the
+    inventory from IPA, ``ipa-collect-lldp=1`` should be passed as a kernel
+    parameter to the IPA ramdisk. In order to avoid processing the raw LLDP
     data twice, the ``lldp_basic`` plugin should also be installed and run
     prior to this plugin.
-``lldp_basic``
-    Processes LLDP data returned from inspection and parses TLVs from the
-    Basic Management (802.1AB), 802.1Q, and 802.3 sets and stores the
-    processed data back to the Ironic inspector data in Swift.
 ``physnet_cidr_map``
     Configures the ``physical_network`` property of the nodes Ironic port when
     the IP address is in a configured CIDR mapping. CIDR to physical network
