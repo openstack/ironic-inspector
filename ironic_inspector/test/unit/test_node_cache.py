@@ -20,7 +20,6 @@ from unittest import mock
 
 import automaton
 from oslo_config import cfg
-import oslo_db
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 
@@ -1041,11 +1040,6 @@ class TestNodeInfoState(test_base.NodeStateTest):
         self.node_info._set_state(istate.States.finished)
         row = db.model_query(db.Node).get(self.node_info.uuid)
         self.assertEqual(self.node_info.state, row.state)
-
-    def test_set_invalid_state(self):
-        self.assertRaisesRegex(oslo_db.exception.DBError,
-                               'constraint failed',
-                               self.node_info._set_state, 'foo')
 
     def test_commit(self):
         current_time = timeutils.utcnow()
