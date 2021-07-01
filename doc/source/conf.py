@@ -131,3 +131,4 @@ apidoc_excluded_paths = [
     'test',
     'common/i18n*'
 ]
+apidoc_separate_modules = True
