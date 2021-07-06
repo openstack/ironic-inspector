@@ -98,35 +98,51 @@ api_version_policies = [
 
 deprecated_introspection_status = policy.DeprecatedRule(
     name='introspection:status',
-    check_str='rule:is_admin or rule:is_observer'
+    check_str='rule:is_admin or rule:is_observer',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_start = policy.DeprecatedRule(
     name='introspection:start',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_abort = policy.DeprecatedRule(
     name='introspection:abort',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_data = policy.DeprecatedRule(
     name='introspection:data',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_reapply = policy.DeprecatedRule(
     name='introspection:reapply',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_rule_get = policy.DeprecatedRule(
     name='introspection:rule:get',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_rule_delete = policy.DeprecatedRule(
     name='introspection:rule:delete',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 deprecated_introspection_rule_create = policy.DeprecatedRule(
     name='introspection:rule:create',
-    check_str='rule:is_admin'
+    check_str='rule:is_admin',
+    deprecated_reason=deprecated_node_reason,
+    deprecated_since=versionutils.deprecated.WALLABY
 )
 
 introspection_policies = [
@@ -142,18 +158,14 @@ introspection_policies = [
         description='Get introspection status',
         operations=[{'path': '/introspection', 'method': 'GET'},
                     {'path': '/introspection/{node_id}', 'method': 'GET'}],
-        deprecated_rule=deprecated_introspection_status,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_status
     ),
     policy.DocumentedRuleDefault(
         name='introspection:start',
         check_str=SYSTEM_ADMIN,
         description='Start introspection',
         operations=[{'path': '/introspection/{node_id}', 'method': 'POST'}],
-        deprecated_rule=deprecated_introspection_start,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_start
     ),
     policy.DocumentedRuleDefault(
         name='introspection:abort',
@@ -161,9 +173,7 @@ introspection_policies = [
         description='Abort introspection',
         operations=[{'path': '/introspection/{node_id}/abort',
                      'method': 'POST'}],
-        deprecated_rule=deprecated_introspection_abort,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_abort
     ),
     policy.DocumentedRuleDefault(
         name='introspection:data',
@@ -171,9 +181,7 @@ introspection_policies = [
         description='Get introspection data',
         operations=[{'path': '/introspection/{node_id}/data',
                      'method': 'GET'}],
-        deprecated_rule=deprecated_introspection_data,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_data
     ),
     policy.DocumentedRuleDefault(
         name='introspection:reapply',
@@ -181,9 +189,7 @@ introspection_policies = [
         description='Reapply introspection on stored data',
         operations=[{'path': '/introspection/{node_id}/data/unprocessed',
                      'method': 'POST'}],
-        deprecated_rule=deprecated_introspection_reapply,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_reapply
     ),
 ]
 
@@ -194,9 +200,7 @@ rule_policies = [
         description='Get introspection rule(s)',
         operations=[{'path': '/rules', 'method': 'GET'},
                     {'path': '/rules/{rule_id}', 'method': 'GET'}],
-        deprecated_rule=deprecated_introspection_rule_get,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_rule_get
     ),
     policy.DocumentedRuleDefault(
         name='introspection:rule:delete',
@@ -204,18 +208,14 @@ rule_policies = [
         description='Delete introspection rule(s)',
         operations=[{'path': '/rules', 'method': 'DELETE'},
                     {'path': '/rules/{rule_id}', 'method': 'DELETE'}],
-        deprecated_rule=deprecated_introspection_rule_delete,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_rule_delete
     ),
     policy.DocumentedRuleDefault(
         name='introspection:rule:create',
         check_str=SYSTEM_ADMIN,
         description='Create introspection rule',
         operations=[{'path': '/rules', 'method': 'POST'}],
-        deprecated_rule=deprecated_introspection_rule_create,
-        deprecated_reason=deprecated_node_reason,
-        deprecated_since=versionutils.deprecated.WALLABY
+        deprecated_rule=deprecated_introspection_rule_create
     ),
 ]
 
@@ -257,6 +257,15 @@ def init_enforcer(policy_file=None, rules=None,
         rules=rules,
         default_rule=default_rule,
         use_conf=use_conf)
+
+    # NOTE(gmann): Explictly disable the warnings for policies
+    # changing their default check_str. With new RBAC policy
+    # work, all the policy defaults have been changed and warning for
+    # each policy started filling the logs limit for various tool.
+    # Once we move to new defaults only world then we can enable these
+    # warning again.
+    _ENFORCER.suppress_default_change_warnings = True
+
     _ENFORCER.register_defaults(list_policies())
 
 

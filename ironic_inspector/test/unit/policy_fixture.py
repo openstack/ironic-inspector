@@ -38,3 +38,4 @@ class PolicyFixture(fixtures.Fixture):
         CONF.set_override('policy_file', self.policy_file_name, 'oslo_policy')
         inspector_policy._ENFORCER = None
         self.addCleanup(inspector_policy.get_enforcer().clear)
+        inspector_policy._ENFORCER.suppress_deprecation_warnings = True
