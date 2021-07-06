@@ -22,6 +22,16 @@ IRONIC_INSPECTOR_STANDALONE=${IRONIC_INSPECTOR_STANDALONE:-True}
 IRONIC_INSPECTOR_UWSGI=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-api-wsgi
 IRONIC_INSPECTOR_UWSGI_CONF=$IRONIC_INSPECTOR_CONF_DIR/ironic-inspector-uwsgi.ini
 
+# Determine if ironic is in enforce scope node, infer that to mean our operating mode
+# explicitly unless otherwise set.
+IRONIC_INSPECTOR_ENFORCE_SCOPE=${IRONIC_INSPECTOR_ENFORCE_SCOPE:-${IRONIC_ENFORCE_SCOPE:-False}}
+# and then fallback to trueorfalse to put it into the standardized string format for the jobs.
+IRONIC_INSPECTOR_ENFORCE_SCOPE=$(trueorfalse False IRONIC_INSPECTOR_ENFORCE_SCOPE)
+# Reset the input in the event the plugin is running separately from ironic's
+# devstack plugin.
+IRONIC_ENFORCE_SCOPE=$(trueorfalse False IRONIC_ENFORCE_SCOPE)
+
+
 if [[ -n ${IRONIC_INSPECTOR_MANAGE_FIREWALL} ]] ; then
     echo "IRONIC_INSPECTOR_MANAGE_FIREWALL is deprecated." >&2
     echo "Please, use IRONIC_INSPECTOR_DHCP_FILTER == noop/iptables/dnsmasq instead." >&2
@@ -254,11 +264,20 @@ EOF
 function inspector_configure_auth_for {
     inspector_iniset $1 auth_type password
     inspector_iniset $1 auth_url "$KEYSTONE_SERVICE_URI"
-    inspector_iniset $1 username $IRONIC_INSPECTOR_ADMIN_USER
-    inspector_iniset $1 password $SERVICE_PASSWORD
-    inspector_iniset $1 project_name $SERVICE_PROJECT_NAME
+    if [[ "$1" == "ironic" ]] && [[ "$IRONIC_ENFORCE_SCOPE" == "True" ]]; then
+        # If ironic is enforcing scope, service credentials are not
+        # enough, because they live in a "service project" and does not
+        # have a full view of the system.
+        inspector_iniset $1 username admin
+        inspector_iniset $1 password $ADMIN_PASSWORD
+        inspector_iniset $1 system_scope all
+    else
+        inspector_iniset $1 username $IRONIC_INSPECTOR_ADMIN_USER
+        inspector_iniset $1 password $SERVICE_PASSWORD
+        inspector_iniset $1 project_name $SERVICE_PROJECT_NAME
+        inspector_iniset $1 project_domain_id default
+    fi
     inspector_iniset $1 user_domain_id default
-    inspector_iniset $1 project_domain_id default
     inspector_iniset $1 cafile $SSL_BUNDLE_FILE
     inspector_iniset $1 region_name $REGION_NAME
 }
@@ -395,6 +414,12 @@ function configure_inspector {
     if is_dnsmasq_filter_required ; then
         configure_inspector_dnsmasq_rootwrap
         configure_inspector_pxe_filter_dnsmasq
+    fi
+
+    # Set if inspector should also be running in a scope enforced mode.
+    if [[ "$IRONIC_INSPECTOR_ENFORCE_SCOPE" == "True" ]]; then
+        inspector_iniset oslo_policy enforce_scope true
+        inspector_iniset oslo_policy enforce_new_defaults true
     fi
 
 }
