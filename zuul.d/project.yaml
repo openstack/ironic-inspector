@@ -7,7 +7,6 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed
@@ -21,7 +20,6 @@
     gate:
       queue: ironic
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed
