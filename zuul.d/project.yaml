@@ -8,12 +8,18 @@
     check:
       jobs:
         - ironic-inspector-grenade
-        - ironic-inspector-tempest
+        - ironic-inspector-tempest:
+            required-projects:
+              - name: openstack/devstack
+                override-checkout: master
+              - name: openstack/ironic
+                override-checkout: bugfix/18.1
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed-non-standalone
         - openstack-tox-functional-py38
         - bifrost-integration-tinyipa-ubuntu-focal:
             voting: false
+            override-checkout: master
         - ironic-inspector-tox-bandit:
             voting: false
     gate:

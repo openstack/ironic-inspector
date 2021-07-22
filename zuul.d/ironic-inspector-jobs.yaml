@@ -4,6 +4,10 @@
     parent: ironic-base
     timeout: 10800
     required-projects:
+      - name: openstack/devstack
+        override-checkout: master
+      - name: openstack/ironic
+        override-checkout: bugfix/18.1
       - openstack/ironic-inspector
     irrelevant-files:
       - ^.*\.rst$
