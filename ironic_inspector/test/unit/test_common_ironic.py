@@ -163,9 +163,9 @@ class TestCallWithRetries(unittest.TestCase):
 
     def test_no_retries_on_python_error(self):
         self.call.side_effect = RuntimeError('boom')
-        self.assertRaisesRegexp(RuntimeError, 'boom',
-                                ir_utils.call_with_retries,
-                                self.call, 'meow', answer=42)
+        self.assertRaisesRegex(RuntimeError, 'boom',
+                               ir_utils.call_with_retries,
+                               self.call, 'meow', answer=42)
         self.call.assert_called_once_with('meow', answer=42)
 
     @mock.patch('time.sleep', lambda _x: None)
@@ -182,9 +182,9 @@ class TestCallWithRetries(unittest.TestCase):
     @mock.patch('time.sleep', lambda _x: None)
     def test_retries_on_ironicclient_error_with_failure(self):
         self.call.side_effect = os_exc.SDKException('boom')
-        self.assertRaisesRegexp(os_exc.SDKException, 'boom',
-                                ir_utils.call_with_retries,
-                                self.call, 'meow', answer=42)
+        self.assertRaisesRegex(os_exc.SDKException, 'boom',
+                               ir_utils.call_with_retries,
+                               self.call, 'meow', answer=42)
         self.call.assert_called_with('meow', answer=42)
         self.assertEqual(5, self.call.call_count)
 
