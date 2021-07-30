@@ -484,6 +484,22 @@ class TestSync(DnsmasqTestBase):
                       self.timestamp_end - self.timestamp_start)
         ])
 
+    @mock.patch('time.sleep', lambda _x: None)
+    def test__sync_ironic_unavailable(self):
+        self.mock_ironic.ports.side_effect = os_exc.SDKException('boom')
+        self.driver._sync(self.mock_ironic)
+        self.mock__add_mac_to_allowlist.assert_not_called()
+        self.mock__add_mac_to_denylist.assert_not_called()
+
+        self.mock_ironic.ports.assert_called_with(fields=['address', 'extra'],
+                                                  limit=None)
+        self.mock_get_active_macs.assert_called_once_with(self.mock_ironic)
+        self.mock__get_deny_allow_lists.assert_not_called()
+        self.mock__configure_removedlist.assert_not_called()
+        self.mock_log.debug.assert_called_once_with('Syncing the driver')
+        self.mock_log.exception.assert_called_once_with(
+            "Could not list ironic ports, can not sync dnsmasq PXE filter")
+
 
 class Test_Execute(test_base.BaseTest):
     def setUp(self):
