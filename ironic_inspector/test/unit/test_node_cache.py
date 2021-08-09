@@ -19,6 +19,7 @@ import unittest
 from unittest import mock
 
 import automaton
+from openstack import exceptions as os_exc
 from oslo_config import cfg
 import oslo_db
 from oslo_utils import timeutils
@@ -759,6 +760,14 @@ class TestUpdate(test_base.NodeTest):
 
         self.ironic.delete_port.assert_called_once_with('0')
         self.assertEqual(['mac1'], list(self.node_info.ports()))
+
+    def test_delete_port_retries(self):
+        self.ironic.delete_port.side_effect = \
+            os_exc.ConflictException("Locked")
+        self.assertRaises(
+            os_exc.ConflictException,
+            self.node_info.delete_port, self.ports['mac0'])
+        self.assertEqual(5, self.ironic.delete_port.call_count)
 
     def test_delete_port_by_mac(self):
         self.node_info.delete_port('mac0')

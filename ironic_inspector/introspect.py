@@ -123,8 +123,8 @@ def _do_introspect(node_info, ironic):
 
     if node_info.manage_boot:
         try:
-            ironic.set_node_boot_device(
-                node_info.uuid, 'pxe',
+            ir_utils.call_with_retries(
+                ironic.set_node_boot_device, node_info.uuid, 'pxe',
                 persistent=_persistent_ramdisk_boot(node_info.node()))
         except Exception as exc:
             raise utils.Error(_('Failed to set boot device to PXE: %s') % exc,
@@ -133,7 +133,8 @@ def _do_introspect(node_info, ironic):
         _wait_for_turn(node_info)
 
         try:
-            ironic.set_node_power_state(node_info.uuid, 'rebooting')
+            ir_utils.call_with_retries(
+                ironic.set_node_power_state, node_info.uuid, 'rebooting')
         except Exception as exc:
             raise utils.Error(_('Failed to power on the node, check its '
                                 'power management configuration: %s') % exc,
@@ -175,7 +176,8 @@ def _abort(node_info, ironic):
     LOG.debug('Forcing power-off', node_info=node_info)
     if node_info.manage_boot:
         try:
-            ironic.set_node_power_state(node_info.uuid, 'power off')
+            ir_utils.call_with_retries(
+                ironic.set_node_power_state, node_info.uuid, 'power off')
         except Exception as exc:
             LOG.warning('Failed to power off node: %s', exc,
                         node_info=node_info)
