@@ -92,6 +92,34 @@ class TestIntrospect(BaseTest):
         self.node_info.acquire_lock.assert_called_once_with()
         self.node_info.release_lock.assert_called_once_with()
 
+    def test_ok_retries_node_locked(self, client_mock, start_mock):
+        cli = self._prepare(client_mock)
+        start_mock.return_value = self.node_info
+        cli.set_node_power_state.side_effect = [
+            os_exc.ConflictException("Locked"),
+            None]
+        introspect.introspect(self.node.uuid)
+
+        cli.get_node.assert_called_once_with(self.uuid)
+        cli.validate_node.assert_called_once_with(self.uuid, required='power')
+
+        start_mock.assert_called_once_with(self.uuid,
+                                           bmc_address=[self.bmc_address],
+                                           manage_boot=True,
+                                           ironic=cli)
+        self.node_info.ports.assert_called_once_with()
+        self.node_info.add_attribute.assert_called_once_with(
+            'mac', self.macs)
+        self.sync_filter_mock.assert_called_with(cli)
+        cli.set_node_boot_device.assert_called_once_with(
+            self.uuid, 'pxe', persistent=False)
+        cli.set_node_power_state.assert_has_calls([
+            mock.call(self.uuid, 'rebooting'),
+            mock.call(self.uuid, 'rebooting')])
+
+        self.node_info.acquire_lock.assert_called_once_with()
+        self.node_info.release_lock.assert_called_once_with()
+
     @mock.patch.object(ir_utils, 'get_ipmi_address', autospec=True)
     def test_resolved_bmc_address(self, ipmi_mock, client_mock, start_mock):
         self.node.driver_info['ipmi_address'] = 'example.com'
@@ -177,8 +205,9 @@ class TestIntrospect(BaseTest):
         cli.set_node_boot_device.assert_called_once_with(self.uuid,
                                                          'pxe',
                                                          persistent=False)
-        cli.set_node_power_state.assert_called_once_with(self.uuid,
-                                                         'rebooting')
+        power_call = mock.call(self.uuid, 'rebooting')
+        cli.set_node_power_state.assert_has_calls([
+            power_call, power_call, power_call, power_call, power_call])
         start_mock.return_value.finished.assert_called_once_with(
             introspect.istate.Events.error, error=mock.ANY)
         self.node_info.acquire_lock.assert_called_once_with()
@@ -218,9 +247,9 @@ class TestIntrospect(BaseTest):
                                            bmc_address=[self.bmc_address],
                                            manage_boot=True,
                                            ironic=cli)
-        cli.set_node_boot_device.assert_called_once_with(self.uuid,
-                                                         'pxe',
-                                                         persistent=False)
+        dev_call = mock.call(self.uuid, 'pxe', persistent=False)
+        cli.set_node_boot_device.assert_has_calls([
+            dev_call, dev_call, dev_call, dev_call, dev_call])
         cli.set_node_power_state.assert_not_called()
         start_mock.return_value.finished.assert_called_once_with(
             introspect.istate.Events.error, error=mock.ANY)
