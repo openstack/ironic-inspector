@@ -1,0 +1,11 @@
+---
+fixes:
+  - |
+    Fixes issues in Inspector where various tasks would not have retry logic
+    applied to them and may sporadically fail. This is because the OpenStack
+    SDK does not comprehend the NodeLocked error, which previously
+    python-ironicclient silently handled. Basic operations such as
+    "power reboot" and "set boot device" will now be retried automatically if
+    they fail.
+    For more information, please see
+    `story 2009107 <https://storyboard.openstack.org/#!/story/2009107>`_.

@@ -461,7 +461,8 @@ class NodeInfo(object):
         :param ironic: Ironic client to use instead of self.ironic
         """
         ironic = ironic or self.ironic
-        ironic.add_node_trait(self.uuid, trait)
+        ir_utils.call_with_retries(
+            ironic.add_node_trait, self.uuid, trait)
 
     def remove_trait(self, trait, ironic=None):
         """Remove a trait from the node.
@@ -471,6 +472,8 @@ class NodeInfo(object):
         """
         ironic = ironic or self.ironic
         try:
+            # TODO(TheJulia): This should really have a retry around it for
+            # connection failure, however its not a big deal.
             ironic.remove_node_trait(self.uuid, trait)
         except os_exc.NotFoundException:
             LOG.debug('Trait %s is not set, cannot remove', trait,
@@ -486,8 +489,8 @@ class NodeInfo(object):
         ports = self.ports()
         if isinstance(port, str):
             port = ports[port]
-
-        ironic.delete_port(port.id)
+        ir_utils.call_with_retries(
+            ironic.delete_port, port.id)
         del ports[port.address]
 
     def get_by_path(self, path):
