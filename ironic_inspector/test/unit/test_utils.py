@@ -33,11 +33,7 @@ class TestCheckAuth(base.BaseTest):
     @mock.patch.object(auth_token, 'AuthProtocol', autospec=True)
     def test_middleware(self, mock_auth):
         self.cfg.config(group='keystone_authtoken',
-                        admin_user='admin',
-                        admin_tenant_name='admin',
-                        admin_password='password',
-                        www_authenticate_uri='http://127.0.0.1:5000',
-                        identity_uri='http://127.0.0.1:35357')
+                        www_authenticate_uri='http://127.0.0.1:5000')
 
         app = mock.Mock(wsgi_app=mock.sentinel.app)
         utils.add_auth_middleware(app)
@@ -47,13 +43,8 @@ class TestCheckAuth(base.BaseTest):
         self.assertEqual(mock.sentinel.app, args[0])
         args1 = args[1]
 
-        self.assertEqual('admin', args1['admin_user'])
-        self.assertEqual('admin', args1['admin_tenant_name'])
-        self.assertEqual('password', args1['admin_password'])
-        self.assertTrue(args1['delay_auth_decision'])
         self.assertEqual('http://127.0.0.1:5000',
                          args1['www_authenticate_uri'])
-        self.assertEqual('http://127.0.0.1:35357', args1['identity_uri'])
 
     def test_admin(self):
         request = mock.Mock(headers={'X-Identity-Status': 'Confirmed'})
