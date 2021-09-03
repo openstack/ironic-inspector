@@ -10,6 +10,7 @@
       - ^api-ref/.*$
       - ^doc/.*$
       - ^ironic_inspector/test/(?!.*tempest).*$
+      - ^ironic/tests/.*$
       - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
       - ^tools/.*$
