@@ -343,19 +343,50 @@ class TestApiListStatus(GetStatusAPIBaseTest):
         self.assertEqual([self.finished_node.status,
                           self.unfinished_node.status], statuses)
         list_mock.assert_called_once_with(marker=None,
-                                          limit=CONF.api_max_limit)
+                                          limit=CONF.api_max_limit, state=None)
 
     def test_list_introspection_limit(self, list_mock):
         res = self.app.get('/v1/introspection?limit=1000')
         self.assertEqual(200, res.status_code)
-        list_mock.assert_called_once_with(marker=None, limit=1000)
+        list_mock.assert_called_once_with(marker=None, limit=1000, state=None)
 
     def test_list_introspection_makrer(self, list_mock):
         res = self.app.get('/v1/introspection?marker=%s' %
                            self.finished_node.uuid)
         self.assertEqual(200, res.status_code)
         list_mock.assert_called_once_with(marker=self.finished_node.uuid,
-                                          limit=CONF.api_max_limit)
+                                          limit=CONF.api_max_limit, state=None)
+
+    def test_list_introspection_state(self, list_mock):
+        state = 'error'
+        list_mock.return_value = [self.finished_node]
+        res = self.app.get('/v1/introspection?state=%s' % state)
+        self.assertEqual(200, res.status_code)
+        statuses = json.loads(res.data.decode('utf-8')).get('introspection')
+
+        self.assertEqual([self.finished_node.status], statuses)
+        list_mock.assert_called_once_with(marker=None,
+                                          limit=CONF.api_max_limit,
+                                          state=state.split(','))
+
+    def test_list_introspection_multiple_state(self, list_mock):
+        state = 'error,processing'
+        list_mock.return_value = [self.finished_node,
+                                  self.unfinished_node]
+        res = self.app.get('/v1/introspection?state=%s' % state)
+        self.assertEqual(200, res.status_code)
+        statuses = json.loads(res.data.decode('utf-8')).get('introspection')
+
+        self.assertEqual([self.finished_node.status,
+                          self.unfinished_node.status], statuses)
+        list_mock.assert_called_once_with(marker=None,
+                                          limit=CONF.api_max_limit,
+                                          state=state.split(','))
+
+    def test_list_introspection_invalid_state(self, list_mock):
+        state = 'error,invalid'
+        res = self.app.get('/v1/introspection?state=%s' % state)
+        self.assertEqual(400, res.status_code)
 
 
 class TestApiGetData(BaseAPITest):

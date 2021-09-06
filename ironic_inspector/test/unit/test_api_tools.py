@@ -140,3 +140,22 @@ class LimitFieldTestCase(test_base.BaseTest):
     def test_limit_invalid_value(self, get_mock):
         self.assertRaisesRegex(utils.Error, 'Bad request',
                                api_tools.limit_field)
+
+
+class StateFieldTestCase(test_base.BaseTest):
+    @mock_test_field(return_value='error')
+    def test_single_state(self, get_mock):
+        value = api_tools.state_field()
+        self.assertEqual(get_mock.return_value.split(','), value)
+
+    @mock_test_field(return_value='error,finished')
+    def test_multiple_state(self, get_mock):
+        value = api_tools.state_field()
+        self.assertEqual(get_mock.return_value.split(','), value)
+
+    @mock_test_field(return_value='error,invalid')
+    def test_invalid_state(self, get_mock):
+        self.assertRaisesRegex(utils.Error,
+                               r'.*(State\(s\) "%s" are not valid)'
+                               % 'invalid',
+                               api_tools.state_field)

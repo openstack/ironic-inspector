@@ -57,6 +57,7 @@ Status list may be paginated with these query string fields:
 
    - marker: marker
    - limit: limit
+   - state: state
 
 
 Response

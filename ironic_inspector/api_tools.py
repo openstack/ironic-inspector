@@ -19,6 +19,7 @@ from oslo_config import cfg
 from oslo_utils import uuidutils
 
 from ironic_inspector.common.i18n import _
+from ironic_inspector import introspection_state as istate
 from ironic_inspector import utils
 
 CONF = cfg.CONF
@@ -81,4 +82,19 @@ def limit_field(value):
     value = int(value) or CONF.api_max_limit
     assert value >= 0, _('Limit cannot be negative')
     assert value <= CONF.api_max_limit, _('Limit over %s') % CONF.api_max_limit
+    return value
+
+
+@request_field('state')
+@raises_coercion_exceptions
+def state_field(value):
+    """Fetch the pagination state field from flask.request.args.
+
+    :returns: list of the state(s)
+    """
+    states = istate.States.all()
+    value = value.split(',')
+    invalid_states = [state for state in value if state not in states]
+    assert not invalid_states, \
+        _('State(s) "%s" are not valid') % ', '.join(invalid_states)
     return value
