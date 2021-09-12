@@ -19,6 +19,7 @@ from ironic_inspector.conf import default
 from ironic_inspector.conf import discovery
 from ironic_inspector.conf import dnsmasq_pxe_filter
 from ironic_inspector.conf import extra_hardware
+from ironic_inspector.conf import healthcheck
 from ironic_inspector.conf import iptables
 from ironic_inspector.conf import ironic
 from ironic_inspector.conf import pci_devices
@@ -39,6 +40,7 @@ discovery.register_opts(CONF)
 default.register_opts(CONF)
 dnsmasq_pxe_filter.register_opts(CONF)
 extra_hardware.register_opts(CONF)
+healthcheck.register_opts(CONF)
 iptables.register_opts(CONF)
 ironic.register_opts(CONF)
 pci_devices.register_opts(CONF)
