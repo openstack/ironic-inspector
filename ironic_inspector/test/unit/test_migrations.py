@@ -255,21 +255,25 @@ class MigrationCheckersMixin(object):
 
     def _check_e169a4a81d88(self, engine, data):
         rule_conditions = db_utils.get_table(engine, 'rule_conditions')
-        # set invert with default value - False
-        data = {'id': 1, 'op': 'eq', 'multiple': 'all'}
-        rule_conditions.insert().execute(data)
+        with engine.begin() as connection:
+            # set invert with default value - False
+            data = {'id': 1, 'op': 'eq', 'multiple': 'all'}
+            insert_rc = rule_conditions.insert()
+            connection.execute(insert_rc, data)
 
-        conds = rule_conditions.select(
-            rule_conditions.c.id == 1).execute().first()
-        self.assertFalse(conds['invert'])
+            rc_stmt = rule_conditions.select(
+                rule_conditions.c.id == 1)
+            conds = connection.execute(rc_stmt).first()
+            self.assertFalse(conds['invert'])
 
-        # set invert with - True
-        data = {'id': 2, 'op': 'eq', 'multiple': 'all', 'invert': True}
-        rule_conditions.insert().execute(data)
+            # set invert with - True
+            data2 = {'id': 2, 'op': 'eq', 'multiple': 'all', 'invert': True}
+            connection.execute(insert_rc, data2)
 
-        conds = rule_conditions.select(
-            rule_conditions.c.id == 2).execute().first()
-        self.assertTrue(conds['invert'])
+            rc_stmt2 = rule_conditions.select(
+                rule_conditions.c.id == 2)
+            conds2 = connection.execute(rc_stmt2).first()
+            self.assertTrue(conds2['invert'])
 
     def _pre_upgrade_d2e48801c8ef(self, engine):
         ok_node_id = uuidutils.generate_uuid()
@@ -289,8 +293,10 @@ class MigrationCheckersMixin(object):
             }
         ]
         nodes = db_utils.get_table(engine, 'nodes')
-        for node in data:
-            nodes.insert().execute(node)
+        with engine.begin() as connection:
+            for node in data:
+                insert_node = nodes.insert()
+                connection.execute(insert_node, node)
         return {'err_node_id': err_node_id, 'ok_node_id': ok_node_id}
 
     def _check_d2e48801c8ef(self, engine, data):
@@ -311,24 +317,29 @@ class MigrationCheckersMixin(object):
 
         ok_node_id = data['ok_node_id']
         err_node_id = data['err_node_id']
-        # assert the ok node is in the (default) finished state
-        ok_node = nodes.select(nodes.c.uuid == ok_node_id).execute().first()
-        self.assertEqual(istate.States.finished, ok_node['state'])
-        # assert err node state is error after the migration
-        # even though the default state is finished
-        err_node = nodes.select(nodes.c.uuid == err_node_id).execute().first()
-        self.assertEqual(istate.States.error, err_node['state'])
+        with engine.begin() as connection:
+            # assert the ok node is in the (default) finished state
+            ok_node_stmt = nodes.select(nodes.c.uuid == ok_node_id)
+            ok_node = connection.execute(ok_node_stmt).first()
+            self.assertEqual(istate.States.finished, ok_node['state'])
+            # assert err node state is error after the migration
+            # even though the default state is finished
+            err_node_stmt = nodes.select(nodes.c.uuid == err_node_id)
+            err_node = connection.execute(err_node_stmt).first()
+            self.assertEqual(istate.States.error, err_node['state'])
 
     def _pre_upgrade_d00d6e3f38c4(self, engine):
         nodes = db_utils.get_table(engine, 'nodes')
         data = []
-        for finished_at in (None, 1234.0):
-            node = {'uuid': uuidutils.generate_uuid(),
-                    'started_at': 1232.0,
-                    'finished_at': finished_at,
-                    'error': None}
-            nodes.insert().values(node).execute()
-            data.append(node)
+        with engine.begin() as connection:
+            for finished_at in (None, 1234.0):
+                node = {'uuid': uuidutils.generate_uuid(),
+                        'started_at': 1232.0,
+                        'finished_at': finished_at,
+                        'error': None}
+                insert_node = nodes.insert().values(node)
+                connection.execute(insert_node)
+                data.append(node)
         return data
 
     def _check_d00d6e3f38c4(self, engine, data):
@@ -342,35 +353,41 @@ class MigrationCheckersMixin(object):
         self.assertIsInstance(nodes.c.finished_at.type,
                               sqlalchemy.types.DateTime)
 
-        for node in data:
-            finished_at = datetime.datetime.utcfromtimestamp(
-                node['finished_at']) if node['finished_at'] else None
-            row = nodes.select(nodes.c.uuid == node['uuid']).execute().first()
-            self.assertEqual(
-                datetime.datetime.utcfromtimestamp(node['started_at']),
-                row['started_at'])
-            self.assertEqual(
-                finished_at,
-                row['finished_at'])
+        with engine.begin() as connection:
+            for node in data:
+                finished_at = datetime.datetime.utcfromtimestamp(
+                    node['finished_at']) if node['finished_at'] else None
+
+                stmt = nodes.select(nodes.c.uuid == node['uuid'])
+                row = connection.execute(stmt).first()
+                self.assertEqual(
+                    datetime.datetime.utcfromtimestamp(node['started_at']),
+                    row['started_at'])
+                self.assertEqual(
+                    finished_at,
+                    row['finished_at'])
 
     def _pre_upgrade_882b2d84cb1b(self, engine):
         attributes = db_utils.get_table(engine, 'attributes')
         nodes = db_utils.get_table(engine, 'nodes')
         self.node_uuid = uuidutils.generate_uuid()
-        node = {
-            'uuid': self.node_uuid,
-            'started_at': datetime.datetime.utcnow(),
-            'finished_at': None,
-            'error': None,
-            'state': istate.States.starting
-        }
-        nodes.insert().values(node).execute()
-        data = {
-            'uuid': self.node_uuid,
-            'name': 'foo',
-            'value': 'bar'
-        }
-        attributes.insert().values(data).execute()
+        with engine.begin() as connection:
+            node = {
+                'uuid': self.node_uuid,
+                'started_at': datetime.datetime.utcnow(),
+                'finished_at': None,
+                'error': None,
+                'state': istate.States.starting
+            }
+            insert_node = nodes.insert().values(node)
+            connection.execute(insert_node)
+            data = {
+                'uuid': self.node_uuid,
+                'name': 'foo',
+                'value': 'bar'
+            }
+            insert_att = attributes.insert().values(data)
+            connection.execute(insert_att)
 
     def _check_882b2d84cb1b(self, engine, data):
         attributes = db_utils.get_table(engine, 'attributes')
@@ -385,21 +402,25 @@ class MigrationCheckersMixin(object):
         self.assertIn('value', col_names)
         self.assertIsInstance(attributes.c.value.type, sqlalchemy.types.String)
 
-        row = attributes.select(attributes.c.node_uuid ==
-                                self.node_uuid).execute().first()
-        self.assertEqual(self.node_uuid, row.node_uuid)
-        self.assertNotEqual(self.node_uuid, row.uuid)
-        self.assertIsNotNone(row.uuid)
-        self.assertEqual('foo', row.name)
-        self.assertEqual('bar', row.value)
+        with engine.begin() as connection:
+            stmt = attributes.select(attributes.c.node_uuid == self.node_uuid)
+            row = connection.execute(stmt).first()
+            self.assertEqual(self.node_uuid, row.node_uuid)
+            self.assertNotEqual(self.node_uuid, row.uuid)
+            self.assertIsNotNone(row.uuid)
+            self.assertEqual('foo', row.name)
+            self.assertEqual('bar', row.value)
 
     def _check_2970d2d44edc(self, engine, data):
         nodes = db_utils.get_table(engine, 'nodes')
         data = {'uuid': 'abcd'}
-        nodes.insert().execute(data)
 
-        n = nodes.select(nodes.c.uuid == 'abcd').execute().first()
-        self.assertIsNone(n['manage_boot'])
+        with engine.begin() as connection:
+            insert_node = nodes.insert()
+            connection.execute(insert_node, data)
+            n_stmt = nodes.select(nodes.c.uuid == 'abcd')
+            n = connection.execute(n_stmt).first()
+            self.assertIsNone(n['manage_boot'])
 
     def _check_bf8dec16023c(self, engine, data):
         introspection_data = db_utils.get_table(engine, 'introspection_data')
