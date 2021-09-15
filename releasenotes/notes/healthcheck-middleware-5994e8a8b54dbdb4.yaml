@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    The new ``[healthcheck] enabled`` option has been added. When this option
+    is set to ``True``, the healthcheck middleware is enabled in API pipeline
+    and the additional API endpoint to monitor service availability becomes
+    available at ``/healthcheck`` path.

@@ -70,6 +70,8 @@ def _init_middleware():
     else:
         LOG.warning('Starting unauthenticated, please check'
                     ' configuration')
+    if CONF.healthcheck.enabled:
+        utils.add_healthcheck_middleware(_app)
     utils.add_cors_middleware(_app)
 
 

@@ -22,6 +22,7 @@ from openstack.baremetal.v1 import node
 from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
+from oslo_middleware import healthcheck as healthcheck_middleware
 import pytz
 import webob
 
@@ -244,6 +245,14 @@ def add_cors_middleware(app):
     :param app: application
     """
     app.wsgi_app = cors_middleware.CORS(app.wsgi_app, CONF)
+
+
+def add_healthcheck_middleware(app):
+    """Add healthcheck middleware
+
+    :param app: application
+    """
+    app.wsgi_app = healthcheck_middleware.Healthcheck(app.wsgi_app, CONF)
 
 
 def check_auth(request, rule=None, target=None):

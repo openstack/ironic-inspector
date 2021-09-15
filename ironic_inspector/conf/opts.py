@@ -69,6 +69,7 @@ def list_opts():
         ('dnsmasq_pxe_filter',
          ironic_inspector.conf.dnsmasq_pxe_filter.list_opts()),
         ('extra_hardware', ironic_inspector.conf.extra_hardware.list_opts()),
+        ('healthcheck', ironic_inspector.conf.healthcheck.list_opts()),
         ('ironic', ironic_inspector.conf.ironic.list_opts()),
         ('iptables', ironic_inspector.conf.iptables.list_opts()),
         ('port_physnet', ironic_inspector.conf.port_physnet.list_opts()),
