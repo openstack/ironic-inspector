@@ -208,7 +208,8 @@ function prepare_tftp {
     IRONIC_INSPECTOR_INITRAMFS_PATH="$IRONIC_INSPECTOR_IMAGE_PATH.initramfs"
     IRONIC_INSPECTOR_CALLBACK_URI="$IRONIC_INSPECTOR_INTERNAL_URI/v1/continue"
 
-    IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE ipa-inspection-callback-url=$IRONIC_INSPECTOR_CALLBACK_URI"
+    IRONIC_INSPECTOR_KERNEL_CMDLINE="root=/dev/ram0 $IRONIC_INSPECTOR_EXTRA_KERNEL_CMDLINE"
+    IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-inspection-callback-url=$IRONIC_INSPECTOR_CALLBACK_URI"
     IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-api-url=$SERVICE_PROTOCOL://$SERVICE_HOST/baremetal"
     IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE ipa-insecure=1 systemd.journald.forward_to_console=yes"
     IRONIC_INSPECTOR_KERNEL_CMDLINE="$IRONIC_INSPECTOR_KERNEL_CMDLINE vga=normal console=tty0 console=ttyS0"
@@ -240,7 +241,7 @@ function prepare_tftp {
 
 dhcp
 
-kernel http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.kernel BOOTIF=\${mac} $IRONIC_INSPECTOR_KERNEL_CMDLINE
+kernel http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.kernel BOOTIF=\${mac} $IRONIC_INSPECTOR_KERNEL_CMDLINE initrd=ironic-inspector.initramfs
 initrd http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.initramfs
 boot
 EOF
@@ -439,7 +440,11 @@ interface=$IRONIC_INSPECTOR_INTERFACE
 bind-interfaces
 dhcp-range=$IRONIC_INSPECTOR_DHCP_RANGE
 dhcp-match=ipxe,175
-dhcp-boot=tag:!ipxe,undionly.kpxe
+dhcp-match=set:efi,option:client-arch,7
+dhcp-match=set:efi,option:client-arch,9
+dhcp-match=set:efi,option:client-arch,11
+dhcp-boot=tag:efi,tag:!ipxe,snponly.efi
+dhcp-boot=tag:!efi,tag:!ipxe,undionly.kpxe
 dhcp-boot=tag:ipxe,http://$IRONIC_HTTP_SERVER:$IRONIC_HTTP_PORT/ironic-inspector.ipxe
 dhcp-sequential-ip
 EOF
@@ -450,6 +455,10 @@ port=0
 interface=$IRONIC_INSPECTOR_INTERFACE
 bind-interfaces
 dhcp-range=$IRONIC_INSPECTOR_DHCP_RANGE
+dhcp-match=set:efi,option:client-arch,7
+dhcp-match=set:efi,option:client-arch,9
+dhcp-match=set:efi,option:client-arch,11
+dhcp-boot=tag:efi,bootx64.efi
 dhcp-boot=pxelinux.0
 dhcp-sequential-ip
 EOF
