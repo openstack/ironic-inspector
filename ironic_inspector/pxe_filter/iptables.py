@@ -13,6 +13,7 @@
 
 import contextlib
 
+from keystoneauth1 import exceptions as ksa_exc
 from openstack import exceptions as os_exc
 from oslo_concurrency import processutils
 from oslo_config import cfg
@@ -118,7 +119,7 @@ class IptablesFilter(pxe_filter.BaseFilter):
             else:
                 to_deny = pxe_filter.get_inactive_macs(ironic)
                 to_allow = None
-        except os_exc.SDKException:
+        except (os_exc.SDKException, ksa_exc.ConnectFailure):
             LOG.exception(
                 "Could not list ironic ports, iptables PXE filter can not "
                 "be synced")
