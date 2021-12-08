@@ -44,7 +44,7 @@ _wsgi_app = _app.wsgi_app
 LOG = utils.getProcessingLogger(__name__)
 
 MINIMUM_API_VERSION = (1, 0)
-CURRENT_API_VERSION = (1, 17)
+CURRENT_API_VERSION = (1, 18)
 DEFAULT_API_VERSION = CURRENT_API_VERSION
 _LOGGING_EXCLUDED_KEYS = ('logs',)
 
@@ -380,7 +380,8 @@ def api_introspection(node_id):
 def api_introspection_statuses():
     nodes = node_cache.get_node_list(
         marker=api_tools.marker_field(),
-        limit=api_tools.limit_field(default=CONF.api_max_limit)
+        limit=api_tools.limit_field(default=CONF.api_max_limit),
+        state=api_tools.state_field()
     )
     data = {
         'introspection': [generate_introspection_status(node)

@@ -976,7 +976,7 @@ def record_node(ironic=None, bmc_addresses=None, macs=None):
                     manage_boot=False, mac=macs, bmc_address=bmc_addresses)
 
 
-def get_node_list(ironic=None, marker=None, limit=None):
+def get_node_list(ironic=None, marker=None, limit=None, state=None):
     """Get node list from the cache.
 
     The list of the nodes is ordered based on the (started_at, uuid)
@@ -985,6 +985,7 @@ def get_node_list(ironic=None, marker=None, limit=None):
     :param ironic: optional ironic client instance
     :param marker: pagination marker (an UUID or None)
     :param limit: pagination limit; None for default CONF.api_max_limit
+    :param state: list of states for the filter; None for no state filter
     :returns: a list of NodeInfo instances.
     """
     if marker is not None:
@@ -995,6 +996,8 @@ def get_node_list(ironic=None, marker=None, limit=None):
                               code=404)
 
     rows = db.model_query(db.Node)
+    if state:
+        rows = rows.filter(db.Node.state.in_(state))
     # ordered based on (started_at, uuid); newer first
     rows = db_utils.paginate_query(rows, db.Node, limit,
                                    ('started_at', 'uuid'),

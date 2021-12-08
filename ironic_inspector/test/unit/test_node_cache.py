@@ -975,12 +975,15 @@ class TestNodeCacheListNode(test_base.NodeTest):
     def setUp(self):
         super(TestNodeCacheListNode, self).setUp()
         self.uuid2 = uuidutils.generate_uuid()
+        self.uuid3 = uuidutils.generate_uuid()
         session = db.get_writer_session()
         with session.begin():
             db.Node(uuid=self.uuid,
                     started_at=datetime.datetime(1, 1, 2)).save(session)
             db.Node(uuid=self.uuid2, started_at=datetime.datetime(1, 1, 1),
                     finished_at=datetime.datetime(1, 1, 3)).save(session)
+            db.Node(uuid=self.uuid3, started_at=datetime.datetime(1, 1, 3),
+                    state='error').save(session)
 
     # mind please node(self.uuid).started_at > node(self.uuid2).started_at
     # and the result ordering is strict in node_cache.get_node_list newer first
@@ -988,12 +991,12 @@ class TestNodeCacheListNode(test_base.NodeTest):
     def test_list_node(self):
         nodes = node_cache.get_node_list()
 
-        self.assertEqual([self.uuid, self.uuid2],
+        self.assertEqual([self.uuid3, self.uuid, self.uuid2],
                          [node.uuid for node in nodes])
 
     def test_list_node_limit(self):
         nodes = node_cache.get_node_list(limit=1)
-        self.assertEqual([self.uuid], [node.uuid for node in nodes])
+        self.assertEqual([self.uuid3], [node.uuid for node in nodes])
 
     def test_list_node_marker(self):
         # get nodes started_at after node(self.uuid)
@@ -1003,6 +1006,15 @@ class TestNodeCacheListNode(test_base.NodeTest):
     def test_list_node_wrong_marker(self):
         self.assertRaises(utils.Error, node_cache.get_node_list,
                           marker='foo-bar')
+
+    def test_list_node_state(self):
+        nodes = node_cache.get_node_list(state=['error'])
+        self.assertEqual([self.uuid3], [node.uuid for node in nodes])
+
+    def test_list_node_state_multiple(self):
+        nodes = node_cache.get_node_list(state=['error', 'finished'])
+        self.assertEqual([self.uuid3, self.uuid, self.uuid2],
+                         [node.uuid for node in nodes])
 
 
 class TestNodeInfoVersionId(test_base.NodeStateTest):

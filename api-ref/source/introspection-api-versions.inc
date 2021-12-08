@@ -107,3 +107,4 @@ Version History
 * **1.15** allows reapply with provided introspection data from request.
 * **1.16** adds ``scope`` field to introspection rule.
 * **1.17** adds ``GET /v1/introspection/<node>/data/unprocessed``.
+* **1.18** adds state selector ``GET /v1/introspection?state=starting,...``.
