@@ -152,7 +152,21 @@ def _generate_empty_response(code):
     # be included for user friendly response bodies.
     if code == 204:
         response = flask.make_response('', code)
+        # NOTE(TheJulia): Explicitly set a content length to zero.
+        # as this is the *lesser* of all evils until
+        # https://github.com/eventlet/eventlet/issues/746
+        # is resolved.
+        response.headers['Content-Length'] = 0
         response.mimetype = 'text/plain'
+
+        def _return_headers(cls):
+            # Dynamically re-maps over get_wsgi_headers() method in
+            # which werkzueg strips the content-length and sets us up
+            # for eventlet forcing in a Transfer-Encoding: chunked
+            # header.
+            return response.headers
+
+        response.get_wsgi_headers = _return_headers
     else:
         # Send an empty dictionary to set a mimetype, and ultimately
         # with this being a rest API we can, at some point, choose to

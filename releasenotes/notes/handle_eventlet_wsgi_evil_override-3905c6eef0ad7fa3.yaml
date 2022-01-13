@@ -1,0 +1,19 @@
+---
+issues:
+  - |
+    The response headers for empty body HTTP 204 replies, at present, violate
+    RFC7230. This was not intentional, but underlying libraries also
+    make inappropriate changes to the headers, which can cause clients to
+    experience odd failures. This is anticipated to be corrected once an
+    underlying issue in
+    `eventlet <https://github.com/eventlet/eventlet/issues/746>`_ is resolved.
+fixes:
+  - |
+    Fixes HTTP responses so the Eventlet library, which is used to support
+    the operation of the WSGI application, does not incorrectly inject
+    a ``Transfer-Encoding`` header into the HTTP response, even on HTTP 204
+    replies, which is a violation of RFC7230. This header ultimately can
+    cause varying client reactions which are not expected and can raise
+    exceptions. For now, this has been remedied via an explicit return of
+    a ``Content-Length`` header, which is also an RFC7230 violation, but
+    it appears to be the lesser of known evils at this time.
