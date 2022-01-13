@@ -642,6 +642,12 @@ class TestApiRules(BaseAPITest):
         delete_mock.assert_called_once_with(self.uuid)
         self.assertEqual('text/plain; charset=utf-8',
                          res.headers['content-type'])
+        # NOTE(TheJulia): This should be able to be removed once
+        # https://github.com/eventlet/eventlet/issues/746
+        # is resolved and available. This ensures we don't
+        # send out a content length header out which is the
+        # less evil of the RFC7230 broken-ness.
+        self.assertEqual('0', res.headers['Content-Length'])
 
 
 class TestApiMisc(BaseAPITest):
