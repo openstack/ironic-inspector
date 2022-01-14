@@ -1,0 +1,9 @@
+---
+upgrade:
+  - |
+    The rootwrap rule to allow restarting the systemd service
+    openstack-ironic-inspector-dnsmasq.service has been removed. No known
+    tooling requires this rule since before Train. Any configuration tool which
+    is setting [dnsmasq_pxe_filter]dnsmasq_start_command also needs to be
+    writing an appropriate rootwrap.d file, as the inspector devstack plugin
+    does.
