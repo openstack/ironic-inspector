@@ -10,6 +10,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import socket
+
+from ironic_lib import utils as il_utils
 from oslo_config import cfg
 from oslo_log import log
 from oslo_service import service
@@ -26,11 +29,20 @@ class WSGIService(service.Service):
 
     def __init__(self):
         self.app = main.get_app()
-        self.server = wsgi.Server(CONF, 'ironic_inspector',
-                                  self.app,
-                                  host=CONF.listen_address,
-                                  port=CONF.listen_port,
-                                  use_ssl=CONF.use_ssl)
+        if CONF.listen_unix_socket:
+            il_utils.unlink_without_raise(CONF.listen_unix_socket)
+            self.server = wsgi.Server(CONF, 'ironic_inspector',
+                                      self.app,
+                                      socket_family=socket.AF_UNIX,
+                                      socket_file=CONF.listen_unix_socket,
+                                      socket_mode=CONF.listen_unix_socket_mode,
+                                      use_ssl=CONF.use_ssl)
+        else:
+            self.server = wsgi.Server(CONF, 'ironic_inspector',
+                                      self.app,
+                                      host=CONF.listen_address,
+                                      port=CONF.listen_port,
+                                      use_ssl=CONF.use_ssl)
 
     def start(self):
         """Start serving this service using loaded configuration.
@@ -45,6 +57,8 @@ class WSGIService(service.Service):
         :returns: None
         """
         self.server.stop()
+        if CONF.listen_unix_socket:
+            il_utils.unlink_without_raise(CONF.listen_unix_socket)
 
     def wait(self):
         """Wait for the service to stop serving this API.

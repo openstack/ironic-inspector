@@ -14,8 +14,18 @@
 import socket
 
 from oslo_config import cfg
+from oslo_config import types as cfg_types
 
 from ironic_inspector.common.i18n import _
+
+
+class Octal(cfg_types.Integer):
+
+    def __call__(self, value):
+        if isinstance(value, int):
+            return value
+        else:
+            return int(str(value), 8)
 
 
 _OPTS = [
@@ -25,6 +35,12 @@ _OPTS = [
     cfg.PortOpt('listen_port',
                 default=5050,
                 help=_('Port to listen on.')),
+    cfg.StrOpt('listen_unix_socket',
+               help=_('Unix socket to listen on. Disables listen_address and '
+                      'listen_port.')),
+    cfg.Opt('listen_unix_socket_mode', type=Octal(),
+            help=_('File mode (an octal number) of the unix socket to '
+                   'listen on. Ignored if listen_unix_socket is not set.')),
     cfg.StrOpt('host',
                default=socket.getfqdn(),
                sample_default='localhost',
