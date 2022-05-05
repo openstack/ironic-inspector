@@ -2,7 +2,6 @@
     templates:
       - check-requirements
       - openstack-cover-jobs
-      - openstack-lower-constraints-master-branch-jobs
       - openstack-python3-zed-jobs
       - publish-openstack-docs-pti
       - release-notes-jobs-python3
@@ -11,7 +10,10 @@
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
-        - ironic-inspector-tempest-managed-non-standalone
+        #NOTE(rpittau): temporary non-voting for bugfix release
+        #to fix right after
+        - ironic-inspector-tempest-managed-non-standalone:
+            voting: false
         - openstack-tox-functional-py38
         - bifrost-integration-tinyipa-ubuntu-focal:
             voting: false
@@ -23,5 +25,4 @@
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
-        - ironic-inspector-tempest-managed-non-standalone
         - openstack-tox-functional-py38
