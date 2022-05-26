@@ -2,15 +2,16 @@
 # Andi Chandler <andi@gowling.com>, 2018. #zanata
 # Andi Chandler <andi@gowling.com>, 2019. #zanata
 # Andi Chandler <andi@gowling.com>, 2020. #zanata
+# Andi Chandler <andi@gowling.com>, 2022. #zanata
 msgid ""
 msgstr ""
 "Project-Id-Version: ironic-inspector VERSION\n"
 "Report-Msgid-Bugs-To: https://bugs.launchpad.net/openstack-i18n/\n"
-"POT-Creation-Date: 2020-10-09 11:59+0000\n"
+"POT-Creation-Date: 2022-05-17 16:20+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2020-10-10 11:10+0000\n"
+"PO-Revision-Date: 2022-05-25 08:59+0000\n"
 "Last-Translator: Andi Chandler <andi@gowling.com>\n"
 "Language-Team: English (United Kingdom)\n"
 "Language: en_GB\n"
@@ -186,6 +187,15 @@ msgstr ""
 "Delay (in seconds) between two introspections. Only applies when boot is "
 "managed by ironic-inspector (i.e. manage_boot==True)."
 
+msgid ""
+"Enable the health check endpoint at /healthcheck. Note that this is "
+"unauthenticated. More information is available at https://docs.openstack.org/"
+"oslo.middleware/latest/reference/healthcheck_plugins.html."
+msgstr ""
+"Enable the health check endpoint at /healthcheck. Note that this is "
+"unauthenticated. More information is available at https://docs.openstack.org/"
+"oslo.middleware/latest/reference/healthcheck_plugins.html."
+
 #, python-format
 msgid "Encountered an exception while getting the Ironic client: %s"
 msgstr "Encountered an exception while getting the Ironic client: %s"
@@ -238,6 +248,13 @@ msgstr "Failed to submit introspection job: %s"
 #, python-format
 msgid "Failed validation of power interface: %s"
 msgstr "Failed validation of power interface: %s"
+
+msgid ""
+"File mode (an octal number) of the unix socket to listen on. Ignored if "
+"listen_unix_socket is not set."
+msgstr ""
+"File mode (an octal number) of the Unix socket to listen on. Ignored if "
+"listen_unix_socket is not set."
 
 msgid ""
 "File name template for storing ramdisk logs. The following replacements can "
@@ -546,6 +563,9 @@ msgid ""
 msgstr ""
 "Path to the rootwrap configuration file to use for running commands as root"
 
+msgid "Policy File JSON to YAML Migration"
+msgstr "Policy File JSON to YAML Migration"
+
 #, python-format
 msgid "Port %(mac)s already exists, uuid: %(uuid)s"
 msgstr "Port %(mac)s already exists, uuid: %(uuid)s"
@@ -589,6 +609,10 @@ msgstr "SSL Enabled/Disabled"
 
 msgid "Source and destination can not be the same."
 msgstr "Source and destination can not be the same."
+
+#, python-format
+msgid "State(s) \"%s\" are not valid"
+msgstr "State(s) \"%s\" are not valid"
 
 #, python-format
 msgid "Swift failed to create container %(container)s. Error was: %(error)s"
@@ -725,6 +749,9 @@ msgstr ""
 #, python-format
 msgid "Unexpected exception %(exc_class)s during processing: %(error)s"
 msgstr "Unexpected exception %(exc_class)s during processing: %(error)s"
+
+msgid "Unix socket to listen on. Disables listen_address and listen_port."
+msgstr "Unix socket to listen on. Disables listen_address and listen_port."
 
 #, python-format
 msgid ""
