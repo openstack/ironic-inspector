@@ -32,7 +32,7 @@ _OPTS = [
                        'be attached to a bond or bridge specified in '
                        'dnsmasq_interface. The MACs of the InfiniBand nodes '
                        'which are not in desired state are going to be '
-                       'blacklisted based on the list of neighbor MACs '
+                       'blocked based on the list of neighbor MACs '
                        'on these interfaces.')),
     cfg.StrOpt('ip_version',
                default='4',
