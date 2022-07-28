@@ -49,7 +49,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-copyright = u'OpenStack Developers'
+copyright = 'OpenStack Developers'
 
 config_generator_config_file = '../../tools/config-generator.conf'
 sample_config_basename = '_static/ironic-inspector'
@@ -112,8 +112,8 @@ latex_documents = [
     (
         'index',
         'doc-ironic-inspector.tex',
-        u'Ironic Inspector Documentation',
-        u'OpenStack Foundation',
+        'Ironic Inspector Documentation',
+        'OpenStack Foundation',
         'manual'
     ),
 ]
