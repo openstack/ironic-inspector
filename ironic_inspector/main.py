@@ -39,6 +39,7 @@ CONF = ironic_inspector.conf.CONF
 
 
 _app = flask.Flask(__name__)
+_app.url_map.strict_slashes = False
 _wsgi_app = _app.wsgi_app
 
 LOG = utils.getProcessingLogger(__name__)
@@ -285,20 +286,6 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
                              and strings to format the 'rule' string with
     :param kwargs: all the rest kwargs are passed to flask app.route
     """
-    if (not path.endswith('/')
-            and path == ''
-            and 'endpoint' not in flask_kwargs):
-        # NOTE(TheJulia): With rule matching changes in later
-        # versions of Werkzeug, we don't need to add slashes
-        # to the end of every path. Some explicitly don't need
-        # slashes to properly match. Where as if your using an
-        # endpoint to support other rules, you explicitly cannot
-        # add a tailing slash because the rule needs to be able
-        # to match in both possible ways the URL may be requested.
-        path = path + '/'
-
-    flask_kwargs['strict_slashes'] = False
-
     def outer(func):
         @_app.route(path, **flask_kwargs)
         @convert_exceptions
@@ -318,7 +305,7 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
     return outer
 
 
-@api('', rule='introspection', is_public_api=True, methods=['GET'])
+@api('/', rule='introspection', is_public_api=True, methods=['GET'])
 def api_root():
     versions = [
         {
@@ -334,13 +321,8 @@ def api_root():
     return flask.jsonify(versions=versions)
 
 
-# NOTE(TheJulia): We need routes registered for with, and without
-# a slash on this special endpoint because it is used in other
-# requests.
 @api('/<version>', rule='introspection:version', is_public_api=True,
-     methods=['GET'], endpoint='/<version>')
-@api('/<version>/', rule='introspection:version', is_public_api=True,
-     methods=['GET'], endpoint='/<version>/')
+     methods=['GET'])
 def version_root(version):
     pat = re.compile(r'^\/%s\/[^\/]*?/?$' % version)
     resources = []
