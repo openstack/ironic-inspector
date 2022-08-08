@@ -155,6 +155,26 @@ On Ubuntu 14.04 this can be done by editing your
 This will ensure they will come up first when ``/etc/resolv.conf``
 is regenerated.
 
+Troubleshooting DnsmasqFilter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When introspection fails and the following error is in ``ironic-inspector.log``
+
+.. code-block:: bash
+
+   ERROR ironic_inspector.node_cache [-] [node: 651da5a3-4ecb-4214-a87d-139cc7778c05
+   state starting] Processing the error event because of an exception
+   <class 'ironic_inspector.pxe_filter.base.InvalidFilterDriverState'>:
+   The PXE filter driver DnsmasqFilter, state=uninitialized: my fsm encountered an
+   exception: Can not transition from state 'uninitialized' on event 'sync'
+   (no defined transition) raised by ironic_inspector.introspect._do_introspect:
+   ironic_inspector.pxe_filter.base.InvalidFilterDriverState: The PXE filter driver
+   DnsmasqFilter, state=uninitialized: my fsm encountered an exception:
+   Can not transition from state 'uninitialized' on event 'sync'
+   (no defined transition)
+
+restart ``ironic-inspector``.
+
 Running Inspector in a VirtualBox environment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
