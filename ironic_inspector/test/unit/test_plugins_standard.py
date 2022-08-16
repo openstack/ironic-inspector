@@ -364,6 +364,7 @@ class TestRootDiskSelection(test_base.NodeTest):
             {'model': 'Model 4', 'size': 4 * units.Gi, 'name': '/dev/sdd'},
             {'model': 'Too Small', 'size': 1 * units.Gi, 'name': '/dev/sde'},
             {'model': 'Floppy', 'size': 0, 'name': '/dev/sdf'},
+            {'model': 'Model 3', 'size': 20 * units.Gi, 'name': '/dev/sdg'},
         ]
         self.matched = self.inventory['disks'][2].copy()
         self.node_info = mock.Mock(spec=node_cache.NodeInfo,
@@ -415,6 +416,29 @@ class TestRootDiskSelection(test_base.NodeTest):
 
         self.assertNotIn('local_gb', self.data)
         self.assertFalse(self.node_info.update_properties.called)
+
+    def test_one_that_matches_on_skip_list(self):
+        self.node.properties['root_device'] = {'size': 10}
+        self.node.properties['skip_block_devices'] = [{'size': 10}]
+
+        self.assertRaisesRegex(utils.Error,
+                               'No disks satisfied root device hints',
+                               self.hook.before_update,
+                               self.data, self.node_info)
+
+        self.assertNotIn('local_gb', self.data)
+        self.assertFalse(self.node_info.update_properties.called)
+
+    def test_first_match_on_skip_list_use_second(self):
+        self.node.properties['root_device'] = {'model': 'Model 3'}
+        self.node.properties['skip_block_devices'] = [{'size': 10}]
+
+        second = self.inventory['disks'][6].copy()
+        self.hook.before_update(self.data, self.node_info)
+
+        self.assertEqual(second, self.data['root_disk'])
+        self.assertEqual(19, self.data['local_gb'])
+        self.node_info.update_properties.assert_called_once_with(local_gb='19')
 
     def test_one_matches(self):
         self.node.properties['root_device'] = {'size': 10}

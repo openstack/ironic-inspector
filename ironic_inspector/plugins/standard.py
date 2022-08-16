@@ -37,6 +37,21 @@ class RootDiskSelectionHook(base.ProcessingHook):
     might not be updated.
     """
 
+    def _get_skip_list_from_node(self, node, block_devices):
+        skip_list_hints = node.node().properties.get("skip_block_devices", [])
+        if not skip_list_hints:
+            return
+        skip_list = set()
+        for hint in skip_list_hints:
+            found_devs = il_utils.find_devices_by_hints(block_devices, hint)
+            excluded_devs = {dev['name'] for dev in found_devs}
+            skipped_devices = excluded_devs.difference(skip_list)
+            skip_list = skip_list.union(excluded_devs)
+            if skipped_devices:
+                LOG.warning("Using hint %(hint)s skipping devices: %(devs)s",
+                            {'hint': hint, 'devs': ','.join(skipped_devices)})
+        return skip_list
+
     def _process_root_device_hints(self, introspection_data, node_info,
                                    inventory):
         """Detect root disk from root device hints and IPA inventory."""
@@ -46,6 +61,11 @@ class RootDiskSelectionHook(base.ProcessingHook):
                       node_info=node_info, data=introspection_data)
             return
 
+        skip_list = self._get_skip_list_from_node(node_info,
+                                                  inventory['disks'])
+        if skip_list:
+            inventory['disks'] = [d for d in inventory['disks']
+                                  if d['name'] not in skip_list]
         try:
             device = il_utils.match_root_device_hints(inventory['disks'],
                                                       hints)
