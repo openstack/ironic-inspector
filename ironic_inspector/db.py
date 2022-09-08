@@ -174,7 +174,9 @@ def _create_context_manager():
     _ctx_mgr = enginefacade.transaction_context()
     # TODO(aarefiev): enable foreign keys for SQLite once all unit
     #                 tests with failed constraint will be fixed.
-    _ctx_mgr.configure(sqlite_fk=False)
+    # FIXME(dtantsur): we need to remove reliance on autocommit semantics ASAP
+    # since it's not compatible with SQLAlchemy 2.0
+    _ctx_mgr.configure(sqlite_fk=False, __autocommit=True)
 
     return _ctx_mgr
 
