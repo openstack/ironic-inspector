@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Follow the same process for determining root device as Ironic Python Agent
+    which has been changed to accommodate for the feature enabling users to
+    specify a list of devices that should be skipped during cleaning/deployment
+    The field ``skip_block_devices`` is one of the properties of a node
