@@ -28,6 +28,7 @@ import fcntl
 import os
 import time
 
+from keystoneauth1 import exceptions as ksa_exc
 from openstack import exceptions as os_exc
 from oslo_concurrency import processutils
 from oslo_config import cfg
@@ -90,7 +91,7 @@ class DnsmasqFilter(pxe_filter.BaseFilter):
 
             # ironic_macs are all the MACs know to ironic (all ironic ports)
             ironic_macs = pxe_filter.get_ironic_macs(ironic)
-        except os_exc.SDKException:
+        except (os_exc.SDKException, ksa_exc.ConnectFailure):
             LOG.exception(
                 "Could not list ironic ports, can not sync dnsmasq PXE filter")
             return
