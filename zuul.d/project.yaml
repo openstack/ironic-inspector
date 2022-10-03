@@ -7,7 +7,6 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed-non-standalone:
@@ -18,9 +17,7 @@
         - ironic-inspector-tox-bandit:
             voting: false
     gate:
-      queue: ironic
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - openstack-tox-functional-py36
