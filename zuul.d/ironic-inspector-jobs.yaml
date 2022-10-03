@@ -61,6 +61,7 @@
         IRONIC_INSPECTOR_MANAGED_BOOT: True
         IRONIC_INSPECTOR_NODE_NOT_FOUND_HOOK: ''
         MEMCACHE_SERVERS: 127.0.0.1:11211
+        IRONIC_RAMDISK_TYPE: tinyipa
       devstack_services:
         s-account: True
         s-container: True

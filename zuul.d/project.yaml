@@ -17,7 +17,6 @@
         - ironic-inspector-tox-bandit:
             voting: false
     gate:
-      queue: ironic
       jobs:
         - ironic-inspector-grenade
         - ironic-inspector-tempest
