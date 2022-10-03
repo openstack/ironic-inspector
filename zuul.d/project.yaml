@@ -1,10 +1,9 @@
 - project:
     templates:
       - check-requirements
-      - openstack-cover-jobs
-      - openstack-python3-xena-jobs
+      - openstack-cover-jobs-inspector-bugfix107
+      - openstack-python3-xena-jobs-inspector-bugfix107
       - publish-openstack-docs-pti
-      - release-notes-jobs-python3
     check:
       jobs:
         - ironic-inspector-grenade
@@ -16,17 +15,16 @@
                 override-checkout: bugfix/18.1
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed-non-standalone
-        - openstack-tox-functional-py38
+        - openstack-tox-functional-py38-xena
         - bifrost-integration-tinyipa-ubuntu-focal:
             voting: false
             override-checkout: master
         - ironic-inspector-tox-bandit:
             voting: false
     gate:
-      queue: ironic
       jobs:
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - ironic-inspector-tempest-managed-non-standalone
-        - openstack-tox-functional-py38
+        - openstack-tox-functional-py38-xena
