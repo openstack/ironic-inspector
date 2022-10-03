@@ -185,3 +185,10 @@
 - job:
     name: ironic-inspector-tempest-managed
     parent: ironic-inspector-tempest-managed-non-standalone
+
+- job:
+    name: openstack-tox-functional-py38-yoga
+    parent: openstack-tox-functional-py38
+    required-projects:
+      - name: openstack/requirements
+        override-checkout: stable/yoga
