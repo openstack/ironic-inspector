@@ -94,7 +94,7 @@ _OPTS = [
                       '{mac} - PXE booting MAC or "unknown".')),
     cfg.BoolOpt('power_off',
                 default=True,
-                help=_('Whether to power off a node after introspection.'
+                help=_('Whether to power off a node after introspection. '
                        'Nodes in active or rescue states which submit '
                        'introspection data will be left on if the feature '
                        'is enabled via the \'permit_active_introspection\' '
