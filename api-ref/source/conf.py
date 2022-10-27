@@ -100,7 +100,7 @@ pygments_style = 'native'
 # -- Options for man page output ----------------------------------------------
 
 # Grouping the document tree for man pages.
-# List of tuples 'sourcefile', 'target', u'title', u'Authors name', 'manual'
+# List of tuples 'sourcefile', 'target', title', 'Authors name', 'manual'
 
 
 # -- Options for HTML output --------------------------------------------------
@@ -188,8 +188,8 @@ htmlhelp_basename = 'IronicInspectorAPIRefdoc'
 latex_documents = [
     ('index',
      '%s.tex' % project,
-     u'OpenStack Hardware Introspection API Documentation',
-     u'OpenStack Foundation', 'manual'),
+     'OpenStack Hardware Introspection API Documentation',
+     'OpenStack Foundation', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

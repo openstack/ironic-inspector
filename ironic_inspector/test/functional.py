@@ -218,9 +218,9 @@ class Base(base.NodeTest):
         return {'uuid': self.uuid, 'finished': finished, 'error': error,
                 'state': state, 'finished_at': finished_at,
                 'started_at': started_at,
-                'links': [{u'href': u'%s/v1/introspection/%s' % (self.ROOT_URL,
-                                                                 self.uuid),
-                           u'rel': u'self'}]}
+                'links': [{'href': '%s/v1/introspection/%s' % (self.ROOT_URL,
+                                                               self.uuid),
+                           'rel': 'self'}]}
 
     def check_status(self, status, finished, state, error=None):
         self.assertEqual(
