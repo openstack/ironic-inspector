@@ -256,7 +256,7 @@ class TestValidateInterfacesHookBeforeUpdateDeletion(test_base.NodeTest):
         self.hook = std_plugins.ValidateInterfacesHook()
         self.interfaces_to_create = sorted(self.valid_interfaces.values(),
                                            key=lambda i: i['mac'])
-        self.existing_ports = [mock.Mock(spec=['address', 'uuid'],
+        self.existing_ports = [mock.Mock(spec=['address', 'id'],
                                          address=a)
                                for a in (self.macs[1],
                                          '44:44:44:44:44:44')]
