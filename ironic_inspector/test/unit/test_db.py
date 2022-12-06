@@ -53,7 +53,10 @@ class TestDB(test_base.NodeTest):
 
         ctx_mgr = db._create_context_manager()
 
-        mock_ctx_mgr.configure.assert_called_once_with(sqlite_fk=False)
+        mock_ctx_mgr.configure.assert_called_once_with(
+            sqlite_fk=False,
+            __autocommit=True,
+        )
         self.assertEqual(mock_ctx_mgr, ctx_mgr)
 
     @mock.patch.object(db, 'get_context_manager', autospec=True)
