@@ -14,7 +14,6 @@
 import copy
 import datetime
 import functools
-import json
 import unittest
 from unittest import mock
 
@@ -26,7 +25,8 @@ from oslo_utils import uuidutils
 
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import locking
-from ironic_inspector import db
+from ironic_inspector.db import api as db
+from ironic_inspector.db import model as db_model
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.test import base as test_base
@@ -35,19 +35,16 @@ from ironic_inspector import utils
 CONF = cfg.CONF
 
 
-class TestNodeCache(test_base.NodeTest):
+class TestNodeCache(test_base.NodeTestBase):
     def test_add_node(self):
         # Ensure previous node information is cleared
         uuid2 = uuidutils.generate_uuid()
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.starting).save(session)
-            db.Node(uuid=uuid2,
-                    state=istate.States.starting).save(session)
-            db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
-                         value='11:22:11:22:11:22',
-                         node_uuid=self.uuid).save(session)
+        db.create_node(uuid=self.node.uuid,
+                       state=istate.States.starting)
+        db.create_node(uuid=uuid2,
+                       state=istate.States.starting)
+        db.set_attribute(node_uuid=self.uuid, name='mac',
+                         values=['11:22:11:22:11:22'])
 
         node = node_cache.add_node(self.node.uuid,
                                    istate.States.starting,
@@ -60,145 +57,102 @@ class TestNodeCache(test_base.NodeTest):
              datetime.datetime.utcnow() + datetime.timedelta(seconds=60)))
         self.assertFalse(node._lock.is_locked())
 
-        res = set(db.model_query(db.Node.uuid,
-                                 db.Node.started_at).all())
+        res = set((r.uuid, r.started_at) for r in db.get_nodes())
 
         expected = {(node.uuid, node.started_at), (uuid2, None)}
         self.assertEqual(expected, res)
 
-        res = db.model_query(db.Node).get(self.uuid)
+        res = db.get_node(self.uuid)
         self.assertIsNotNone(res.version_id)
 
-        res = (db.model_query(db.Attribute.name,
-                              db.Attribute.value, db.Attribute.node_uuid).
-               order_by(db.Attribute.name, db.Attribute.value).all())
+        res = db.get_attributes(order_by=('name', 'value'))
         self.assertEqual([('bmc_address', '1.2.3.4', self.uuid),
                           ('mac', self.macs[0], self.uuid),
                           ('mac', self.macs[1], self.uuid),
                           ('mac', self.macs[2], self.uuid)],
                          [(row.name, row.value, row.node_uuid) for row in res])
 
-    def test__delete_node(self):
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.finished).save(session)
-            db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
-                         value='11:22:11:22:11:22', node_uuid=self.uuid).save(
-                session)
-            data = {'s': 'value', 'b': True, 'i': 42}
-            encoded = json.dumps(data)
-            db.Option(uuid=self.uuid, name='name', value=encoded).save(
-                session)
-
-        node_cache._delete_node(self.uuid)
-        session = db.get_writer_session()
-        row_node = db.model_query(db.Node).filter_by(
-            uuid=self.uuid).first()
-        self.assertIsNone(row_node)
-        row_attribute = db.model_query(db.Attribute).filter_by(
-            node_uuid=self.uuid).first()
-        self.assertIsNone(row_attribute)
-        row_option = db.model_query(db.Option).filter_by(
-            uuid=self.uuid).first()
-        self.assertIsNone(row_option)
-
     @mock.patch.object(locking, 'get_lock', autospec=True)
     @mock.patch.object(node_cache, '_list_node_uuids', autospec=True)
-    @mock.patch.object(node_cache, '_delete_node', autospec=True)
+    @mock.patch.object(db, 'delete_node', autospec=True)
     def test_delete_nodes_not_in_list(self, mock__delete_node,
                                       mock__list_node_uuids,
                                       mock_get_lock):
         uuid2 = uuidutils.generate_uuid()
         uuids = {self.uuid}
         mock__list_node_uuids.return_value = {self.uuid, uuid2}
-        session = db.get_writer_session()
-        with session.begin():
-            node_cache.delete_nodes_not_in_list(uuids)
+        node_cache.delete_nodes_not_in_list(uuids)
         mock__delete_node.assert_called_once_with(uuid2)
         mock_get_lock.assert_called_once_with(uuid2)
         mock_get_lock.return_value.__enter__.assert_called_once_with()
 
     def test_active_macs(self):
-        session = db.get_writer_session()
         uuid2 = uuidutils.generate_uuid()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.starting).save(session)
-            db.Node(uuid=uuid2,
-                    state=istate.States.starting,
-                    manage_boot=False).save(session)
-            values = [('mac', '11:22:11:22:11:22', self.uuid),
-                      ('mac', '22:11:22:11:22:11', self.uuid),
-                      ('mac', 'aa:bb:cc:dd:ee:ff', uuid2)]
-            for value in values:
-                db.Attribute(uuid=uuidutils.generate_uuid(), name=value[0],
-                             value=value[1], node_uuid=value[2]).save(session)
+        db.create_node(uuid=self.node.uuid,
+                       state=istate.States.starting)
+        db.create_node(uuid=uuid2,
+                       state=istate.States.starting)
+        values = [('mac', '11:22:11:22:11:22', self.uuid),
+                  ('mac', '22:11:22:11:22:11', self.uuid),
+                  ('mac', 'aa:bb:cc:dd:ee:ff', uuid2)]
+        for value in values:
+            db.set_attribute(node_uuid=value[2], name=value[0],
+                             values=[value[1]])
         self.assertEqual({'11:22:11:22:11:22', '22:11:22:11:22:11',
                           # We still need to serve DHCP to unmanaged nodes
                           'aa:bb:cc:dd:ee:ff'},
                          node_cache.active_macs())
 
     def test__list_node_uuids(self):
-        session = db.get_writer_session()
         uuid2 = uuidutils.generate_uuid()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.starting).save(session)
-            db.Node(uuid=uuid2,
-                    state=istate.States.starting).save(session)
+        db.create_node(uuid=self.node.uuid,
+                       state=istate.States.starting)
+        db.create_node(uuid=uuid2,
+                       state=istate.States.starting)
 
         node_uuid_list = node_cache._list_node_uuids()
         self.assertEqual({self.uuid, uuid2}, node_uuid_list)
 
     def test_add_attribute(self):
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.starting).save(session)
+        db.create_node(uuid=self.node.uuid,
+                       state=istate.States.starting)
         node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
         node_info.add_attribute('key', 'value')
-        res = db.model_query(db.Attribute.name,
-                             db.Attribute.value,
-                             db.Attribute.node_uuid,
-                             session=session)
-        res = res.order_by(db.Attribute.name, db.Attribute.value).all()
-        self.assertEqual([('key', 'value', self.uuid)],
-                         [tuple(row) for row in res])
+        res = db.get_attributes()
+        self.assertEqual(
+            [('key', 'value', self.uuid)],
+            [(row.name, row.value, row.node_uuid) for row in res])
         # check that .attributes got invalidated and reloaded
         self.assertEqual({'key': ['value']}, node_info.attributes)
 
     def test_add_attribute_same_name(self):
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.starting).save(session)
+        db.create_node(uuid=self.node.uuid,
+                       state=istate.States.starting)
         node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
 
         node_info.add_attribute('key', ['foo', 'bar'])
         node_info.add_attribute('key', 'baz')
-        res = db.model_query(db.Attribute.name, db.Attribute.value,
-                             db.Attribute.node_uuid, session=session)
-        res = res.order_by(db.Attribute.name, db.Attribute.value).all()
-        self.assertEqual([('key', 'bar', self.uuid),
-                          ('key', 'baz', self.uuid),
-                          ('key', 'foo', self.uuid)],
-                         [tuple(row) for row in res])
+        res = db.get_attributes()
+
+        self.assertEqual([
+            ('key', 'foo', self.uuid),
+            ('key', 'bar', self.uuid),
+            ('key', 'baz', self.uuid)],
+            [(row.name, row.value, row.node_uuid) for row in res])
 
     def test_add_attribute_same_value(self):
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.node.uuid,
-                    state=istate.States.starting).save(session)
+        db.create_node(uuid=self.node.uuid,
+                       state=istate.States.starting)
         node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=42)
 
         node_info.add_attribute('key', 'value')
         node_info.add_attribute('key', 'value')
-        res = db.model_query(db.Attribute.name, db.Attribute.value,
-                             db.Attribute.node_uuid, session=session)
-        self.assertEqual([('key', 'value', self.uuid),
-                          ('key', 'value', self.uuid)],
-                         [tuple(row) for row in res])
+
+        res = db.get_attributes()
+        self.assertEqual([
+            ('key', 'value', self.uuid),
+            ('key', 'value', self.uuid)],
+            [(row.name, row.value, row.node_uuid) for row in res])
 
     def test_attributes(self):
         node_info = node_cache.add_node(self.uuid,
@@ -209,10 +163,8 @@ class TestNodeCache(test_base.NodeTest):
                           'mac': self.macs},
                          node_info.attributes)
         # check invalidation
-        session = db.get_writer_session()
-        with session.begin():
-            db.Attribute(uuid=uuidutils.generate_uuid(), name='foo',
-                         value='bar', node_uuid=self.uuid).save(session)
+
+        db.set_attribute(self.uuid, name='foo', values=['bar'])
         # still cached
         self.assertEqual({'bmc_address': ['1.2.3.4'],
                           'mac': self.macs},
@@ -223,7 +175,7 @@ class TestNodeCache(test_base.NodeTest):
                          node_info.attributes)
 
 
-class TestNodeCacheFind(test_base.NodeTest):
+class TestNodeCacheFind(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeCacheFind, self).setUp()
         self.macs2 = ['00:00:00:00:00:00']
@@ -301,18 +253,13 @@ class TestNodeCacheFind(test_base.NodeTest):
         self.assertTrue(res._lock.is_locked())
 
     def test_inconsistency(self):
-        session = db.get_writer_session()
-        with session.begin():
-            (db.model_query(db.Node).filter_by(uuid=self.uuid).
-             delete())
+        db.delete_node(uuid=self.uuid)
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
     def test_already_finished(self):
-        session = db.get_writer_session()
-        with session.begin():
-            (db.model_query(db.Node).filter_by(uuid=self.uuid).
-             update({'finished_at': datetime.datetime.utcnow()}))
+        db.update_node(self.uuid,
+                       finished_at=datetime.datetime.utcnow())
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
@@ -322,36 +269,30 @@ class TestNodeCacheFind(test_base.NodeTest):
                           bmc_address="' OR ''='")
 
 
-class TestNodeCacheCleanUp(test_base.NodeTest):
+class TestNodeCacheCleanUp(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeCacheCleanUp, self).setUp()
         self.started_at = datetime.datetime.utcnow()
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.uuid,
-                    state=istate.States.waiting,
-                    started_at=self.started_at).save(
-                session)
-            for v in self.macs:
-                db.Attribute(uuid=uuidutils.generate_uuid(), name='mac',
-                             value=v, node_uuid=self.uuid).save(session)
-            db.Option(uuid=self.uuid, name='foo', value='bar').save(
-                session)
-            db.IntrospectionData(uuid=self.uuid, processed=False,
-                                 data={'fake': 'data'}).save(session)
+        db.create_node(uuid=self.uuid,
+                       state=istate.States.waiting,
+                       started_at=self.started_at)
+        db.set_attribute(self.uuid, name='mac', values=self.macs)
+        db.set_option(self.uuid, name='foo', value='bar')
+
+        db.store_introspection_data(
+            self.uuid, {'fake': 'data'}, processed=False)
 
     def test_no_timeout(self):
         CONF.set_override('timeout', 0)
 
         self.assertFalse(node_cache.clean_up())
 
-        res = [tuple(row) for row in
-               db.model_query(db.Node.finished_at,
-                              db.Node.error).all()]
+        res = [(row.finished_at, row.error) for row in
+               db.get_nodes()]
         self.assertEqual([(None, None)], res)
-        self.assertEqual(len(self.macs),
-                         db.model_query(db.Attribute).count())
-        self.assertEqual(1, db.model_query(db.Option).count())
+        self.assertCountEqual(self.macs,
+                              [r.value for r in db.get_attributes()])
+        self.assertEqual(1, len(db.get_options()))
 
     @mock.patch.object(locking, 'get_lock', autospec=True)
     @mock.patch.object(timeutils, 'utcnow', autospec=True)
@@ -360,13 +301,13 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
 
         self.assertFalse(node_cache.clean_up())
 
-        res = [tuple(row) for row in db.model_query(
-            db.Node.finished_at, db.Node.error).all()]
+        res = [(row.finished_at, row.error) for row in
+               db.get_nodes()]
         self.assertEqual([(None, None)], res)
-        self.assertEqual(len(self.macs),
-                         db.model_query(db.Attribute).count())
-        self.assertEqual(1, db.model_query(db.Option).count())
-        self.assertEqual(1, db.model_query(db.IntrospectionData).count())
+        self.assertEqual(1, db.model_query(db_model.IntrospectionData).count())
+        self.assertCountEqual(self.macs,
+                              [r.value for r in db.get_attributes()])
+        self.assertEqual(1, len(db.get_options()))
         self.assertFalse(get_lock_mock.called)
 
     @mock.patch.object(node_cache.NodeInfo, 'acquire_lock', autospec=True)
@@ -374,20 +315,17 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
     def test_timeout(self, time_mock, lock_mock):
         # Add a finished node to confirm we don't try to timeout it
         time_mock.return_value = self.started_at
-        session = db.get_writer_session()
         finished_at = self.started_at + datetime.timedelta(seconds=60)
-        with session.begin():
-            db.Node(uuid=self.uuid + '1', started_at=self.started_at,
-                    state=istate.States.waiting,
-                    finished_at=finished_at).save(session)
+        db.create_node(uuid=uuidutils.generate_uuid(),
+                       started_at=self.started_at,
+                       state=istate.States.waiting,
+                       finished_at=finished_at)
         CONF.set_override('timeout', 99)
         time_mock.return_value = (self.started_at +
                                   datetime.timedelta(seconds=100))
-
         self.assertEqual([self.uuid], node_cache.clean_up())
-
         res = [(row.state, row.finished_at, row.error) for row in
-               db.model_query(db.Node).all()]
+               db.get_nodes()]
         self.assertEqual(
             [(istate.States.error,
               self.started_at + datetime.timedelta(seconds=100),
@@ -395,20 +333,19 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
              (istate.States.waiting,
               self.started_at + datetime.timedelta(seconds=60), None)],
             res)
-        self.assertEqual([], db.model_query(db.Attribute).all())
-        self.assertEqual([], db.model_query(db.Option).all())
+        self.assertEqual([], db.get_attributes())
+        self.assertEqual([], db.get_options())
         lock_mock.assert_called_once_with(mock.ANY, blocking=False)
 
     @mock.patch.object(locking, 'get_lock', autospec=True)
     @mock.patch.object(timeutils, 'utcnow', autospec=True)
     def test_timeout_active_state(self, time_mock, lock_mock):
         time_mock.return_value = self.started_at
-        session = db.get_writer_session()
+        db.update_node(self.uuid, state=istate.States.starting)
         CONF.set_override('timeout', 1)
         for state in [istate.States.starting, istate.States.enrolling,
                       istate.States.processing, istate.States.reapplying]:
-            db.model_query(db.Node, session=session).filter_by(
-                uuid=self.uuid).update({'state': state, 'finished_at': None})
+            db.update_node(self.uuid, state=state, finished_at=None)
 
             current_time = self.started_at + datetime.timedelta(seconds=2)
             time_mock.return_value = current_time
@@ -416,7 +353,7 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
             self.assertEqual([self.uuid], node_cache.clean_up())
 
             res = [(row.state, row.finished_at, row.error) for row in
-                   db.model_query(db.Node).all()]
+                   db.get_nodes()]
             self.assertEqual(
                 [(istate.States.error, current_time, 'Introspection timeout')],
                 res)
@@ -433,20 +370,18 @@ class TestNodeCacheCleanUp(test_base.NodeTest):
         self.assertEqual([], node_cache.clean_up())
 
         res = [(row.state, row.finished_at, row.error) for row in
-               db.model_query(db.Node).all()]
+               db.model_query(db_model.Node).all()]
         self.assertEqual([('waiting', None, None)], res)
         get_lock_mock.assert_called_once_with(mock.ANY, blocking=False)
 
 
-class TestNodeCacheGetNode(test_base.NodeTest):
+class TestNodeCacheGetNode(test_base.NodeTestBase):
     def test_ok(self):
         started_at = (datetime.datetime.utcnow() -
                       datetime.timedelta(seconds=42))
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.uuid,
-                    state=istate.States.starting,
-                    started_at=started_at).save(session)
+        db.create_node(uuid=self.uuid,
+                       state=istate.States.starting,
+                       started_at=started_at)
         info = node_cache.get_node(self.uuid)
 
         self.assertEqual(self.uuid, info.uuid)
@@ -462,11 +397,10 @@ class TestNodeCacheGetNode(test_base.NodeTest):
     def test_with_name(self):
         started_at = (datetime.datetime.utcnow() -
                       datetime.timedelta(seconds=42))
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.uuid,
-                    state=istate.States.starting,
-                    started_at=started_at).save(session)
+        db.create_node(
+            uuid=self.uuid,
+            state=istate.States.starting,
+            started_at=started_at)
         ironic = mock.Mock()
         ironic.get_node.return_value = self.node
 
@@ -481,7 +415,7 @@ class TestNodeCacheGetNode(test_base.NodeTest):
 
 
 @mock.patch.object(timeutils, 'utcnow', lambda: datetime.datetime(1, 1, 1))
-class TestNodeInfoFinished(test_base.NodeTest):
+class TestNodeInfoFinished(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeInfoFinished, self).setUp()
         node_cache.add_node(self.uuid,
@@ -490,33 +424,26 @@ class TestNodeInfoFinished(test_base.NodeTest):
                             mac=self.macs)
         self.node_info = node_cache.NodeInfo(
             uuid=self.uuid, started_at=datetime.datetime(3, 1, 4))
-        session = db.get_writer_session()
-        with session.begin():
-            db.Option(uuid=self.uuid, name='foo', value='bar').save(
-                session)
+
+        db.set_option(self.uuid, name='foo', value='bar')
 
     def test_success(self):
         self.node_info.finished(istate.Events.finish)
 
-        session = db.get_writer_session()
-        with session.begin():
-            self.assertEqual((datetime.datetime(1, 1, 1), None),
-                             tuple(db.model_query(
-                                 db.Node.finished_at,
-                                 db.Node.error).first()))
-            self.assertEqual([], db.model_query(db.Attribute,
-                                                session=session).all())
-            self.assertEqual([], db.model_query(db.Option,
-                                                session=session).all())
+        node = db.get_nodes()[0]
+        self.assertEqual((datetime.datetime(1, 1, 1), None),
+                         (node.finished_at, node.error))
+        self.assertEqual([], db.get_attributes())
+        self.assertEqual([], db.get_options())
 
     def test_error(self):
         self.node_info.finished(istate.Events.error, error='boom')
 
+        node = db.get_nodes()[0]
         self.assertEqual((datetime.datetime(1, 1, 1), 'boom'),
-                         tuple(db.model_query(db.Node.finished_at,
-                                              db.Node.error).first()))
-        self.assertEqual([], db.model_query(db.Attribute).all())
-        self.assertEqual([], db.model_query(db.Option).all())
+                         (node.finished_at, node.error))
+        self.assertEqual([], db.get_attributes())
+        self.assertEqual([], db.get_options())
 
     def test_release_lock(self):
         self.node_info.acquire_lock()
@@ -524,7 +451,7 @@ class TestNodeInfoFinished(test_base.NodeTest):
         self.assertFalse(self.node_info._lock.is_locked())
 
 
-class TestNodeInfoOptions(test_base.NodeTest):
+class TestNodeInfoOptions(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeInfoOptions, self).setUp()
         node_cache.add_node(self.uuid,
@@ -532,10 +459,7 @@ class TestNodeInfoOptions(test_base.NodeTest):
                             bmc_address='1.2.3.4',
                             mac=self.macs)
         self.node_info = node_cache.NodeInfo(uuid=self.uuid, started_at=3.14)
-        session = db.get_writer_session()
-        with session.begin():
-            db.Option(uuid=self.uuid, name='foo', value='"bar"').save(
-                session)
+        db.set_option(self.uuid, name='foo', value='"bar"')
 
     def test_get(self):
         self.assertEqual({'foo': 'bar'}, self.node_info.options)
@@ -629,7 +553,7 @@ class TestNodeCacheIronicObjects(unittest.TestCase):
             node=self.uuid, limit=None, details=True)
 
 
-class TestUpdate(test_base.NodeTest):
+class TestUpdate(test_base.NodeTestBase):
     def setUp(self):
         super(TestUpdate, self).setUp()
         self.ironic = mock.Mock()
@@ -866,7 +790,7 @@ class TestUpdate(test_base.NodeTest):
                                           node_info=self.node_info)
 
 
-class TestNodeCacheGetByPath(test_base.NodeTest):
+class TestNodeCacheGetByPath(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeCacheGetByPath, self).setUp()
         self.node = mock.Mock(spec=['uuid', 'properties'],
@@ -884,7 +808,7 @@ class TestNodeCacheGetByPath(test_base.NodeTest):
 
 
 @mock.patch.object(locking.lockutils, 'internal_lock', autospec=True)
-class TestInternalLock(test_base.NodeTest):
+class TestInternalLock(test_base.NodeTestBase):
     def test_acquire(self, lock_mock):
         node_info = node_cache.NodeInfo(self.uuid)
         self.addCleanup(node_info.release_lock)
@@ -928,7 +852,7 @@ class TestInternalLock(test_base.NodeTest):
 
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(ir_utils, 'get_client', autospec=True)
-class TestNodeCreate(test_base.NodeTest):
+class TestNodeCreate(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeCreate, self).setUp()
         self.mock_client = mock.Mock()
@@ -971,19 +895,20 @@ class TestNodeCreate(test_base.NodeTest):
         self.assertFalse(mock_add_node.called)
 
 
-class TestNodeCacheListNode(test_base.NodeTest):
+class TestNodeCacheListNode(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeCacheListNode, self).setUp()
         self.uuid2 = uuidutils.generate_uuid()
         self.uuid3 = uuidutils.generate_uuid()
-        session = db.get_writer_session()
-        with session.begin():
-            db.Node(uuid=self.uuid,
-                    started_at=datetime.datetime(1, 1, 2)).save(session)
-            db.Node(uuid=self.uuid2, started_at=datetime.datetime(1, 1, 1),
-                    finished_at=datetime.datetime(1, 1, 3)).save(session)
-            db.Node(uuid=self.uuid3, started_at=datetime.datetime(1, 1, 3),
-                    state='error').save(session)
+        db.create_node(uuid=self.uuid,
+                       state=istate.States.finished,
+                       started_at=datetime.datetime(1, 1, 2))
+        db.create_node(uuid=self.uuid2,
+                       state=istate.States.finished,
+                       started_at=datetime.datetime(1, 1, 1),
+                       finished_at=datetime.datetime(1, 1, 3))
+        db.create_node(uuid=self.uuid3, started_at=datetime.datetime(1, 1, 3),
+                       state=istate.States.error)
 
     # mind please node(self.uuid).started_at > node(self.uuid2).started_at
     # and the result ordering is strict in node_cache.get_node_list newer first
@@ -1032,25 +957,6 @@ class TestNodeInfoVersionId(test_base.NodeStateTest):
         self.assertRaisesRegex(utils.NotFoundInCacheError, '.*',
                                func)
 
-    def test_set(self):
-        with db.ensure_transaction() as session:
-            self.node_info._set_version_id(uuidutils.generate_uuid(),
-                                           session)
-        row = db.model_query(db.Node).get(self.node_info.uuid)
-        self.assertEqual(self.node_info.version_id, row.version_id)
-
-    def test_set_race(self):
-        with db.ensure_transaction() as session:
-            row = db.model_query(db.Node, session=session).get(
-                self.node_info.uuid)
-            row.update({'version_id': uuidutils.generate_uuid()})
-            row.save(session)
-
-        self.assertRaisesRegex(utils.NodeStateRaceCondition,
-                               'Node state mismatch',
-                               self.node_info._set_state,
-                               istate.States.finished)
-
 
 class TestNodeInfoState(test_base.NodeStateTest):
     def test_get(self):
@@ -1059,7 +965,7 @@ class TestNodeInfoState(test_base.NodeStateTest):
 
     def test_set(self):
         self.node_info._set_state(istate.States.finished)
-        row = db.model_query(db.Node).get(self.node_info.uuid)
+        row = db.get_node(self.node_info.uuid)
         self.assertEqual(self.node_info.state, row.state)
 
     def test_commit(self):
@@ -1068,7 +974,7 @@ class TestNodeInfoState(test_base.NodeStateTest):
         self.node_info.error = "Boo!"
         self.node_info.commit()
 
-        row = db.model_query(db.Node).get(self.node_info.uuid)
+        row = db.get_node(self.node_info.uuid)
         self.assertEqual(self.node_info.started_at, row.started_at)
         self.assertEqual(self.node_info.finished_at, row.finished_at)
         self.assertEqual(self.node_info.error, row.error)
@@ -1263,7 +1169,7 @@ class TestFsmEvent(test_base.NodeStateTest):
 
 @mock.patch.object(node_cache, 'add_node', autospec=True)
 @mock.patch.object(node_cache, 'NodeInfo', autospec=True)
-class TestStartIntrospection(test_base.NodeTest):
+class TestStartIntrospection(test_base.NodeTestBase):
     def prepare_mocks(fn):
         @functools.wraps(fn)
         def inner(self, NodeMock, *args):
@@ -1309,8 +1215,15 @@ class TestStartIntrospection(test_base.NodeTest):
         self.assertFalse(add_node_mock.called)
 
     @prepare_mocks
-    def test_node_not_in_db(self, fsm_event_mock, add_node_mock):
+    def test_node_not_in_cache(self, fsm_event_mock, add_node_mock):
         fsm_event_mock.side_effect = utils.NotFoundInCacheError('Oops!')
+        node_cache.start_introspection(self.node_info.uuid)
+        add_node_mock.assert_called_once_with(self.node_info.uuid,
+                                              istate.States.starting)
+
+    @prepare_mocks
+    def test_node_not_in_db(self, fsm_event_mock, add_node_mock):
+        fsm_event_mock.side_effect = utils.NodeNotFoundInDBError()
         node_cache.start_introspection(self.node_info.uuid)
         add_node_mock.assert_called_once_with(self.node_info.uuid,
                                               istate.States.starting)
@@ -1338,7 +1251,7 @@ class TestStartIntrospection(test_base.NodeTest):
                                               istate.States.starting)
 
 
-class TestIntrospectionDataDbStore(test_base.NodeTest):
+class TestIntrospectionDataDbStore(test_base.NodeTestBase):
     def setUp(self):
         super(TestIntrospectionDataDbStore, self).setUp()
         node_cache.add_node(self.node.uuid,
@@ -1384,7 +1297,7 @@ class TestIntrospectionDataDbStore(test_base.NodeTest):
 
 
 @mock.patch.object(ir_utils, 'lookup_node', autospec=True)
-class TestRecordNode(test_base.NodeTest):
+class TestRecordNode(test_base.NodeTestBase):
     def setUp(self):
         super(TestRecordNode, self).setUp()
         self.node.provision_state = 'active'

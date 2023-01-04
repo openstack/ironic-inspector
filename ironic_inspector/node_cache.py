@@ -19,7 +19,6 @@ import copy
 import datetime
 import functools
 import json
-import operator
 
 from automaton import exceptions as automaton_errors
 from openstack import exceptions as os_exc
@@ -29,12 +28,13 @@ from oslo_utils import excutils
 from oslo_utils import reflection
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-from sqlalchemy.orm import exc as orm_errors
+from sqlalchemy import delete
 
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import locking
-from ironic_inspector import db
+from ironic_inspector.db import api as db
+from ironic_inspector.db import model as db_model
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import utils
 
@@ -60,6 +60,9 @@ class NodeInfo(object):
         self.finished_at = finished_at
         self.error = error
         self.invalidate_cache()
+        # NOTE(TheJulia): version_id is unused at this time and can be
+        # removed at a later point in time. Primarily it remains for
+        # compatability.
         self._version_id = version_id
         self._state = state
         self._node = node
@@ -75,6 +78,7 @@ class NodeInfo(object):
         self._lock = locking.get_lock(uuid)
         # Whether lock was acquired using this NodeInfo object
         self._fsm = None
+        self._options = None
 
     def __del__(self):
         if self._lock.is_locked():
@@ -123,41 +127,28 @@ class NodeInfo(object):
 
     @property
     def version_id(self):
-        """Get the version id"""
+        """Deprecated - Get the version id"""
         if self._version_id is None:
-            row = db.model_query(db.Node).get(self.uuid)
-            if row is None:
+            try:
+                row = db.get_node(self.uuid)
+            except utils.NodeNotFoundInDBError:
                 raise utils.NotFoundInCacheError(_('Node not found in the '
                                                    'cache'), node_info=self)
             self._version_id = row.version_id
         return self._version_id
 
-    def _set_version_id(self, value, session):
-        row = self._row(session)
-        row.version_id = value
-        row.save(session)
-        self._version_id = value
-
-    def _row(self, session=None):
-        """Get a row from the database with self.uuid and self.version_id"""
-        try:
-            # race condition if version_id changed outside of this node_info
-            return db.model_query(db.Node, session=session).filter_by(
-                uuid=self.uuid, version_id=self.version_id).one()
-        except (orm_errors.NoResultFound, orm_errors.StaleDataError):
-            raise utils.NodeStateRaceCondition(node_info=self)
-
     def _commit(self, **fields):
         """Commit the fields into the DB."""
         LOG.debug('Committing fields: %s', fields, node_info=self)
-        with db.ensure_transaction() as session:
-            self._set_version_id(uuidutils.generate_uuid(), session)
-            row = self._row(session)
-            row.update(fields)
+
+        try:
+            db.update_node(self.uuid,
+                           **fields)
+        except utils.NodeNotFoundInDBError:
+            raise utils.NodeStateRaceCondition(node_info=self)
 
     def commit(self):
         """Commit current node status into the database."""
-        # state and version_id are updated separately
         self._commit(started_at=self.started_at, finished_at=self.finished_at,
                      error=self.error)
 
@@ -165,7 +156,7 @@ class NodeInfo(object):
     def state(self):
         """State of the node_info object."""
         if self._state is None:
-            row = self._row()
+            row = db.get_node(self.uuid)
             self._state = row.state
         return self._state
 
@@ -183,6 +174,7 @@ class NodeInfo(object):
     @contextlib.contextmanager
     def _fsm_ctx(self):
         fsm = self._get_fsm()
+
         try:
             yield fsm
         finally:
@@ -203,6 +195,7 @@ class NodeInfo(object):
         :strict: whether to fail the introspection upon an invalid event
         :raises: NodeStateInvalidEvent
         """
+
         with self._fsm_ctx() as fsm:
             LOG.debug('Executing fsm(%(state)s).process_event(%(event)s)',
                       {'state': fsm.current_state, 'event': event},
@@ -223,8 +216,7 @@ class NodeInfo(object):
     def options(self):
         """Node introspection options as a dict."""
         if self._options is None:
-            rows = db.model_query(db.Option).filter_by(
-                uuid=self.uuid)
+            rows = db.list_nodes_options_by_uuid(self.uuid)
             self._options = {row.name: json.loads(row.value)
                              for row in rows}
         return self._options
@@ -234,8 +226,7 @@ class NodeInfo(object):
         """Node look up attributes as a dict."""
         if self._attributes is None:
             self._attributes = {}
-            rows = db.model_query(db.Attribute).filter_by(
-                node_uuid=self.uuid)
+            rows = db.get_attributes(node_uuid=self.uuid)
             for row in rows:
                 self._attributes.setdefault(row.name, []).append(row.value)
         return self._attributes
@@ -256,11 +247,13 @@ class NodeInfo(object):
         """Set an option for a node."""
         encoded = json.dumps(value)
         self.options[name] = value
-        with db.ensure_transaction() as session:
-            db.model_query(db.Option, session=session).filter_by(
+        with db.session_for_write() as session:
+            # NOTE(TheJulia): This needs to move to the DB API at some
+            # point in the future.
+            session.query(db_model.Option).filter_by(
                 uuid=self.uuid, name=name).delete()
-            db.Option(uuid=self.uuid, name=name, value=encoded).save(
-                session)
+            opt = db_model.Option(uuid=self.uuid, name=name, value=encoded)
+            session.add(opt)
 
     def finished(self, event, error=None):
         """Record status for this node and process a terminal transition.
@@ -274,31 +267,24 @@ class NodeInfo(object):
         self.release_lock()
         self.finished_at = timeutils.utcnow()
         self.error = error
+        db.delete_attributes(self.uuid)
+        db.delete_options(uuid=self.uuid)
+        self.fsm_event(event)
+        self._commit(finished_at=self.finished_at,
+                     error=self.error)
 
-        with db.ensure_transaction() as session:
-            self.fsm_event(event)
-            self._commit(finished_at=self.finished_at, error=self.error)
-            db.model_query(db.Attribute, session=session).filter_by(
-                node_uuid=self.uuid).delete()
-            db.model_query(db.Option, session=session).filter_by(
-                uuid=self.uuid).delete()
-
-    def add_attribute(self, name, value, session=None):
+    def add_attribute(self, name, value):
         """Store look up attribute for a node in the database.
 
         :param name: attribute name
         :param value: attribute value or list of possible values
-        :param session: optional existing database session
         """
         if not isinstance(value, list):
             value = [value]
 
-        with db.ensure_transaction(session) as session:
-            for v in value:
-                db.Attribute(uuid=uuidutils.generate_uuid(), name=name,
-                             value=v, node_uuid=self.uuid).save(session)
-            # Invalidate attributes so they're loaded on next usage
-            self._attributes = None
+        db.set_attribute(node_uuid=self.uuid, name=name, values=value)
+        # Invalidate attributes so they're loaded on next usage
+        self._attributes = None
 
     @classmethod
     def from_row(cls, row, ironic=None, node=None):
@@ -674,25 +660,27 @@ def start_introspection(uuid, **kwargs):
              node_info cache and the DB
     :returns: NodeInfo
     """
-    with db.ensure_transaction():
-        node_info = NodeInfo(uuid)
-        # check that the start transition is possible
-        try:
-            node_info.fsm_event(istate.Events.start)
-        except utils.NotFoundInCacheError:
-            # node not found while in the fsm_event handler
-            LOG.debug('Node missing in the cache; adding it now',
-                      node_info=node_info)
+    node_info = NodeInfo(uuid)
+    # check that the start transition is possible
+    try:
+        node_info.fsm_event(istate.Events.start)
+    except (utils.NotFoundInCacheError, utils.NodeNotFoundInDBError):
+        # node not found while in the fsm_event handler
+        LOG.debug('Node missing in the cache; adding it now',
+                  node_info=node_info)
+        state = istate.States.starting
+        # Or... not found in db error when in cache but when the state
+        # is populated, a NodeNotFoundInDBError is raised.
+
+    else:
+        recorded_state = node_info.state
+        if istate.States.error == recorded_state:
+            # If there was a failure, return to starting state to avoid
+            # letting the cache block new runs from occuring.
             state = istate.States.starting
         else:
-            recorded_state = node_info.state
-            if istate.States.error == recorded_state:
-                # If there was a failure, return to starting state to avoid
-                # letting the cache block new runs from occuring.
-                state = istate.States.starting
-            else:
-                state = recorded_state
-        return add_node(uuid, state, **kwargs)
+            state = recorded_state
+    return add_node(uuid, state, **kwargs)
 
 
 def add_node(uuid, state, manage_boot=True, **attributes):
@@ -709,20 +697,39 @@ def add_node(uuid, state, manage_boot=True, **attributes):
     :returns: NodeInfo
     """
     started_at = timeutils.utcnow()
-    with db.ensure_transaction() as session:
-        _delete_node(uuid)
-        version_id = uuidutils.generate_uuid()
-        db.Node(uuid=uuid, state=state, version_id=version_id,
-                started_at=started_at, manage_boot=manage_boot).save(session)
+    with db.session_for_write() as session:
+        # TODO(TheJulia): This needs ot be moved to the DBAPI, but for change
+        # reviewer sanity, is here for now.
+        session.execute(
+            delete(db_model.Attribute).where(
+                db_model.Attribute.node_uuid == uuid))
+        # Delete introspection data
+        session.execute(
+            delete(db_model.Option).where(
+                db_model.Option.uuid == uuid))
+        session.execute(
+            delete(db_model.IntrospectionData).where(
+                db_model.IntrospectionData.uuid == uuid))
+        # Delete the actual node
+        session.execute(
+            delete(db_model.Node).where(
+                db_model.Node.uuid == uuid
+            ).execution_options(synchronize_session=False)
+        )
+        node = db_model.Node(uuid=uuid, state=state, started_at=started_at,
+                             finished_at=None, error=None,
+                             manage_boot=manage_boot)
+        session.add(node)
 
-        node_info = NodeInfo(uuid=uuid, state=state, started_at=started_at,
-                             version_id=version_id, manage_boot=manage_boot,
-                             ironic=attributes.pop('ironic', None))
-        for (name, value) in attributes.items():
-            if not value:
-                continue
-            node_info.add_attribute(name, value, session=session)
+    node_info = NodeInfo(uuid=uuid, state=state,
+                         started_at=started_at,
+                         ironic=attributes.pop('ironic', None),
+                         manage_boot=manage_boot)
 
+    for (name, value) in attributes.items():
+        if not value:
+            continue
+        node_info.add_attribute(name, value)
     return node_info
 
 
@@ -736,35 +743,18 @@ def delete_nodes_not_in_list(uuids):
         LOG.warning('Node %s was deleted from Ironic, dropping from Ironic '
                     'Inspector database', uuid)
         with locking.get_lock(uuid):
-            _delete_node(uuid)
-
-
-def _delete_node(uuid, session=None):
-    """Delete information about a node.
-
-    :param uuid: Ironic node UUID
-    :param session: optional existing database session
-    """
-    with db.ensure_transaction(session) as session:
-        db.model_query(db.Attribute, session=session).filter_by(
-            node_uuid=uuid).delete()
-        for model in (db.Option, db.IntrospectionData, db.Node):
-            db.model_query(model,
-                           session=session).filter_by(uuid=uuid).delete()
+            db.delete_node(uuid=uuid)
 
 
 def introspection_active():
     """Check if introspection is active for at least one node."""
     # FIXME(dtantsur): is there a better way to express it?
-    return (db.model_query(db.Node.uuid).filter_by(finished_at=None).first()
-            is not None)
+    return bool(db.get_active_nodes())
 
 
 def active_macs():
     """List all MAC's that are on introspection right now."""
-    query = (db.model_query(db.Attribute.value).join(db.Node)
-             .filter(db.Attribute.name == MACS_ATTRIBUTE))
-    return {x.value for x in query}
+    return {x.value for x in db.get_attributes(name=MACS_ATTRIBUTE)}
 
 
 def _list_node_uuids():
@@ -772,7 +762,7 @@ def _list_node_uuids():
 
     :returns: Set of nodes' uuid.
     """
-    return {x.uuid for x in db.model_query(db.Node.uuid)}
+    return {x.uuid for x in db.get_nodes()}
 
 
 def get_node(node_id, ironic=None):
@@ -789,11 +779,12 @@ def get_node(node_id, ironic=None):
         node = ir_utils.get_node(node_id, ironic=ironic)
         uuid = node.id
 
-    row = db.model_query(db.Node).filter_by(uuid=uuid).first()
-    if row is None:
+    try:
+        row = db.get_node(uuid)
+        return NodeInfo.from_row(row, ironic=ironic, node=node)
+    except utils.NodeNotFoundInDBError:
         raise utils.Error(_('Could not find node %s in cache') % uuid,
                           code=404)
-    return NodeInfo.from_row(row, ironic=ironic, node=node)
 
 
 def find_node(**attributes):
@@ -820,11 +811,9 @@ def find_node(**attributes):
 
         LOG.debug('Trying to use %s of value %s for node look up',
                   name, value)
-        query = db.model_query(db.Attribute.node_uuid)
-        pairs = [(db.Attribute.name == name) &
-                 (db.Attribute.value == v) for v in value]
-        query = query.filter(functools.reduce(operator.or_, pairs))
-        found.update(row.node_uuid for row in query.distinct().all())
+        attr_list = [(name, v) for v in value]
+        rows = db.list_nodes_by_attributes(attr_list)
+        found.update(row.node_uuid for row in rows)
 
     if not found:
         raise utils.NotFoundInCacheError(_(
@@ -849,23 +838,20 @@ def find_node(**attributes):
     uuid = found.pop()
     node_info = NodeInfo(uuid=uuid, ironic=ironic)
     node_info.acquire_lock()
-
     try:
-        row = (db.model_query(db.Node.started_at, db.Node.finished_at).
-               filter_by(uuid=uuid).first())
-
-        if not row:
-            raise utils.Error(_(
-                'Could not find node %s in introspection cache, '
-                'probably it\'s not on introspection now') % uuid, code=404)
-
+        row = db.get_node(uuid)
         if row.finished_at:
             raise utils.Error(_(
                 'Introspection for node %(node)s already finished on '
                 '%(finish)s') % {'node': uuid, 'finish': row.finished_at})
-
+        # set the started_at field before returning so the caller
+        # has the data.
         node_info.started_at = row.started_at
         return node_info
+    except utils.NodeNotFoundInDBError:
+        raise utils.Error(_(
+            'Could not find node %s in introspection cache, '
+            'probably it\'s not on introspection now') % uuid, code=404)
     except Exception:
         with excutils.save_and_reraise_exception():
             node_info.release_lock()
@@ -882,11 +868,9 @@ def clean_up():
     if timeout <= 0:
         return []
     threshold = timeutils.utcnow() - datetime.timedelta(seconds=timeout)
-    uuids = [row.uuid for row in
-             db.model_query(db.Node.uuid).filter(
-                 db.Node.started_at < threshold,
-                 db.Node.finished_at.is_(None)).all()]
 
+    uuids = [row.uuid for row in
+             db.get_active_nodes(started_before=threshold)]
     if not uuids:
         return []
 
@@ -989,20 +973,29 @@ def get_node_list(ironic=None, marker=None, limit=None, state=None):
     :returns: a list of NodeInfo instances.
     """
     if marker is not None:
-        # uuid marker -> row marker for pagination
-        marker = db.model_query(db.Node).get(marker)
+        # Get the marker using the DB API as it closes the connection and
+        # does *not* orphan node data in memory.
+        marker = db.get_node(marker)
         if marker is None:
             raise utils.Error(_('Node not found for marker: %s') % marker,
                               code=404)
-
-    rows = db.model_query(db.Node)
-    if state:
-        rows = rows.filter(db.Node.state.in_(state))
-    # ordered based on (started_at, uuid); newer first
-    rows = db_utils.paginate_query(rows, db.Node, limit,
-                                   ('started_at', 'uuid'),
-                                   marker=marker, sort_dir='desc')
-    return [NodeInfo.from_row(row, ironic=ironic) for row in rows]
+    with db.session_for_read() as session:
+        # TODO(TheJulia): This should be moved to the DB API, and out of the
+        # node cache code.
+        rows = session.query(db_model.Node)
+        if state:
+            rows = rows.filter(db_model.Node.state.in_(state))
+        # ordered based on (started_at, uuid); newer first
+        rows = db_utils.paginate_query(rows, db_model.Node, limit,
+                                       ('started_at', 'uuid'),
+                                       marker=marker, sort_dir='desc')
+        result = [db_model.Node(uuid=entry.uuid, version_id=entry.version_id,
+                                state=entry.state, started_at=entry.started_at,
+                                finished_at=entry.finished_at,
+                                error=entry.error,
+                                manage_boot=entry.manage_boot)
+                  for entry in rows.all()]
+    return result
 
 
 def store_introspection_data(node_id, introspection_data, processed=True):
@@ -1013,18 +1006,12 @@ def store_introspection_data(node_id, introspection_data, processed=True):
     :param processed: Specify the type of introspected data, set to False
                       indicates the data is unprocessed.
     """
-    with db.ensure_transaction() as session:
-        record = db.model_query(db.IntrospectionData,
-                                session=session).filter_by(
-            uuid=node_id, processed=processed).first()
-        if record is None:
-            row = db.IntrospectionData()
-            row.update({'uuid': node_id, 'processed': processed,
-                        'data': introspection_data})
-            session.add(row)
-        else:
-            record.update({'data': introspection_data})
-        session.flush()
+    # NOTE(TheJulia): For compatability, but at the same time there is
+    # two nodes of introspection data operation, DB and originally swift.
+    db.store_introspection_data(
+        node_id=node_id,
+        introspection_data=introspection_data,
+        processed=processed)
 
 
 def get_introspection_data(node_id, processed=True):
@@ -1035,12 +1022,6 @@ def get_introspection_data(node_id, processed=True):
                       indicates retrieving the unprocessed data.
     :return: A dictionary representation of intropsected data
     """
-    try:
-        ref = db.model_query(db.IntrospectionData).filter_by(
-            uuid=node_id, processed=processed).one()
-        return ref['data']
-    except orm_errors.NoResultFound:
-        msg = _('Introspection data not found for node %(node)s, '
-                'processed=%(processed)s') % {'node': node_id,
-                                              'processed': processed}
-        raise utils.IntrospectionDataNotFound(msg)
+    # NOTE(TheJulia): Moved to db api, here for compatability.
+    return db.get_introspection_data(node_id=node_id,
+                                     processed=processed)

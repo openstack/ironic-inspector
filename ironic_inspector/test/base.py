@@ -19,6 +19,7 @@ import fixtures
 import futurist
 from oslo_concurrency import lockutils
 from oslo_config import fixture as config_fixture
+from oslo_db.sqlalchemy import enginefacade
 from oslo_log import log
 from oslo_utils import units
 from oslo_utils import uuidutils
@@ -27,7 +28,9 @@ from oslotest import base as test_base
 from ironic_inspector.common import i18n
 import ironic_inspector.conf
 from ironic_inspector.conf import opts as conf_opts
-from ironic_inspector import db
+from ironic_inspector.db import api as db
+from ironic_inspector.db import migration
+from ironic_inspector.db import model as db_model
 from ironic_inspector import introspection_state as istate
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -36,20 +39,61 @@ from ironic_inspector import utils
 
 CONF = ironic_inspector.conf.CONF
 
+_DB_CACHE = None
+
+
+class Database(fixtures.Fixture):
+
+    def __init__(self, engine, db_migrate, sql_connection, functional):
+        self.sql_connection = sql_connection
+        self.engine = engine
+        self.db_migrate = db_migrate
+        self.functional = functional
+        self.engine.dispose()
+        conn = self.engine.connect()
+
+        if not functional:
+            self.setup_sqlite(db_migrate, engine, conn)
+
+        self._DB = "".join(line for line in conn.connection.iterdump())
+        conn.close()
+        self.engine.dispose()
+
+    def setup_sqlite(self, db_migrate, engine, conn):
+        if db_migrate.version(engine=engine):
+            return
+        db_model.Base.metadata.create_all(conn)
+        db_migrate.stamp('head')
+
+    def setUp(self):
+        super(Database, self).setUp()
+
+        conn = self.engine.connect()
+        if not self.db_migrate.version():
+            conn.connection.executescript(self._DB)
+        self.addCleanup(self.engine.dispose)
+
 
 class BaseTest(test_base.BaseTestCase):
 
     IS_FUNCTIONAL = False
 
     def setUp(self):
+
+        CONF.set_override('connection_trace', True, group='database')
+        CONF.set_override('connection_debug', 100, group='database')
         super(BaseTest, self).setUp()
+
         if not self.IS_FUNCTIONAL:
             self.init_test_conf()
-        self.session = db.get_writer_session()
-        engine = self.session.get_bind()
-        db.Base.metadata.create_all(engine)
-        engine.connect()
-        self.addCleanup(engine.dispose)
+
+            global _DB_CACHE
+            if not _DB_CACHE:
+                engine = enginefacade.writer.get_engine()
+                _DB_CACHE = Database(engine, migration,
+                                     sql_connection=CONF.database.connection,
+                                     functional=self.IS_FUNCTIONAL)
+            self.useFixture(_DB_CACHE)
         plugins_base.reset()
         node_cache._SEMAPHORES = lockutils.Semaphores()
         patch = mock.patch.object(i18n, '_', lambda s: s)
@@ -167,9 +211,9 @@ class InventoryTest(BaseTest):
         }
 
 
-class NodeTest(InventoryTest):
+class NodeTestBase(InventoryTest):
     def setUp(self):
-        super(NodeTest, self).setUp()
+        super(NodeTestBase, self).setUp()
         self.uuid = uuidutils.generate_uuid()
 
         fake_node = {
@@ -203,15 +247,32 @@ class NodeTest(InventoryTest):
             fixtures.MockPatchObject(time, 'sleep', autospec=True))
 
 
-class NodeStateTest(NodeTest):
+class NodeTest(NodeTestBase):
+    def setUp(self):
+        super(NodeTest, self).setUp()
+        with db.session_for_write() as session:
+            self.db_node = db_model.Node(
+                uuid=self.node_info.uuid,
+                version_id=self.node_info._version_id,
+                state=self.node_info._state,
+                started_at=self.node_info.started_at,
+                finished_at=self.node_info.finished_at,
+                error=self.node_info.error)
+            session.add(self.db_node)
+
+
+class NodeStateTest(NodeTestBase):
     def setUp(self):
         super(NodeStateTest, self).setUp()
         self.node_info._version_id = uuidutils.generate_uuid()
         self.node_info._state = istate.States.starting
-        self.db_node = db.Node(uuid=self.node_info.uuid,
-                               version_id=self.node_info._version_id,
-                               state=self.node_info._state,
-                               started_at=self.node_info.started_at,
-                               finished_at=self.node_info.finished_at,
-                               error=self.node_info.error)
-        self.db_node.save(self.session)
+        with db.session_for_write() as session:
+            self.db_node = db_model.Node(
+                uuid=self.node_info.uuid,
+                version_id=self.node_info._version_id,
+                state=self.node_info._state,
+                started_at=self.node_info.started_at,
+                finished_at=self.node_info.finished_at,
+                error=self.node_info.error)
+            session.add(self.db_node)
+            session.commit()

@@ -28,7 +28,7 @@ from ironic_inspector.common import coordination
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import keystone
-from ironic_inspector import db
+from ironic_inspector.db import api as dbapi
 from ironic_inspector import introspect
 from ironic_inspector import node_cache
 from ironic_inspector.plugins import base as plugins_base
@@ -52,6 +52,7 @@ class ConductorManager(object):
         self._zeroconf = None
         self._shutting_down = semaphore.Semaphore()
         self.coordinator = None
+        self.dbapi = None
 
     def init_host(self):
         """Initialize Worker host
@@ -69,7 +70,8 @@ class ConductorManager(object):
             LOG.info('Introspection data will be stored in the %s backend',
                      CONF.processing.store_data)
 
-        db.init()
+        if not self.dbapi:
+            self.dbapi = dbapi.init()
 
         self.coordinator = None
         try:
@@ -168,6 +170,8 @@ class ConductorManager(object):
         if self._zeroconf is not None:
             self._zeroconf.close()
             self._zeroconf = None
+
+        self.dbapi = None
 
         self._shutting_down.release()
 

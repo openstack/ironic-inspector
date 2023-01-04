@@ -171,7 +171,6 @@ def store_introspection_data(node_uuid, data, processed=True):
 
 
 def _store_unprocessed_data(node_uuid, data):
-    # runs in background
     try:
         store_introspection_data(node_uuid, data, processed=False)
     except Exception:
@@ -208,7 +207,6 @@ def process(introspection_data):
         # Locking is already done in find_node() but may be not done in a
         # node_not_found hook
         node_info.acquire_lock()
-
     if failures or node_info is None:
         msg = _('The following failures happened during running '
                 'pre-processing hooks:\n%s') % '\n'.join(failures)
@@ -216,7 +214,6 @@ def process(introspection_data):
             node_info.finished(istate.Events.error, error='\n'.join(failures))
         _store_logs(introspection_data, node_info)
         raise utils.Error(msg, node_info=node_info, data=introspection_data)
-
     LOG.info('Matching node is %s', node_info.uuid,
              node_info=node_info, data=introspection_data)
 
@@ -225,12 +222,9 @@ def process(introspection_data):
         raise utils.Error(_('Node processing already finished with '
                             'error: %s') % node_info.error,
                           node_info=node_info, code=400)
-
-    # Note(mkovacik): store data now when we're sure that a background
-    # thread won't race with other process() or introspect.abort()
-    # call
-    utils.executor().submit(_store_unprocessed_data, node_info.uuid,
-                            unprocessed_data)
+    # NOTE(TheJulia): this was previously called as a background
+    # process, but we can't do that with sqlite.
+    _store_unprocessed_data(node_info.uuid, unprocessed_data)
 
     try:
         node = node_info.node()

@@ -26,6 +26,7 @@ CONF = cfg.CONF
 
 
 class TestCheckAuth(base.BaseTest):
+
     def setUp(self):
         super(TestCheckAuth, self).setUp()
         self.cfg.config(auth_strategy='keystone')

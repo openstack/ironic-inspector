@@ -17,7 +17,7 @@ from unittest import mock
 
 from oslo_utils import uuidutils
 
-from ironic_inspector import db
+from ironic_inspector.db import api as db
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import rules
 from ironic_inspector.test import base as test_base
@@ -211,11 +211,9 @@ class TestDeleteRule(BaseTest):
     def test_delete(self):
         rules.delete(self.uuid)
 
-        self.assertEqual([(self.uuid2,)], db.model_query(db.Rule.uuid).all())
-        self.assertFalse(db.model_query(db.RuleCondition)
-                         .filter_by(rule=self.uuid).all())
-        self.assertFalse(db.model_query(db.RuleAction)
-                         .filter_by(rule=self.uuid).all())
+        self.assertEqual([self.uuid2], [r.uuid for r in db.get_rules()])
+        self.assertFalse(db.get_rules_conditions(rule=self.uuid))
+        self.assertFalse(db.get_rules_actions(rule=self.uuid))
 
     def test_delete_non_existing(self):
         self.assertRaises(utils.Error, rules.delete, 'foo')
@@ -223,9 +221,9 @@ class TestDeleteRule(BaseTest):
     def test_delete_all(self):
         rules.delete_all()
 
-        self.assertFalse(db.model_query(db.Rule).all())
-        self.assertFalse(db.model_query(db.RuleCondition).all())
-        self.assertFalse(db.model_query(db.RuleAction).all())
+        self.assertFalse(db.get_rules())
+        self.assertFalse(db.get_rules_conditions())
+        self.assertFalse(db.get_rules_actions())
 
 
 @mock.patch.object(plugins_base, 'rule_conditions_manager', autospec=True)

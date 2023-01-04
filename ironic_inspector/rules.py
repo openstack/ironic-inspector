@@ -16,13 +16,11 @@
 
 import jsonpath_rw as jsonpath
 import jsonschema
-from oslo_db import exception as db_exc
-from oslo_utils import timeutils
 from oslo_utils import uuidutils
-from sqlalchemy import orm
 
 from ironic_inspector.common.i18n import _
-from ironic_inspector import db
+from ironic_inspector.db import api as db
+from ironic_inspector.db import model
 from ironic_inspector.plugins import base as plugins_base
 from ironic_inspector import utils
 
@@ -387,28 +385,7 @@ def create(conditions_json, actions_json, uuid=None,
     conditions = _validate_conditions(conditions_json)
     actions = _validate_actions(actions_json)
 
-    try:
-        with db.ensure_transaction() as session:
-            rule = db.Rule(uuid=uuid, description=description, disabled=False,
-                           created_at=timeutils.utcnow(), scope=scope)
-
-            for field, op, multiple, invert, params in conditions:
-                rule.conditions.append(db.RuleCondition(op=op,
-                                                        field=field,
-                                                        multiple=multiple,
-                                                        invert=invert,
-                                                        params=params))
-
-            for action, params in actions:
-                rule.actions.append(db.RuleAction(action=action,
-                                                  params=params))
-
-            rule.save(session)
-    except db_exc.DBDuplicateEntry as exc:
-        LOG.error('Database integrity error %s when '
-                  'creating a rule', exc)
-        raise utils.Error(_('Rule with UUID %s already exists') % uuid,
-                          code=409)
+    rule = db.create_rule(uuid, conditions, actions, description, scope)
 
     LOG.info('Created rule %(uuid)s with description "%(descr)s" '
              'and scope "%(scope)s"',
@@ -422,11 +399,7 @@ def create(conditions_json, actions_json, uuid=None,
 
 def get(uuid):
     """Get a rule by its UUID."""
-    try:
-        rule = db.model_query(db.Rule).filter_by(uuid=uuid).one()
-    except orm.exc.NoResultFound:
-        raise utils.Error(_('Rule %s was not found') % uuid, code=404)
-
+    rule = db.get_rule(uuid=uuid)
     return IntrospectionRule(uuid=rule.uuid, actions=rule.actions,
                              conditions=rule.conditions,
                              description=rule.description,
@@ -435,35 +408,25 @@ def get(uuid):
 
 def get_all():
     """List all rules."""
-    query = db.model_query(db.Rule).order_by(db.Rule.created_at)
-    return [IntrospectionRule(uuid=rule.uuid, actions=rule.actions,
-                              conditions=rule.conditions,
-                              description=rule.description,
-                              scope=rule.scope)
-            for rule in query]
+    with db.session_for_read() as session:
+        query = session.query(model.Rule).order_by(model.Rule.created_at)
+        return [IntrospectionRule(uuid=rule.uuid, actions=rule.actions,
+                                  conditions=rule.conditions,
+                                  description=rule.description,
+                                  scope=rule.scope)
+                for rule in query.all()]
 
 
 def delete(uuid):
     """Delete a rule by its UUID."""
-    with db.ensure_transaction() as session:
-        db.model_query(db.RuleAction,
-                       session=session).filter_by(rule=uuid).delete()
-        db.model_query(db.RuleCondition,
-                       session=session) .filter_by(rule=uuid).delete()
-        count = (db.model_query(db.Rule, session=session)
-                 .filter_by(uuid=uuid).delete())
-        if not count:
-            raise utils.Error(_('Rule %s was not found') % uuid, code=404)
+    db.delete_rule(uuid)
 
     LOG.info('Introspection rule %s was deleted', uuid)
 
 
 def delete_all():
     """Delete all rules."""
-    with db.ensure_transaction() as session:
-        db.model_query(db.RuleAction, session=session).delete()
-        db.model_query(db.RuleCondition, session=session).delete()
-        db.model_query(db.Rule, session=session).delete()
+    db.delete_all_rules()
 
     LOG.info('All introspection rules were deleted')
 
