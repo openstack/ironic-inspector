@@ -14,7 +14,7 @@
         #to fix right after
         - ironic-inspector-tempest-managed-non-standalone:
             voting: false
-        - openstack-tox-functional-py38
+        - openstack-tox-functional
         - bifrost-integration-tinyipa-ubuntu-focal:
             voting: false
         - ironic-inspector-tox-bandit:
@@ -24,4 +24,4 @@
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
-        - openstack-tox-functional-py38
+        - openstack-tox-functional
