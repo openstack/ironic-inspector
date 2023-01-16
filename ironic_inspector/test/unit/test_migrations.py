@@ -56,8 +56,10 @@ def patch_with_engine(engine):
                            autospec=True) as patch_w_sess, \
             mock.patch.object(db, 'get_reader_session',
                               autospec=True) as patch_r_sess:
+        # FIXME(stephenfin): we need to remove reliance on autocommit semantics
+        # ASAP since it's not compatible with SQLAlchemy 2.0
         patch_w_sess.return_value = patch_r_sess.return_value = (
-            orm.get_maker(engine)())
+            orm.get_maker(engine, autocommit=True)())
         yield
 
 

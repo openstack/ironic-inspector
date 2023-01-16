@@ -1,10 +1,9 @@
 - project:
     templates:
       - check-requirements
-      - openstack-cover-jobs
-      - openstack-python3-zed-jobs
+      - openstack-cover-jobs-inspector-bugfix1012
+      - openstack-python3-zed-jobs-inspector-bugfix1012
       - publish-openstack-docs-pti
-      - release-notes-jobs-python3
     check:
       jobs:
         - ironic-inspector-grenade
@@ -20,7 +19,6 @@
         - ironic-inspector-tox-bandit:
             voting: false
     gate:
-      queue: ironic
       jobs:
         - ironic-inspector-grenade
         - ironic-inspector-tempest

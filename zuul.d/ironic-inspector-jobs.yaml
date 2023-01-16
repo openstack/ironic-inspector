@@ -191,3 +191,69 @@
 - job:
     name: ironic-inspector-tempest-managed
     parent: ironic-inspector-tempest-managed-non-standalone
+
+- project-template:
+    name: openstack-python3-zed-jobs-inspector-bugfix1012
+    description: |
+      Runs unit tests for an OpenStack Python project under the CPython
+      version 3 releases designated for testing in the Yoga release.
+    check:
+      jobs:
+        - openstack-tox-pep8:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+        - openstack-tox-py38:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+        - openstack-tox-py39:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+        - openstack-tox-py310:
+            nodeset: ubuntu-focal
+            voting: false
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+    gate:
+      jobs:
+        - openstack-tox-pep8:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+        - openstack-tox-py38:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+        - openstack-tox-py39:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+
+- project-template:
+    name: openstack-cover-jobs-inspector-bugfix1012
+    description: |
+                Runs openstack-tox-cover in only the check pipeline using
+                yoga upper-constraints.
+    check:
+      jobs:
+        - openstack-tox-cover:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
+    gate:
+      jobs:
+        - openstack-tox-cover:
+            nodeset: ubuntu-focal
+            required-projects:
+                - name: openstack/requirements
+                  override-checkout: stable/zed
