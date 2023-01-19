@@ -40,7 +40,7 @@ def get_client(topic=None):
                                   version='1.3')
     else:
         target = messaging.Target(topic=topic, version='1.3')
-    return messaging.RPCClient(TRANSPORT, target)
+    return messaging.get_rpc_client(TRANSPORT, target)
 
 
 def get_server(endpoints):
