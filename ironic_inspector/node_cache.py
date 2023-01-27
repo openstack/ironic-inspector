@@ -75,16 +75,16 @@ class NodeInfo(object):
         # equivalent to True actually.
         self._manage_boot = manage_boot if manage_boot is not None else True
         # This is a lock on a node UUID, not on a NodeInfo object
-        self._lock = locking.get_lock(uuid)
+        self._node_lock = locking.get_lock(uuid)
         # Whether lock was acquired using this NodeInfo object
         self._fsm = None
         self._options = None
 
     def __del__(self):
-        if self._lock.is_locked():
+        if self._node_lock.is_locked():
             LOG.warning('BUG: node lock was not released by the moment '
                         'node info object is deleted')
-            self._lock.release()
+            self._node_lock.release()
 
     def __str__(self):
         """Self represented as an UUID and a state."""
@@ -103,13 +103,13 @@ class NodeInfo(object):
                          return immediately.
         :returns: boolean value, whether lock was acquired successfully
         """
-        if self._lock.is_locked():
+        if self._node_lock.is_locked():
             LOG.debug('Attempting to acquire lock already held',
                       node_info=self)
             return True
 
         LOG.debug('Attempting to acquire lock', node_info=self)
-        if self._lock.acquire(blocking):
+        if self._node_lock.acquire(blocking):
             LOG.debug('Successfully acquired lock', node_info=self)
             return True
         else:
@@ -121,9 +121,9 @@ class NodeInfo(object):
 
         Does nothing if lock was not acquired using this NodeInfo object.
         """
-        if self._lock.is_locked():
+        if self._node_lock.is_locked():
             LOG.debug('Successfully released lock', node_info=self)
-            self._lock.release()
+            self._node_lock.release()
 
     @property
     def version_id(self):
@@ -640,7 +640,7 @@ def release_lock(func):
         finally:
             # FIXME(milan) hacking the test cases to work
             # with release_lock.assert_called_once...
-            if node_info._lock.is_locked():
+            if node_info._node_lock.is_locked():
                 node_info.release_lock()
     return inner
 

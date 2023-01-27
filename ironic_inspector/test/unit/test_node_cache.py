@@ -55,7 +55,7 @@ class TestNodeCache(test_base.NodeTestBase):
             (datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
              < node.started_at <
              datetime.datetime.utcnow() + datetime.timedelta(seconds=60)))
-        self.assertFalse(node._lock.is_locked())
+        self.assertFalse(node._node_lock.is_locked())
 
         res = set((r.uuid, r.started_at) for r in db.get_nodes())
 
@@ -196,7 +196,7 @@ class TestNodeCacheFind(test_base.NodeTestBase):
             datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
             < res.started_at <
             datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
-        self.assertTrue(res._lock.is_locked())
+        self.assertTrue(res._node_lock.is_locked())
 
     def test_same_bmc_different_macs(self):
         uuid2 = uuidutils.generate_uuid()
@@ -227,7 +227,7 @@ class TestNodeCacheFind(test_base.NodeTestBase):
             datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
             < res.started_at <
             datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
-        self.assertTrue(res._lock.is_locked())
+        self.assertTrue(res._node_lock.is_locked())
 
     def test_macs_not_found(self):
         self.assertRaises(utils.Error, node_cache.find_node,
@@ -250,7 +250,7 @@ class TestNodeCacheFind(test_base.NodeTestBase):
             datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
             < res.started_at <
             datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
-        self.assertTrue(res._lock.is_locked())
+        self.assertTrue(res._node_lock.is_locked())
 
     def test_inconsistency(self):
         db.delete_node(uuid=self.uuid)
@@ -388,7 +388,7 @@ class TestNodeCacheGetNode(test_base.NodeTestBase):
         self.assertEqual(started_at, info.started_at)
         self.assertIsNone(info.finished_at)
         self.assertIsNone(info.error)
-        self.assertFalse(info._lock.is_locked())
+        self.assertFalse(info._node_lock.is_locked())
 
     def test_not_found(self):
         self.assertRaises(utils.Error, node_cache.get_node,
@@ -410,7 +410,7 @@ class TestNodeCacheGetNode(test_base.NodeTestBase):
         self.assertEqual(started_at, info.started_at)
         self.assertIsNone(info.finished_at)
         self.assertIsNone(info.error)
-        self.assertFalse(info._lock.is_locked())
+        self.assertFalse(info._node_lock.is_locked())
         ironic.get_node.assert_called_once_with('name')
 
 
@@ -448,7 +448,7 @@ class TestNodeInfoFinished(test_base.NodeTestBase):
     def test_release_lock(self):
         self.node_info.acquire_lock()
         self.node_info.finished(istate.Events.finish)
-        self.assertFalse(self.node_info._lock.is_locked())
+        self.assertFalse(self.node_info._node_lock.is_locked())
 
 
 class TestNodeInfoOptions(test_base.NodeTestBase):
@@ -812,40 +812,40 @@ class TestInternalLock(test_base.NodeTestBase):
     def test_acquire(self, lock_mock):
         node_info = node_cache.NodeInfo(self.uuid)
         self.addCleanup(node_info.release_lock)
-        self.assertFalse(node_info._lock.is_locked())
+        self.assertFalse(node_info._node_lock.is_locked())
         lock_mock.assert_called_once_with('node-{}'.format(self.uuid),
                                           semaphores=mock.ANY)
         self.assertFalse(lock_mock.return_value.acquire.called)
 
         self.assertTrue(node_info.acquire_lock())
-        self.assertTrue(node_info._lock.is_locked())
+        self.assertTrue(node_info._node_lock.is_locked())
         self.assertTrue(node_info.acquire_lock())
-        self.assertTrue(node_info._lock.is_locked())
+        self.assertTrue(node_info._node_lock.is_locked())
         lock_mock.return_value.acquire.assert_called_once_with(blocking=True)
 
     def test_release(self, lock_mock):
         node_info = node_cache.NodeInfo(self.uuid)
         node_info.acquire_lock()
-        self.assertTrue(node_info._lock.is_locked())
+        self.assertTrue(node_info._node_lock.is_locked())
         node_info.release_lock()
-        self.assertFalse(node_info._lock.is_locked())
+        self.assertFalse(node_info._node_lock.is_locked())
         node_info.release_lock()
-        self.assertFalse(node_info._lock.is_locked())
+        self.assertFalse(node_info._node_lock.is_locked())
         lock_mock.return_value.acquire.assert_called_once_with(blocking=True)
         lock_mock.return_value.release.assert_called_once_with()
 
     def test_acquire_non_blocking(self, lock_mock):
         node_info = node_cache.NodeInfo(self.uuid)
         self.addCleanup(node_info.release_lock)
-        self.assertFalse(node_info._lock.is_locked())
+        self.assertFalse(node_info._node_lock.is_locked())
         lock_mock.return_value.acquire.side_effect = iter([False, True])
 
         self.assertFalse(node_info.acquire_lock(blocking=False))
-        self.assertFalse(node_info._lock.is_locked())
+        self.assertFalse(node_info._node_lock.is_locked())
         self.assertTrue(node_info.acquire_lock(blocking=False))
-        self.assertTrue(node_info._lock.is_locked())
+        self.assertTrue(node_info._node_lock.is_locked())
         self.assertTrue(node_info.acquire_lock(blocking=False))
-        self.assertTrue(node_info._lock.is_locked())
+        self.assertTrue(node_info._node_lock.is_locked())
         lock_mock.return_value.acquire.assert_called_with(blocking=False)
         self.assertEqual(2, lock_mock.return_value.acquire.call_count)
 
@@ -1123,7 +1123,7 @@ class TestFsmEvent(test_base.NodeStateTest):
     def test_unlock(self):
         @node_cache.release_lock
         def func(node_info):
-            self.assertTrue(node_info._lock.is_locked())
+            self.assertTrue(node_info._node_lock.is_locked())
 
         self.node_info.acquire_lock(blocking=True)
         with mock.patch.object(self.node_info, 'release_lock',
@@ -1134,7 +1134,7 @@ class TestFsmEvent(test_base.NodeStateTest):
     def test_unlock_unlocked(self):
         @node_cache.release_lock
         def func(node_info):
-            self.assertFalse(node_info._lock.is_locked())
+            self.assertFalse(node_info._node_lock.is_locked())
 
         self.node_info.release_lock()
         with mock.patch.object(self.node_info, 'release_lock',

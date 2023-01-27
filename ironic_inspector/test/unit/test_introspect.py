@@ -41,6 +41,7 @@ class BaseTest(test_base.NodeTestBase):
         self.node_info = mock.Mock(uuid=self.uuid, options={})
         self.node_info.ports.return_value = self.ports_dict
         self.node_info.node.return_value = self.node
+
         driver_fixture = self.useFixture(fixtures.MockPatchObject(
             pxe_filter, 'driver', autospec=True))
         driver_mock = driver_fixture.mock.return_value
