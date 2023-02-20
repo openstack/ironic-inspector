@@ -28,6 +28,7 @@ import eventlet
 import fixtures
 from oslo_config import cfg
 from oslo_config import fixture as config_fixture
+from oslo_db.sqlalchemy import enginefacade
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
 import pytz
@@ -106,6 +107,10 @@ def _query_string(*field_names):
 class Base(base.NodeTest):
     ROOT_URL = 'http://127.0.0.1:5050'
     IS_FUNCTIONAL = True
+
+    # NOTE(TheJulia): Pre-configure the engine so we're compatible with
+    # oslo.db 12.1.0 for functional tests.
+    enginefacade.configure(sqlite_fk=False, __autocommit=True)
 
     def setUp(self):
         super(Base, self).setUp()
