@@ -231,8 +231,10 @@ class Base(base.NodeTest):
                               error=error),
             status
         )
+        # CI Runs in UTC, local machines can fail on the use of the local
+        # timezone.
         curr_time = datetime.datetime.fromtimestamp(
-            time.time(), tz=pytz.timezone(time.tzname[0]))
+            time.time(), tz=pytz.timezone('UTC'))
         started_at = timeutils.parse_isotime(status['started_at'])
         self.assertLess(started_at, curr_time)
         if finished:
