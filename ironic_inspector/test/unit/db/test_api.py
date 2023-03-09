@@ -36,7 +36,7 @@ class TestDBAPI(test_base.NodeStateTest):
     def test_get_nodes(self):
         nodes = db.get_nodes()
 
-        self.assertItemsEqual([self.node2.uuid, self.uuid],
+        self.assertCountEqual([self.node2.uuid, self.uuid],
                               [node.uuid for node in nodes])
 
     def test_get_node_by_uuid(self):
@@ -59,25 +59,25 @@ class TestDBAPI(test_base.NodeStateTest):
     def test_get_active_nodes(self):
         nodes = db.get_active_nodes()
 
-        self.assertItemsEqual([self.node2.uuid, self.uuid],
+        self.assertCountEqual([self.node2.uuid, self.uuid],
                               [node.uuid for node in nodes])
 
     def test_get_active_nodes_before(self):
         nodes = db.get_active_nodes(started_before=datetime.datetime(1, 1, 2))
 
-        self.assertItemsEqual([self.uuid],
+        self.assertCountEqual([self.uuid],
                               [node.uuid for node in nodes])
 
     def test_list_nodes_by_attributes(self):
         attrs = db.list_nodes_by_attributes([self.attribute2])
 
-        self.assertItemsEqual([self.node2.uuid],
+        self.assertCountEqual([self.node2.uuid],
                               [attr.node_uuid for attr in attrs])
 
     def test_list_nodes_options_by_uuid(self):
         opts = db.list_nodes_options_by_uuid(self.node2.uuid)
 
-        self.assertItemsEqual([self.option2],
+        self.assertCountEqual([self.option2],
                               [(opt.name, opt.value) for opt in opts])
 
     def test_update_node(self):
@@ -116,7 +116,7 @@ class TestDBAPI(test_base.NodeStateTest):
     def test_delete_nodes_finished(self):
         db.delete_nodes(finished_until=datetime.datetime(4, 4, 4))
 
-        self.assertItemsEqual([self.uuid, self.node2.uuid],
+        self.assertCountEqual([self.uuid, self.node2.uuid],
                               [node.uuid for node in db.get_nodes()])
 
     def test_delete_options(self):
