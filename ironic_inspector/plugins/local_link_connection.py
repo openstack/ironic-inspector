@@ -115,6 +115,7 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
     def before_update(self, introspection_data, node_info, **kwargs):
         """Process LLDP data and patch Ironic port local link connection"""
         inventory = utils.get_inventory(introspection_data)
+        lldp_raw = introspection_data.get('lldp_raw') or {}
 
         ironic_ports = node_info.ports()
 
@@ -130,7 +131,7 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
                           node_info=node_info, data=introspection_data)
                 continue
 
-            lldp_data = iface.get('lldp')
+            lldp_data = lldp_raw.get(iface['name']) or iface.get('lldp')
             if lldp_data is None:
                 LOG.warning("No LLDP Data found for interface %s",
                             mac_address, node_info=node_info,
