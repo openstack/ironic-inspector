@@ -100,7 +100,7 @@ results (e.g. the field contains a list), available options are:
 
 * ``any`` (the default) require any to match,
 * ``all`` require all to match,
-* ``first`` requrie the first to match.
+* ``first`` require the first to match.
 
 All other fields are passed to the condition plugin, e.g. numeric comparison
 operations require a ``value`` field to compare against.
