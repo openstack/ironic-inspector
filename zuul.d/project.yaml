@@ -7,21 +7,19 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
-        #NOTE(rpittau): temporary non-voting for bugfix release
-        #to fix right after
-        - ironic-inspector-tempest-managed-non-standalone:
-            voting: false
         - openstack-tox-functional
-        - bifrost-integration-tinyipa-ubuntu-focal:
+        - bifrost-integration-tinyipa-ubuntu-jammy:
             voting: false
         - ironic-inspector-tox-bandit:
             voting: false
     gate:
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - openstack-tox-functional
+    experimental:
+      jobs:
+        - ironic-inspector-grenade
+        - ironic-inspector-tempest-managed-non-standalone

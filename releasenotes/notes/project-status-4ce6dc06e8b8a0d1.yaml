@@ -1,0 +1,8 @@
+---
+deprecations:
+  - |
+    The ironic-inspector project is now in maintenance mode and will only
+    receive bug fixes and other minor improvements from now on. The same
+    functionality is being added to ironic itself. The preview of it is
+    expected to be available in the Caracal release cycle, ironic-inspector
+    will be deprecated afterwards.

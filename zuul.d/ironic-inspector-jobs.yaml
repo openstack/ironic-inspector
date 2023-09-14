@@ -138,9 +138,9 @@
           IRONIC_INSPECTOR_BUILD_RAMDISK: False
           IRONIC_RAMDISK_TYPE: tinyipa
           IRONIC_TEMPEST_WHOLE_DISK_IMAGE: True
-          IRONIC_VM_COUNT: 4
+          IRONIC_VM_COUNT: 2
           IRONIC_VM_EPHEMERAL_DISK: 0
-          IRONIC_VM_SPECS_RAM: 1024
+          IRONIC_VM_SPECS_RAM: 768
           IRONIC_AUTOMATED_CLEAN_ENABLED: False
           IRONIC_INSPECTOR_DHCP_FILTER: iptables
           Q_AGENT: openvswitch
@@ -150,6 +150,11 @@
           SWIFT_TEMPURL_KEY: secretkey
           EBTABLES_RACE_FIX: True
           LIBVIRT_STORAGE_POOL_PATH: /opt/libvirt/images
+          # NOTE(dtantsur): the version is different between 2023.1 and 2023.2,
+          # causing everything to break. Set the new version everywhere.
+          CIRROS_VERSION: 0.6.1
+          MYSQL_GATHER_PERFORMANCE: False
+          INSTANCE_WAIT: 120
         old:
           IRONIC_VM_LOG_DIR: '{{ devstack_bases.old }}/ironic-bm-logs'
       grenade_localrc:
