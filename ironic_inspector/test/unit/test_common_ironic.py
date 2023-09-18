@@ -135,6 +135,14 @@ class TestGetIpmiAddress(base.BaseTest):
                          ir_utils.get_ipmi_address(node))
         mock_socket.assert_called_once_with(self.ipmi_ipv6, None, 0, 0, 6)
 
+    def test_redfish_bmc_address_ipv6_brackets_no_scheme(self):
+        self.cfg.config(ipmi_address_fields=['redfish_address'])
+        address = '[{}]'.format(self.ipmi_ipv6)
+        node = mock.Mock(spec=['driver_info', 'uuid'],
+                         driver_info={'redfish_address': address})
+        self.assertEqual((self.ipmi_ipv6, None, self.ipmi_ipv6),
+                         ir_utils.get_ipmi_address(node))
+
 
 class TestCapabilities(unittest.TestCase):
 
