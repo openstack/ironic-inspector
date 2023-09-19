@@ -1,6 +1,8 @@
 # needed for mysql
-mysql-client [platform:dpkg]
-mysql-server [platform:dpkg]
+mysql-client [platform:dpkg !platform:debian-bookworm]
+mysql-server [platform:dpkg !platform:debian-bookworm]
+mariadb-client [platform:debian-bookworm]
+mariadb-server [platform:debian-bookworm]
 # needed for psql
 postgresql
 postgresql-client [platform:dpkg]
