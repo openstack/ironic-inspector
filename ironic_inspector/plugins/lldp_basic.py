@@ -66,10 +66,11 @@ class LLDPBasicProcessingHook(base.ProcessingHook):
         """Process LLDP data and update all_interfaces with processed data"""
 
         inventory = utils.get_inventory(introspection_data)
+        lldp_raw = introspection_data.get('lldp_raw') or {}
 
         for iface in inventory['interfaces']:
             if_name = iface['name']
-            tlvs = iface.get('lldp')
+            tlvs = lldp_raw.get(if_name) or iface.get('lldp')
             if tlvs is None:
                 LOG.warning("No LLDP Data found for interface %s",
                             if_name, node_info=node_info)
