@@ -105,6 +105,10 @@ def get_ipmi_address(node):
         if '//' in value:
             url = urllib.parse.urlparse(value)
             value = url.hostname
+
+        # Strip brackets in case used on IPv6 address.
+        value = value.strip('[').strip(']')
+
         try:
             addrinfo = socket.getaddrinfo(value, None, 0, 0, socket.SOL_TCP)
             for family, socket_type, proto, canon_name, sockaddr in addrinfo:
