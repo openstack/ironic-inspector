@@ -55,10 +55,8 @@ LOG = logging.getLogger(__name__)
 def patch_with_engine(engine):
     with mock.patch.object(db, 'get_writer_session',
                            autospec=True) as patch_w_sess:
-        # FIXME(stephenfin): we need to remove reliance on autocommit semantics
-        # ASAP since it's not compatible with SQLAlchemy 2.0
         patch_w_sess.return_value = (
-            orm.get_maker(engine, autocommit=True)())
+            orm.get_maker(engine)())
         yield
 
 
@@ -261,20 +259,22 @@ class MigrationCheckersMixin(object):
             data = {'id': 1, 'op': 'eq', 'multiple': 'all'}
             insert_rc = rule_conditions.insert()
             connection.execute(insert_rc, data)
-
-            rc_stmt = rule_conditions.select(
-                rule_conditions.c.id == 1)
+            rc_stmt = sqlalchemy.select(
+                rule_conditions.c.invert
+            ).where(rule_conditions.c.id == 1)
             conds = connection.execute(rc_stmt).first()
-            self.assertFalse(conds['invert'])
+            self.assertFalse(conds[0])
 
             # set invert with - True
             data2 = {'id': 2, 'op': 'eq', 'multiple': 'all', 'invert': True}
             connection.execute(insert_rc, data2)
 
-            rc_stmt2 = rule_conditions.select(
-                rule_conditions.c.id == 2)
+            rc_stmt2 = sqlalchemy.select(
+                rule_conditions.c.invert
+            ).where(rule_conditions.c.id == 2)
+
             conds2 = connection.execute(rc_stmt2).first()
-            self.assertTrue(conds2['invert'])
+            self.assertTrue(conds2[0])
 
     def _pre_upgrade_d2e48801c8ef(self, engine):
         ok_node_id = uuidutils.generate_uuid()
@@ -320,14 +320,18 @@ class MigrationCheckersMixin(object):
         err_node_id = data['err_node_id']
         with engine.begin() as connection:
             # assert the ok node is in the (default) finished state
-            ok_node_stmt = nodes.select(nodes.c.uuid == ok_node_id)
+            ok_node_stmt = sqlalchemy.select(
+                nodes.c.state
+            ).where(nodes.c.uuid == ok_node_id)
             ok_node = connection.execute(ok_node_stmt).first()
-            self.assertEqual(istate.States.finished, ok_node['state'])
+            self.assertEqual(istate.States.finished, ok_node[0])
             # assert err node state is error after the migration
             # even though the default state is finished
-            err_node_stmt = nodes.select(nodes.c.uuid == err_node_id)
+            err_node_stmt = sqlalchemy.select(
+                nodes.c.state
+            ).where(nodes.c.uuid == err_node_id)
             err_node = connection.execute(err_node_stmt).first()
-            self.assertEqual(istate.States.error, err_node['state'])
+            self.assertEqual(istate.States.error, err_node[0])
 
     def _pre_upgrade_d00d6e3f38c4(self, engine):
         nodes = db_utils.get_table(engine, 'nodes')
@@ -359,14 +363,17 @@ class MigrationCheckersMixin(object):
                 finished_at = datetime.datetime.utcfromtimestamp(
                     node['finished_at']) if node['finished_at'] else None
 
-                stmt = nodes.select(nodes.c.uuid == node['uuid'])
+                stmt = sqlalchemy.select(
+                    nodes.c.started_at,
+                    nodes.c.finished_at
+                ).where(nodes.c.uuid == node['uuid'])
                 row = connection.execute(stmt).first()
                 self.assertEqual(
                     datetime.datetime.utcfromtimestamp(node['started_at']),
-                    row['started_at'])
+                    row[0])
                 self.assertEqual(
                     finished_at,
-                    row['finished_at'])
+                    row[1])
 
     def _pre_upgrade_882b2d84cb1b(self, engine):
         attributes = db_utils.get_table(engine, 'attributes')
@@ -404,13 +411,18 @@ class MigrationCheckersMixin(object):
         self.assertIsInstance(attributes.c.value.type, sqlalchemy.types.String)
 
         with engine.begin() as connection:
-            stmt = attributes.select(attributes.c.node_uuid == self.node_uuid)
+            stmt = sqlalchemy.select(
+                attributes.c.node_uuid,
+                attributes.c.uuid,
+                attributes.c.name,
+                attributes.c.value
+            ).where(attributes.c.node_uuid == self.node_uuid)
             row = connection.execute(stmt).first()
-            self.assertEqual(self.node_uuid, row.node_uuid)
-            self.assertNotEqual(self.node_uuid, row.uuid)
-            self.assertIsNotNone(row.uuid)
-            self.assertEqual('foo', row.name)
-            self.assertEqual('bar', row.value)
+            self.assertEqual(self.node_uuid, row[0])
+            self.assertNotEqual(self.node_uuid, row[1])
+            self.assertIsNotNone(row[1])
+            self.assertEqual('foo', row[2])
+            self.assertEqual('bar', row[3])
 
     def _check_2970d2d44edc(self, engine, data):
         nodes = db_utils.get_table(engine, 'nodes')
@@ -419,9 +431,11 @@ class MigrationCheckersMixin(object):
         with engine.begin() as connection:
             insert_node = nodes.insert()
             connection.execute(insert_node, data)
-            n_stmt = nodes.select(nodes.c.uuid == 'abcd')
+            n_stmt = sqlalchemy.select(
+                nodes.c.manage_boot
+            ).where(nodes.c.uuid == 'abcd')
             n = connection.execute(n_stmt).first()
-            self.assertIsNone(n['manage_boot'])
+            self.assertIsNone(n[0])
 
     def _check_bf8dec16023c(self, engine, data):
         introspection_data = db_utils.get_table(engine, 'introspection_data')

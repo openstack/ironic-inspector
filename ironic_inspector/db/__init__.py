@@ -14,6 +14,4 @@ from oslo_db.sqlalchemy import enginefacade
 
 # TODO(aarefiev): enable foreign keys for SQLite once all unit
 #                 tests with failed constraint will be fixed.
-# FIXME(stephenfin): we need to remove reliance on autocommit semantics ASAP
-# since it's not compatible with SQLAlchemy 2.0
 enginefacade.configure(sqlite_fk=False)

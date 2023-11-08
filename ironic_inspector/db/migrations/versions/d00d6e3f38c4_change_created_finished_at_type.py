@@ -52,14 +52,14 @@ def upgrade():
                  temp_started_at, temp_finished_at, uuid)
 
     conn = op.get_bind()
-    rows = conn.execute(sa.select([t.c.started_at, t.c.finished_at, t.c.uuid]))
+    rows = conn.execute(sa.select(t.c.started_at, t.c.finished_at, t.c.uuid))
     for row in rows:
-        temp_started = datetime.datetime.utcfromtimestamp(row['started_at'])
-        temp_finished = row['finished_at']
+        temp_started = datetime.datetime.utcfromtimestamp(row[0])
+        temp_finished = row[1]
         # Note(milan) this is just a precaution; sa.null shouldn't happen here
         if temp_finished is not None:
             temp_finished = datetime.datetime.utcfromtimestamp(temp_finished)
-        conn.execute(t.update().where(t.c.uuid == row.uuid).values(
+        conn.execute(t.update().where(t.c.uuid == row[2]).values(
             temp_started_at=temp_started, temp_finished_at=temp_finished))
 
     with op.batch_alter_table('nodes') as batch_op:

@@ -71,8 +71,8 @@ def upgrade():
                               naming_convention=naming_convention) as batch_op:
         batch_op.drop_constraint(fk_constraint, type_='foreignkey')
 
-    rows = connection.execute(sa.select([attributes.c.uuid,
-                                         attributes.c.node_uuid]))
+    rows = connection.execute(sa.select(attributes.c.uuid,
+                                        attributes.c.node_uuid))
 
     for row in rows:
         # move uuid to node_uuid, reuse uuid as a new primary key
