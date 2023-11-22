@@ -78,8 +78,10 @@ def _init_middleware():
 
 def get_app():
     """Get the flask instance."""
-    _init_middleware()
-    return _app
+    with _app.app_context():
+        _init_middleware()
+        start_coordinator()
+        return _app
 
 
 # TODO(kaifeng) Extract rpc related code into a rpcapi module
@@ -196,7 +198,6 @@ def convert_exceptions(func):
     return wrapper
 
 
-@_app.before_first_request
 def start_coordinator():
     """Create a coordinator instance for non-standalone case."""
     if not CONF.standalone:
