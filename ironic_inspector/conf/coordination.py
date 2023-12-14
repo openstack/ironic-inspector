@@ -22,6 +22,7 @@ from ironic_inspector.common.i18n import _
 _OPTS = [
     cfg.StrOpt('backend_url',
                default='memcached://localhost:11211',
+               secret=True,
                help=_('The backend URL to use for distributed coordination. '
                       'EXPERIMENTAL.')),
 ]
