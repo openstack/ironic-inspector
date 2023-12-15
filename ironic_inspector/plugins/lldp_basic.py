@@ -53,7 +53,16 @@ class LLDPBasicProcessingHook(base.ProcessingHook):
                     {'tlv_type': tlv_type, 'msg': e},  node_info=node_info)
                 continue
 
-            if parser.parse_tlv(tlv_type, data):
+            try:
+                parsed_tlv = parser.parse_tlv(tlv_type, data)
+            except UnicodeDecodeError as e:
+                LOG.warning("LLDP TLV type %(tlv_type)d can't be decoded: "
+                            "%(exc)s",
+                            {'tlv_type': tlv_type, 'exc': e},
+                            node_info=node_info)
+                continue
+
+            if parsed_tlv:
                 LOG.debug("Handled TLV type %d",
                           tlv_type, node_info=node_info)
             else:
