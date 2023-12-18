@@ -35,6 +35,7 @@ def set_config_defaults():
                                          'ironicclient=WARNING',
                                          'amqp=WARNING',
                                          'amqplib=WARNING',
+                                         'stevedore=WARNING',
                                          # This comes in two flavors
                                          'oslo.messaging=WARNING',
                                          'oslo_messaging=WARNING'])
