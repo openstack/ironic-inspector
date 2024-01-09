@@ -1,0 +1,35 @@
+---
+upgrade:
+  - |
+    The legacy Role Based Access Control policy used by ironic-inspector has
+    been disabled by default. The end result of this is that the legacy
+    ``baremetal_admin`` and ``baremetal_observer`` roles are no longer enabled
+    by default. System scoped access can be utilized to connect to the
+    ``ironic-inspector`` service, or alternatively a user with an ``admin``
+    or ``service`` role.
+
+    The Ironic project does not anticipate any issues with this change, as the
+    the ``ironic-inspector`` service is a service *for* the system itself.
+    That being said, if the operator deployed configuration is reliant upon
+    the deprecated roles, configuration changes will be required.
+
+    This change is a result of the new policy which was introduced as part of
+    `Consistent and Secure RBAC`_ community goal and the underlying
+    ``[oslo_policy] enforce_scope`` and ``[oslo_policy] enforce_new_defaults``
+    settings being changed to ``True``.
+
+    Operators wishing to revert to the old policy configuration may do so
+    by setting the following values in ``ironic-inspector.conf``.::
+
+      [oslo_policy]
+      enforce_new_defaults=False
+      enforce_scope=False
+
+    Operators who revert the configuration are encouraged to make the
+    necessary changes to their configuration, as the legacy RBAC policy
+    will be removed at some point in the future. Please review
+    `2024.1-Release Timeline`_. Failure to do so will may force operators
+    to craft custom policy override configuration.
+
+    .. _`Consistent and Secure RBAC`: https://governance.openstack.org/tc/goals/selected/consistent-and-secure-rbac.html
+    .. _`2024.1-Release Timeline`: https://governance.openstack.org/tc/goals/selected/consistent-and-secure-rbac.html#id3

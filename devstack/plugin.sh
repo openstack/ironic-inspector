@@ -26,10 +26,10 @@ IRONIC_INSPECTOR_UWSGI_CONF=$IRONIC_INSPECTOR_CONF_DIR/ironic-inspector-uwsgi.in
 # explicitly unless otherwise set.
 IRONIC_INSPECTOR_ENFORCE_SCOPE=${IRONIC_INSPECTOR_ENFORCE_SCOPE:-${IRONIC_ENFORCE_SCOPE:-False}}
 # and then fallback to trueorfalse to put it into the standardized string format for the jobs.
-IRONIC_INSPECTOR_ENFORCE_SCOPE=$(trueorfalse False IRONIC_INSPECTOR_ENFORCE_SCOPE)
+IRONIC_INSPECTOR_ENFORCE_SCOPE=$(trueorfalse True IRONIC_INSPECTOR_ENFORCE_SCOPE)
 # Reset the input in the event the plugin is running separately from ironic's
 # devstack plugin.
-IRONIC_ENFORCE_SCOPE=$(trueorfalse False IRONIC_ENFORCE_SCOPE)
+IRONIC_ENFORCE_SCOPE=$(trueorfalse True IRONIC_ENFORCE_SCOPE)
 
 
 if [[ -n ${IRONIC_INSPECTOR_MANAGE_FIREWALL} ]] ; then
