@@ -37,12 +37,12 @@ opts.set_defaults(cfg.CONF, DEFAULT_POLICY_FILE)
 # applicable (e.g., cleaning up baremetal hosts)
 SYSTEM_ADMIN = 'role:admin and system_scope:all'
 
-# Generic policy check string for system users who don't require all the
-# authorization that system administrators typically have. This persona, or
-# check string, typically isn't used by default, but it's existence it useful
-# in the event a deployment wants to offload some administrative action from
-# system administrator to system members
-SYSTEM_MEMBER = 'role:member and system_scope:all'
+# Policy check to allow for the OpenStack community change in RBAC direction,
+# where "admin" is still admin across all projects, but "manager" is the
+# project delegated administrative account scoped to the project.
+# Also adds service role access for the service to authenticate which was
+# generally missed with inspector as well.
+ADMIN = '(' + SYSTEM_ADMIN + ') or (role:admin) or (role:service)'
 
 # Generic policy check string for read-only access to system-level resources.
 # This persona is useful for someone who needs access for auditing or even
@@ -50,6 +50,12 @@ SYSTEM_MEMBER = 'role:member and system_scope:all'
 # applicable (e.g., listing all volumes in the deployment, regardless of the
 # project they belong to).
 SYSTEM_READER = 'role:reader and system_scope:all'
+
+# Policy check to allow the OpenStack community change in RBAC direction,
+# where "admin" is still admin aross all projects, but "manager" is the
+# delegated level of access for project scoped administrative use.
+# also adds the ability for a service role to access
+READER = '(' + SYSTEM_READER + ') or (role:admin) or (role:service)'
 
 deprecated_node_reason = """
 The inspector API is now aware of system scope and default roles.
@@ -154,7 +160,7 @@ introspection_policies = [
     ),
     policy.DocumentedRuleDefault(
         name='introspection:status',
-        check_str=SYSTEM_READER,
+        check_str=READER,
         description='Get introspection status',
         operations=[{'path': '/introspection', 'method': 'GET'},
                     {'path': '/introspection/{node_id}', 'method': 'GET'}],
@@ -162,14 +168,14 @@ introspection_policies = [
     ),
     policy.DocumentedRuleDefault(
         name='introspection:start',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Start introspection',
         operations=[{'path': '/introspection/{node_id}', 'method': 'POST'}],
         deprecated_rule=deprecated_introspection_start
     ),
     policy.DocumentedRuleDefault(
         name='introspection:abort',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Abort introspection',
         operations=[{'path': '/introspection/{node_id}/abort',
                      'method': 'POST'}],
@@ -177,7 +183,7 @@ introspection_policies = [
     ),
     policy.DocumentedRuleDefault(
         name='introspection:data',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Get introspection data',
         operations=[{'path': '/introspection/{node_id}/data',
                      'method': 'GET'}],
@@ -185,7 +191,7 @@ introspection_policies = [
     ),
     policy.DocumentedRuleDefault(
         name='introspection:reapply',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Reapply introspection on stored data',
         operations=[{'path': '/introspection/{node_id}/data/unprocessed',
                      'method': 'POST'}],
@@ -196,7 +202,7 @@ introspection_policies = [
 rule_policies = [
     policy.DocumentedRuleDefault(
         name='introspection:rule:get',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Get introspection rule(s)',
         operations=[{'path': '/rules', 'method': 'GET'},
                     {'path': '/rules/{rule_id}', 'method': 'GET'}],
@@ -204,7 +210,7 @@ rule_policies = [
     ),
     policy.DocumentedRuleDefault(
         name='introspection:rule:delete',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Delete introspection rule(s)',
         operations=[{'path': '/rules', 'method': 'DELETE'},
                     {'path': '/rules/{rule_id}', 'method': 'DELETE'}],
@@ -212,7 +218,7 @@ rule_policies = [
     ),
     policy.DocumentedRuleDefault(
         name='introspection:rule:create',
-        check_str=SYSTEM_ADMIN,
+        check_str=ADMIN,
         description='Create introspection rule',
         operations=[{'path': '/rules', 'method': 'POST'}],
         deprecated_rule=deprecated_introspection_rule_create
