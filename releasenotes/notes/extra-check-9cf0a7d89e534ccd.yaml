@@ -3,7 +3,7 @@ fixes:
   - |
     The ``extra_hardware`` processing hook no longer refuses to parse extra
     data if some records are empty or have unexpected length. These records
-    are now discared.
+    are now discarded.
 
     The previous behavior can be returned by setting the new option
     ``[extra_hardware]strict`` to ``True``.

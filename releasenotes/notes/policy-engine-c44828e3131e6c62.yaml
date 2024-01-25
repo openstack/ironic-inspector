@@ -1,7 +1,7 @@
 ---
 features:
   - |
-    Adds an API access policy enforcment based on **oslo.policy** rules.
+    Adds an API access policy enforcement based on **oslo.policy** rules.
     Similar to other OpenStack services, operators now can configure
     fine-grained access policies using ``policy.yaml`` file. See
     `policy.yaml.sample`_ in the code tree for the list of available policies

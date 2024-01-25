@@ -51,7 +51,7 @@ def upgrade():
     #
     # The prior net effect was that the field was being altered to
     # be varchar(10), to house the largest enum value, except the added
-    # value only requres varchar(9), so this is sort of entirely
+    # value only requires varchar(9), so this is sort of entirely
     # redundant at this point. For what it is worth, while
     # batch_alter_table *does* include an option to prevent
     # recration, column widths cannot be modified dynamically with

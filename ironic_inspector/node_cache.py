@@ -62,7 +62,7 @@ class NodeInfo(object):
         self.invalidate_cache()
         # NOTE(TheJulia): version_id is unused at this time and can be
         # removed at a later point in time. Primarily it remains for
-        # compatability.
+        # compatibility.
         self._version_id = version_id
         self._state = state
         self._node = node
@@ -676,7 +676,7 @@ def start_introspection(uuid, **kwargs):
         recorded_state = node_info.state
         if istate.States.error == recorded_state:
             # If there was a failure, return to starting state to avoid
-            # letting the cache block new runs from occuring.
+            # letting the cache block new runs from occurring.
             state = istate.States.starting
         else:
             state = recorded_state
@@ -698,7 +698,7 @@ def add_node(uuid, state, manage_boot=True, **attributes):
     """
     started_at = timeutils.utcnow()
     with db.session_for_write() as session:
-        # TODO(TheJulia): This needs ot be moved to the DBAPI, but for change
+        # TODO(TheJulia): This needs to be moved to the DBAPI, but for change
         # reviewer sanity, is here for now.
         session.execute(
             delete(db_model.Attribute).where(
@@ -1006,7 +1006,7 @@ def store_introspection_data(node_id, introspection_data, processed=True):
     :param processed: Specify the type of introspected data, set to False
                       indicates the data is unprocessed.
     """
-    # NOTE(TheJulia): For compatability, but at the same time there is
+    # NOTE(TheJulia): For compatibility, but at the same time there is
     # two nodes of introspection data operation, DB and originally swift.
     db.store_introspection_data(
         node_id=node_id,
@@ -1022,6 +1022,6 @@ def get_introspection_data(node_id, processed=True):
                       indicates retrieving the unprocessed data.
     :return: A dictionary representation of intropsected data
     """
-    # NOTE(TheJulia): Moved to db api, here for compatability.
+    # NOTE(TheJulia): Moved to db api, here for compatibility.
     return db.get_introspection_data(node_id=node_id,
                                      processed=processed)

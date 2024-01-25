@@ -281,7 +281,7 @@ def api(path, is_public_api=False, rule=None, verb_to_rule_map=None,
                           as public, with minimal access enforcement
     :param rule: API access policy rule to enforce.
                  If rule is None, the 'default' policy rule will be enforced,
-                 which is "deny all" if not overridden in policy confif file.
+                 which is "deny all" if not overridden in policy config file.
     :param verb_to_rule_map: if both rule and this are given,
                              defines mapping between http verbs (uppercase)
                              and strings to format the 'rule' string with

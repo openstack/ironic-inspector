@@ -45,7 +45,7 @@ class SwiftAPI(object):
     def __init__(self):
         """Constructor for creating a SwiftAPI object.
 
-        Authentification is loaded from config file.
+        Authentication is loaded from config file.
         """
         global SWIFT_SESSION
 
