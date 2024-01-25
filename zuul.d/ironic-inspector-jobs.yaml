@@ -226,3 +226,10 @@
 - job:
     name: ironic-inspector-tempest-managed
     parent: ironic-inspector-tempest-managed-non-standalone
+
+- job:
+    name: ironic-inspector-tox-codespell
+    parent: openstack-tox
+    timeout: 7200
+    vars:
+      tox_envlist: codespell

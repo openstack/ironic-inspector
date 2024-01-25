@@ -16,6 +16,8 @@
             voting: false
         - ironic-inspector-tox-bandit:
             voting: false
+        - ironic-inspector-tox-codespell:
+            voting: false
     gate:
       jobs:
         - ironic-inspector-tox-unit-with-sqlalchemy-2x
