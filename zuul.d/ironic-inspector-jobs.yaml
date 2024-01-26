@@ -173,6 +173,8 @@
           CIRROS_VERSION: 0.6.1
           MYSQL_GATHER_PERFORMANCE: False
           INSTANCE_WAIT: 120
+          IRONIC_INSPECTOR_ENFORCE_SCOPE: True
+          IRONIC_ENFORCE_SCOPE: True
         old:
           IRONIC_VM_LOG_DIR: '{{ devstack_bases.old }}/ironic-bm-logs'
       grenade_localrc:
