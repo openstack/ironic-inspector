@@ -8,7 +8,7 @@ fixes:
     as the Inspector service is considered an "admin-only" service.
 
     Also in alignment with overall community position changes, where the
-    ``admin`` role is sufficent without an explicit ``system`` scope. To
+    ``admin`` role is sufficient without an explicit ``system`` scope. To
     help ensure a high level of security, explicit testing was also added
     for the ``manager`` role, which is unavailable as that role is reserved
     for administrative functions inside of a tenant's project.

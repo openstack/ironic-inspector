@@ -22,7 +22,7 @@ deprecations:
   - |
     Plugin maintainers should be aware that the Node Cache object field
     ``version_id`` filed is no longer in use. It is still returned
-    by the data model if stored for the purposes of compatability, but
+    by the data model if stored for the purposes of compatibility, but
     Inspector will not update the field through the normal course of it's
     operation.
 other:

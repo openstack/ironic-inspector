@@ -53,7 +53,7 @@ class GenericLocalLinkConnectionHook(base.ProcessingHook):
         except TypeError:
             LOG.warning("TLV value for TLV type %d not in correct"
                         "format, ensure TLV value is in "
-                        "hexidecimal format when sent to "
+                        "hexadecimal format when sent to "
                         "inspector", tlv_type, node_info=node_info)
             return
 

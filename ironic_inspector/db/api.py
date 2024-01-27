@@ -487,7 +487,7 @@ def get_rules_conditions(**fields):
     :returns: list of conditions
     """
     # NOTE(TheJulia): This appears to exist largely to help unit
-    #                 testing of rules funcitonality.
+    #                 testing of rules functionality.
     with session_for_read() as session:
         query = session.query(
             model.RuleCondition
@@ -510,7 +510,7 @@ def get_rules_actions(**fields):
     :returns: list of actions
     """
     # NOTE(TheJulia): This appears to exist largely to help unit
-    #                 testing of rules funcitonality.
+    #                 testing of rules functionality.
     with session_for_read() as session:
         query = session.query(
             model.RuleAction

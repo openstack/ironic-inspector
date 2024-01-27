@@ -579,7 +579,7 @@ class TestAbort(BaseTest):
 
         self.assertEqual(0, self.sync_filter_mock.call_count)
         self.assertEqual(0, cli.set_node_power_state.call_count)
-        self.assertEqual(0, self.node_info.finshed.call_count)
+        self.assertEqual(0, self.node_info.finished.call_count)
         self.assertEqual(0, self.node_info.fsm_event.call_count)
 
     def test_firewall_update_exception(self, client_mock, get_mock):

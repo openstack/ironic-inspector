@@ -266,7 +266,7 @@ def init_enforcer(policy_file=None, rules=None,
         default_rule=default_rule,
         use_conf=use_conf)
 
-    # NOTE(gmann): Explictly disable the warnings for policies
+    # NOTE(gmann): Explicitly disable the warnings for policies
     # changing their default check_str. With new RBAC policy
     # work, all the policy defaults have been changed and warning for
     # each policy started filling the logs limit for various tool.
