@@ -30,7 +30,6 @@ from oslo_config import cfg
 from oslo_config import fixture as config_fixture
 from oslo_utils import timeutils
 from oslo_utils import uuidutils
-import pytz
 import requests
 
 from ironic_inspector.cmd import all as inspector_cmd
@@ -234,7 +233,7 @@ class Base(base.NodeTest):
         # CI Runs in UTC, local machines can fail on the use of the local
         # timezone.
         curr_time = datetime.datetime.fromtimestamp(
-            time.time(), tz=pytz.timezone('UTC'))
+            time.time(), tz=datetime.timezone.utc)
         started_at = timeutils.parse_isotime(status['started_at'])
         self.assertLess(started_at, curr_time)
         if finished:

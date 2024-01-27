@@ -23,7 +23,6 @@ from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 from oslo_middleware import healthcheck as healthcheck_middleware
-import pytz
 import webob
 
 from ironic_inspector.common.i18n import _
@@ -329,7 +328,7 @@ def get_inventory(data, node_info=None):
     return inventory
 
 
-def iso_timestamp(timestamp=None, tz=pytz.timezone('utc')):
+def iso_timestamp(timestamp=None, tz=datetime.timezone.utc):
     """Return an ISO8601-formatted timestamp (tz: UTC) or None.
 
     :param timestamp: such as time.time() or None
