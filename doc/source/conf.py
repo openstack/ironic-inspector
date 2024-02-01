@@ -57,17 +57,6 @@ sample_config_basename = '_static/ironic-inspector'
 policy_generator_config_file = '../../tools/policy-generator.conf'
 sample_policy_basename = '_static/ironic-inspector'
 
-# The version info for the project you're documenting, acts as replacement for
-# |version| and |release|, also used in various other places throughout the
-# built documents.
-#
-# The short X.Y version.
-#from ironic import version as ironic_version
-# The full version, including alpha/beta/rc tags.
-#release = ironic_version.version_info.release_string()
-# The short X.Y version.
-#version = ironic_version.version_info.version_string()
-
 # A list of ignored prefixes for module index sorting.
 modindex_common_prefix = ['ironic.']
 
