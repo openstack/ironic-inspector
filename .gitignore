@@ -12,6 +12,10 @@ doc/source/_static/*.sample
 # release notes build
 releasenotes/build
 
+# generated config files
+example.conf
+policy.yaml.sample
+
 # Packages/installer info
 *.egg
 *.egg-info
