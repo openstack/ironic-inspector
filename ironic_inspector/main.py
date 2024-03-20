@@ -17,6 +17,7 @@ import random
 import re
 
 import flask
+import microversion_parse as mvp
 from oslo_utils import strutils
 from oslo_utils import uuidutils
 from werkzeug.middleware import proxy_fix
@@ -34,6 +35,7 @@ from ironic_inspector import node_cache
 from ironic_inspector import process
 from ironic_inspector import rules
 from ironic_inspector import utils
+
 
 CONF = ironic_inspector.conf.CONF
 
@@ -118,11 +120,16 @@ def _get_version():
     ver = flask.request.headers.get(conf_opts.VERSION_HEADER,
                                     _DEFAULT_API_VERSION)
     try:
-        if ver.lower() == 'latest':
-            requested = CURRENT_API_VERSION
-        else:
-            requested = tuple(int(x) for x in ver.split('.'))
-    except (ValueError, TypeError):
+        requested = _DEFAULT_API_VERSION
+        if ver:
+            if ver.lower() == 'latest':
+                requested = CURRENT_API_VERSION
+            else:
+                requested = mvp.parse_version_string(ver)
+
+            if len(requested) != 2:
+                raise ValueError
+    except (ValueError, TypeError, AttributeError):
         return error_response(_('Malformed API version: expected string '
                                 'in form of X.Y or latest'), code=400)
     return requested
