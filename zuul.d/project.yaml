@@ -7,7 +7,6 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-tox-unit-with-sqlalchemy-2x
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
@@ -20,7 +19,6 @@
             voting: false
     gate:
       jobs:
-        - ironic-inspector-tox-unit-with-sqlalchemy-2x
         - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
