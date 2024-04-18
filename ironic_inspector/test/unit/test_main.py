@@ -763,6 +763,11 @@ class TestApiVersions(BaseAPITest):
                    main._format_version(main.CURRENT_API_VERSION)}
         self._check_version_present(self.app.get('/', headers=headers))
 
+    def test_request_correct_version_with_standard_singular_header(self):
+        headers = {'OpenStack-API-Version': 'baremetal-introspection %s' %
+                   main._format_version(main.CURRENT_API_VERSION)}
+        self._check_version_present(self.app.get('/', headers=headers))
+
     def test_request_unsupported_version(self):
         bad_version = (main.CURRENT_API_VERSION[0],
                        main.CURRENT_API_VERSION[1] + 1)
@@ -778,6 +783,12 @@ class TestApiVersions(BaseAPITest):
 
     def test_request_latest_version(self):
         headers = {conf_opts.VERSION_HEADER: 'latest'}
+        res = self.app.get('/', headers=headers)
+        self.assertEqual(200, res.status_code)
+        self._check_version_present(res)
+
+    def test_request_latest_version_with_standard_singular_header(self):
+        headers = {'OpenStack-API-Version': 'baremetal-introspection latest'}
         res = self.app.get('/', headers=headers)
         self.assertEqual(200, res.status_code)
         self._check_version_present(res)

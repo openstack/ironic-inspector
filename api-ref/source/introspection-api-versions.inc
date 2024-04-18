@@ -12,14 +12,20 @@ Inspector API supports versioning. There are two kinds of versions:
 
 - ``major versions``, which have dedicated urls.
 - ``microversions``, which can be requested through the use of the
-  ``X-OpenStack-Ironic-Inspector-API-Version`` header.
+  ``X-OpenStack-Ironic-Inspector-API-Version`` header or
+  the new standard singular header
+  ``OpenStack-API-Version: baremetal-introspection <version>``.
 
 The Version APIs work differently from other APIs as they *do not* require
 authentication.
 
-All API requests support the ``X-OpenStack-Ironic-Inspector-API-Version``
-header.  This header SHOULD be supplied with every request; in the absence of
-this header, server will default to current supported version in all responses.
+All API requests support the new standard singular header
+``OpenStack-API-Version: baremetal-introspection <version>`` and the legacy
+``X-OpenStack-Ironic-Inspector-API-Version`` header.
+
+Either of these headers SHOULD be supplied with every request; in the absence
+of both headers, server will default to current supported version in all
+responses.
 
 List API versions
 =================
