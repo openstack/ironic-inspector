@@ -9,14 +9,16 @@
       - ^.*\.rst$
       - ^api-ref/.*$
       - ^doc/.*$
-      - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic/tests/.*$
       - ^ironic_inspector/locale/.*$
+      - ^ironic_inspector/test/.*$
       - ^releasenotes/.*$
       - ^tools/.*$
       - ^test-requirements.txt$
       - ^setup.cfg$
       - ^tox.ini$
+      - regex: ^ironic_inspector/test/.*tempest.*$
+        negate: true
     vars:
       tox_envlist: all
       tempest_test_regex: Inspector
@@ -99,13 +101,17 @@
       - ^.*\.rst$
       - ^api-ref/.*$
       - ^doc/.*$
-      - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
+      - ^ironic_inspector/test/.*$
       - ^releasenotes/.*$
-      - ^tools/(?!bandit\.yml).*$
       - ^test-requirements.txt$
       - ^setup.cfg$
       - ^tox.ini$
+      - ^tools/.*$
+      - regex: ^tools/bandit\.yml$
+        negate: true
+      - regex: ^ironic_inspector/test/.*tempest.*$
+        negate: true
 
 - job:
     name: ironic-inspector-grenade
@@ -200,12 +206,14 @@
       - ^.*\.rst$
       - ^api-ref/.*$
       - ^doc/.*$
-      - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
+      - ^ironic_inspector/test/.*$
       - ^releasenotes/.*$
       - ^setup.cfg$
       - ^tools/.*$
       - ^tox.ini$
+      - regex: ^ironic_inspector/test/.*tempest.*$
+        negate: true
 
 - job:
     name: ironic-inspector-tempest-managed
