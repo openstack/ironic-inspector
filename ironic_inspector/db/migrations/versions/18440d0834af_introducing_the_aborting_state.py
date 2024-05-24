@@ -55,5 +55,5 @@ def upgrade():
     # redundant at this point. For what it is worth, while
     # batch_alter_table *does* include an option to prevent
     # recration, column widths cannot be modified dynamically with
-    # sqllite, which results in a different exception if attempted.
+    # sqlite, which results in a different exception if attempted.
     pass
