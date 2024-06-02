@@ -401,7 +401,8 @@ class TestSync(DnsmasqTestBase):
         self.mock_ironic = mock.Mock()
         self.mock_utcnow = self.useFixture(
             fixtures.MockPatchObject(dnsmasq.timeutils, 'utcnow')).mock
-        self.timestamp_start = datetime.datetime.utcnow()
+        self.timestamp_start = datetime.datetime.now(
+            datetime.timezone.utc).replace(tzinfo=None)
         self.timestamp_end = (self.timestamp_start +
                               datetime.timedelta(seconds=42))
         self.mock_utcnow.side_effect = [self.timestamp_start,

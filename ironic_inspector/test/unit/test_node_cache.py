@@ -52,9 +52,9 @@ class TestNodeCache(test_base.NodeTestBase):
                                    foo=None)
         self.assertEqual(self.uuid, node.uuid)
         self.assertTrue(
-            (datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            (timeutils.utcnow() - datetime.timedelta(seconds=60)
              < node.started_at <
-             datetime.datetime.utcnow() + datetime.timedelta(seconds=60)))
+             timeutils.utcnow() + datetime.timedelta(seconds=60)))
         self.assertFalse(node._node_lock.is_locked())
 
         res = set((r.uuid, r.started_at) for r in db.get_nodes())
@@ -193,9 +193,9 @@ class TestNodeCacheFind(test_base.NodeTestBase):
         self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(
-            datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            timeutils.utcnow() - datetime.timedelta(seconds=60)
             < res.started_at <
-            datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
+            timeutils.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._node_lock.is_locked())
 
     def test_same_bmc_different_macs(self):
@@ -224,9 +224,9 @@ class TestNodeCacheFind(test_base.NodeTestBase):
         self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(
-            datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            timeutils.utcnow() - datetime.timedelta(seconds=60)
             < res.started_at <
-            datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
+            timeutils.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._node_lock.is_locked())
 
     def test_macs_not_found(self):
@@ -247,9 +247,9 @@ class TestNodeCacheFind(test_base.NodeTestBase):
         self.addCleanup(res.release_lock)
         self.assertEqual(self.uuid, res.uuid)
         self.assertTrue(
-            datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            timeutils.utcnow() - datetime.timedelta(seconds=60)
             < res.started_at <
-            datetime.datetime.utcnow() + datetime.timedelta(seconds=1))
+            timeutils.utcnow() + datetime.timedelta(seconds=1))
         self.assertTrue(res._node_lock.is_locked())
 
     def test_inconsistency(self):
@@ -258,8 +258,7 @@ class TestNodeCacheFind(test_base.NodeTestBase):
                           bmc_address='1.2.3.4')
 
     def test_already_finished(self):
-        db.update_node(self.uuid,
-                       finished_at=datetime.datetime.utcnow())
+        db.update_node(self.uuid, finished_at=timeutils.utcnow())
         self.assertRaises(utils.Error, node_cache.find_node,
                           bmc_address='1.2.3.4')
 
@@ -272,7 +271,7 @@ class TestNodeCacheFind(test_base.NodeTestBase):
 class TestNodeCacheCleanUp(test_base.NodeTestBase):
     def setUp(self):
         super(TestNodeCacheCleanUp, self).setUp()
-        self.started_at = datetime.datetime.utcnow()
+        self.started_at = timeutils.utcnow()
         db.create_node(uuid=self.uuid,
                        state=istate.States.waiting,
                        started_at=self.started_at)
@@ -297,7 +296,8 @@ class TestNodeCacheCleanUp(test_base.NodeTestBase):
     @mock.patch.object(locking, 'get_lock', autospec=True)
     @mock.patch.object(timeutils, 'utcnow', autospec=True)
     def test_ok(self, time_mock, get_lock_mock):
-        time_mock.return_value = datetime.datetime.utcnow()
+        time_mock.return_value = datetime.datetime.now(
+            datetime.timezone.utc).replace(tzinfo=None)
 
         self.assertFalse(node_cache.clean_up())
 
@@ -377,7 +377,7 @@ class TestNodeCacheCleanUp(test_base.NodeTestBase):
 
 class TestNodeCacheGetNode(test_base.NodeTestBase):
     def test_ok(self):
-        started_at = (datetime.datetime.utcnow() -
+        started_at = (timeutils.utcnow() -
                       datetime.timedelta(seconds=42))
         db.create_node(uuid=self.uuid,
                        state=istate.States.starting,
@@ -395,7 +395,7 @@ class TestNodeCacheGetNode(test_base.NodeTestBase):
                           uuidutils.generate_uuid())
 
     def test_with_name(self):
-        started_at = (datetime.datetime.utcnow() -
+        started_at = (timeutils.utcnow() -
                       datetime.timedelta(seconds=42))
         db.create_node(
             uuid=self.uuid,

@@ -37,6 +37,7 @@ from oslo_db.sqlalchemy import test_fixtures
 from oslo_db.sqlalchemy import test_migrations
 from oslo_db.sqlalchemy import utils as db_utils
 from oslo_log import log as logging
+from oslo_utils import timeutils
 from oslo_utils import uuidutils
 from oslotest import base as test_base
 import sqlalchemy
@@ -382,7 +383,7 @@ class MigrationCheckersMixin(object):
         with engine.begin() as connection:
             node = {
                 'uuid': self.node_uuid,
-                'started_at': datetime.datetime.utcnow(),
+                'started_at': timeutils.utcnow(),
                 'finished_at': None,
                 'error': None,
                 'state': istate.States.starting
