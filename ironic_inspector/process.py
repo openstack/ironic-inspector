@@ -14,7 +14,6 @@
 """Handling introspection data from the ramdisk."""
 
 import copy
-import datetime
 import os
 
 from oslo_config import cfg
@@ -56,7 +55,7 @@ def _store_logs(introspection_data, node_info):
         'uuid': node_info.uuid if node_info is not None else 'unknown',
         'mac': (utils.get_pxe_mac(introspection_data) or
                 'unknown').replace(':', ''),
-        'dt': datetime.datetime.utcnow(),
+        'dt': timeutils.utcnow(),
         'bmc': (utils.get_ipmi_address_from_data(introspection_data) or
                 'unknown')
     }
