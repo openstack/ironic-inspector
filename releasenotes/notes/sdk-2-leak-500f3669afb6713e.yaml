@@ -1,0 +1,5 @@
+---
+fixes:
+  - |
+    Fixes memory leak with openstacksdk 2.0 and newer. This version requires
+    connections to be explicitly closed, otherwise they stay in memory forever.

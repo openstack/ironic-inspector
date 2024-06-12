@@ -18,6 +18,7 @@ import netaddr
 import openstack
 from openstack import exceptions as os_exc
 from oslo_config import cfg
+from oslo_utils import excutils
 import tenacity
 
 from ironic_inspector.common.i18n import _
@@ -35,6 +36,7 @@ VALID_STATES = frozenset(['enroll', 'manageable', 'inspecting', 'inspect wait',
 VALID_ACTIVE_STATES = frozenset(['active', 'rescue'])
 
 _IRONIC_SESSION = None
+_CONNECTION = None
 
 
 class NotFound(utils.Error):
@@ -55,15 +57,29 @@ def _get_ironic_session():
 
 def get_client(token=None):
     """Get an ironic client connection."""
-    session = _get_ironic_session()
+    global _CONNECTION
+
+    if _CONNECTION is None:
+        try:
+            session = _get_ironic_session()
+            _CONNECTION = openstack.connection.Connection(
+                session=session, oslo_conf=CONF)
+        except Exception as exc:
+            LOG.error('Failed to create an openstack connection: %s', exc)
+            raise
 
     try:
-        return openstack.connection.Connection(
-            session=session, oslo_conf=CONF).baremetal
+        return _CONNECTION.baremetal
     except Exception as exc:
-        LOG.error('Failed to establish a connection with ironic, '
-                  'reason: %s', exc)
-        raise
+        with excutils.save_and_reraise_exception():
+            LOG.error('Failed to connect to Ironic: %s', exc)
+            # Force creating a new connection on the next retry
+            try:
+                _CONNECTION.close()
+            except Exception as exc2:
+                LOG.error('Unable to close an openstack connection, '
+                          'a memory leak is possible. Error: %s', exc2)
+            _CONNECTION = None
 
 
 def reset_ironic_session():
@@ -71,8 +87,8 @@ def reset_ironic_session():
 
     Mostly useful for unit tests.
     """
-    global _IRONIC_SESSION
-    _IRONIC_SESSION = None
+    global _IRONIC_SESSION, _CONNECTION
+    _CONNECTION = _IRONIC_SESSION = None
 
 
 def get_ipmi_address(node):

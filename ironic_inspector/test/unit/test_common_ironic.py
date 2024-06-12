@@ -32,8 +32,12 @@ class TestGetClientBase(base.BaseTest):
         ir_utils.reset_ironic_session()
 
     def test_get_client(self, mock_connection, mock_session):
-        ir_utils.get_client()
-        self.assertEqual(1, mock_session.call_count)
+        for i in range(3):
+            cli = ir_utils.get_client()
+            self.assertIs(mock_connection.return_value.baremetal, cli)
+        mock_session.assert_called_once_with('ironic')
+        mock_connection.assert_called_once_with(
+            session=mock_session.return_value, oslo_conf=ir_utils.CONF)
 
 
 class TestGetIpmiAddress(base.BaseTest):
