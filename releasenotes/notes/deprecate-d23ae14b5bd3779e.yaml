@@ -1,0 +1,8 @@
+---
+deprecations:
+  - |
+    This project is now in the maintenance mode and new deployments of it are
+    discouraged. Please use `built-in in-band inspection in ironic
+    <https://docs.openstack.org/ironic/latest/admin/inspection/index.html>`_
+    instead. For existing deployments, see the `migration guide
+    <https://docs.openstack.org/ironic/latest/admin/inspection/migration.html>`_.
