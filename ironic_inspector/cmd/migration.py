@@ -71,11 +71,21 @@ class MigrationTool(object):
                 return RESULT_NOCONTENT
             self.ext_tgt.save(node.uuid, data, processed=processed)
         except Exception as e:
-            LOG.error('Migrate introspection data failed for node '
-                      '%(node)s (processed %(processed)s), error: '
-                      '%(error)s', {'node': node.uuid, 'processed': processed,
-                                    'error': e})
-            return RESULT_FAILED
+            try:
+                already_migrated = self.ext_tgt.get(node.uuid,
+                                                    processed=processed,
+                                                    get_json=True)
+            except Exception:
+                already_migrated = False
+            if not already_migrated:
+                # If we already have data on the target, there is nothing
+                # for us to do here.
+                LOG.error('Migrate introspection data failed for node '
+                          '%(node)s (processed %(processed)s), error: '
+                          '%(error)s', {'node': node.uuid,
+                                        'processed': processed,
+                                        'error': e})
+                return RESULT_FAILED
 
         return RESULT_SUCCESS
 
