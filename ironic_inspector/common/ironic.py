@@ -137,11 +137,8 @@ def get_ipmi_address(node):
                 elif family == socket.AF_INET6:
                     ipv6 = ip
         except socket.gaierror:
-            msg = _('Failed to resolve the hostname (%(value)s)'
-                    ' for node %(uuid)s')
-            raise utils.Error(msg % {'value': value,
-                                     'uuid': node.id},
-                              node_info=node)
+            LOG.warning('Failed to resolve the hostname (%s)'
+                        ' for node %s', value, node.id, node_info=node)
 
         return (value, ipv4, ipv6) if ipv4 or ipv6 else none_address
     return none_address

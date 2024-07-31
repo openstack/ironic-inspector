@@ -1,0 +1,7 @@
+---
+fixes:
+  - |
+    No longer throws an exception if an address of some node cannot be
+    resolved, but just logs a warning instead. This fixes the issue that
+    if an address of any other node is not resolvable, no new node can be
+    registered, even if its own address is resolvable.

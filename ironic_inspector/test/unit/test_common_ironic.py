@@ -71,14 +71,6 @@ class TestGetIpmiAddress(base.BaseTest):
         mock_socket.assert_called_once_with(self.ipmi_address, None, 0, 0,
                                             socket.SOL_TCP)
 
-    @mock.patch('socket.getaddrinfo', autospec=True)
-    def test_bad_hostname_errors(self, mock_socket):
-        node = mock.Mock(spec=['driver_info', 'uuid'],
-                         driver_info={'ipmi_address': 'meow'},
-                         id='uuid1')
-        mock_socket.side_effect = socket.gaierror('Boom')
-        self.assertRaises(utils.Error, ir_utils.get_ipmi_address, node)
-
     def test_additional_fields(self):
         node = mock.Mock(spec=['driver_info', 'uuid'],
                          driver_info={'foo': self.ipmi_ipv4})
