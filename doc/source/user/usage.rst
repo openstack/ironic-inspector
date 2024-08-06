@@ -427,8 +427,9 @@ Boot mode
 
 The current boot mode (BIOS or UEFI) can be detected and recorded as
 ``boot_mode`` capability in Ironic. It will make some drivers to change their
-behaviour to account for this capability. Set the ``[capabilities]boot_mode``
-configuration option to ``True`` to enable.
+behaviour to account for this capability.
+Set the :oslo.config:option:`capabilities.boot_mode` configuration option to
+``True`` to enable.
 
 CPU capabilities
 ^^^^^^^^^^^^^^^^
@@ -447,8 +448,8 @@ capabilities:
 * ``cpu_hugepages_1g`` huge pages (1 GiB) support.
 
 It is possible to define your own rules for detecting CPU capabilities.
-Set the ``[capabilities]cpu_flags`` configuration option to a mapping between
-a CPU flag and a capability, for example::
+Set the :oslo.config:option:`capabilities.cpu_flags` configuration option
+to a mapping between a CPU flag and a capability, for example::
 
     cpu_flags = aes:cpu_aes,svm:cpu_vt,vmx:cpu_vt
 
