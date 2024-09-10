@@ -489,6 +489,8 @@ function prepare_environment {
             --dport 69 -j ACCEPT
         sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp \
             --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
+        sudo iptables -I INPUT -i $PUBLIC_BRIDGE -p tcp \
+            --dport $IRONIC_INSPECTOR_PORT -j ACCEPT
 
         if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
             sudo iptables -I INPUT -i $IRONIC_INSPECTOR_INTERFACE -p tcp --dport 80 -j ACCEPT
