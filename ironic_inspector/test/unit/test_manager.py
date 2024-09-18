@@ -269,16 +269,16 @@ class TestManagerDelHost(BaseManagerTest):
         self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
 
-    @mock.patch.object(coordination, 'get_coordinator', autospec=True)
-    def test_del_host_with_coordinator(self, mock_get_coord):
-        CONF.set_override('standalone', False)
+    def test_del_host_with_coordinator(self):
         mock_coordinator = mock.Mock(spec=coordination.Coordinator)
         mock_coordinator.started = True
-        mock_get_coord.return_value = mock_coordinator
+        self.manager.coordinator = mock_coordinator
 
         self.manager.del_host()
 
         self.assertIsNone(self.manager._zeroconf)
+        mock_coordinator.leave_group.assert_called_once_with()
+        mock_coordinator.stop.assert_called_once_with()
         self.mock__shutting_down.acquire.assert_called_once_with(
             blocking=False)
         self.mock__periodic_worker.stop.assert_called_once_with()
@@ -287,7 +287,6 @@ class TestManagerDelHost(BaseManagerTest):
         self.mock_executor.shutdown.assert_called_once_with(wait=True)
         self.mock_filter.tear_down_filter.assert_called_once_with()
         self.mock__shutting_down.release.assert_called_once_with()
-        mock_coordinator.stop.called_once_with()
 
 
 class TestManagerIntrospect(BaseManagerTest):
