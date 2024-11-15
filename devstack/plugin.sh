@@ -15,7 +15,6 @@ IRONIC_INSPECTOR_CMD_CONDUCTOR="$IRONIC_INSPECTOR_BIN_FILE_CONDUCTOR --config-fi
 IRONIC_INSPECTOR_DHCP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/dnsmasq.conf
 IRONIC_INSPECTOR_ROOTWRAP_CONF_FILE=$IRONIC_INSPECTOR_CONF_DIR/rootwrap.conf
 IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
-IRONIC_INSPECTOR_AUTH_CACHE_DIR=${IRONIC_INSPECTOR_AUTH_CACHE_DIR:-/var/cache/ironic-inspector}
 IRONIC_INSPECTOR_DHCP_FILTER=${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}
 IRONIC_INSPECTOR_STANDALONE=${IRONIC_INSPECTOR_STANDALONE:-True}
 # Support entry points installation of console scripts
@@ -337,7 +336,7 @@ function configure_inspector {
     inspector_iniset DEFAULT standalone $IRONIC_INSPECTOR_STANDALONE
     inspector_configure_auth_for ironic
     inspector_configure_auth_for service_catalog
-    configure_auth_token_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
+    configure_keystone_authtoken_middleware $IRONIC_INSPECTOR_CONF_FILE $IRONIC_INSPECTOR_ADMIN_USER
 
     inspector_iniset DEFAULT listen_port $IRONIC_INSPECTOR_PORT
 
@@ -470,8 +469,6 @@ EOF
 }
 
 function prepare_environment {
-    create_ironic_inspector_cache_dir
-
     if [[ "$IRONIC_INSPECTOR_MANAGED_BOOT" == "False" ]]; then
         prepare_tftp
 
@@ -501,15 +498,6 @@ function prepare_environment {
     fi
 }
 
-# create_ironic_inspector_cache_dir() - Part of the prepare_environment() process
-function create_ironic_inspector_cache_dir {
-    # Create cache dir
-    mkdir_chown_stack $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api
-    rm -f $IRONIC_INSPECTOR_AUTH_CACHE_DIR/api/*
-    mkdir_chown_stack $IRONIC_INSPECTOR_AUTH_CACHE_DIR/registry
-    rm -f $IRONIC_INSPECTOR_AUTH_CACHE_DIR/registry/*
-}
-
 function cleanup_inspector {
     if [[ "$IRONIC_IPXE_ENABLED" == "True" ]] ; then
         rm -f $IRONIC_HTTP_DIR/ironic-inspector.*
@@ -518,7 +506,6 @@ function cleanup_inspector {
         rm -f $IRONIC_TFTPBOOT_DIR/ironic-inspector.*
     fi
     sudo rm -f /etc/sudoers.d/ironic-inspector-rootwrap
-    sudo rm -rf $IRONIC_INSPECTOR_AUTH_CACHE_DIR
     sudo rm -rf "$IRONIC_INSPECTOR_RAMDISK_LOGDIR"
 
     if [[ "$IRONIC_INSPECTOR_STANDALONE" == "False" ]]; then
