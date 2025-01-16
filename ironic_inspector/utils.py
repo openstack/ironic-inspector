@@ -12,19 +12,25 @@
 # limitations under the License.
 
 import datetime
+import errno
+import ipaddress
 import logging as pylog
+import os
+import warnings
 
 import futurist
-from ironic_lib import auth_basic
-from ironic_lib import exception
 from keystonemiddleware import auth_token
 from openstack.baremetal.v1 import node
+from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log
 from oslo_middleware import cors as cors_middleware
 from oslo_middleware import healthcheck as healthcheck_middleware
+from oslo_utils import excutils
 import webob
 
+from ironic_inspector.common import auth_basic
+from ironic_inspector.common import exception
 from ironic_inspector.common.i18n import _
 from ironic_inspector import policy
 
@@ -339,3 +345,92 @@ def iso_timestamp(timestamp=None, tz=datetime.timezone.utc):
         return None
     date = datetime.datetime.fromtimestamp(timestamp, tz=tz)
     return date.isoformat()
+
+
+def execute(*cmd, use_standard_locale=False, log_stdout=True, **kwargs):
+    """Convenience wrapper around oslo's execute() method.
+
+    Executes and logs results from a system command. See docs for
+    oslo_concurrency.processutils.execute for usage.
+
+    :param cmd: positional arguments to pass to processutils.execute()
+    :param use_standard_locale: Defaults to False. If set to True,
+                                execute command with standard locale
+                                added to environment variables.
+    :param log_stdout: Defaults to True. If set to True, logs the output.
+    :param kwargs: keyword arguments to pass to processutils.execute()
+    :returns: (stdout, stderr) from process execution
+    :raises: UnknownArgumentError on receiving unknown arguments
+    :raises: ProcessExecutionError
+    :raises: OSError
+    """
+    if use_standard_locale:
+        env = kwargs.pop('env_variables', os.environ.copy())
+        env['LC_ALL'] = 'C'
+        kwargs['env_variables'] = env
+
+    if kwargs.pop('run_as_root', False):
+        warnings.warn("run_as_root is deprecated and has no effect",
+                      DeprecationWarning)
+
+    def _log(stdout, stderr):
+        if log_stdout:
+            try:
+                LOG.debug('Command stdout is: "%s"', stdout)
+            except UnicodeEncodeError:
+                LOG.debug('stdout contains invalid UTF-8 characters')
+                stdout = (stdout.encode('utf8', 'surrogateescape')
+                          .decode('utf8', 'ignore'))
+                LOG.debug('Command stdout is: "%s"', stdout)
+        try:
+            LOG.debug('Command stderr is: "%s"', stderr)
+        except UnicodeEncodeError:
+            LOG.debug('stderr contains invalid UTF-8 characters')
+            stderr = (stderr.encode('utf8', 'surrogateescape')
+                      .decode('utf8', 'ignore'))
+            LOG.debug('Command stderr is: "%s"', stderr)
+
+    try:
+        result = processutils.execute(*cmd, **kwargs)
+    except FileNotFoundError:
+        with excutils.save_and_reraise_exception():
+            LOG.debug('Command not found: "%s"', ' '.join(map(str, cmd)))
+    except processutils.ProcessExecutionError as exc:
+        with excutils.save_and_reraise_exception():
+            _log(exc.stdout, exc.stderr)
+    else:
+        _log(result[0], result[1])
+        return result
+
+
+def get_route_source(dest, ignore_link_local=True):
+    """Get the IP address to send packages to destination."""
+    try:
+        out, _err = execute('ip', 'route', 'get', dest)
+    except (EnvironmentError, processutils.ProcessExecutionError) as e:
+        LOG.warning('Cannot get route to host %(dest)s: %(err)s',
+                    {'dest': dest, 'err': e})
+        return
+
+    try:
+        source = out.strip().split('\n')[0].split('src')[1].split()[0]
+        if (ipaddress.ip_address(source).is_link_local
+                and ignore_link_local):
+            LOG.debug('Ignoring link-local source to %(dest)s: %(rec)s',
+                      {'dest': dest, 'rec': out})
+            return
+        return source
+    except (IndexError, ValueError):
+        LOG.debug('No route to host %(dest)s, route record: %(rec)s',
+                  {'dest': dest, 'rec': out})
+
+
+def unlink_without_raise(path):
+    try:
+        os.unlink(path)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return
+        else:
+            LOG.warning("Failed to unlink %(path)s, error: %(e)s",
+                        {'path': path, 'e': e})

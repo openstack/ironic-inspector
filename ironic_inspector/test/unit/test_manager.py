@@ -15,12 +15,12 @@ import json
 from unittest import mock
 
 import fixtures
-from ironic_lib import mdns
 import oslo_messaging as messaging
 import tooz
 
 from ironic_inspector.common import coordination
 from ironic_inspector.common import keystone
+from ironic_inspector.common import mdns
 from ironic_inspector.common import swift
 from ironic_inspector.conductor import manager
 import ironic_inspector.conf

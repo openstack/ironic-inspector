@@ -18,10 +18,12 @@ from ironic_inspector.conf import coordination
 from ironic_inspector.conf import default
 from ironic_inspector.conf import discovery
 from ironic_inspector.conf import dnsmasq_pxe_filter
+from ironic_inspector.conf import exception
 from ironic_inspector.conf import extra_hardware
 from ironic_inspector.conf import healthcheck
 from ironic_inspector.conf import iptables
 from ironic_inspector.conf import ironic
+from ironic_inspector.conf import mdns
 from ironic_inspector.conf import pci_devices
 from ironic_inspector.conf import port_physnet
 from ironic_inspector.conf import processing
@@ -39,10 +41,12 @@ coordination.register_opts(CONF)
 discovery.register_opts(CONF)
 default.register_opts(CONF)
 dnsmasq_pxe_filter.register_opts(CONF)
+exception.register_opts(CONF)
 extra_hardware.register_opts(CONF)
 healthcheck.register_opts(CONF)
 iptables.register_opts(CONF)
 ironic.register_opts(CONF)
+mdns.register_opts(CONF)
 pci_devices.register_opts(CONF)
 port_physnet.register_opts(CONF)
 processing.register_opts(CONF)

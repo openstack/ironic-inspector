@@ -16,7 +16,6 @@ import traceback as traceback_mod
 
 from eventlet import semaphore
 from futurist import periodics
-from ironic_lib import mdns
 from oslo_config import cfg
 from oslo_log import log
 import oslo_messaging as messaging
@@ -28,6 +27,7 @@ from ironic_inspector.common import coordination
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.common import keystone
+from ironic_inspector.common import mdns
 from ironic_inspector.db import api as dbapi
 from ironic_inspector import introspect
 from ironic_inspector import node_cache

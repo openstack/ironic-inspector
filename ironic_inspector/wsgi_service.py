@@ -12,13 +12,13 @@
 
 import socket
 
-from ironic_lib import utils as il_utils
 from oslo_config import cfg
 from oslo_log import log
 from oslo_service import service
 from oslo_service import wsgi
 
 from ironic_inspector import main
+from ironic_inspector import utils
 
 LOG = log.getLogger(__name__)
 CONF = cfg.CONF
@@ -30,7 +30,7 @@ class WSGIService(service.Service):
     def __init__(self):
         self.app = main.get_app()
         if CONF.listen_unix_socket:
-            il_utils.unlink_without_raise(CONF.listen_unix_socket)
+            utils.unlink_without_raise(CONF.listen_unix_socket)
             self.server = wsgi.Server(CONF, 'ironic_inspector',
                                       self.app,
                                       socket_family=socket.AF_UNIX,
@@ -58,7 +58,7 @@ class WSGIService(service.Service):
         """
         self.server.stop()
         if CONF.listen_unix_socket:
-            il_utils.unlink_without_raise(CONF.listen_unix_socket)
+            utils.unlink_without_raise(CONF.listen_unix_socket)
 
     def wait(self):
         """Wait for the service to stop serving this API.

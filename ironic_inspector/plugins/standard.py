@@ -13,13 +13,13 @@
 
 """Standard set of plugins."""
 
-from ironic_lib import utils as il_utils
 import netaddr
 from oslo_config import cfg
 from oslo_utils import netutils
 from oslo_utils import units
 
 
+from ironic_inspector.common import device_hints
 from ironic_inspector.common.i18n import _
 from ironic_inspector.common import ironic as ir_utils
 from ironic_inspector.plugins import base
@@ -43,7 +43,8 @@ class RootDiskSelectionHook(base.ProcessingHook):
             return
         skip_list = set()
         for hint in skip_list_hints:
-            found_devs = il_utils.find_devices_by_hints(block_devices, hint)
+            found_devs = device_hints.find_devices_by_hints(
+                block_devices, hint)
             excluded_devs = {dev['name'] for dev in found_devs}
             skipped_devices = excluded_devs.difference(skip_list)
             skip_list = skip_list.union(excluded_devs)
@@ -67,8 +68,8 @@ class RootDiskSelectionHook(base.ProcessingHook):
             inventory['disks'] = [d for d in inventory['disks']
                                   if d['name'] not in skip_list]
         try:
-            device = il_utils.match_root_device_hints(inventory['disks'],
-                                                      hints)
+            device = device_hints.match_root_device_hints(inventory['disks'],
+                                                          hints)
         except (TypeError, ValueError) as e:
             raise utils.Error(
                 _('No disks could be found using the root device hints '
