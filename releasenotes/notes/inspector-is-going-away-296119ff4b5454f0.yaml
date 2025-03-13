@@ -1,0 +1,6 @@
+deprecations:
+  - |
+    The indepedent Ironic Inspector project and service, has been in
+    maintenance mode since 2024. All inspection functionality has been
+    enhanced and moved into Ironic. Deployers should not expect further
+    releases of an independent ironic-inspector service.
