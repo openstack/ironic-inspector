@@ -5,7 +5,6 @@ IRONIC_INSPECTOR_DIR=$DEST/ironic-inspector
 IRONIC_INSPECTOR_DATA_DIR=$DATA_DIR/ironic-inspector
 IRONIC_INSPECTOR_BIN_DIR=$(get_python_exec_prefix)
 IRONIC_INSPECTOR_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector
-IRONIC_INSPECTOR_BIN_FILE_API=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-api-wsgi
 IRONIC_INSPECTOR_BIN_FILE_CONDUCTOR=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-conductor
 IRONIC_INSPECTOR_DBSYNC_BIN_FILE=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-dbsync
 IRONIC_INSPECTOR_CONF_DIR=${IRONIC_INSPECTOR_CONF_DIR:-/etc/ironic-inspector}
@@ -18,7 +17,7 @@ IRONIC_INSPECTOR_ADMIN_USER=${IRONIC_INSPECTOR_ADMIN_USER:-ironic-inspector}
 IRONIC_INSPECTOR_DHCP_FILTER=${IRONIC_INSPECTOR_DHCP_FILTER:-iptables}
 IRONIC_INSPECTOR_STANDALONE=${IRONIC_INSPECTOR_STANDALONE:-True}
 # Support entry points installation of console scripts
-IRONIC_INSPECTOR_UWSGI=$IRONIC_INSPECTOR_BIN_DIR/ironic-inspector-api-wsgi
+IRONIC_INSPECTOR_UWSGI=${IRONIC_INSPECTOR_UWSGI:-ironic_inspector.wsgi:application}
 IRONIC_INSPECTOR_UWSGI_CONF=$IRONIC_INSPECTOR_CONF_DIR/ironic-inspector-uwsgi.ini
 
 # Determine if ironic is in enforce scope node, infer that to mean our operating mode
