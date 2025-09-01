@@ -154,6 +154,10 @@
           INSTANCE_WAIT: 120
           IRONIC_INSPECTOR_ENFORCE_SCOPE: True
           IRONIC_ENFORCE_SCOPE: True
+          NEUTRON_ENDPOINT_SERVICE_NAME: networking
+          # This option is being removed in 2025.2 devstack,
+          # but is applicable for 2025.1.
+          NEUTRON_DEPLOY_MOD_WSGI: True
         old:
           IRONIC_VM_LOG_DIR: '{{ devstack_bases.old }}/ironic-bm-logs'
       grenade_localrc:
