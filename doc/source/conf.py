@@ -118,6 +118,7 @@ apidoc_output_dir = 'contributor/api'
 apidoc_excluded_paths = [
     'migrations',
     'test',
-    'common/i18n*'
+    'common/i18n*',
+    'wsgi/__init__.py',
 ]
 apidoc_separate_modules = True
