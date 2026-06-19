@@ -9,7 +9,6 @@
       - ^.*\.rst$
       - ^api-ref/.*$
       - ^doc/.*$
-      - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic/tests/.*$
       - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
@@ -99,10 +98,8 @@
       - ^.*\.rst$
       - ^api-ref/.*$
       - ^doc/.*$
-      - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
-      - ^tools/(?!bandit\.yml).*$
       - ^test-requirements.txt$
       - ^setup.cfg$
       - ^tox.ini$
@@ -193,7 +190,6 @@
       - ^.*\.rst$
       - ^api-ref/.*$
       - ^doc/.*$
-      - ^ironic_inspector/test/(?!.*tempest).*$
       - ^ironic_inspector/locale/.*$
       - ^releasenotes/.*$
       - ^setup.cfg$

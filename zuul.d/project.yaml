@@ -4,10 +4,8 @@
       - openstack-cover-jobs
       - openstack-python3-jobs
       - publish-openstack-docs-pti
-      - release-notes-jobs-python3
     check:
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         #NOTE(rpittau): temporary non-voting for bugfix release
@@ -21,7 +19,6 @@
             voting: false
     gate:
       jobs:
-        - ironic-inspector-grenade
         - ironic-inspector-tempest
         - ironic-inspector-tempest-discovery
         - openstack-tox-functional
